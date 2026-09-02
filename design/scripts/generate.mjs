@@ -1,0 +1,81 @@
+// Генератор артефактов дизайн-токенов (М1.1, задача DS-001).
+// Читает design/tokens/*.json → пишет design/tokens/generated/{tokens.css, app_tokens.dart}.
+// Запуск: node design/scripts/generate.mjs
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const designRoot = join(__dirname, '..');
+const tokensDir = join(designRoot, 'tokens');
+const outDir = join(tokensDir, 'generated');
+
+const colors = JSON.parse(readFileSync(join(tokensDir, 'colors.json'), 'utf8')).colors;
+const typography = JSON.parse(readFileSync(join(tokensDir, 'typography.json'), 'utf8')).typography;
+const spacing = JSON.parse(readFileSync(join(tokensDir, 'spacing.json'), 'utf8')).spacing;
+const shadows = JSON.parse(readFileSync(join(tokensDir, 'shadows.json'), 'utf8')).shadows;
+const radius = JSON.parse(readFileSync(join(tokensDir, 'borderRadius.json'), 'utf8')).borderRadius;
+
+mkdirSync(outDir, { recursive: true });
+
+// ---------- CSS ----------
+const cssLines = [':root {', '  /* Цвета (design/tokens/colors.json) */'];
+for (const [group, shades] of Object.entries(colors)) {
+  for (const [shade, hex] of Object.entries(shades)) {
+    cssLines.push(`  --color-${group}-${shade}: ${hex};`);
+  }
+}
+cssLines.push('', '  /* Типографика */', `  --font-sans: ${typography.fontFamily.sans};`, `  --font-mono: ${typography.fontFamily.mono};`);
+for (const [size, px] of Object.entries(typography.sizes)) cssLines.push(`  --text-${size}: ${px};`);
+for (const [weight, val] of Object.entries(typography.weights)) cssLines.push(`  --font-weight-${weight}: ${val};`);
+for (const [lh, px] of Object.entries(typography.lineHeights)) cssLines.push(`  --leading-${lh}: ${px};`);
+cssLines.push('', '  /* Отступы (база 4px) */', `  --spacing-base: ${spacing.base}px;`);
+for (const [step, px] of Object.entries(spacing.scale)) cssLines.push(`  --spacing-${step}: ${px}px;`);
+cssLines.push('', '  /* Тени (4 уровня) */');
+for (const [level, s] of Object.entries(shadows.levels)) {
+  cssLines.push(`  --shadow-${level}: ${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.spread}px ${s.color};`);
+}
+cssLines.push('', '  /* Скругления */');
+for (const [level, px] of Object.entries(radius.levels)) cssLines.push(`  --radius-${level}: ${px}px;`);
+cssLines.push('}');
+writeFileSync(join(outDir, 'tokens.css'), cssLines.join('\n') + '\n', 'utf8');
+
+// ---------- Dart (Flutter) ----------
+const hexToInt = (hex) => `0xFF${hex.slice(1).toUpperCase()}`;
+const dart = [];
+dart.push('// Сгенерировано автоматически: node design/scripts/generate.mjs. Не редактировать вручную.');
+dart.push('/// Дизайн-токены Cleaning Ops (источник: design/tokens/*.json).');
+dart.push('/// Цвета — как int (используйте Color(AppColors.primary500));');
+dart.push('/// сборка ThemeData выполняется в mobile (М6) поверх этих констант.');
+dart.push('');
+dart.push('class AppColors {');
+for (const [group, shades] of Object.entries(colors)) {
+  for (const [shade, hex] of Object.entries(shades)) {
+    const name = group === 'primary' ? 'primary' : group;
+    dart.push(`  static const int ${name}${shade} = ${hexToInt(hex)};`);
+  }
+}
+dart.push('}');
+dart.push('');
+dart.push('class AppSpacing {');
+dart.push(`  static const double base = ${spacing.base};`);
+for (const [step, px] of Object.entries(spacing.scale)) dart.push(`  static const double ${step} = ${px};`);
+dart.push('}');
+dart.push('');
+dart.push('class AppRadius {');
+for (const [level, px] of Object.entries(radius.levels)) dart.push(`  static const double ${level} = ${px};`);
+dart.push('}');
+dart.push('');
+dart.push('class AppTypography {');
+dart.push(`  static const String fontSans = '${typography.fontFamily.sans}';`);
+dart.push(`  static const String fontMono = '${typography.fontFamily.mono}';`);
+for (const [size, px] of Object.entries(typography.sizes)) {
+  dart.push(`  static const double size${size.toUpperCase()} = ${parseFloat(px)};`);
+}
+for (const [weight, val] of Object.entries(typography.weights)) dart.push(`  static const int weight${weight[0].toUpperCase() + weight.slice(1)} = ${val};`);
+dart.push('}');
+writeFileSync(join(outDir, 'app_tokens.dart'), dart.join('\n') + '\n', 'utf8');
+
+console.log('Generated:');
+console.log('  - design/tokens/generated/tokens.css');
+console.log('  - design/tokens/generated/app_tokens.dart');
