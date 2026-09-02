@@ -1,0 +1,50 @@
+// Prisma-схема auth-service (УСТАВ.md → Агент Backend Auth, п.2).
+// Роли совпадают с shared/types/roles.ts (OPERATOR | SUPERVISOR | ADMIN | CLIENT).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OPERATOR
+  SUPERVISOR
+  ADMIN
+  CLIENT
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  phone         String?        @unique
+  passwordHash  String
+  fullName      String
+  role          Role           @default(OPERATOR)
+  pinCode       String?
+  biometricKey  String?
+  avatarUrl     String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@map("refresh_tokens")
+
+  @@index([userId])
+}
