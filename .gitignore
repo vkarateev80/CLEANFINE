@@ -1,0 +1,41 @@
+# --- Node / pnpm ---
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.pnpm-store/
+
+# --- Окружение и секреты ---
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- Логи ---
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# --- IDE / ОС ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- Flutter / Dart (mobile) ---
+mobile/cleaning-ops-app/.dart_tool/
+mobile/cleaning-ops-app/build/
+mobile/cleaning-ops-app/.flutter-plugins
+mobile/cleaning-ops-app/.flutter-plugins-dependencies
+mobile/cleaning-ops-app/android/.gradle/
+mobile/cleaning-ops-app/android/local.properties
+mobile/cleaning-ops-app/ios/Pods/
+
+# --- Тесты и отчёты ---
+test/reports/
+test/performance/results/
+playwright-report/
+
+# --- Служебное ---
+.superpowers/

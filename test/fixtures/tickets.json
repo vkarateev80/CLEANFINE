@@ -1,0 +1,24 @@
+[
+  {
+    "type": "planned",
+    "priority": "normal",
+    "status": "new",
+    "objectName": "БЦ Меридиан",
+    "description": "Плановая уборка",
+    "note": "образцы по статусам/переходам УСТАВ.md → Агент Backend Tickets"
+  },
+  {
+    "type": "emergency",
+    "priority": "critical",
+    "status": "new",
+    "objectName": "БЦ Меридиан",
+    "description": "Протечка"
+  },
+  {
+    "type": "unscheduled",
+    "priority": "high",
+    "status": "in_progress",
+    "objectName": "БЦ Меридиан",
+    "description": "Внеплановая уборка"
+  }
+]

@@ -1,0 +1,97 @@
+name: CI
+
+# Cleaning Ops — базовый CI (М0.6).
+# Прогоняется на PR в develop/main и на пушах. Сервисы backend/* подключаются
+# автоматически по мере появления (в директории должен быть package.json).
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  quality:
+    name: Lint, types, unit (backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: cleaning_ops_test
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin -d cleaning_ops_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Format check (root)
+        run: pnpm format:check
+
+      - name: Typecheck shared contracts
+        run: pnpm --filter @cleaning-ops/shared typecheck
+
+      - name: Lint + unit tests for existing backend services
+        shell: bash
+        run: |
+          set -euo pipefail
+          for dir in backend/*/; do
+            if [ -f "$dir/package.json" ]; then
+              echo "== $dir =="
+              (cd "$dir" && pnpm lint && pnpm test)
+            fi
+          done
+
+  e2e:
+    name: E2E (web, от М1.8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: quality
+    # Активируется, когда появится первый e2e-набор (М1.8): test/package.json
+    # с зависимостью @playwright/test и dev-стендом.
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: Run e2e
+        run: pnpm --filter @cleaning-ops/qa run test:e2e

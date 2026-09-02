@@ -1,0 +1,10 @@
+{
+  "name": "@cleaning-ops/qa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "QA-набор Cleaning Ops: unit (эталоны), integration, e2e (Playwright), performance (k6)",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test"
+  }
+}

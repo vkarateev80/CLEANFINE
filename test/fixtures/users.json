@@ -1,0 +1,32 @@
+[
+  {
+    "email": "admin@cleaning-ops.com",
+    "password": "admin123",
+    "fullName": "Администратор",
+    "role": "ADMIN",
+    "isActive": true,
+    "note": "dev-креды из QA-сценариев устава; seed в М1.7"
+  },
+  {
+    "email": "supervisor@cleaning-ops.com",
+    "password": "super123",
+    "fullName": "Бригадир",
+    "role": "SUPERVISOR",
+    "isActive": true
+  },
+  {
+    "email": "operator@cleaning-ops.com",
+    "password": "oper123",
+    "fullName": "Оператор",
+    "role": "OPERATOR",
+    "isActive": true
+  },
+  {
+    "email": "client@example.com",
+    "password": "client123",
+    "fullName": "Заказчик",
+    "role": "CLIENT",
+    "isActive": true,
+    "note": "портал клиента (М5): доступ только к своему объекту"
+  }
+]
