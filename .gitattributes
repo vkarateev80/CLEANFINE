@@ -1,0 +1,11 @@
+# Нормализация окончаний строк (см. .editorconfig: end_of_line = lf)
+* text=auto eol=lf
+
+# Бинарные артефакты
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.fig binary
