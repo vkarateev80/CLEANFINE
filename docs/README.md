@@ -256,7 +256,11 @@ Mobile App	🔴 Не начат	0%
 DevOps	🔴 Не начат	0%
 QA	🔴 Не начат	0%
 
-> **Обновление М0 (2026-09-02, см. ПЛАН.md):** монорепо собрано — структура, конвенции (git/код-стиль), локальная инфра-конфигурация (docker compose: PostgreSQL+PostGIS/Redis/RabbitMQ/MinIO), каркас CI (`.github/workflows/ci.yml`), контракты событий (`shared/`), QA-каркас, документация (`docs/`). Компоненты остаются 🔴 до закрытия соответствующих фаз М1–М7. Проверка контейнеров отложена — Docker не установлен на машине разработки (см. ПЛАН.md, риски R2).
+> **Обновление М1 (2026-09-02, см. ПЛАН.md + КОНТЕКСТ.md):**
+> - **М0 завершена:** монорепо, конвенции, инфра-конфигурация (docker compose), каркас CI, контракты событий (`shared/`), QA-каркас, документация `docs/`. Проверка контейнеров отложена (Docker/WSL2 не готовы на машине — риск R2).
+> - **М1 частично:** Design System — дизайн-токены DS-001 ✅ (tokens + генератор CSS/Flutter); Backend Auth — код auth-service ✅ (JWT/PIN/биометрия, RBAC, users CRUD, rate-limit, Dockerfile, seed), юнит-тесты 23/23 ✅, typecheck ✅ — миграции БД и e2e ждут Docker; Web Admin — каркас ✅ (Vite+React, роутер, auth, логин; typecheck+build OK).
+> - Статусы компонентов: Design System 🟡 (токены), Backend Services 🟡 (auth), Web Admin 🟡 (каркас), Mobile/DevOps/QA 🔴.
+> - Актуальное состояние, коммиты и обходные пути окружения: [`КОНТЕКСТ.md`](../../КОНТЕКСТ.md) в корне репозитория.
 📝 Конвенции
 Git
 main — production-ready код
