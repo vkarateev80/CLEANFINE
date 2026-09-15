@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { listObjects } from '../../api/core';
+import { listAllRoutes, listObjects } from '../../api/core';
 import {
   checkMissed,
   generateForDate,
@@ -66,6 +66,24 @@ export function useObjectOptions() {
   return useQuery({
     queryKey: ['schedule-object-options'],
     queryFn: () => listObjects({ skip: 0, take: MAX_TAKE }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Маршруты для селекта в форме графика (`GET /api/routes`).
+ *
+ * `objectId === ''` — все маршруты стенда (первая сотня): график можно привязать
+ * и к маршруту без объекта. Ключ включает `objectId`, поэтому смена объекта в
+ * форме — отдельный запрос, а не фильтрация уже загруженного списка: серверный
+ * фильтр и клиентский обязаны совпадать, иначе в селект попадут чужие маршруты.
+ * `staleTime` — как у справочника объектов: маршруты меняются редко.
+ */
+export function useRouteOptions(objectId: string) {
+  return useQuery({
+    queryKey: ['schedule-route-options', objectId],
+    queryFn: () =>
+      listAllRoutes({ take: MAX_TAKE, ...(objectId === '' ? {} : { objectId }) }),
     staleTime: 5 * 60 * 1000,
   });
 }

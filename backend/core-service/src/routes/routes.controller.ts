@@ -7,12 +7,14 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import {
   AddRoutePointDto,
   CreateRouteDto,
+  ListRoutesQueryDto,
   ReorderPointsDto,
   UpdateRouteDto,
   UpdateRoutePointDto,
@@ -45,6 +47,24 @@ export class FloorRoutesController {
 @Controller('api/routes')
 export class RoutesController {
   constructor(private readonly routes: RoutesService) {}
+
+  /**
+   * Плоский список маршрутов. Стоит первым обработчиком контроллера — по
+   * соглашению «список, потом элемент»; с `@Get(':id')` он не конфликтует,
+   * потому что пути различаются (api/routes против api/routes/:id).
+   * Чтение открыто всем авторизованным, как остальные GET сервиса.
+   */
+  @Get()
+  @ApiOperation({
+    summary: 'Плоский список маршрутов с фильтрами и пагинацией',
+    description:
+      'Фильтры необязательны: objectId отбирает маршруты всех этажей объекта, floorId — одного этажа. ' +
+      'Элемент: id, name, floorId, objectId, pointsCount, createdAt.',
+  })
+  @ApiResponse({ status: 200, description: '{ items, total }' })
+  async list(@Query() query: ListRoutesQueryDto) {
+    return this.routes.list(query);
+  }
 
   @Get(':id')
   @ApiOperation({ summary: 'Маршрут с точками и суммарным временем' })

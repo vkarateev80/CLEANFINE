@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Route, RoutePoint } from '@prisma/client';
+import type { Prisma, Route, RoutePoint } from '@prisma/client';
 import {
   canTransitionRoute,
   type RouteStatus,
@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type {
   AddRoutePointDto,
   CreateRouteDto,
+  ListRoutesQueryDto,
   ReorderPointsDto,
   UpdateRoutePointDto,
   UpdateRouteDto,
@@ -15,6 +16,21 @@ import type {
 
 /** Смещение для обхода уникальности (routeId, orderIndex) при перестановке. */
 const ORDER_OFFSET = 100_000;
+
+/**
+ * Элемент плоского списка маршрутов: связи с этажом и объектом развёрнуты в
+ * скаляры, вместо точек — их количество. Полные точки здесь не нужны: список
+ * служит выбором маршрута (форма графика), а не его детализацией.
+ */
+export interface RouteListItem {
+  id: string;
+  name: string;
+  floorId: string;
+  /** Объект этажа: у маршрута прямой связи с объектом в схеме нет. */
+  objectId: string;
+  pointsCount: number;
+  createdAt: Date;
+}
 
 @Injectable()
 export class RoutesService {
@@ -32,6 +48,51 @@ export class RoutesService {
       orderBy: { createdAt: 'asc' },
       include: { points: { orderBy: { orderIndex: 'asc' }, include: { room: true } } },
     });
+  }
+
+  /**
+   * Плоский список маршрутов (`GET /api/routes`) с необязательными фильтрами и
+   * пагинацией. Нужен там, где этаж заранее неизвестен — например селекту
+   * маршрута в форме графика: привязка (`Schedule.routeId`) хранится без этажа.
+   * Фильтр по объекту идёт через этаж, потому что в схеме маршрут связан только
+   * с этажом (`Route.floorId` → `Floor.objectId`).
+   */
+  async list(query: ListRoutesQueryDto): Promise<{ items: RouteListItem[]; total: number }> {
+    const where: Prisma.RouteWhereInput = { floorId: query.floorId };
+    if (query.objectId) {
+      where.floor = { objectId: query.objectId };
+    }
+
+    // $transaction как в objects/tech-cards: items и total обязаны считаться по
+    // одному и тому же фильтру, иначе пагинация «поедет» на параллельной записи.
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.route.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: query.skip ?? 0,
+        take: Math.min(query.take ?? 50, 100),
+        select: {
+          id: true,
+          name: true,
+          floorId: true,
+          createdAt: true,
+          floor: { select: { objectId: true } },
+          _count: { select: { points: true } },
+        },
+      }),
+      this.prisma.route.count({ where }),
+    ]);
+
+    return {
+      // Разворачиваем вложенность в плоские поля: клиенту (селекту) нужны
+      // скаляры, а не объект floor с единственным полем.
+      items: rows.map(({ floor, _count, ...route }) => ({
+        ...route,
+        objectId: floor.objectId,
+        pointsCount: _count.points,
+      })),
+      total,
+    };
   }
 
   /** Маршрут с точками (и помещениями) и суммарной оценкой времени. */

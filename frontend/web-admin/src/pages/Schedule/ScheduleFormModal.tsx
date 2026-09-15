@@ -18,9 +18,11 @@ import {
   type CreateSchedulePayload,
   type ScheduleEntity,
   type ScheduleFrequency,
+  type UpdateSchedulePayload,
 } from '../../types/schedule';
 import type { SessionUser } from '../../types';
-import { WEEKDAY_SHORT } from './scheduleHelpers';
+import { shortId, WEEKDAY_SHORT } from './scheduleHelpers';
+import { useRouteOptions } from './useSchedule';
 
 /**
  * Форма графика (М4.6): создание и правка одной модалкой.
@@ -39,6 +41,8 @@ import { WEEKDAY_SHORT } from './scheduleHelpers';
 interface FormState {
   name: string;
   objectId: string;
+  /** Привязанный маршрут; пустая строка — «без маршрута» (как `objectId`). */
+  routeId: string;
   frequency: ScheduleFrequency;
   /** Отмеченные дни ISO 1..7 (только для weekly), в виде строк — так их удобно сравнивать с чекбоксами. */
   days: string[];
@@ -51,12 +55,17 @@ interface FormState {
 type Errors = Partial<Record<'name' | 'time' | 'days' | 'dayOfMonth' | 'assignees', string>>;
 
 /**
- * Полезная нагрузка формы. От `CreateSchedulePayload` отличается только
- * `objectId`: при снятии привязки нужно отправить `null` (в `UpdateScheduleDto`
- * это единственный способ очистить поле, ровно как `supplier: null` в
- * material-service), а тип пейлоада описывает только рабочие значения.
+ * Полезная нагрузка формы. От `CreateSchedulePayload` отличается двумя
+ * колонками-привязками: при снятии привязки нужно отправить `null` (в
+ * `UpdateScheduleDto` это единственный способ очистить поле, ровно как
+ * `supplier: null` в material-service), а тип пейлоада описывает только рабочие
+ * значения. Оба поля исключены из `Omit` по отдельности: пересечение с
+ * `string` не оставило бы `null` в типе.
  */
-type FormPayload = Omit<CreateSchedulePayload, 'objectId'> & { objectId?: string | null };
+type FormPayload = Omit<CreateSchedulePayload, 'objectId' | 'routeId'> & {
+  objectId?: string | null;
+  routeId?: string | null;
+};
 
 const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
 
@@ -64,6 +73,7 @@ function emptyForm(): FormState {
   return {
     name: '',
     objectId: '',
+    routeId: '',
     frequency: 'daily',
     days: [],
     dayOfMonth: '',
@@ -79,6 +89,7 @@ function formFrom(schedule: ScheduleEntity | null): FormState {
   return {
     name: schedule.name,
     objectId: schedule.objectId ?? '',
+    routeId: schedule.routeId ?? '',
     frequency: rule.frequency,
     days: (rule.days ?? []).map((day) => String(day)),
     // Сервис допускает monthly, заданный через days[0] (`dayOfMonthRule`),
@@ -114,10 +125,28 @@ export function ScheduleFormModal({
   const queryClient = useQueryClient();
   const [values, setValues] = useState<FormState>(() => formFrom(schedule));
   const [errors, setErrors] = useState<Errors>({});
+  /**
+   * Трогали ли селект маршрута. Без этого флага PATCH отправлял бы `routeId`
+   * каждой правкой формы: отсутствие поля в `UpdateScheduleDto` означает
+   * «не менять», поэтому переименование графика не должно касаться привязки.
+   */
+  const [routeTouched, setRouteTouched] = useState(false);
+  // Маршруты грузим по объекту графика: с объектом — только его маршруты, без
+  // объекта — все (первая сотня). Серверный фильтр здесь обязателен: маршрут
+  // другого объекта в графике — это смена уборщика не на том адресе.
+  const routes = useRouteOptions(values.objectId);
 
   const save = useMutation({
     mutationFn: (payload: FormPayload) =>
-      schedule ? updateSchedule(schedule.id, payload) : createSchedule(payload as CreateSchedulePayload),
+      schedule
+        ? // `routeId: null` (осознанный сброс привязки) — валидное значение для
+          // `UpdateScheduleDto`: `@IsOptional()` пропускает null, а сервис меняет
+          // поле, только если оно пришло (`!== undefined`). Приведение типа нужно
+          // потому, что `UpdateSchedulePayload` объявляет `routeId?: string` и
+          // `null` в нём пока не описан — правка типа лежит в `types/schedule.ts`,
+          // вне зоны этой задачи.
+          updateSchedule(schedule.id, payload as UpdateSchedulePayload)
+        : createSchedule(payload as CreateSchedulePayload),
     onSuccess: async () => {
       // Инвалидация всего `['schedule']`: меняется и список графиков, и подпись
       // объекта в уже сгенерированных сменах.
@@ -195,6 +224,12 @@ export function ScheduleFormModal({
       // означает «не менять», поэтому пустая строка не убрала бы привязку. На
       // создании поле просто не отправляем — колонка и так пустая.
       ...(values.objectId === '' ? (schedule ? { objectId: null } : {}) : { objectId: values.objectId }),
+      // Маршрут уходит в запрос ТОЛЬКО если селект трогали. Пустое значение не
+      // отправляется вовсе: сброс привязки — это осознанный выбор пункта «Без
+      // маршрута», который кодируется `null` (отсутствие поля = «не менять»).
+      ...(routeTouched
+        ? { routeId: values.routeId === '' ? null : values.routeId }
+        : {}),
     };
 
     save.mutate(payload);
@@ -203,6 +238,7 @@ export function ScheduleFormModal({
   function handleClose() {
     setValues(formFrom(schedule));
     setErrors({});
+    setRouteTouched(false);
     save.reset();
     onClose();
   }
@@ -211,6 +247,12 @@ export function ScheduleFormModal({
   const unknownAssignees = values.assignees.filter(
     (id) => !users.some((user) => user.id === id),
   );
+
+  const routeItems = routes.data?.items ?? [];
+  /** Привязка графика: могла не попасть в выборку (другой объект, за пределами сотни). */
+  const currentRouteId = schedule?.routeId ?? '';
+  const currentRouteMissing =
+    currentRouteId !== '' && !routeItems.some((route) => route.id === currentRouteId);
 
   return (
     <Modal
@@ -386,19 +428,59 @@ export function ScheduleFormModal({
         />
 
         {/*
-          Маршрут не редактируется сознательно: `listRoutes` требует floorId, а
-          отдельного «списка всех маршрутов» в core-service нет — селект пришлось
-          бы собирать обходом объектов и этажей. Поле показываем только для
-          чтения, если маршрут уже привязан, чтобы правка графика его не потеряла
-          (в PATCH `routeId` не отправляем вовсе — «не менять»).
+          Маршрут — необязательная привязка графика. Список приходит из
+          `GET /api/routes` (плоский список): по этажу маршрут не выбрать, этаж в
+          графике не хранится. При выбранном объекте показываются только его
+          маршруты — иначе в график можно было бы записать маршрут чужого объекта.
+
+          Текущая привязка выводится отдельным пунктом, если её нет в выборке
+          (другой объект, за пределами первой сотни): так правка других полей не
+          теряет маршрут молча. Снять привязку можно пунктом «Без маршрута» —
+          это осознанное действие, и только оно отправляет в PATCH `null`.
         */}
-        {schedule?.routeId && (
-          <Field
-            label="Маршрут"
-            hint="Привязка маршрута не редактируется в этой форме и сохраняется как есть"
+        <Field
+          label="Маршрут"
+          htmlFor="schedule-route"
+          hint={
+            values.objectId === ''
+              ? 'Необязательно: показаны маршруты всех объектов (первая сотня)'
+              : 'Необязательно: показаны маршруты выбранного объекта'
+          }
+        >
+          <Select
+            id="schedule-route"
+            data-testid="schedule-route"
+            value={values.routeId}
+            onChange={(event) => {
+              // Флаг «трогали»: без него правка названия не должна переписывать
+              // привязку, а сброс — не должен происходить сам собой.
+              setRouteTouched(true);
+              update('routeId', event.target.value);
+            }}
           >
-            <Input readOnly className="font-mono" value={schedule.routeId} />
-          </Field>
+            <option value="">Без маршрута</option>
+            {routeItems.map((route) => (
+              <option key={route.id} value={route.id}>
+                {route.name}
+              </option>
+            ))}
+            {currentRouteMissing && (
+              <option value={currentRouteId}>Текущий маршрут {shortId(currentRouteId)}</option>
+            )}
+          </Select>
+        </Field>
+
+        {routes.isError && (
+          <SoftWarning>
+            Список маршрутов не загрузился (core-service): привязка маршрута сохранится как есть.
+          </SoftWarning>
+        )}
+
+        {currentRouteMissing && values.objectId !== '' && (
+          <SoftWarning>
+            Маршрут графика не найден среди маршрутов выбранного объекта — сохранится как есть,
+            пока вы не выберете другой.
+          </SoftWarning>
         )}
       </div>
     </Modal>

@@ -150,6 +150,41 @@ export function listRoutes(floorId: string): Promise<RouteWithPoints[]> {
   return apiClient.get(`/floors/${floorId}/routes`).then((r) => r.data);
 }
 
+/**
+ * Фильтры плоского списка маршрутов. Этаж и объект необязательны: `objectId`
+ * отбирает маршруты всех этажей объекта, без обоих фильтров приходит первая
+ * сотня маршрутов стенда.
+ */
+export interface ListRoutesQuery extends PageQuery {
+  objectId?: string;
+  floorId?: string;
+}
+
+/**
+ * Элемент `GET /api/routes`: связи развёрнуты в скаляры, вместо точек — их
+ * количество. Тип объявлен здесь, а не в `types/core.ts`, потому что описывает
+ * ответ одного вызова; для списков с полными связями остаются `RouteEntity`/
+ * `RouteWithPoints` в `types/core.ts`.
+ */
+export interface RouteListItem {
+  id: string;
+  name: string;
+  floorId: string;
+  objectId: string;
+  pointsCount: number;
+  createdAt: string;
+}
+
+/**
+ * Плоский список маршрутов (`GET /api/routes`). Отличается от `listRoutes`
+ * выше принципиально: тот требует floorId и тянет точки с помещениями, а этот
+ * отдаёт лёгкие элементы по всем этажам — ровно то, что нужно селекту маршрута
+ * в форме графика, где известен только `routeId` (этаж в графике не хранится).
+ */
+export function listAllRoutes(query: ListRoutesQuery = {}): Promise<Paginated<RouteListItem>> {
+  return apiClient.get('/routes', { params: query }).then((r) => r.data);
+}
+
 export function createRoute(floorId: string, name: string): Promise<RouteEntity> {
   return apiClient.post(`/floors/${floorId}/routes`, { name }).then((r) => r.data);
 }

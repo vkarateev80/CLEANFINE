@@ -32,6 +32,7 @@ interface PrismaMockShape {
     create: jest.Mock;
     findUnique: jest.Mock;
     findMany: jest.Mock;
+    count: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
   };
@@ -54,6 +55,7 @@ function createPrismaMock(): PrismaMockShape {
       create: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
@@ -67,9 +69,14 @@ function createPrismaMock(): PrismaMockShape {
     },
     $transaction: jest.fn(),
   };
-  // Интерактивная транзакция: в тестах tx — тот же мок, поэтому вызовы внутри
-  // транзакции проверяются теми же spy-функциями.
-  prisma.$transaction.mockImplementation((cb: (tx: unknown) => unknown) => cb(prisma));
+  // Две формы транзакции: интерактивная (перестановка точек) и списочная
+  // (`list` считает items и total одним batch-ем). В тестах tx — тот же мок,
+  // поэтому вызовы внутри транзакции проверяются теми же spy-функциями.
+  prisma.$transaction.mockImplementation((arg: unknown) =>
+    typeof arg === 'function'
+      ? (arg as (tx: unknown) => unknown)(prisma)
+      : Promise.all(arg as Promise<unknown>[]),
+  );
   return prisma;
 }
 
@@ -143,6 +150,105 @@ describe('RoutesService', () => {
 
       await expect(service.listByFloor('missing')).rejects.toThrow(NotFoundException);
       expect(prisma.route.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('list', () => {
+    /** Строка выборки: Prisma отдаёт вложенные floor и _count — их разворачивает сервис. */
+    const listRow = {
+      id: 'route-1',
+      name: 'Утренняя уборка',
+      floorId: 'floor-1',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      floor: { objectId: 'object-1' },
+      _count: { points: 2 },
+    };
+
+    /** Ожидаемая форма элемента: без вложенных floor/_count, со скалярами. */
+    const listItem = {
+      id: 'route-1',
+      name: 'Утренняя уборка',
+      floorId: 'floor-1',
+      objectId: 'object-1',
+      pointsCount: 2,
+      createdAt: listRow.createdAt,
+    };
+
+    const select = {
+      id: true,
+      name: true,
+      floorId: true,
+      createdAt: true,
+      floor: { select: { objectId: true } },
+      _count: { select: { points: true } },
+    };
+
+    it('без параметров: без фильтров, пагинация по умолчанию, плоский элемент', async () => {
+      prisma.route.findMany.mockResolvedValue([listRow]);
+      prisma.route.count.mockResolvedValue(1);
+
+      await expect(service.list({})).resolves.toEqual({ items: [listItem], total: 1 });
+
+      expect(prisma.route.findMany).toHaveBeenCalledWith({
+        where: { floorId: undefined },
+        orderBy: { createdAt: 'desc' },
+        skip: 0,
+        take: 50,
+        select,
+      });
+      // total считается по тому же where, что и items: иначе пагинация «поедет».
+      expect(prisma.route.count).toHaveBeenCalledWith({ where: { floorId: undefined } });
+    });
+
+    it('фильтр по объекту идёт через этаж (прямой связи Route → Object в схеме нет)', async () => {
+      prisma.route.findMany.mockResolvedValue([]);
+      prisma.route.count.mockResolvedValue(0);
+
+      await expect(service.list({ objectId: 'object-1' })).resolves.toEqual({
+        items: [],
+        total: 0,
+      });
+
+      const where = { floorId: undefined, floor: { objectId: 'object-1' } };
+      expect(prisma.route.findMany).toHaveBeenCalledWith(expect.objectContaining({ where }));
+      expect(prisma.route.count).toHaveBeenCalledWith({ where });
+    });
+
+    it('фильтр по этажу ограничивает выборку одним floorId', async () => {
+      prisma.route.findMany.mockResolvedValue([listRow]);
+      prisma.route.count.mockResolvedValue(1);
+
+      await service.list({ floorId: 'floor-1' });
+
+      const where = { floorId: 'floor-1' };
+      expect(prisma.route.findMany).toHaveBeenCalledWith(expect.objectContaining({ where }));
+      // where сравнивается целиком: лишний реляционный фильтр по объекту не добавился.
+      expect(prisma.route.count).toHaveBeenCalledWith({ where });
+    });
+
+    it('применяет skip/take и режет take до 100', async () => {
+      prisma.route.findMany.mockResolvedValue([]);
+      prisma.route.count.mockResolvedValue(120);
+
+      await expect(service.list({ skip: 10, take: 500 })).resolves.toEqual({
+        items: [],
+        total: 120,
+      });
+
+      expect(prisma.route.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 10, take: 100 }),
+      );
+    });
+
+    it('маленький take не увеличивается до максимума', async () => {
+      prisma.route.findMany.mockResolvedValue([]);
+      prisma.route.count.mockResolvedValue(0);
+
+      await service.list({ take: 5 });
+
+      expect(prisma.route.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 5 }),
+      );
     });
   });
 

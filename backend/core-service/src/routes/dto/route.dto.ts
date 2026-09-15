@@ -18,6 +18,24 @@ import { ROUTE_STATUSES, type RouteStatus } from '@cleaning-ops/shared/types/cor
 /** Верхняя граница int4 в PostgreSQL: Prisma упадёт 500 на записи большего значения. */
 const INT4_MAX = 2147483647;
 
+/**
+ * Фильтры плоского списка маршрутов (`GET /api/routes`).
+ * Пагинация — по общему соглашению сервисов: `{ items, total }`, `take` не больше 100.
+ */
+export class ListRoutesQueryDto {
+  @ApiPropertyOptional({ description: 'Пропустить записей', example: 0 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) skip?: number;
+
+  @ApiPropertyOptional({ description: 'Взять записей (максимум 100)', example: 50 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) take?: number;
+
+  @ApiPropertyOptional({ description: 'Фильтр по объекту: маршруты всех его этажей' })
+  @IsOptional() @IsUUID() objectId?: string;
+
+  @ApiPropertyOptional({ description: 'Фильтр по этажу' })
+  @IsOptional() @IsUUID() floorId?: string;
+}
+
 export class CreateRouteDto {
   @ApiProperty({ description: 'Название маршрута', example: 'Утренняя уборка, 1 этаж' })
   @IsString()

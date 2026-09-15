@@ -17,6 +17,7 @@ jest.mock(
 
 const routesMock = {
   create: jest.fn(),
+  list: jest.fn(),
   listByFloor: jest.fn(),
   getDetail: jest.fn(),
   update: jest.fn(),
@@ -67,6 +68,14 @@ describe('RoutesController (операции над маршрутом)', () => 
     controller = moduleRef.get(RoutesController);
   });
 
+  it('list передаёт фильтры и пагинацию в сервис', async () => {
+    const query = { skip: 0, take: 50, objectId: 'object-1' } as never;
+    routesMock.list.mockResolvedValue({ items: [], total: 0 });
+
+    await expect(controller.list(query)).resolves.toEqual({ items: [], total: 0 });
+    expect(routesMock.list).toHaveBeenCalledWith(query);
+  });
+
   it('getById отдаёт детализацию (с суммарным временем) через getDetail', async () => {
     routesMock.getDetail.mockResolvedValue({ id: 'route-1', totalEstimatedTimeMin: 12 });
 
@@ -109,6 +118,9 @@ describe('RoutesController (операции над маршрутом)', () => 
 
   it('роуты и RBAC соответствуют контракту', () => {
     expect(Reflect.getMetadata(PATH_METADATA, RoutesController)).toBe('api/routes');
+    // Плоский список — чтение для всех авторизованных: @Roles на нём нет.
+    expect(Reflect.getMetadata(METHOD_METADATA, controller.list)).toBe(RequestMethod.GET);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.list)).toBeUndefined();
     expect(Reflect.getMetadata(METHOD_METADATA, controller.reorder)).toBe(RequestMethod.PATCH);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.addPoint)).toBe(RequestMethod.POST);
     expect(Reflect.getMetadata(ROLES_KEY, controller.reorder)).toEqual(['ADMIN', 'SUPERVISOR']);
