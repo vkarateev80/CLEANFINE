@@ -7,12 +7,15 @@ import { DashboardPage } from '../pages/Dashboard/DashboardPage';
 import { FloorPlanPage } from '../pages/Floors/FloorPlanPage';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
+import { NotificationsPage } from '../pages/Notifications/NotificationsPage';
 import { ObjectDetailPage } from '../pages/Objects/ObjectDetailPage';
 import { ObjectsListPage } from '../pages/Objects/ObjectsListPage';
 import { PlaceholderPage } from '../pages/Placeholder/PlaceholderPage';
 import { RouteBuilderPage } from '../pages/Routes/RouteBuilderPage';
 import { TechCardDetailPage } from '../pages/TechCards/TechCardDetailPage';
 import { TechCardsPage } from '../pages/TechCards/TechCardsPage';
+import { TicketDetailPage } from '../pages/Tickets/TicketDetailPage';
+import { TicketsPage } from '../pages/Tickets/TicketsPage';
 
 /**
  * Роли на маршрутах повторяют права API: чтение объектов доступно всем
@@ -76,7 +79,17 @@ export const router = createBrowserRouter([
       { path: 'tech-cards', element: techCards },
       { path: 'tech-cards/:id', element: techCardDetail },
 
-      { path: 'tickets', element: <PlaceholderPage title="Заявки" phase="М3" /> },
+      /*
+       * Заявки (М3.7): чтение доступно всем авторизованным ролям, поэтому
+       * RoleGuard здесь не нужен — он закрыл бы раздел оператору и заказчику,
+       * которым заявки нужны в работе. Кнопки создания/назначения/переходов
+       * внутри страниц показываются по правам из контроллера ticket-service.
+       */
+      { path: 'tickets', element: <TicketsPage /> },
+      { path: 'tickets/:id', element: <TicketDetailPage /> },
+
+      { path: 'notifications', element: <NotificationsPage /> },
+
       { path: 'employees', element: employees },
       { path: 'materials', element: <PlaceholderPage title="Материалы" phase="М4" /> },
       { path: 'reports', element: <PlaceholderPage title="Отчёты" phase="М7" /> },

@@ -20,6 +20,10 @@ export const ROUTES = {
   techCard: (id: string) => `/tech-cards/${id}`,
 
   tickets: '/tickets',
+  ticket: (id: string) => `/tickets/${id}`,
+
+  notifications: '/notifications',
+
   employees: '/employees',
   materials: '/materials',
   reports: '/reports',

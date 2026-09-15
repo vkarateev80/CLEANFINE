@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import type { Role } from '@cleaning-ops/shared/types/roles';
 import { logout } from '../api/auth';
 import { Button } from '../components/ui/Button';
+import { NotificationBell } from '../pages/Notifications/NotificationBell';
 import { useAuthStore } from '../stores/authStore';
 
 interface NavItem {
@@ -63,6 +64,8 @@ export function AdminLayout() {
         <header className="flex h-16 items-center justify-between border-b border-neutral-200 bg-white px-6">
           <div className="text-sm text-neutral-500">Web Admin</div>
           <div className="flex items-center gap-4">
+            {/* In-app уведомления (М3.7): счётчик непрочитанных + выпадающий список. */}
+            <NotificationBell />
             {user && (
               <div className="text-right">
                 <div className="text-sm font-medium text-neutral-800">{user.fullName}</div>
