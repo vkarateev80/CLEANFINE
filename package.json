@@ -14,6 +14,7 @@
     "typecheck": "pnpm --filter @cleaning-ops/shared typecheck && pnpm -r typecheck --if-present",
     "test": "pnpm -r test --if-present",
     "test:e2e": "pnpm -r test:e2e --if-present",
+    "prisma:clients": "node scripts/ci/prisma-clients.mjs",
     "format:check": "prettier --check package.json pnpm-workspace.yaml .prettierrc shared/package.json shared/tsconfig.json \"shared/types/**/*.ts\" \"shared/constants/**/*.ts\""
   },
   "devDependencies": {

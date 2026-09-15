@@ -48,6 +48,7 @@ jobs:
       NOTIFICATION_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
       MATERIAL_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
       SCHEDULE_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
+      CHAT_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
       REDIS_URL: redis://localhost:6379
       NODE_ENV: test
 
@@ -76,18 +77,14 @@ jobs:
       - name: Build shared contracts
         run: pnpm --filter @cleaning-ops/shared build
 
-      # @prisma/client без generate не содержит типов — build/typecheck/test
-      # сервисов с prisma/schema.prisma (auth, file, core) упадут.
-      - name: Prisma generate (backend services with schema)
-        shell: bash
-        run: |
-          set -euo pipefail
-          for dir in backend/*/; do
-            if [ -f "$dir/prisma/schema.prisma" ]; then
-              echo "== prisma generate: $dir =="
-              (cd "$dir" && pnpm prisma:generate)
-            fi
-          done
+      # pnpm дедуплицирует @prisma/client в один каталог .pnpm, поэтому
+      # `prisma generate` для девяти схем перезаписывает один и тот же клиент:
+      # побеждал последний сервис, и auth-service собирался с моделями
+      # ticket-service. Скрипт генерирует клиент каждому сервису и переносит его
+      # копию в node_modules самого сервиса, а затем проверяет, что модели
+      # клиента совпадают со схемой (см. scripts/ci/prisma-clients.mjs).
+      - name: Prisma generate (клиент каждому сервису)
+        run: node scripts/ci/prisma-clients.mjs
 
       - name: Lint + build + typecheck + unit tests for existing backend services
         shell: bash
@@ -158,10 +155,13 @@ jobs:
       NOTIFICATION_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_notifications?schema=public
       MATERIAL_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_materials?schema=public
       SCHEDULE_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_schedule?schema=public
+      CHAT_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_chat?schema=public
       RABBITMQ_URL: amqp://admin:password@localhost:5672
       GPS_SERVICE_URL: http://localhost:3004
       CORE_SERVICE_URL: http://localhost:3003
       TICKET_SERVICE_URL: http://localhost:3005
+      # chat-service → notification-service: push оффлайн-получателям (М5.1).
+      NOTIFICATION_SERVICE_URL: http://localhost:3006
       # Сервисная учётка для внутренних вызовов (material → core, schedule → ticket/gps).
       SERVICE_AUTH_EMAIL: admin@cleaning-ops.com
       SERVICE_AUTH_PASSWORD: admin123
@@ -252,25 +252,17 @@ jobs:
             -c 'CREATE DATABASE cleaning_ops_schedule;' \
             -c 'CREATE DATABASE cleaning_ops_chat;'
 
-      - name: Prisma generate + migrate deploy (все сервисы с schema)
+      - name: Prisma generate (клиент каждому сервису) + migrate deploy
         run: |
-          pnpm --filter @cleaning-ops/auth-service prisma:generate
+          node scripts/ci/prisma-clients.mjs
           pnpm --filter @cleaning-ops/auth-service prisma:deploy
-          pnpm --filter @cleaning-ops/file-service prisma:generate
           pnpm --filter @cleaning-ops/file-service prisma:deploy
-          pnpm --filter @cleaning-ops/core-service prisma:generate
           pnpm --filter @cleaning-ops/core-service prisma:deploy
-          pnpm --filter @cleaning-ops/gps-service prisma:generate
           pnpm --filter @cleaning-ops/gps-service prisma:deploy
-          pnpm --filter @cleaning-ops/ticket-service prisma:generate
           pnpm --filter @cleaning-ops/ticket-service prisma:deploy
-          pnpm --filter @cleaning-ops/notification-service prisma:generate
           pnpm --filter @cleaning-ops/notification-service prisma:deploy
-          pnpm --filter @cleaning-ops/material-service prisma:generate
           pnpm --filter @cleaning-ops/material-service prisma:deploy
-          pnpm --filter @cleaning-ops/schedule-service prisma:generate
           pnpm --filter @cleaning-ops/schedule-service prisma:deploy
-          pnpm --filter @cleaning-ops/chat-service prisma:generate
           pnpm --filter @cleaning-ops/chat-service prisma:deploy
 
       # PostGIS-расширение нужно БД gps (в postgis-образе оно есть только в
