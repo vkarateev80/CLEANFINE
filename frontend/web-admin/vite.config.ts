@@ -34,6 +34,8 @@ const SERVICE_ROUTES: Array<[prefix: string, target: string]> = [
   // М4 — планирование и учёт
   ['/api/materials', 'http://localhost:3007'],
   ['/api/schedule', 'http://localhost:3008'],
+  // М5 — коммуникации
+  ['/api/chat', 'http://localhost:3009'],
 ];
 
 const proxy = Object.fromEntries(

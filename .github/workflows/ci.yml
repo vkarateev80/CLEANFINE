@@ -177,6 +177,7 @@ jobs:
       E2E_NOTIFICATION_URL: http://localhost:3006
       E2E_MATERIAL_URL: http://localhost:3007
       E2E_SCHEDULE_URL: http://localhost:3008
+      E2E_CHAT_URL: http://localhost:3009
       E2E_BASE_URL: http://localhost:5173
       # Периодические проходы schedule-service в e2e выключены: набор проверяет
       # те же действия через детерминированные триггеры (POST /generate,
@@ -224,7 +225,7 @@ jobs:
 
       # Сервис-контейнер postgres создаёт только cleaning_ops_e2e; у остальных
       # сервисов свои БД (границы микросервисов: своя схема на сервис).
-      - name: Create databases (files, core, gps, tickets, notifications, materials, schedule)
+      - name: Create databases (files, core, gps, tickets, notifications, materials, schedule, chat)
         run: |
           docker exec "${{ job.services.postgres.id }}" \
             psql -U admin -d cleaning_ops_e2e -v ON_ERROR_STOP=1 \
@@ -234,7 +235,8 @@ jobs:
             -c 'CREATE DATABASE cleaning_ops_tickets;' \
             -c 'CREATE DATABASE cleaning_ops_notifications;' \
             -c 'CREATE DATABASE cleaning_ops_materials;' \
-            -c 'CREATE DATABASE cleaning_ops_schedule;'
+            -c 'CREATE DATABASE cleaning_ops_schedule;' \
+            -c 'CREATE DATABASE cleaning_ops_chat;'
 
       - name: Prisma generate + migrate deploy (все сервисы с schema)
         run: |
@@ -254,6 +256,8 @@ jobs:
           pnpm --filter @cleaning-ops/material-service prisma:deploy
           pnpm --filter @cleaning-ops/schedule-service prisma:generate
           pnpm --filter @cleaning-ops/schedule-service prisma:deploy
+          pnpm --filter @cleaning-ops/chat-service prisma:generate
+          pnpm --filter @cleaning-ops/chat-service prisma:deploy
 
       # PostGIS-расширение нужно БД gps (в postgis-образе оно есть только в
       # POSTGRES_DB, для остальных БД создаётся явно).
@@ -276,6 +280,7 @@ jobs:
           pnpm --filter @cleaning-ops/notification-service build
           pnpm --filter @cleaning-ops/material-service build
           pnpm --filter @cleaning-ops/schedule-service build
+          pnpm --filter @cleaning-ops/chat-service build
 
       # Примерка готовности: /api/auth/me отвечает 401 без токена — это признак
       # живого сервиса, поэтому проверяем код ответа, а не успех запроса.
@@ -402,6 +407,21 @@ jobs:
             echo "schedule-service не поднялся"; tail -n 100 /tmp/schedule-service.log || true; exit 1
           fi
           echo "schedule-service готов"
+
+      - name: Start chat-service (3009)
+        working-directory: backend/chat-service
+        run: |
+          nohup node dist/main.js > /tmp/chat-service.log 2>&1 &
+          ready=0
+          for _ in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3009/api/chat/chats || true)
+            if [ "$code" = "401" ]; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            echo "chat-service не поднялся"; tail -n 100 /tmp/chat-service.log || true; exit 1
+          fi
+          echo "chat-service готов"
 
       - name: Install Playwright browsers
         working-directory: test
