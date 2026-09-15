@@ -17,7 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@cleaning-ops/shared/*": ["../../shared/*"]
+      "@cleaning-ops/shared/*": ["../../shared/dist/*"]
     }
   },
   "include": ["src"]

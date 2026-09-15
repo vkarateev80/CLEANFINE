@@ -4,13 +4,38 @@ import { RoleGuard } from '../components/auth/RoleGuard';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { DashboardPage } from '../pages/Dashboard/DashboardPage';
+import { FloorPlanPage } from '../pages/Floors/FloorPlanPage';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
+import { ObjectDetailPage } from '../pages/Objects/ObjectDetailPage';
+import { ObjectsListPage } from '../pages/Objects/ObjectsListPage';
 import { PlaceholderPage } from '../pages/Placeholder/PlaceholderPage';
+import { RouteBuilderPage } from '../pages/Routes/RouteBuilderPage';
+import { TechCardDetailPage } from '../pages/TechCards/TechCardDetailPage';
+import { TechCardsPage } from '../pages/TechCards/TechCardsPage';
 
+/**
+ * Роли на маршрутах повторяют права API: чтение объектов доступно всем
+ * авторизованным (оператору и заказчику нужен контекст), а конструктор
+ * маршрутов и техкарты — рабочие места ADMIN/SUPERVISOR (бэкенд: создание и
+ * правка `@Roles('ADMIN','SUPERVISOR')`). Скрывать кнопки внутри страницы
+ * недостаточно — прямой заход по URL всё равно должен упираться в RoleGuard.
+ */
 const routeBuilder = (
-  <RoleGuard roles={['ADMIN']}>
-    <PlaceholderPage title="Конструктор маршрутов" phase="М2" />
+  <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
+    <RouteBuilderPage />
+  </RoleGuard>
+);
+
+const techCards = (
+  <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
+    <TechCardsPage />
+  </RoleGuard>
+);
+
+const techCardDetail = (
+  <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
+    <TechCardDetailPage />
   </RoleGuard>
 );
 
@@ -39,9 +64,18 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'objects', element: <PlaceholderPage title="Объекты" phase="М2" /> },
-      { path: 'objects/:id', element: <PlaceholderPage title="Детали объекта" phase="М2" /> },
+
+      { path: 'objects', element: <ObjectsListPage /> },
+      { path: 'objects/:id', element: <ObjectDetailPage /> },
+      // Экран плана этажа: рисуется по imageUrl из file-service, координаты помещений — в пикселях плана.
+      { path: 'objects/:id/floors/:floorId', element: <FloorPlanPage /> },
+
       { path: 'routes', element: routeBuilder },
+      { path: 'routes/:id', element: routeBuilder },
+
+      { path: 'tech-cards', element: techCards },
+      { path: 'tech-cards/:id', element: techCardDetail },
+
       { path: 'tickets', element: <PlaceholderPage title="Заявки" phase="М3" /> },
       { path: 'employees', element: employees },
       { path: 'materials', element: <PlaceholderPage title="Материалы" phase="М4" /> },

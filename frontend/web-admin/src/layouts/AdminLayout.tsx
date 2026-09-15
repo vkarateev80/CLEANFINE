@@ -14,7 +14,11 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Дашборд', end: true },
   { to: '/objects', label: 'Объекты' },
-  { to: '/routes', label: 'Маршруты', roles: ['ADMIN'] },
+  // Маршруты и техкарты — рабочие места ADMIN/SUPERVISOR: ровно те роли,
+  // которым core-service разрешает создание и правку (@Roles). У оператора
+  // пункт не показывается, а RoleGuard закрывает и прямой заход по URL.
+  { to: '/routes', label: 'Маршруты', roles: ['ADMIN', 'SUPERVISOR'] },
+  { to: '/tech-cards', label: 'Техкарды', roles: ['ADMIN', 'SUPERVISOR'] },
   { to: '/tickets', label: 'Заявки' },
   { to: '/employees', label: 'Сотрудники', roles: ['ADMIN', 'SUPERVISOR'] },
   { to: '/materials', label: 'Материалы' },
