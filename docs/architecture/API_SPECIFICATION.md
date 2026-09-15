@@ -110,9 +110,24 @@
 - Неявка → статус `MISSED` + событие `schedule.missed_checkin`; авто check-out после
   `SCHEDULE_AUTO_CHECKOUT_MINUTES` от `plannedStart`.
 
-## 8. chat-service (WebSocket `/chat`, М5)
+## 8. chat-service `/api/chat` + WebSocket `/chat` (М5) — реализовано
 
-- События: `message:send`, `message:new`, `message:read`; чаты OBJECT/TICKET/DIRECT/SYSTEM; история с пагинацией; файлы.
+| Метод/путь | Назначение | Доступ |
+|---|---|---|
+| GET `/api/chat/chats` | чаты текущего пользователя (последнее сообщение, `unreadCount`) | auth (только свои) |
+| POST `/api/chat/chats` | создать чат: `direct` — любой авторизованный, `object`/`ticket` — ADMIN/SUPERVISOR, `system` — ADMIN; `ticket` идемпотентен по `ticketId` | auth |
+| GET `/api/chat/chats/:id` | деталь с участниками; чужой чат → 403 «Вы не участник этого чата» | auth |
+| GET `/api/chat/chats/:id/messages?before&limit` | история с курсором (`limit` ≤ 100) | auth (участник) |
+| POST `/api/chat/chats/:id/messages` | REST-фолбэк отправки (основной путь — WebSocket) | auth (участник) |
+| POST `/api/chat/chats/:id/read` | отметка прочтения → событие `message:read` автору | auth (участник) |
+| GET `/api/chat/messages/search?q&chatId&limit` | поиск по тексту только по своим чатам | auth |
+| GET `/api/chat/health` | проверка готовности сервиса | public |
+| WS `/chat` | `message:send` → ack отправителю и `message:new` онлайн-участникам; `message:read` → `message:read` автору; оффлайн-получателям — push | JWT в handshake |
+
+- Модель доступа: `ChatMember` (участник видит всегда), TICKET-чат — дополнительно участники заявки
+  (сверка через ticket-service), OBJECT — состав задаётся явно, DIRECT/SYSTEM — только участники.
+- Оффлайн-push: `POST /api/notifications/internal/chat-message` (тип `CHAT_MESSAGE`) в
+  notification-service.
 
 ## 9. notification-service `/api/notifications` (М3) — реализовано
 
