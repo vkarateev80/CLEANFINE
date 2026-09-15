@@ -451,10 +451,12 @@ test.describe('Notifications: настройки', () => {
       'GEOFENCE_EXIT',
       'MATERIAL_LOW',
       // SCHEDULE_MISSED добавлен в NOTIFICATION_TYPES вместе с М4.5
-      // (schedule.missed_checkin → шаблон «Неявка на смену»). Список в спеке отставал
-      // от словаря сервиса, из-за чего набор падал ещё до работ М4.7 — список обновлён
-      // до фактического набора типов, проверка «доступны ВСЕ типы» сохранена.
+      // (schedule.missed_checkin → шаблон «Неявка на смену»), CHAT_MESSAGE — вместе
+      // с М5 (push оффлайн-получателям сообщений чата). Список в спеке отставал от
+      // словаря сервиса, из-за чего набор падал раньше, чем обнаруживался дефект;
+      // проверка «доступны ВСЕ типы» сохранена.
       'SCHEDULE_MISSED',
+      'CHAT_MESSAGE',
     ]);
 
     const updated = await updateNotificationSettings(request, ['MATERIAL_LOW'], {

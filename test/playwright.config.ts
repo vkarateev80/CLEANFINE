@@ -17,6 +17,14 @@ import { defineConfig, devices } from '@playwright/test';
  * `/api/chat` и WebSocket namespace `/chat`), `E2E_BASE_URL` (:5173). Дефолты — локальный
  * стенд, поэтому в CI достаточно поднять сервисы на штатных портах.
  *
+ * Второе UI-приложение — портал заказчика (`frontend/web-client`, :5174, М5.4). Он живёт
+ * в том же проекте `web` (файл `e2e/web/portal.ui.spec.ts`), но у него СВОЙ адрес, который
+ * не выражается одним `baseURL`: `E2E_PORTAL_URL` (:5174, дефолт — локальный стенд).
+ * Специфика портала переходит по абсолютному адресу, а админские шаги того же файла — по
+ * `baseURL` проекта (`E2E_BASE_URL`, :5173); мобильный вьюпорт портала задаётся в самом
+ * файле (`test.use(devices['iPhone 13'])`). Отдельный проект для портала не заводится
+ * намеренно: `--project=web` обязан прогонять весь UI-набор целиком, включая портал.
+ *
  * Сервисы НЕ поднимаются автоматически (`webServer`), их поднимает запускающий:
  *  - auth-service: порт 3001. В e2e-прогоне лимит логина поднимается
  *    (THROTTLE_LOGIN_LIMIT=1000 THROTTLE_GLOBAL_LIMIT=10000), иначе набор
@@ -59,6 +67,8 @@ export default defineConfig({
       testMatch: /.*\.ui\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
+        // Админка (:5173). Специфика портала (:5174) берёт `E2E_PORTAL_URL` сам —
+        // у проекта один `baseURL`, а приложений два.
         baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
       },
     },

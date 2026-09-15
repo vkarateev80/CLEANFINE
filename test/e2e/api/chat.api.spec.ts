@@ -942,30 +942,34 @@ test.describe('Чаты: push оффлайн-получателю', () => {
         },
       },
     );
+    // Эндпоинт push существует (М5): сервисный токен — админ, ответ несёт сводку доставки.
     expect(
       internalPush.status(),
-      'эндпоинт push оффлайн-получателям отсутствует в notification-service (дефект М5.6)',
-    ).toBe(404);
+      'внутренний push оффлайн-получателям должен доставляться, а не отвечать 404',
+    ).toBe(200);
+    const delivered = (await internalPush.json()) as { delivered?: number };
+    expect(delivered.delivered, 'push доставлен хотя бы одному получателю').toBeGreaterThan(0);
 
     // Отправка оффлайн-получателю. ChatService вызывает notifyOffline ВНУТРИ запроса
-    // (до ответа), поэтому к моменту 201 попытка push уже завершилась — отсутствие
-    // записи проверяется сразу, без ожиданий.
+    // (до ответа), поэтому к моменту 201 попытка push уже завершилась — запись
+    // проверяется сразу, без ожиданий.
     const message = await sendMessage(request, chat.id, `E2E-M56 push ${runTag()}`, {
       token: adminToken,
     });
     expect(message.chatId).toBe(chat.id);
 
-    // Фактический контракт: ни in-app записи с нашим chatId, ни уведомления типа
-    // CHAT_MESSAGE (такого типа нет в словаре notification-service) у получателя нет.
+    // Контракт М5: сообщение оффлайн-получателю создаёт уведомление типа CHAT_MESSAGE
+    // с нашим chatId в payload. Раньше эндпоинта не было и записи не появлялись —
+    // теперь отсутствие записи это регресс, а не ожидаемое поведение.
     const page = await notificationsPage(request, { limit: 100 }, { token: fresh.token });
     const chatRelated = page.items.filter(
       (item) =>
         (item.type as string) === 'CHAT_MESSAGE' || item.payload?.['chatId'] === chat.id,
     );
     expect(
-      chatRelated,
-      'push оффлайн-получателю не создаёт уведомление (дефект: см. README chat-service)',
-    ).toHaveLength(0);
+      chatRelated.length,
+      'push оффлайн-получателю создаёт уведомление CHAT_MESSAGE',
+    ).toBeGreaterThan(0);
   });
 });
 
