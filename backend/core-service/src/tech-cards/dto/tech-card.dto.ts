@@ -33,7 +33,9 @@ export class UpdateTechCardDto {
 export class OperationMaterialDto {
   @ApiProperty({
     description:
-      'Идентификатор материала. Справочник появится в material-service (М4); до этого — любая строка.',
+      'Идентификатор материала из справочника material-service (М4). Межсервисного FK нет: ' +
+      'core хранит строку и существование материала не проверяет — выбор из справочника ' +
+      'обеспечивает UI, а списание выполняет material-service.',
     example: 'material-001',
   })
   @IsString()

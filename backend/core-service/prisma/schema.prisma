@@ -161,7 +161,9 @@ model TechOperationMaterial {
   id                      String        @id @default(uuid())
   operationId             String
   operation               TechOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
-  /// Справочник материалов появится в material-service (М4); до этого — произвольный id.
+  /// Идентификатор материала из справочника material-service (М4): FK между сервисами нет,
+  /// core хранит только строку и существование материала не проверяет — выбор из справочника
+  /// обеспечивает UI, а списание выполняет material-service по этому id.
   materialId              String
   consumptionPerOperation Float
   unit                    String
