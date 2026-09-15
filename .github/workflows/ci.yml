@@ -178,6 +178,11 @@ jobs:
       E2E_MATERIAL_URL: http://localhost:3007
       E2E_SCHEDULE_URL: http://localhost:3008
       E2E_BASE_URL: http://localhost:5173
+      # Периодические проходы schedule-service в e2e выключены: набор проверяет
+      # те же действия через детерминированные триггеры (POST /generate,
+      # POST /check-missed). Фоновый проход неявок раз в 5 минут переводил бы
+      # смены в MISSED прямо во время прогона и делал ожидания невоспроизводимыми.
+      SCHEDULE_CRON_ENABLED: 'false'
 
     steps:
       - uses: actions/checkout@v4
@@ -219,7 +224,7 @@ jobs:
 
       # Сервис-контейнер postgres создаёт только cleaning_ops_e2e; у остальных
       # сервисов свои БД (границы микросервисов: своя схема на сервис).
-      - name: Create databases (files, core, gps, tickets, notifications)
+      - name: Create databases (files, core, gps, tickets, notifications, materials, schedule)
         run: |
           docker exec "${{ job.services.postgres.id }}" \
             psql -U admin -d cleaning_ops_e2e -v ON_ERROR_STOP=1 \
