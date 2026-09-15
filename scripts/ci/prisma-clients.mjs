@@ -79,15 +79,27 @@ function copyInto(source, target) {
   cpSync(source, target, { recursive: true, dereference: true });
 }
 
-/** Где prisma оставила сгенерированный клиент: рядом с пакетом или внутри него. */
+/**
+ * Каталог сгенерированного клиента: prisma пишет его в `node_modules/.prisma/client`
+ * того node_modules, в котором лежит сам пакет `@prisma/client`. В раскладке pnpm
+ * это `node_modules/.pnpm/@prisma+client@…/node_modules/.prisma/client`, в раскладке
+ * npm — `backend/<сервис>/node_modules/.prisma/client`. Поэтому идём вверх по
+ * каталогам, а не полагаемся на одну конкретную глубину.
+ */
 function generatedClientDir(pkgDir) {
-  const candidates = [
-    path.join(path.dirname(pkgDir), '.prisma', 'client'),
-    path.join(pkgDir, '.prisma', 'client'),
-  ];
-  const found = candidates.find((dir) => existsSync(path.join(dir, 'index.js')));
+  const candidates = [path.join(pkgDir, '.prisma', 'client')];
+  let dir = pkgDir;
+  for (let level = 0; level < 4; level += 1) {
+    dir = path.dirname(dir);
+    candidates.push(path.join(dir, '.prisma', 'client'));
+  }
+  const found = candidates.find((candidate) => existsSync(path.join(candidate, 'index.js')));
   if (!found) {
-    throw new Error(`не найден сгенерированный Prisma-клиент рядом с ${pkgDir}`);
+    const seen = candidates.map(
+      (candidate) =>
+        `  ${candidate} → ${existsSync(candidate) ? 'каталог есть, index.js нет' : 'нет'}`,
+    );
+    throw new Error(`не найден сгенерированный Prisma-клиент для ${pkgDir}\n${seen.join('\n')}`);
   }
   return found;
 }
