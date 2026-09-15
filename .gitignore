@@ -13,6 +13,9 @@ coverage/
 !.env.example
 
 # --- Логи ---
+# logs/ — вывод локального стенда: сервисы и dev-сервер запускаются из корня и
+# пишут сюда stdout/stderr, чтобы падение было видно после перезапуска.
+/logs/
 *.log
 npm-debug.log*
 pnpm-debug.log*
