@@ -22,6 +22,8 @@ export const ROUTES = {
   tickets: '/tickets',
   ticket: (id: string) => `/tickets/${id}`,
 
+  map: '/map',
+
   notifications: '/notifications',
 
   employees: '/employees',

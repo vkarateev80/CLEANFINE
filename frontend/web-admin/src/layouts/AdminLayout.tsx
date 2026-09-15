@@ -21,6 +21,9 @@ const NAV: NavItem[] = [
   { to: '/routes', label: 'Маршруты', roles: ['ADMIN', 'SUPERVISOR'] },
   { to: '/tech-cards', label: 'Техкарды', roles: ['ADMIN', 'SUPERVISOR'] },
   { to: '/tickets', label: 'Заявки' },
+  // Карта — геозоны объектов и ближние сотрудники: чтение gps-service открыто
+  // всем авторизованным ролям, поэтому пункт виден без ограничения по ролям.
+  { to: '/map', label: 'Карта' },
   { to: '/employees', label: 'Сотрудники', roles: ['ADMIN', 'SUPERVISOR'] },
   { to: '/materials', label: 'Материалы' },
   { to: '/reports', label: 'Отчёты' },

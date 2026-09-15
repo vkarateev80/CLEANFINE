@@ -6,6 +6,7 @@ import { AuthLayout } from '../layouts/AuthLayout';
 import { DashboardPage } from '../pages/Dashboard/DashboardPage';
 import { FloorPlanPage } from '../pages/Floors/FloorPlanPage';
 import { LoginPage } from '../pages/Login/LoginPage';
+import { MapPage } from '../pages/Map/MapPage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
 import { NotificationsPage } from '../pages/Notifications/NotificationsPage';
 import { ObjectDetailPage } from '../pages/Objects/ObjectDetailPage';
@@ -87,6 +88,13 @@ export const router = createBrowserRouter([
        */
       { path: 'tickets', element: <TicketsPage /> },
       { path: 'tickets/:id', element: <TicketDetailPage /> },
+
+      /*
+       * Карта (М3.7): геозоны и ближние сотрудники. На чтении gps-service нет
+       * `@Roles`, поэтому RoleGuard не нужен — как у заявок. Админка остаётся
+       * доступна без ключа Mapbox: страница показывает заглушку и таблицы.
+       */
+      { path: 'map', element: <MapPage /> },
 
       { path: 'notifications', element: <NotificationsPage /> },
 

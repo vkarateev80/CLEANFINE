@@ -44,13 +44,21 @@ export function Tr({
   children,
   onClick,
   className,
+  testId,
 }: {
   children: ReactNode;
   onClick?: () => void;
   className?: string;
+  /**
+   * `data-testid` строки. Проп, а не «произвольный атрибут»: `<tr>` здесь без
+   * spread, поэтому `data-testid` в JSX молча терялся — а молчаливый селектор
+   * заметен только в e2e («element not found» при видимой строке).
+   */
+  testId?: string;
 }) {
   return (
     <tr
+      data-testid={testId}
       onClick={onClick}
       className={[
         'border-b border-neutral-200 last:border-b-0',

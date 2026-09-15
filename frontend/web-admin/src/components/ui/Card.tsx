@@ -6,14 +6,18 @@ export function Card({
   children,
   className,
   padded = true,
+  testId,
 }: {
   children: ReactNode;
   className?: string;
   /** `false` — для панелей с таблицей: отступы задают ячейки. */
   padded?: boolean;
+  /** `data-testid` панели: `<Card>` без spread, поэтому в JSX атрибут бы потерялся. */
+  testId?: string;
 }) {
   return (
     <div
+      data-testid={testId}
       className={[
         'rounded-xl border border-neutral-200 bg-white shadow-sm',
         padded ? 'p-6' : '',
