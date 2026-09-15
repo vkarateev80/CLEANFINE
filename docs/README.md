@@ -250,11 +250,26 @@ Code review обязателен для merge в main
 📊 Статус проекта
 Компонент	Статус	Прогресс
 Design System	🟡 Токены DS-001 + экраны DS-003	~40%
-Backend Services	🟢 auth, files, core	~35% (3 из 9 сервисов)
-Web Admin	🟡 Экраны входа и ядра	~30%
+Backend Services	🟢 auth, files, core, gps, tickets, notifications	~65% (6 из 9 сервисов)
+Web Admin	🟡 Вход, ядро, заявки, карта, in-app	~60%
 Mobile App	🔴 Не начат (М6)	0%
 DevOps	🟡 Docker + CI (не прогнан на GitHub)	~40%
-QA	🟢 Unit 100% (core), e2e: auth + ядро	~30%
+QA	🟢 Unit: core 100 %, сервисы М3 99–100 %; e2e: auth + ядро + оперативка	~50%
+
+> **Обновление М3 (2026-09-15, см. ПЛАН.md + КОНТЕКСТ.md, раздел 0.8):**
+> - **М3 «Оперативка» реализована:** gps-service (:3004, PostGIS-треки и геозоны, ближние
+>   сотрудники, `geofence.exit`), notification-service (:3006, push-мок/FCM, 5 шаблонов, in-app,
+>   консьюмер на 6 очередей), ticket-service (:3005, state machine из `shared`, эскалация,
+>   SOS-вертикаль, идемпотентное завершение операций).
+> - **Web-admin:** экраны «Заявки» (фильтры, SOS, карточка с переходами и операциями) и «Карта»
+>   (Mapbox GL: геозоны, сотрудники, трек; при пустом `VITE_MAPBOX_TOKEN` — заглушка + данные
+>   списком), in-app уведомления (колокольчик, polling 30 с, настройки подписок).
+> - **QA М3:** unit gps 112 / tickets 140 / notifications 167 тестов (покрытие 99–100 %);
+>   e2e-набор оперативки (tickets/gps/notifications + SOS-вертикаль).
+> - **Инфраструктура:** три БД на сервис, initdb-скрипт в compose, Vite-прокси, CI e2e-джоба
+>   с RabbitMQ и всеми шестью сервисами, Dockerfile для gps/ticket/notification.
+> - Статусы компонентов: Backend Services 🟢 (6 из 9 сервисов), Web Admin 🟡 (вход + ядро +
+>   оперативка), QA 🟢 по покрытию unit и e2e.
 
 > **Обновление М2 (2026-09-15, см. ПЛАН.md + КОНТЕКСТ.md):**
 > - **М0 и М1 завершены:** Docker заработал (контейнеры `healthy`), миграции/seed/смоук логина выполнены,

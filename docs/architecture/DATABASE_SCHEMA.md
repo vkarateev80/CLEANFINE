@@ -29,14 +29,24 @@
   (materialId — без FK: справочник появится в material-service, М4).
 - Источник: УСТАВ.md → Агент Backend Core; `prisma/schema.prisma` сервиса.
 
-## 4. gps-service (М3)
+## 4. gps-service (М3) — реализовано (БД `cleaning_ops_gps`, миграция `init_gps`)
 
-- `gps_tracks` (PostGIS: GEOMETRY(Point,4326), GIST-индексы), `geofences` (GEOMETRY(Polygon,4326), radius_meters, objectId).
-- Источник: УСТАВ.md → Агент Backend GPS, SQL.
+- `gps_tracks` → `gps_tracks`: user_id, location GEOMETRY(Point,4326), accuracy, speed,
+  battery_level, timestamp; GIST-индекс по location + (user_id, timestamp DESC).
+- `geofences` → `geofences`: object_id (без FK — другая БД), name, boundary GEOMETRY(Polygon,4326),
+  radius_meters; GIST-индекс по boundary.
+- Геометрия объявлена в Prisma как `Unsupported(...)`, запросы — через `$queryRaw` (ST_Contains,
+  ST_DWithin, ST_Distance, ST_AsGeoJSON).
 
-## 5. ticket-service (М3)
+## 5. ticket-service (М3) — реализовано (БД `cleaning_ops_tickets`, миграция `init_tickets`)
 
-- `Ticket` (тип/приоритет/статус/объект/исполнитель/тайминги), `TicketAssignment`, `TicketComment`; статусы и переходы — State Machine из shared (УСТАВ.md → Агент Backend Tickets).
+- `tickets`: type (planned/unscheduled/emergency), priority, status (state machine из
+  `shared/types/tickets.ts`), objectId, roomId?, assigneeId?, createdBy, lat/lng?, тайминги и
+  дедлайны (reaction/arrival/completion).
+- `ticket_assignments`: история назначений (ticketId, assigneeId, assignedBy, assignedAt).
+- `ticket_comments`: комментарии (ticketId, authorId, text).
+- `ticket_operation_completions`: отметки выполнения операций — идемпотентность по
+  (ticketId, operationId).
 
 ## 6. material-service (М4)
 
@@ -51,9 +61,13 @@
 
 - `Chat` (type: OBJECT/TICKET/DIRECT/SYSTEM, участники), `Message` (автор, вложение, прочитано/кем/когда).
 
-## 9. notification-service (М3)
+## 9. notification-service (М3) — реализовано (БД `cleaning_ops_notifications`, миграция `init_notifications`)
 
-- Устройства/токены пользователей, in-app уведомления, настройки подписок пользователя.
+- `devices`: userId, token UNIQUE, platform, isActive, lastSeenAt (индексы userId, (userId,isActive));
+  невалидный токен FCM → `isActive=false`.
+- `notifications`: userId, type (NEW_TICKET/EMERGENCY/TICKET_OVERDUE/GEOFENCE_EXIT/MATERIAL_LOW),
+  title, body, payload JSONB, readAt, createdAt (индексы userId, (userId,readAt)).
+- `notification_preferences`: userId UNIQUE, disabledTypes TEXT[] — отключённые типы уведомлений.
 
 ## 10. Ограничения целостности (общие)
 

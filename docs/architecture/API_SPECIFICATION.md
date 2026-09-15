@@ -54,13 +54,29 @@
 
 - Архивный маршрут (`ARCHIVED`) неизменяем: мутации точек → 400.
 
-## 4. gps-service `/api/gps` (М3)
+## 4. gps-service `/api/gps` (М3) — реализовано
 
-- `POST /api/gps/track` — batch-координаты; проверка геозоны; поиск ближних сотрудников (`employees/nearby`); история перемещений.
+| Метод/путь | Назначение | Доступ |
+|---|---|---|
+| POST `/api/gps/track` | batch до 1000 точек; проверка геозон, эмиссия `geofence.exit` | auth (userId из токена; подмена — ADMIN/SUPERVISOR) |
+| GET `/api/gps/geofences` | список геозон (GeoJSON), фильтр `?objectId=` | auth |
+| POST `/api/gps/geofences` | создание геозоны объекта | ADMIN, SUPERVISOR |
+| GET `/api/gps/geofences/:userId/check?lat&lng` | вхождение в геозону (ST_Distance/ST_Contains) | auth |
+| GET `/api/gps/employees/nearby?lat&lng&radius` | ближние сотрудники (последняя точка ≤5 мин) | auth |
+| GET `/api/gps/tracks?userId&from&to&limit` | история перемещений | auth |
 
-## 5. ticket-service `/api/tickets` (М3)
+## 5. ticket-service `/api/tickets` (М3) — реализовано
 
-- CRUD заявок (плановые/внеплановые/аварийные), смена статусов (state machine), назначение, комментарии, `POST /api/tickets/:id/operations/:operationId/complete` (эмиссия `ticket.operation.completed`), аварийные (SOS).
+| Метод/путь | Назначение | Доступ |
+|---|---|---|
+| POST `/api/tickets` | плановая/внеплановая заявка | ADMIN, SUPERVISOR, CLIENT |
+| POST `/api/tickets/emergency` | аварийная (SOS): CRITICAL, ближние операторы, `ticket.emergency` | ADMIN, SUPERVISOR, CLIENT |
+| GET `/api/tickets` | список с фильтрами (status/type/priority/objectId/assigneeId) и пагинацией | auth |
+| GET `/api/tickets/:id` | деталь: назначения, комментарии, операции | auth |
+| PATCH `/api/tickets/:id/status` | смена статуса; невалидный переход → 400 `Invalid status transition` | auth (по правилам контроллера) |
+| POST `/api/tickets/:id/assign` | назначение исполнителя → `ticket.assigned` | ADMIN, SUPERVISOR |
+| POST `/api/tickets/:id/comments` | комментарий | auth |
+| POST `/api/tickets/:id/operations/:operationId/complete` | выполнение операции; идемпотентно (`alreadyCompleted`), эмиссия `ticket.operation.completed` | auth |
 
 ## 6. material-service `/api/materials` (М4)
 
@@ -74,6 +90,17 @@
 
 - События: `message:send`, `message:new`, `message:read`; чаты OBJECT/TICKET/DIRECT/SYSTEM; история с пагинацией; файлы.
 
-## 9. notification-service `/api/notifications` (М3)
+## 9. notification-service `/api/notifications` (М3) — реализовано
 
-- Регистрация устройств, in-app список, настройки подписок.
+| Метод/путь | Назначение | Доступ |
+|---|---|---|
+| POST `/api/notifications/device` | регистрация/обновление FCM-токена устройства (upsert) | auth |
+| GET `/api/notifications?page&limit&unreadOnly` | in-app список: `{items,total,page,limit,unreadCount}` | auth |
+| PATCH `/api/notifications/:id/read` | отметка прочитанного (идемпотентно, 404 на чужое) | auth |
+| GET `/api/notifications/settings` | настройки подписок: `{disabledTypes, availableTypes}` | auth |
+| PATCH `/api/notifications/settings` | изменить подписки (недопустимый тип → 400) | auth |
+
+- RabbitMQ-консьюмер слушает 6 очередей `notification.*` (`shared/constants/events.ts`):
+  `ticket.created`, `ticket.assigned`, `ticket.emergency`, `ticket.overdue`, `geofence.exit`,
+  `material.low`. Получатели — из payload (`assigneeId`/`userIds`), иначе broadcast по активным
+  устройствам. Push в dev — MockPushSender (FCM включается при заполненных `FIREBASE_*`).
