@@ -303,13 +303,12 @@ test('М5.4: /reports отдаёт числовой итог расхода ма
   await expect(materialsTab).toBeVisible({ timeout: 20_000 });
   await expect(materialsTab).toContainText(material.name, { timeout: 20_000 });
 
-  // Отдельного `portal-report-total` в текущей вёрстке портала нет: итог лежит в строке
-  // «Итого» таба «Материалы» (замечание к фронтенду — в отчёте по задаче). Читаем её.
-  const totalRow = materialsTab.locator('div.font-medium', { hasText: 'Итого' });
-  await expect(totalRow, 'строка «Итого» отрисована').toHaveCount(1);
-  const totalText = await totalRow.locator('.font-mono').first().innerText();
-  const total = parsePortalNumber(totalText);
-  expect(Number.isFinite(total), `итог — число, получено «${totalText}»`).toBe(true);
+  // Итог по расходу помечен собственным testid (portal-report-total) — проверяем именно
+  // его, чтобы тест не зависел от вёрстки строки «Итого».
+  const totalValue = materialsTab.getByTestId('portal-report-total');
+  await expect(totalValue, 'итог расхода отрисован').toBeVisible({ timeout: 20_000 });
+  const total = parsePortalNumber(await totalValue.innerText());
+  expect(Number.isFinite(total), 'итог — число').toBe(true);
   expect(total, 'итог портала совпадает с агрегатом material-service').toBeCloseTo(
     report.totals.consumedQuantity,
     2,

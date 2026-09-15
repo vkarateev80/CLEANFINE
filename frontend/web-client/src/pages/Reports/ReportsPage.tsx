@@ -600,7 +600,10 @@ function MaterialsTab({
             <div className="flex items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-50 px-4 py-3 font-medium">
               <span className="text-sm text-neutral-900">Итого</span>
               <div className="text-right">
-                <div className="whitespace-nowrap font-mono text-sm text-neutral-900">
+                <div
+                  className="whitespace-nowrap font-mono text-sm text-neutral-900"
+                  data-testid="portal-report-total"
+                >
                   {formatNumber(report?.totals.consumedQuantity ?? 0, 2)}
                 </div>
                 <div className="whitespace-nowrap font-mono text-xs text-neutral-600">
