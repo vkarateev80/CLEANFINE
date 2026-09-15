@@ -15,6 +15,7 @@ export const NOTIFICATION_TYPES = [
   'TICKET_OVERDUE',
   'GEOFENCE_EXIT',
   'MATERIAL_LOW',
+  'SCHEDULE_MISSED',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -25,6 +26,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   TICKET_OVERDUE: 'Просрочка заявки',
   GEOFENCE_EXIT: 'Выход за периметр',
   MATERIAL_LOW: 'Мало материала',
+  SCHEDULE_MISSED: 'Неявка на смену',
 };
 
 /** Иконка типа — компактная подсказка в списке (текстовые подписи рядом). */
@@ -34,6 +36,7 @@ export const NOTIFICATION_TYPE_ICONS: Record<NotificationType, string> = {
   TICKET_OVERDUE: '⏰',
   GEOFENCE_EXIT: '📍',
   MATERIAL_LOW: '📦',
+  SCHEDULE_MISSED: '🗓️',
 };
 
 export interface NotificationEntity {
