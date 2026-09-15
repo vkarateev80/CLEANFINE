@@ -35,7 +35,17 @@ mobile/cleaning-ops-app/ios/Pods/
 # --- Тесты и отчёты ---
 test/reports/
 test/performance/results/
+test-results/
 playwright-report/
 
 # --- Служебное ---
 .superpowers/
+
+# --- Артефакты компиляции shared (собирается в shared/dist) ---
+# Появляются, если tsc случайно запущен в shared/ без outDir; исходники — только *.ts.
+shared/types/*.js
+shared/types/*.js.map
+shared/types/*.d.ts
+shared/constants/*.js
+shared/constants/*.js.map
+shared/constants/*.d.ts
