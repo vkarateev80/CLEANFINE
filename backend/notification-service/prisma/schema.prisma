@@ -1,0 +1,67 @@
+// Prisma-схема notification-service (М3.3). Источник: docs/agents/BACKEND_NOTIFICATIONS.md,
+// ПЛАН.md → М3.3 и решение №3 (в dev push через мок-адаптер, без Firebase).
+//
+// Границы микросервисов: FK только внутри сервиса. userId — идентификатор из auth-service,
+// внешнего ключа на users нет (каждый сервис владеет своей БД).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("NOTIFICATION_DATABASE_URL")
+}
+
+/// Устройство (push-токен) пользователя. Токен уникален: upsert по token
+/// при повторной регистрации того же устройства (переустановка приложения и т.п.).
+model Device {
+  id         String   @id @default(uuid())
+  /// userId из auth-service (JWT sub).
+  userId     String
+  /// FCM-токен устройства.
+  token      String   @unique
+  /// Платформа: android | ios | web.
+  platform   String
+  /// false — токен признан невалидным (UNREGISTERED/INVALID_ARGUMENT) и не используется.
+  isActive   Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("devices")
+  @@index([userId])
+  @@index([userId, isActive])
+}
+
+/// In-app уведомление. Хранится независимо от доставки push:
+/// если устройства нет, пользователь всё равно увидит уведомление в интерфейсе.
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  /// Тип из NOTIFICATION_TYPES (NEW_TICKET | EMERGENCY | ...) — та же
+  /// словарная величина, что и в notification_preferences.disabledTypes.
+  type      String
+  title     String
+  body      String
+  /// Доп. данные для клиента (ticketId и т.п.).
+  payload   Json?
+  /// null — не прочитано.
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("notifications")
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+/// Настройки подписок пользователя: типы, от которых он отказался.
+model NotificationPreference {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  disabledTypes String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("notification_preferences")
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // shared/dist собирается как ESM (shared/package.json → "type": "module").
+    // Node 24 умеет require(ESM), а jest — нет: без allowJs ts-jest пропускает
+    // .js-файлы shared/dist как есть, и jest падает на `export const`.
+    "allowJs": true
+  }
+}
