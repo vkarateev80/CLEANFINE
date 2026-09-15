@@ -258,16 +258,46 @@ export async function deleteSchedule(
   expect([200, 404], `удаление графика ${id}: ${await res.text()}`).toContain(res.status());
 }
 
-/** POST /api/schedule/generate?date= — детерминированный триггер (ADMIN). */
+/**
+ * Непустые параметры запроса в query-строку: `undefined`/пустая строка — «параметра нет».
+ * Нужно для ручных триггеров, у которых «без параметров» — самостоятельное поведение
+ * (проход по всем сменам), а не пустая область.
+ */
+function queryString(query: Record<string, string | undefined>): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== '') params.set(key, value);
+  }
+  return params.toString() ? `?${params.toString()}` : '';
+}
+
+/** POST /api/schedule/generate — детерминированный триггер (ADMIN). */
 export function postGenerate(
   request: APIRequestContext,
-  date: string,
+  date?: string,
   options: ApiOptions = {},
 ): Promise<APIResponse> {
-  return scheduleApi(request, 'post', `/api/schedule/generate?date=${date}`, {
+  return scheduleApi(request, 'post', `/api/schedule/generate${queryString({ date })}`, {
     role: options.role ?? 'ADMIN',
     token: options.token,
   });
+}
+
+/**
+ * POST /api/schedule/generate?scheduleId= — проход ровно по одному графику (задача A2).
+ * Несуществующий график → 404, а не «успех с нулями».
+ */
+export function postGenerateScoped(
+  request: APIRequestContext,
+  scope: { date?: string; scheduleId: string },
+  options: ApiOptions = {},
+): Promise<APIResponse> {
+  return scheduleApi(
+    request,
+    'post',
+    `/api/schedule/generate${queryString({ date: scope.date, scheduleId: scope.scheduleId })}`,
+    { role: options.role ?? 'ADMIN', token: options.token },
+  );
 }
 
 /** POST /api/schedule/generate с проверкой 201. */
@@ -354,17 +384,37 @@ export async function checkOutOrFail(
   return (await res.json()) as ScheduleEventView;
 }
 
+/** Область ручного прохода «проверка неявок»: eventId приоритетнее scheduleId и date. */
+export interface ScheduleSweepScope {
+  date?: string;
+  scheduleId?: string;
+  eventId?: string;
+}
+
+/**
+ * POST /api/schedule/check-missed с областью прохода (ADMIN).
+ *
+ * Пустая область — прежнее поведение: проход по всем сменам. `scheduleId` сужает проход
+ * сменами одного графика, `eventId` — ровно одной сменой; несуществующий id → 404.
+ */
+export function postCheckMissedScoped(
+  request: APIRequestContext,
+  scope: ScheduleSweepScope = {},
+  options: ApiOptions = {},
+): Promise<APIResponse> {
+  return scheduleApi(request, 'post', `/api/schedule/check-missed${queryString({ ...scope })}`, {
+    role: options.role ?? 'ADMIN',
+    token: options.token,
+  });
+}
+
 /** POST /api/schedule/check-missed?date= — ручной прогон проверки неявок (ADMIN). */
 export function postCheckMissed(
   request: APIRequestContext,
   date?: string,
   options: ApiOptions = {},
 ): Promise<APIResponse> {
-  const suffix = date ? `?date=${date}` : '';
-  return scheduleApi(request, 'post', `/api/schedule/check-missed${suffix}`, {
-    role: options.role ?? 'ADMIN',
-    token: options.token,
-  });
+  return postCheckMissedScoped(request, { date }, options);
 }
 
 /** POST /api/schedule/check-missed с проверкой 201. */

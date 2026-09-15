@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { createObject, deleteObject, runTag } from '../../helpers/core';
+import { createFloor, createObject, createRoute, deleteObject, runTag } from '../../helpers/core';
 import {
   flushOperationsData,
   loginIdAs,
@@ -203,6 +203,64 @@ test('создание ежедневного графика через мода
   expect(saved?.objectId).toBe(object.id);
   expect(saved?.assignees).toContain(adminId);
   expect(saved?.isActive).toBe(true);
+});
+
+test('маршрут графика выбирается из селекта и сохраняется (routeId виден в API)', async ({
+  page,
+  request,
+}) => {
+  const tag = runTag();
+  const name = `E2E-M47-UI-SCHED маршрут ${tag}`;
+  const object = await createTrackedObject(request, `E2E-M47-UI-SCHED маршрут ${tag}`);
+  const routeFloor = await createFloor(request, object.id, { number: 1, name: 'Этаж 1' });
+  const route = await createRoute(request, routeFloor.id, {
+    name: `E2E-M47-UI-SCHED маршрут этажа ${tag}`,
+  });
+  // Второй объект — контроль: его маршрут в селект не попадает, потому что список
+  // маршрутов сужен объектом графика СЕРВЕРНЫМ фильтром (`GET /api/routes?objectId=`),
+  // а не фильтрацией уже загруженной сотни на клиенте.
+  const foreignObject = await createTrackedObject(request, `E2E-M47-UI-SCHED чужой объект ${tag}`);
+  const foreignFloor = await createFloor(request, foreignObject.id, { number: 1 });
+  const foreignRoute = await createRoute(request, foreignFloor.id, {
+    name: `E2E-M47-UI-SCHED чужой маршрут ${tag}`,
+  });
+  const adminId = await loginIdAs(request, 'ADMIN');
+
+  await openSchedule(page);
+  await page.getByTestId('schedule-create-button').click();
+  await expect(page.getByTestId('schedule-form')).toBeVisible();
+  await page.getByTestId('schedule-name').fill(name);
+
+  // Селект «Маршрут» грузится с сервера: сначала выбираем объект графика, затем —
+  // маршрут этого объекта (опция появляется только после ответа core-service).
+  await selectServerOption(page, 'schedule-object', object.id);
+  await selectServerOption(page, 'schedule-route', route.id);
+  await expect(
+    page.getByTestId('schedule-route').locator(`option[value="${foreignRoute.id}"]`),
+    'маршрут чужого объекта в селекте отсутствует',
+  ).toHaveCount(0);
+
+  await page.getByTestId('schedule-frequency').selectOption('daily');
+  await page.getByTestId('schedule-time').fill('06:45');
+  await page.getByTestId('schedule-assignee-' + adminId).check();
+  await page.getByTestId('schedule-submit').click();
+  await expect(page.getByTestId('schedule-form')).toBeHidden({ timeout: 20_000 });
+
+  await page.getByTestId('schedule-search').fill(name);
+  const row = page.locator('[data-testid^="schedule-row-"]');
+  await expect(row).toHaveCount(1, { timeout: 20_000 });
+  const scheduleId = ((await row.first().getAttribute('data-testid')) ?? '').replace(
+    'schedule-row-',
+    '',
+  );
+  planningTracker.schedule(scheduleId);
+
+  // Главное: выбранный в селекте маршрут действительно уехал на сервер и сохранён.
+  const savedRes = await getSchedule(request, scheduleId);
+  expect(savedRes.status()).toBe(200);
+  const saved = (await savedRes.json()) as { objectId: string | null; routeId: string | null };
+  expect(saved.objectId).toBe(object.id);
+  expect(saved.routeId, 'выбранный маршрут сохранён в графике').toBe(route.id);
 });
 
 test('weekly без отмеченных дней: форма не отправляется и показывает текст ошибки', async ({

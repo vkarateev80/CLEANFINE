@@ -340,6 +340,44 @@ export async function addOperation(
   return (await res.json()) as TechOperation;
 }
 
+/**
+ * Элемент плоского списка маршрутов (`GET /api/routes`, М4).
+ * `objectId` — объект этажа маршрута, `pointsCount` — число точек.
+ */
+export interface RouteSummary {
+  id: string;
+  name: string;
+  floorId: string;
+  objectId: string;
+  pointsCount: number;
+  createdAt: string;
+}
+
+/**
+ * GET /api/routes — плоский список маршрутов с фильтрами и пагинацией.
+ *
+ * Контракт М4: ответ `{ items, total }`, где `total` считает ВСЕ подходящие маршруты,
+ * а не размер страницы. `objectId` отбирает маршруты всех этажей объекта, `floorId` —
+ * одного этажа; `take` не больше 100 (валидатор DTO).
+ */
+export async function listRoutes(
+  request: APIRequestContext,
+  query: { skip?: number; take?: number; objectId?: string; floorId?: string } = {},
+  options: { role?: Role; token?: string } = {},
+): Promise<{ items: RouteSummary[]; total: number }> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) params.set(key, String(value));
+  }
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  const res = await core(request, 'get', `/api/routes${suffix}`, {
+    role: options.role,
+    token: options.token,
+  });
+  expect(res.status(), `список маршрутов: ${await res.text()}`).toBe(200);
+  return (await res.json()) as { items: RouteSummary[]; total: number };
+}
+
 /** GET /api/routes/:id — маршрут с точками и totalEstimatedTimeMin. */
 export async function getRouteDetail(
   request: APIRequestContext,

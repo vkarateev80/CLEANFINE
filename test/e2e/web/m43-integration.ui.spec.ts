@@ -26,7 +26,7 @@ import {
 import { userByRole } from '../../helpers/users';
 
 /**
- * М4.7 — UI-интеграция двух пунктов М4.3, которые раньше не были реализованы:
+ * М4.7 — UI-интеграция трёх пунктов М4.3, которые раньше не были реализованы:
  *
  *  1. **Материал операции техкарты выбирается из справочника material-service**
  *     (`OperationFormModal`): серверный поиск, подстановка единицы и нормы расхода
@@ -37,7 +37,11 @@ import { userByRole } from '../../helpers/users';
  *  2. **Необязательная заявка в движении материала** (`MovementModal`): поле
  *     «Заявка» есть только у расходных типов `OUT`/`WRITE_OFF`, и `ticketId`
  *     уходит в payload только тогда, когда поле реально показано и выбрано
- *     (иначе в истории появилась бы привязка, которой пользователь не делал).
+ *     (иначе в истории появилась бы привязка, которой пользователь не делал);
+ *  3. **Поиск заявки по подстроке описания** (`movement-ticket-search`): поле рядом
+ *     с селектом сужает СЕРВЕРНУЮ выдачу (`ListTicketsQueryDto.search`), поэтому
+ *     нужная заявка находится, даже если её нет среди последних 50, а выбранная
+ *     заявка попадает в `ticketId` движения.
  *
  * Почему отдельный файл, а не расширение `materials.ui.spec.ts`: проверяется связка
  * ДВУХ экранов (техкарты ↔ справочник материалов) плюс движение с заявкой; в наборе
@@ -365,6 +369,69 @@ test('М4.3: поле «Заявка» есть только у расходны
     income?.ticketId,
     'для прихода ticketId не отправлен, хотя заявка была выбрана в форме',
   ).toBeNull();
+});
+
+// ---------------------------------------------------------------------------
+// 4. Поиск заявки в модалке движения (М4.3)
+// ---------------------------------------------------------------------------
+
+test('М4.3: поиск заявки по подстроке описания находит её, и выбранная заявка попадает в ticketId движения', async ({
+  page,
+  request,
+}) => {
+  const tag = runTag();
+  // Маркер — подстрока ОПИСАНИЯ заявки: до М4.3 селект показывал только последние 50
+  // заявок, и нужной там могло не быть; поиск уходит на сервер (`ListTicketsQueryDto.search`).
+  const marker = `M43-ПОИСК-${tag}`;
+  const material = await trackMaterial(request, {
+    name: `E2E-M43 поиск заявки ${tag}`,
+    unit: 'л',
+    minStockThreshold: 1,
+    costPerUnit: 100,
+  });
+  const object = await createObject(request, { name: `E2E-M43 поиск объект ${tag}` });
+  createdObjectIds.add(object.id);
+  const ticket = await trackTicket(request, {
+    type: 'planned',
+    objectId: object.id,
+    description: `Влажная уборка ${marker} санузла`,
+  });
+  // Остаток нужен, чтобы расход не упирался в 400 «Недостаточно материала».
+  await createMovement(request, {
+    materialId: material.id,
+    objectId: object.id,
+    type: 'IN',
+    quantity: 10,
+  });
+
+  await openPage(page, '/materials');
+  await page.getByTestId('movement-open-button').click();
+  await expect(page.getByTestId('movement-form')).toBeVisible();
+  // Поле поиска есть только у расходных типов — начинаем с OUT.
+  await page.getByTestId('movement-type').selectOption('OUT');
+
+  // Поиск реально сужает выдачу селекта: по несуществующей подстроке нашей заявки нет.
+  await page.getByTestId('movement-ticket-search').fill(`нет-такой-заявки-${tag}`);
+  await expectOption(page, 'movement-ticket', ticket.id, false);
+
+  // А по подстроке описания — заявка находится, хотя её могло не быть в последних 50.
+  await page.getByTestId('movement-ticket-search').fill(marker);
+  await expectOption(page, 'movement-ticket', ticket.id, true);
+  await page.getByTestId('movement-ticket').selectOption(ticket.id);
+
+  await page.getByTestId('movement-quantity').fill('3');
+  await expectOption(page, 'movement-material', material.id, true);
+  await page.getByTestId('movement-material').selectOption(material.id);
+  await expectOption(page, 'movement-object', object.id, true);
+  await page.getByTestId('movement-object').selectOption(object.id);
+  await page.getByTestId('movement-submit').click();
+  await expect(page.getByTestId('movement-notice')).toBeVisible({ timeout: 20_000 });
+
+  // Сверка с сервером: заявка, найденная поиском и выбранная в селекте, записана в движение.
+  const history = await listMovements(request, material.id, { objectId: object.id });
+  const expense = history.items.find((item) => item.type === 'OUT' && item.quantity === 3);
+  expect(expense, 'расход 3 проведён').toBeTruthy();
+  expect(expense?.ticketId, 'выбранная через поиск заявка попала в ticketId').toBe(ticket.id);
 });
 
 // ---------------------------------------------------------------------------

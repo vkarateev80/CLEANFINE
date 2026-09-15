@@ -1,4 +1,9 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import {
+  cleanupAuthUsers,
+  countAuthUsers,
+  sqlAvailable,
+} from '../../helpers/operations';
 import { userByRole, type FixtureUser } from '../../helpers/users';
 
 /**
@@ -9,7 +14,35 @@ import { userByRole, type FixtureUser } from '../../helpers/users';
  * ВНИМАНИЕ: логин ограничен по частоте (5/мин в проде). Для основного прогона
  * лимит поднимается env-переменными THROTTLE_LOGIN_LIMIT / THROTTLE_GLOBAL_LIMIT.
  * Проверка самого 429 вынесена в опциональный тест (E2E_RATE_LIMIT=1).
+ *
+ * УБОРКА ПОЛЬЗОВАТЕЛЕЙ. `DELETE /api/users/:id` в auth-service НЕ удаляет запись: он
+ * ставит `isActive=false` и отзывает refresh-токены (users.controller.ts:98-103).
+ * Поэтому набор сам снимает созданных им пользователей SQL-ом (тот же приём, что в
+ * `helpers/operations.ts`): точечно по id — после каждого теста, и по префиксам
+ * e-mail — один раз после файла, чтобы не копились остатки прошлых прогонов.
  */
+
+/**
+ * Префиксы e-mail, которые создаёт ТОЛЬКО этот набор. Единственное место, где они
+ * перечислены: на них опирается и точечная уборка, и подчистка остатков прошлых прогонов.
+ */
+const AUTH_TEST_EMAIL_PREFIXES = ['e2e-', 'pin-e2e-', 'rbac-'];
+
+/** Пользователи, созданные текущим тестом: снимаются из cleaning_ops.users в afterEach. */
+const createdUserIds = new Set<string>();
+
+test.afterEach(() => {
+  if (createdUserIds.size === 0) return;
+  // Деактивированные записи удаляются точечно по id: засеянные роли не затрагиваются.
+  cleanupAuthUsers({ userIds: [...createdUserIds] });
+  createdUserIds.clear();
+});
+
+test.afterAll(() => {
+  // Остатки прошлых прогонов этого набора (в том числе после падения в середине файла):
+  // у этих записей нет доменной истории — они создавались только под прогон.
+  cleanupAuthUsers({ emailPrefixes: AUTH_TEST_EMAIL_PREFIXES });
+});
 
 interface TokenPair {
   accessToken: string;
@@ -195,7 +228,8 @@ test.describe('Auth: RBAC', () => {
       data: { email, password: 'test1234', fullName: 'E2E Сотрудник', role: 'OPERATOR' },
     });
     expect(created.status(), await created.text()).toBe(201);
-    const user = await created.json();
+    const user = (await created.json()) as { id: string };
+    createdUserIds.add(user.id);
 
     // деактивированный пользователь не может войти
     const loginBlocked = await request.post('/api/auth/login', {
@@ -276,6 +310,7 @@ test.describe('Auth: PIN и биометрия (мобильный вход)', (
     });
     expect(created.status(), await created.text()).toBe(201);
     const user = (await created.json()) as { id: string };
+    createdUserIds.add(user.id);
 
     await request.delete(`/api/users/${user.id}`, {
       headers: { Authorization: `Bearer ${adminToken}` },
@@ -283,6 +318,45 @@ test.describe('Auth: PIN и биометрия (мобильный вход)', (
     expect(
       (await request.post('/api/auth/pin', { data: { email, pinCode: '1234' } })).status(),
     ).toBe(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Уборка тестовых пользователей
+// ---------------------------------------------------------------------------
+
+test.describe('Auth: уборка тестовых пользователей', () => {
+  test('DELETE /api/users/:id только деактивирует, поэтому набор снимает строку SQL-ом', async ({
+    request,
+  }) => {
+    test.skip(!sqlAvailable(), 'нет доступа к docker-контейнеру cleaning-ops-postgres');
+
+    const token = await loginAs(request, 'ADMIN');
+    const email = `e2e-cleanup-${Date.now()}@cleaning-ops.com`;
+    const created = await request.post('/api/users', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { email, password: 'test1234', fullName: 'E2E Уборка', role: 'OPERATOR' },
+    });
+    expect(created.status(), await created.text()).toBe(201);
+    const { id } = (await created.json()) as { id: string };
+    createdUserIds.add(id);
+
+    // «До»: строка реально лежит в cleaning_ops.users — иначе ноль «после» ничего
+    // не доказывал бы. Считаем СТРОГО по id своих пользователей: глобальные счётчики
+    // на общем стенде недопустимы (там могут быть данные других сессий).
+    expect(countAuthUsers([id]), 'пользователь создан и виден в БД').toBe(1);
+
+    // Контракт DELETE: запись не удаляется, а деактивируется — ровно поэтому и нужна
+    // отдельная уборка, иначе каждый прогон копил бы неактивные e2e-*/pin-e2e-*.
+    const deactivated = await request.delete(`/api/users/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(deactivated.status(), await deactivated.text()).toBe(204);
+    expect(countAuthUsers([id]), 'DELETE лишь деактивирует: строка осталась в БД').toBe(1);
+
+    // Уборка тем же SQL-приёмом, что и в afterEach/afterAll набора.
+    cleanupAuthUsers({ userIds: [id] });
+    expect(countAuthUsers([id]), 'после уборки пользователя в cleaning_ops.users нет').toBe(0);
   });
 });
 

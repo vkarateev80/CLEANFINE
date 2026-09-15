@@ -907,6 +907,75 @@ function affectedRows(output: string): number {
 }
 
 /**
+ * LIKE-шаблон `'<prefix>%'`. Префикс — часть e-mail, поэтому набор символов уже, чем
+ * у `literal`: только латиница, цифры и дефис. Это исключает подстановку `%`/`_`
+ * и кавычек в шаблон.
+ */
+function likePrefixLiteral(prefix: string): string {
+  if (!/^[0-9a-zA-Z-]*$/.test(prefix)) {
+    throw new Error(`Недопустимый префикс e-mail для LIKE: ${prefix}`);
+  }
+  return `'${prefix}%'`;
+}
+
+/**
+ * Уборка пользователей auth-service — СВОИХ тестовых, по id или по префиксу e-mail.
+ *
+ * Зачем отдельная функция. `DELETE /api/users/:id` в auth-service НЕ удаляет запись:
+ * он ставит `isActive=false` и отзывает refresh-токены (users.controller.ts:98-103).
+ * Поэтому без явного SQL после каждого прогона auth-набора на стенде копились бы
+ * неактивные `e2e-*`/`pin-e2e-*` (проверено на стенде: 5+5 записей от прошлых прогонов).
+ *
+ * Уборка идёт тем же приёмом, что и остальные данные прогона: точечный `psql` в контейнер.
+ * Настройки подписок лежат в БД уведомлений и не каскадируются при удалении в auth-БД,
+ * поэтому снимаются явно. Refresh-токены уходят каскадом (onDelete: Cascade в схеме).
+ *
+ * Префиксы применяются к пользователям, созданным ТОЛЬКО этим набором (см. вызовы),
+ * поэтому засеянные роли и чужие данные не затрагиваются.
+ */
+export function cleanupAuthUsers(input: {
+  userIds?: Iterable<string>;
+  emailPrefixes?: string[];
+}): number {
+  if (!sqlAvailable()) return 0;
+  let removed = 0;
+
+  const dropByIds = (ids: string[]): void => {
+    if (ids.length === 0) return;
+    const list = ids.map(literal).join(', ');
+    psql(DB.notifications, `DELETE FROM notification_preferences WHERE "userId" IN (${list})`);
+    removed += affectedRows(psql(DB.auth, `DELETE FROM users WHERE id IN (${list})`));
+  };
+
+  dropByIds([...(input.userIds ?? [])]);
+
+  for (const prefix of input.emailPrefixes ?? []) {
+    // Список id берём из auth-БД: Postgres не JOIN-ит таблицы другой базы, а
+    // notification_preferences ссылается на пользователя строкой.
+    const raw = psql(
+      DB.auth,
+      `SELECT coalesce(string_agg(id::text, ','), '') FROM users WHERE email LIKE ${likePrefixLiteral(prefix)}`,
+    );
+    dropByIds(raw.split(',').map((value) => value.trim()).filter(Boolean));
+  }
+
+  return removed;
+}
+
+/**
+ * Сколько из перечисленных пользователей ещё лежит в auth-БД.
+ * Для проверок уборки «по id» — глобальные счётчики строк на общем стенде недопустимы.
+ */
+export function countAuthUsers(ids: Iterable<string>): number {
+  if (!sqlAvailable()) return 0;
+  const list = [...ids];
+  if (list.length === 0) return 0;
+  return affectedRows(
+    psql(DB.auth, `SELECT COUNT(*) FROM users WHERE id IN (${list.map(literal).join(', ')})`),
+  );
+}
+
+/**
  * Сколько треков сотрудника попадает в область уборки (userId + время `since`).
  * Нужен тестам чистоты: они фиксируют id своих треков ДО уборки и проверяют, что
  * после неё этих строк уже нет, а чужие данные не пострадали.

@@ -17,6 +17,7 @@ import {
   FILE_URL,
   file,
   getRouteDetail,
+  listRoutes,
   loginAs,
   PNG_1x1,
   runTag,
@@ -862,6 +863,80 @@ test.describe('Core: RBAC по четырём ролям', () => {
       multipart: { kind: 'plan' },
     });
     expect(empty.status()).toBe(400);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Плоский список маршрутов (М4): фильтры и пагинация
+// ---------------------------------------------------------------------------
+
+test.describe('Core: плоский список маршрутов', () => {
+  test('GET /api/routes фильтрует по objectId и floorId и пагинирует с общим total', async ({
+    request,
+  }) => {
+    // Объект с ДВУМЯ этажами и тремя маршрутами: фильтр по объекту обязан вернуть все
+    // три, фильтр по этажу — только маршруты этого этажа.
+    const object = await createObject(request, { name: `E2E маршруты ${runTag()}` });
+    trackObject(object.id);
+    const firstFloor = await createFloor(request, object.id, { number: 1 });
+    const secondFloor = await createFloor(request, object.id, { number: 2 });
+
+    // Второй объект — контроль: его маршрут не должен попадать в выдачу по чужому объекту.
+    const foreignObject = await createObject(request, { name: `E2E чужие маршруты ${runTag()}` });
+    trackObject(foreignObject.id);
+    const foreignFloor = await createFloor(request, foreignObject.id, { number: 1 });
+
+    const firstRoute = await createRoute(request, firstFloor.id, { name: `Маршрут 1 ${runTag()}` });
+    const secondRoute = await createRoute(request, firstFloor.id, { name: `Маршрут 2 ${runTag()}` });
+    const thirdRoute = await createRoute(request, secondFloor.id, { name: `Маршрут 3 ${runTag()}` });
+    const foreignRoute = await createRoute(request, foreignFloor.id, {
+      name: `Чужой маршрут ${runTag()}`,
+    });
+
+    // Фильтр по объекту: маршруты ВСЕХ его этажей, каждый со своим floorId и objectId.
+    const byObject = await listRoutes(request, { objectId: object.id });
+    expect(byObject.total, 'в объекте три маршрута').toBe(3);
+    expect(byObject.items.map((item) => item.id).sort()).toEqual(
+      [firstRoute.id, secondRoute.id, thirdRoute.id].sort(),
+    );
+    expect(byObject.items.map((item) => item.id), 'маршрут чужого объекта не подмешан').not.toContain(
+      foreignRoute.id,
+    );
+    expect(byObject.items.every((item) => item.objectId === object.id)).toBe(true);
+    expect(byObject.items.find((item) => item.id === firstRoute.id)?.pointsCount).toBe(0);
+
+    // Фильтр по этажу: только маршруты этого этажа (два из трёх).
+    const byFloor = await listRoutes(request, { floorId: firstFloor.id });
+    expect(byFloor.total).toBe(2);
+    expect(byFloor.items.map((item) => item.id).sort()).toEqual(
+      [firstRoute.id, secondRoute.id].sort(),
+    );
+    expect(byFloor.items.every((item) => item.floorId === firstFloor.id)).toBe(true);
+
+    // Отрицательные кейсы: чужой объект и несуществующий id дают пусто, а не «фильтр
+    // проигнорирован» — иначе положительные проверки выше ничего не доказывали бы.
+    expect((await listRoutes(request, { objectId: foreignObject.id })).total).toBe(1);
+    const ghost = '00000000-0000-0000-0000-000000000000';
+    expect((await listRoutes(request, { objectId: ghost })).items).toHaveLength(0);
+    expect((await listRoutes(request, { floorId: ghost })).items).toHaveLength(0);
+
+    // Пагинация: take/skip режут выдачу, но total считает ВСЕ подходящие маршруты.
+    const pageOne = await listRoutes(request, { objectId: object.id, take: 2, skip: 0 });
+    const pageTwo = await listRoutes(request, { objectId: object.id, take: 2, skip: 2 });
+    expect(pageOne.items).toHaveLength(2);
+    expect(pageOne.total, 'total не зависит от страницы').toBe(3);
+    expect(pageTwo.items).toHaveLength(1);
+    expect(pageTwo.total).toBe(3);
+    expect(
+      new Set([...pageOne.items, ...pageTwo.items].map((item) => item.id)).size,
+      'страницы не пересекаются и вместе дают всю выборку',
+    ).toBe(3);
+
+    // Границы take (1..100) ловит валидатор DTO, а не молчаливая выдача всего списка.
+    expect((await core(request, 'get', '/api/routes?take=101')).status()).toBe(400);
+    expect((await core(request, 'get', `/api/routes?objectId=${object.id}&take=0`)).status()).toBe(
+      400,
+    );
   });
 });
 
