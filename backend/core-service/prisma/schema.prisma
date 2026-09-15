@@ -1,0 +1,172 @@
+// Prisma-схема core-service (М2.2). Источник: УСТАВ.md → Агент Backend Core, п.1.
+// Модели перенесены целиком: Object → Floor → Room → Route → RoutePoint,
+// TechCard → TechOperation → TechOperationMaterial, включая enum'ы ObjectStatus и RouteStatus.
+//
+// Границы микросервисов: FK только внутри сервиса. Ссылки на материалы (materialId)
+// и файлы (planImageUrl) — по строковым идентификаторам/URL, без FK.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CORE_DATABASE_URL")
+}
+
+enum ObjectStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum RouteStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model Object {
+  id            String       @id @default(uuid())
+  name          String
+  address       String
+  lat           Float
+  lng           Float
+  type          String
+  totalArea     Float
+  floorsCount   Int
+  clientName    String
+  clientContact String
+  status        ObjectStatus @default(ACTIVE)
+  floors        Floor[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("objects")
+  @@index([status])
+  @@index([name])
+}
+
+model Floor {
+  id           String  @id @default(uuid())
+  objectId     String
+  object       Object  @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  number       Int
+  name         String
+  /// План этажа: URL файла в file-service (bucket plans). FK между сервисами не ставим.
+  planImageUrl String?
+  /// Размеры плана в пикселях — реальный размер изображения из file-service;
+  /// по ним валидируются координаты помещений (приёмочный пункт М2.4).
+  planWidth    Int?
+  planHeight   Int?
+  /// Масштаб плана: сколько метров в одном пикселе изображения.
+  planScale    Float?
+  rooms        Room[]
+  routes       Route[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("floors")
+  @@unique([objectId, number])
+  @@index([objectId])
+}
+
+model Room {
+  id           String    @id @default(uuid())
+  floorId      String
+  floor        Floor     @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  name         String
+  areaM2       Float
+  floorType    String
+  coordsX      Int?
+  coordsY      Int?
+  coordsWidth  Int?
+  coordsHeight Int?
+  zone         String?
+  /// Техкарта наполняется в М2.6; до этого связь пустая.
+  techCardId   String?
+  techCard     TechCard? @relation(fields: [techCardId], references: [id], onDelete: SetNull)
+  routePoints  RoutePoint[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("rooms")
+  @@index([floorId])
+  @@index([techCardId])
+}
+
+model Route {
+  id        String       @id @default(uuid())
+  floorId   String
+  floor     Floor        @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  name      String
+  status    RouteStatus  @default(DRAFT)
+  points    RoutePoint[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@map("routes")
+  @@index([floorId])
+  @@index([status])
+}
+
+model RoutePoint {
+  id               String  @id @default(uuid())
+  routeId          String
+  route            Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  roomId           String
+  room             Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  orderIndex       Int
+  estimatedTimeMin Int?
+
+  @@map("route_points")
+  @@unique([routeId, orderIndex])
+  @@index([routeId])
+  @@index([roomId])
+}
+
+model TechCard {
+  id         String           @id @default(uuid())
+  name       String
+  operations TechOperation[]
+  rooms      Room[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@map("tech_cards")
+  @@index([name])
+}
+
+model TechOperation {
+  id               String                 @id @default(uuid())
+  techCardId       String
+  techCard         TechCard               @relation(fields: [techCardId], references: [id], onDelete: Cascade)
+  name             String
+  orderIndex       Int
+  description      String?
+  equipment        Json?
+  estimatedTimeMin Int
+  requiresPhoto    Boolean                @default(false)
+  requiresQr       Boolean                @default(false)
+  materials        TechOperationMaterial[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@map("tech_operations")
+  @@unique([techCardId, orderIndex])
+  @@index([techCardId])
+}
+
+model TechOperationMaterial {
+  id                      String        @id @default(uuid())
+  operationId             String
+  operation               TechOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  /// Справочник материалов появится в material-service (М4); до этого — произвольный id.
+  materialId              String
+  consumptionPerOperation Float
+  unit                    String
+
+  @@map("tech_operation_materials")
+  @@index([operationId])
+  @@index([materialId])
+}
