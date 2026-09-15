@@ -1,0 +1,146 @@
+// Prisma-схема ticket-service (М3.4–М3.6).
+// Источник: УСТАВ.md → Агент Backend Tickets (п.1–4) + docs/agents/BACKEND_TICKETS.md.
+//
+// Границы микросервисов: FK только внутри сервиса. objectId / roomId / assigneeId /
+// createdBy / authorId — строковые идентификаторы сущностей core-service и auth-service,
+// без FK (единая БД на сервис, как в core/file).
+//
+// Значения enum'ов совпадают со справочниками shared/types/tickets.ts
+// (TICKET_TYPES, TICKET_PRIORITIES, TICKET_STATUSES) — state machine берётся из shared,
+// здесь дублируются только имена значений для БД.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("TICKET_DATABASE_URL")
+}
+
+enum TicketType {
+  planned
+  unscheduled
+  emergency
+}
+
+enum TicketPriority {
+  low
+  normal
+  high
+  critical
+}
+
+enum TicketStatus {
+  new
+  assigned
+  in_progress
+  paused
+  completed
+  verified
+  rejected
+  closed
+  overdue
+}
+
+model Ticket {
+  id          String         @id @default(uuid())
+  type        TicketType
+  priority    TicketPriority @default(normal)
+  status      TicketStatus   @default(new)
+  objectId    String
+  roomId      String?
+  assigneeId  String?
+  /// Кто создал заявку (id пользователя из JWT auth-service).
+  createdBy   String
+  description String
+  /// Координаты аварийной/внеплановой заявки (SOS приходит с мобильного).
+  lat         Float?
+  lng         Float?
+
+  // --- тайминги (кто и когда прошёл шаги жизненного цикла) ---
+  assignedAt  DateTime?
+  acceptedAt  DateTime?
+  arrivedAt   DateTime?
+  completedAt DateTime?
+  verifiedAt  DateTime?
+  closedAt    DateTime?
+  /// Когда сработала эскалация «NEW не принята вовремя» (М3.5).
+  escalatedAt DateTime?
+  /// Когда заявка ушла в OVERDUE (событие ticket.overdue).
+  overdueAt   DateTime?
+
+  // --- дедлайны (по ним работает сканер эскалации) ---
+  /// created + ESCALATION_NEW_TO_ACCEPT_MIN.
+  reactionDeadline   DateTime?
+  /// accepted + ESCALATION_ACCEPT_TO_ARRIVE_MIN.
+  arrivalDeadline    DateTime?
+  /// arrived + ESCALATION_ARRIVE_TO_DONE_MIN.
+  completionDeadline DateTime?
+  /// Ожидаемое число операций техкарты заявки (М3.6, необязательно):
+  /// нужно, чтобы отличить «завершена очередная операция» от «завершены все операции».
+  operationsTotal    Int?
+
+  assignments TicketAssignment[]
+  comments    TicketComment[]
+  operations  TicketOperationCompletion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tickets")
+  @@index([status])
+  @@index([assigneeId])
+  @@index([objectId])
+  @@index([type])
+  @@index([status, createdAt])
+  @@index([status, arrivalDeadline])
+  @@index([status, completionDeadline])
+}
+
+/// История назначений: кто, кем и когда назначен (М3.4).
+model TicketAssignment {
+  id         String   @id @default(uuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  assigneeId String
+  assignedBy String
+  assignedAt DateTime @default(now())
+
+  @@map("ticket_assignments")
+  @@index([ticketId])
+  @@index([assigneeId])
+}
+
+/// Комментарии к заявке (М3.4).
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  text      String
+  createdAt DateTime @default(now())
+
+  @@map("ticket_comments")
+  @@index([ticketId])
+}
+
+/// Факт завершения операции техкарты (М3.6).
+/// @@unique([ticketId, operationId]) — идемпотентность: повторный вызов
+/// не создаёт вторую запись и не эмитит ticket.operation.completed ещё раз.
+model TicketOperationCompletion {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  operationId String
+  completedAt DateTime
+  /// URL фото из file-service (обязателен, если операция требует фото).
+  photoUrl    String?
+  /// Кто отметил выполнение (id пользователя из JWT).
+  completedBy String?
+  createdAt   DateTime @default(now())
+
+  @@map("ticket_operation_completions")
+  @@unique([ticketId, operationId])
+  @@index([ticketId])
+}
