@@ -1,0 +1,75 @@
+// Prisma-схема chat-service (М5.1–М5.2). Источник: УСТАВ.md → Агент Backend Chat, п.2
+// и shared/types/chat.ts (CHAT_TYPES: object/ticket/direct/system).
+//
+// Границы микросервисов: FK только внутри сервиса. objectId / ticketId / userId —
+// строковые идентификаторы чужих сервисов (core, ticket, auth), без FK.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CHAT_DATABASE_URL")
+}
+
+/// Чат. Тип совпадает с CHAT_TYPES из shared/types/chat.ts.
+model Chat {
+  id        String       @id @default(uuid())
+  type      ChatType
+  title     String?
+  /// Объект (core-service) — только для type=object.
+  objectId  String?
+  /// Заявка (ticket-service) — только для type=ticket.
+  ticketId  String?
+  createdAt DateTime     @default(now())
+  members   ChatMember[]
+  messages  Message[]
+
+  // Идемпотентность создания: один чат на объект и один чат на заявку.
+  // Поля nullable, но в PostgreSQL NULL-и не конфликтуют, поэтому direct/system
+  // (где эти поля пусты) можно создавать сколько угодно.
+  @@unique([objectId])
+  @@unique([ticketId])
+  @@index([type, createdAt])
+}
+
+/// Участник чата. lastReadAt хранит момент последнего прочитанного сообщения:
+/// так unreadCount считается одним запросом (createdAt > lastReadAt), а не
+/// обратной сверкой по каждому сообщению.
+model ChatMember {
+  id         String    @id @default(uuid())
+  chatId     String
+  chat       Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId     String
+  role       String?
+  lastReadAt DateTime?
+  joinedAt   DateTime  @default(now())
+
+  @@unique([chatId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id            String   @id @default(uuid())
+  chatId        String
+  chat          Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  authorId      String
+  text          String
+  /// Вложения (file-service, bucket documents). Массив id вместо отдельной
+  /// таблицы: вложения неизменяемы и всегда читаются вместе с сообщением.
+  attachmentIds String[] @default([])
+  createdAt     DateTime @default(now())
+
+  // Пагинация истории идёт по (chatId, createdAt) — под неё и индекс.
+  @@index([chatId, createdAt])
+  // Поиск по тексту (ILIKE) и поиск «моих» сообщений.
+  @@index([authorId, createdAt])
+}
+
+enum ChatType {
+  object
+  ticket
+  direct
+  system
+}
