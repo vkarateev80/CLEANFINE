@@ -11,12 +11,19 @@ import { defineConfig, devices } from '@playwright/test';
  *    `E2E_FILE_URL` (:3002), поэтому смена baseURL его не затрагивает.
  *  - `web` — UI-smoke web-admin в браузере: e2e/web/*.ui.spec.ts
  *
+ * Адреса остальных сервисов наборы читают из окружения САМИ (helpers/*.ts), а не через
+ * `use`: `E2E_GPS_URL` (:3004), `E2E_TICKET_URL` (:3005), `E2E_NOTIFICATION_URL` (:3006),
+ * `E2E_MATERIAL_URL` (:3007), `E2E_SCHEDULE_URL` (:3008), `E2E_CHAT_URL` (:3009, REST
+ * `/api/chat` и WebSocket namespace `/chat`), `E2E_BASE_URL` (:5173). Дефолты — локальный
+ * стенд, поэтому в CI достаточно поднять сервисы на штатных портах.
+ *
  * Сервисы НЕ поднимаются автоматически (`webServer`), их поднимает запускающий:
  *  - auth-service: порт 3001. В e2e-прогоне лимит логина поднимается
  *    (THROTTLE_LOGIN_LIMIT=1000 THROTTLE_GLOBAL_LIMIT=10000), иначе набор
  *    упирается в боевой лимит 5 логинов/мин. Отдельный тест на 429 проверяет
  *    сам механизм и работает при поднятом лимите;
  *  - core-service: порт 3003, file-service: порт 3002 (М2.9), MinIO :9000;
+ *  - chat-service: порт 3009 (М5.6), ticket-service :3005 — участники TICKET-чата;
  *  - web-admin: порт 5173 (vite dev, proxy /api → :3001).
  * В CI все поднимаются шагами джобы.
  *
