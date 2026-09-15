@@ -1,0 +1,83 @@
+// Prisma-схема material-service (М4.1). Источник: УСТАВ.md → Агент Backend Materials, п.1.
+//
+// Границы микросервисов: FK только внутри сервиса. objectId / ticketId / userId —
+// строковые идентификаторы чужих сервисов (core, ticket, auth), без FK.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("MATERIAL_DATABASE_URL")
+}
+
+model Material {
+  id                String             @id @default(uuid())
+  name              String
+  unit              String
+  defaultConsumption Float
+  minStockThreshold Float
+  costPerUnit       Float
+  supplier          String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  stocks            MaterialStock[]
+  movements         MaterialMovement[]
+
+  @@index([name])
+}
+
+model MaterialStock {
+  id         String   @id @default(uuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  objectId   String
+  quantity   Float    @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([materialId, objectId])
+  @@index([objectId])
+}
+
+model MaterialMovement {
+  id             String       @id @default(uuid())
+  materialId     String
+  material       Material     @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  objectId       String
+  type           MovementType
+  quantity       Float
+  ticketId       String?
+  userId         String
+  // Аддитивное расширение кода устава: TRANSFER — это две складские операции
+  // (списание с objectId, приход на targetObjectId), поэтому объект-получатель
+  // хранится в движении, иначе история перемещений нечитаема.
+  targetObjectId String?
+  createdAt      DateTime     @default(now())
+
+  @@index([materialId, createdAt])
+  @@index([objectId, createdAt])
+}
+
+enum MovementType {
+  IN // Приход
+  OUT // Расход
+  TRANSFER // Перемещение
+  WRITE_OFF // Списание
+}
+
+/// Идемпотентность автосписания (М4.2): одна операция техкарты списывает
+/// каждый материал ровно один раз, даже если событие доставлено повторно.
+model ConsumedOperation {
+  id          String   @id @default(uuid())
+  operationId String
+  materialId  String
+  ticketId    String
+  objectId    String
+  quantity    Float
+  movementId  String?
+  createdAt   DateTime @default(now())
+
+  @@unique([operationId, materialId])
+  @@index([ticketId])
+}
