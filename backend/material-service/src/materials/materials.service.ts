@@ -138,10 +138,20 @@ export class MaterialsService {
     });
   }
 
-  /** Удаление материала каскадом снимает остатки и историю движений (FK в схеме). */
+  /**
+   * Удаление материала: остатки и история движений уходят каскадом (FK в схеме),
+   * а строки идемпотентности автосписания (`ConsumedOperation`) удаляются явно —
+   * у них FK на материал НЕТ (operationId приходит из ticket-service, а materialId
+   * здесь только справочная ссылка). Без явной уборки «хвост» от удалённого
+   * материала оставался бы в БД навсегда и выглядел бы как списанный материал,
+   * которого больше не существует.
+   */
   async remove(id: string): Promise<void> {
     await this.getById(id);
-    await this.prisma.material.delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.consumedOperation.deleteMany({ where: { materialId: id } });
+      await tx.material.delete({ where: { id } });
+    });
   }
 
   // -------------------------------------------------------------------- склад

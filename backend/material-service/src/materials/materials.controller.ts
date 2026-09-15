@@ -135,7 +135,9 @@ export class MaterialsController {
   @Roles('ADMIN', 'SUPERVISOR')
   @ApiOperation({
     summary: 'Удалить материал (ADMIN, SUPERVISOR)',
-    description: 'Каскадом удаляются остатки и история движений материала.',
+    description:
+      'Каскадом удаляются остатки и история движений материала, а строки идемпотентности ' +
+      'автосписания (ConsumedOperation) удаляются вместе с материалом явно — FK на материал у них нет.',
   })
   @ApiResponse({ status: 204, description: 'Материал удалён' })
   async remove(@Param('id') id: string) {

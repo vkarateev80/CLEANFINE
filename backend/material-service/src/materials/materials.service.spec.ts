@@ -31,6 +31,9 @@ interface PrismaMockShape {
     count: jest.Mock;
     groupBy: jest.Mock;
   };
+  consumedOperation: {
+    deleteMany: jest.Mock;
+  };
   $transaction: jest.Mock;
 }
 
@@ -59,6 +62,9 @@ function createPrismaMock(): PrismaMockShape {
       findMany: jest.fn(),
       count: jest.fn(),
       groupBy: jest.fn(),
+    },
+    consumedOperation: {
+      deleteMany: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -182,6 +188,21 @@ describe('MaterialsService (М4.1)', () => {
     prisma.material.findUnique.mockResolvedValueOnce({ id: 'mat-1' });
     await service.remove('mat-1');
     expect(prisma.material.delete).toHaveBeenCalledWith({ where: { id: 'mat-1' } });
+  });
+
+  it('удаление материала убирает строки идемпотентности автосписания', async () => {
+    // У `ConsumedOperation` нет FK на `Material`, поэтому каскад её не тронет:
+    // сервис обязан удалить её сам, иначе «хвост» переживёт материал.
+    prisma.material.findUnique.mockResolvedValueOnce({ id: 'mat-1' });
+
+    await service.remove('mat-1');
+
+    expect(prisma.consumedOperation.deleteMany).toHaveBeenCalledWith({
+      where: { materialId: 'mat-1' },
+    });
+    // Обе операции — в одной транзакции: материал не может исчезнуть раньше,
+    // чем будут убраны ссылающиеся на него строки.
+    expect(prisma.$transaction).toHaveBeenCalled();
   });
 
   // ------------------------------------------------------------------ склад
