@@ -46,6 +46,8 @@ jobs:
       GPS_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
       TICKET_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
       NOTIFICATION_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
+      MATERIAL_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
+      SCHEDULE_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
       REDIS_URL: redis://localhost:6379
       NODE_ENV: test
 
@@ -99,7 +101,7 @@ jobs:
           done
 
   e2e:
-    name: E2E (auth + files + core + gps + tickets + notifications, web-admin UI)
+    name: E2E (auth + files + core + gps + tickets + notifications + materials + schedule, web-admin UI)
     runs-on: ubuntu-latest
     timeout-minutes: 40
     needs: quality
@@ -141,8 +143,15 @@ jobs:
       GPS_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_gps?schema=public
       TICKET_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_tickets?schema=public
       NOTIFICATION_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_notifications?schema=public
+      MATERIAL_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_materials?schema=public
+      SCHEDULE_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_schedule?schema=public
       RABBITMQ_URL: amqp://admin:password@localhost:5672
       GPS_SERVICE_URL: http://localhost:3004
+      CORE_SERVICE_URL: http://localhost:3003
+      TICKET_SERVICE_URL: http://localhost:3005
+      # Сервисная учётка для внутренних вызовов (material → core, schedule → ticket/gps).
+      SERVICE_AUTH_EMAIL: admin@cleaning-ops.com
+      SERVICE_AUTH_PASSWORD: admin123
       JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret-ci
       JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret
       # Логин ограничен 5/мин — набор делает больше попыток, лимит поднимаем.
@@ -166,6 +175,8 @@ jobs:
       E2E_GPS_URL: http://localhost:3004
       E2E_TICKET_URL: http://localhost:3005
       E2E_NOTIFICATION_URL: http://localhost:3006
+      E2E_MATERIAL_URL: http://localhost:3007
+      E2E_SCHEDULE_URL: http://localhost:3008
       E2E_BASE_URL: http://localhost:5173
 
     steps:
@@ -216,7 +227,9 @@ jobs:
             -c 'CREATE DATABASE cleaning_ops_core;' \
             -c 'CREATE DATABASE cleaning_ops_gps;' \
             -c 'CREATE DATABASE cleaning_ops_tickets;' \
-            -c 'CREATE DATABASE cleaning_ops_notifications;'
+            -c 'CREATE DATABASE cleaning_ops_notifications;' \
+            -c 'CREATE DATABASE cleaning_ops_materials;' \
+            -c 'CREATE DATABASE cleaning_ops_schedule;'
 
       - name: Prisma generate + migrate deploy (все сервисы с schema)
         run: |
@@ -232,6 +245,10 @@ jobs:
           pnpm --filter @cleaning-ops/ticket-service prisma:deploy
           pnpm --filter @cleaning-ops/notification-service prisma:generate
           pnpm --filter @cleaning-ops/notification-service prisma:deploy
+          pnpm --filter @cleaning-ops/material-service prisma:generate
+          pnpm --filter @cleaning-ops/material-service prisma:deploy
+          pnpm --filter @cleaning-ops/schedule-service prisma:generate
+          pnpm --filter @cleaning-ops/schedule-service prisma:deploy
 
       # PostGIS-расширение нужно БД gps (в postgis-образе оно есть только в
       # POSTGRES_DB, для остальных БД создаётся явно).
@@ -244,7 +261,7 @@ jobs:
       - name: Seed users
         run: node scripts/seed/seed-users.mjs
 
-      - name: Build services (auth, file, core, gps, ticket, notification)
+      - name: Build services (auth, file, core, gps, ticket, notification, material, schedule)
         run: |
           pnpm --filter @cleaning-ops/auth-service build
           pnpm --filter @cleaning-ops/file-service build
@@ -252,6 +269,8 @@ jobs:
           pnpm --filter @cleaning-ops/gps-service build
           pnpm --filter @cleaning-ops/ticket-service build
           pnpm --filter @cleaning-ops/notification-service build
+          pnpm --filter @cleaning-ops/material-service build
+          pnpm --filter @cleaning-ops/schedule-service build
 
       # Примерка готовности: /api/auth/me отвечает 401 без токена — это признак
       # живого сервиса, поэтому проверяем код ответа, а не успех запроса.
@@ -349,6 +368,36 @@ jobs:
           fi
           echo "notification-service готов"
 
+      - name: Start material-service (3007)
+        working-directory: backend/material-service
+        run: |
+          nohup node dist/main.js > /tmp/material-service.log 2>&1 &
+          ready=0
+          for _ in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3007/api/materials || true)
+            if [ "$code" = "401" ]; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            echo "material-service не поднялся"; tail -n 100 /tmp/material-service.log || true; exit 1
+          fi
+          echo "material-service готов"
+
+      - name: Start schedule-service (3008)
+        working-directory: backend/schedule-service
+        run: |
+          nohup node dist/main.js > /tmp/schedule-service.log 2>&1 &
+          ready=0
+          for _ in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3008/api/schedule || true)
+            if [ "$code" = "401" ]; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            echo "schedule-service не поднялся"; tail -n 100 /tmp/schedule-service.log || true; exit 1
+          fi
+          echo "schedule-service готов"
+
       - name: Install Playwright browsers
         working-directory: test
         run: pnpm exec playwright install --with-deps chromium
@@ -379,7 +428,7 @@ jobs:
         if: failure()
         run: |
           mkdir -p service-logs
-          for name in auth-service file-service core-service gps-service ticket-service notification-service web-admin; do
+          for name in auth-service file-service core-service gps-service ticket-service notification-service material-service schedule-service web-admin; do
             echo "=== $name ==="
             tail -n 100 "/tmp/$name.log" || true
             cp "/tmp/$name.log" "service-logs/$name.log" 2>/dev/null || true
