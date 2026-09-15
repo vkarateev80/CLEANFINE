@@ -5,6 +5,12 @@
   "description": "QA-набор Cleaning Ops: unit (эталоны), integration, e2e (Playwright), performance (k6)",
   "type": "module",
   "scripts": {
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:api": "playwright test --project=api",
+    "test:e2e:web": "playwright test --project=web",
+    "test:e2e:report": "playwright show-report reports/playwright"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
   }
 }

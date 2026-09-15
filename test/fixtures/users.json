@@ -1,29 +1,41 @@
 [
   {
     "email": "admin@cleaning-ops.com",
+    "phone": "+79990000001",
     "password": "admin123",
+    "pinCode": "1234",
+    "biometricKey": "dev-biometric-admin",
     "fullName": "Администратор",
     "role": "ADMIN",
     "isActive": true,
-    "note": "dev-креды из QA-сценариев устава; seed в М1.7"
+    "note": "dev-креды из QA-сценариев устава; seed в М1.7; PIN/биометрия — для мобильного входа (М6)"
   },
   {
     "email": "supervisor@cleaning-ops.com",
+    "phone": "+79990000002",
     "password": "super123",
+    "pinCode": "2345",
+    "biometricKey": "dev-biometric-supervisor",
     "fullName": "Бригадир",
     "role": "SUPERVISOR",
     "isActive": true
   },
   {
     "email": "operator@cleaning-ops.com",
+    "phone": "+79990000003",
     "password": "oper123",
+    "pinCode": "3456",
+    "biometricKey": "dev-biometric-operator",
     "fullName": "Оператор",
     "role": "OPERATOR",
     "isActive": true
   },
   {
     "email": "client@example.com",
+    "phone": "+79990000004",
     "password": "client123",
+    "pinCode": "4567",
+    "biometricKey": "dev-biometric-client",
     "fullName": "Заказчик",
     "role": "CLIENT",
     "isActive": true,
