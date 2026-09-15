@@ -28,5 +28,6 @@ export const ROUTES = {
 
   employees: '/employees',
   materials: '/materials',
+  schedule: '/schedule',
   reports: '/reports',
 } as const;

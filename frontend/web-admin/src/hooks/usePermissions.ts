@@ -46,3 +46,49 @@ export function useCanAssignTicket(): boolean {
   const role = useCurrentRole();
   return role === 'ADMIN' || role === 'SUPERVISOR';
 }
+
+/*
+ * Материалы (М4.3). Права повторяют `@Roles(...)` material-service:
+ *  • GET /api/materials, /stocks, /:id/movements, /report — без @Roles,
+ *    то есть все авторизованные (оператору и заказчику остатки нужны в работе);
+ *  • POST/PATCH/DELETE справочника — ADMIN, SUPERVISOR;
+ *  • POST /api/materials/movements — ADMIN, SUPERVISOR, OPERATOR (склад двигает
+ *    и оператор, но править сам справочник — нет).
+ */
+
+/** Создание, правка и удаление материалов справочника. */
+export function useCanManageMaterials(): boolean {
+  return useCanEdit();
+}
+
+/** Проведение движений (приход/расход/перемещение/списание). */
+export function useCanMoveMaterials(): boolean {
+  const role = useCurrentRole();
+  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'OPERATOR';
+}
+
+/*
+ * Графики и смены (М4.6). Права повторяют `@Roles(...)` schedule-service:
+ *  • GET (список графиков, смены дня, /my, смена по id) — без @Roles, то есть
+ *    все авторизованные: свои смены смотрит и оператор, и заказчик;
+ *  • POST/PATCH/DELETE графика — ADMIN, SUPERVISOR;
+ *  • POST /check-in и /check-out — OPERATOR, SUPERVISOR, ADMIN;
+ *  • POST /generate, POST /check-missed, GET /scheduler/state — только ADMIN:
+ *    это ручные триггеры периодических проходов, а не рабочее действие смены.
+ */
+
+/** Создание, правка и удаление графиков. */
+export function useCanManageSchedule(): boolean {
+  return useCanEdit();
+}
+
+/** Ручные триггеры: генерация смен на дату, прогон неявок, состояние планировщика. */
+export function useIsScheduleAdmin(): boolean {
+  return useIsAdmin();
+}
+
+/** Отметка прихода/ухода по смене. */
+export function useCanCheckIn(): boolean {
+  const role = useCurrentRole();
+  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'OPERATOR';
+}

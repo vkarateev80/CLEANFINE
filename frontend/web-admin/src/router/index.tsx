@@ -7,8 +7,10 @@ import { DashboardPage } from '../pages/Dashboard/DashboardPage';
 import { FloorPlanPage } from '../pages/Floors/FloorPlanPage';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { MapPage } from '../pages/Map/MapPage';
+import { MaterialsPage } from '../pages/Materials/MaterialsPage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
 import { NotificationsPage } from '../pages/Notifications/NotificationsPage';
+import { SchedulePage } from '../pages/Schedule/SchedulePage';
 import { ObjectDetailPage } from '../pages/Objects/ObjectDetailPage';
 import { ObjectsListPage } from '../pages/Objects/ObjectsListPage';
 import { PlaceholderPage } from '../pages/Placeholder/PlaceholderPage';
@@ -99,7 +101,23 @@ export const router = createBrowserRouter([
       { path: 'notifications', element: <NotificationsPage /> },
 
       { path: 'employees', element: employees },
-      { path: 'materials', element: <PlaceholderPage title="Материалы" phase="М4" /> },
+      /*
+       * Материалы (М4.3): чтение справочника, остатков, истории и отчёта открыто
+       * всем авторизованным ролям (в material-service на GET нет `@Roles`),
+       * поэтому RoleGuard здесь не нужен — он закрыл бы раздел оператору и
+       * заказчику. Правка справочника (ADMIN/SUPERVISOR) и движения
+       * (ADMIN/SUPERVISOR/OPERATOR) скрыты внутри экрана по правам.
+       */
+      { path: 'materials', element: <MaterialsPage /> },
+      /*
+       * Графики и смены (М4.6): чтение списка графиков, смен дня и своих смен в
+       * schedule-service открыто всем авторизованным ролям (на GET нет
+       * `@Roles`), поэтому RoleGuard не нужен. Правка графиков
+       * (ADMIN/SUPERVISOR), ручные триггеры генерации и неявок (только ADMIN) и
+       * отметка прихода/ухода (ADMIN/SUPERVISOR/OPERATOR) скрыты внутри экрана
+       * по правам из `usePermissions`.
+       */
+      { path: 'schedule', element: <SchedulePage /> },
       { path: 'reports', element: <PlaceholderPage title="Отчёты" phase="М7" /> },
     ],
   },
