@@ -10,12 +10,7 @@
  */
 
 /** Статусы смены: значения совпадают с `ScheduleEventStatus` в prisma-схеме. */
-export const SCHEDULE_EVENT_STATUSES = [
-  'PLANNED',
-  'CHECKED_IN',
-  'CHECKED_OUT',
-  'MISSED',
-] as const;
+export const SCHEDULE_EVENT_STATUSES = ['PLANNED', 'CHECKED_IN', 'CHECKED_OUT', 'MISSED'] as const;
 
 export type ScheduleEventStatus = (typeof SCHEDULE_EVENT_STATUSES)[number];
 
