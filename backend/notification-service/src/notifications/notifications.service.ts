@@ -3,6 +3,7 @@ import type { Device, Notification, Prisma } from '@prisma/client';
 import { errorMessage } from '../common/error.util';
 import { PrismaService } from '../prisma/prisma.service';
 import type {
+  ChatMessagePushDto,
   ListNotificationsQueryDto,
   RegisterDeviceDto,
   UpdateSettingsDto,
@@ -26,6 +27,11 @@ export interface NotificationSettings {
   userId: string;
   disabledTypes: string[];
   availableTypes: readonly NotificationType[];
+}
+
+/** Сводка рассылки: сколько получателей реально получили уведомление. */
+export interface ChatPushSummary {
+  delivered: number;
 }
 
 /**
@@ -202,6 +208,30 @@ export class NotificationsService {
       unique.map((userId) => this.notifyUser(userId, type, params, data)),
     );
     return created.filter((notification) => notification !== null).length;
+  }
+
+  /**
+   * Push сообщения чата оффлайн-получателям (М5.1). Вызывается внутренним
+   * эндпоинтом, который дёргает chat-service, когда у получателя нет активного
+   * WebSocket-соединения. Путь тот же, что у консьюмера событий: подписки
+   * получателя → push (MockPushSender/FCM) → in-app запись, — поэтому логика не
+   * дублируется, а переиспользуется через notifyUsers.
+   *
+   * Заголовок и текст приходят готовыми от отправителя (название чата и превью
+   * сообщения) — они и есть параметры шаблона CHAT_MESSAGE. Возвращает сводку
+   * с числом получателей, которым создана запись (без дублей).
+   */
+  async notifyChatMessage(dto: ChatMessagePushDto): Promise<ChatPushSummary> {
+    const delivered = await this.notifyUsers(
+      dto.userIds,
+      'CHAT_MESSAGE',
+      { title: dto.title, body: dto.body },
+      dto.data ?? {},
+    );
+    this.logger.log(
+      `Сообщение чата: уведомлено ${delivered} из ${dto.userIds.length} оффлайн-получателей`,
+    );
+    return { delivered };
   }
 
   private async getActiveTokens(userId: string): Promise<string[]> {

@@ -16,6 +16,7 @@ export const NOTIFICATION_TYPES = [
   'GEOFENCE_EXIT',
   'MATERIAL_LOW',
   'SCHEDULE_MISSED',
+  'CHAT_MESSAGE',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -27,6 +28,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   GEOFENCE_EXIT: 'Выход за периметр',
   MATERIAL_LOW: 'Мало материала',
   SCHEDULE_MISSED: 'Неявка на смену',
+  CHAT_MESSAGE: 'Сообщение в чате',
 };
 
 /** Иконка типа — компактная подсказка в списке (текстовые подписи рядом). */
@@ -37,6 +39,7 @@ export const NOTIFICATION_TYPE_ICONS: Record<NotificationType, string> = {
   GEOFENCE_EXIT: '📍',
   MATERIAL_LOW: '📦',
   SCHEDULE_MISSED: '🗓️',
+  CHAT_MESSAGE: '💬',
 };
 
 export interface NotificationEntity {

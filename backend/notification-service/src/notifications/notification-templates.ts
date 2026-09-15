@@ -58,6 +58,18 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, NotificationTempla
     body: 'Неявка на смену: {objectName}, плановое начало {plannedStart}',
     priority: 'high',
   },
+  // Параметры — ровно те поля, что присылает chat-service во внутреннем вызове
+  // POST /api/notifications/internal/chat-message: заголовок (название чата) и
+  // текст (превью сообщения) уже собраны отправителем, поэтому шаблон их только
+  // подставляет. Остальное содержимое запроса (data: chatId/messageId/тип чата)
+  // уходит в payload и push.data как есть — в тексте оно не нужно, но по нему
+  // клиент открывает нужный чат из уведомления.
+  CHAT_MESSAGE: {
+    type: 'CHAT_MESSAGE',
+    title: '{title}',
+    body: '{body}',
+    priority: 'high',
+  },
 };
 
 export interface RenderedNotification {

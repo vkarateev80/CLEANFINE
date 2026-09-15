@@ -23,6 +23,8 @@ describe('NOTIFICATION_TEMPLATES (М3.3, п.3)', () => {
     expect(NOTIFICATION_TEMPLATES.TICKET_OVERDUE.priority).toBe('high');
     // Неявка на смену — операционно значимое событие: не теряем его в потоке.
     expect(NOTIFICATION_TEMPLATES.SCHEDULE_MISSED.priority).toBe('high');
+    // Сообщение чата от оффлайн-получателя ждёт живой реакции — тоже high.
+    expect(NOTIFICATION_TEMPLATES.CHAT_MESSAGE.priority).toBe('high');
   });
 });
 
@@ -95,6 +97,19 @@ describe('renderTemplate', () => {
       type: 'SCHEDULE_MISSED',
       title: '⚠️ Неявка на смену',
       body: 'Неявка на смену: БЦ «Северный», плановое начало 01.02.2026 08:00 UTC',
+      priority: 'high',
+    });
+  });
+
+  it('рендерит CHAT_MESSAGE готовыми заголовком и текстом от chat-service', () => {
+    // chat-service присылает title (название чата) и body (превью сообщения)
+    // во внутренний эндпоинт — шаблон обязан подставить именно их.
+    expect(
+      renderTemplate('CHAT_MESSAGE', { title: 'Чат по заявке T-1', body: 'Привет' }),
+    ).toEqual({
+      type: 'CHAT_MESSAGE',
+      title: 'Чат по заявке T-1',
+      body: 'Привет',
       priority: 'high',
     });
   });

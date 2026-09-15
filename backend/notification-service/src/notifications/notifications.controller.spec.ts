@@ -1,5 +1,11 @@
 import { AuthUser } from '../auth/guards/roles.guard';
-import { ListNotificationsQueryDto, RegisterDeviceDto, UpdateSettingsDto } from './dto/notifications.dto';
+import { ROLES_KEY } from '../auth/decorators/roles.decorator';
+import {
+  ChatMessagePushDto,
+  ListNotificationsQueryDto,
+  RegisterDeviceDto,
+  UpdateSettingsDto,
+} from './dto/notifications.dto';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 
@@ -12,6 +18,7 @@ describe('NotificationsController', () => {
     getSettings: jest.fn(),
     updateSettings: jest.fn(),
     markRead: jest.fn(),
+    notifyChatMessage: jest.fn(),
   };
   const controller = new NotificationsController(
     notifications as unknown as NotificationsService,
@@ -55,5 +62,32 @@ describe('NotificationsController', () => {
     await controller.markRead(user, 'n-1');
 
     expect(notifications.markRead).toHaveBeenCalledWith('u-1', 'n-1');
+  });
+
+  it('внутренний push сообщения чата возвращает сводку доставки', async () => {
+    const dto: ChatMessagePushDto = {
+      userIds: ['u-2', 'u-3'],
+      title: 'Чат по заявке T-1',
+      body: 'Привет',
+      data: { chatId: 'c-1' },
+    };
+    notifications.notifyChatMessage.mockResolvedValue({ delivered: 2 });
+
+    await expect(controller.pushChatMessage(dto)).resolves.toEqual({ delivered: 2 });
+    expect(notifications.notifyChatMessage).toHaveBeenCalledWith(dto);
+  });
+
+  it('внутренний push сообщения чата доступен только ADMIN/SUPERVISOR', () => {
+    // Без @Roles эндпоинт был бы открыт любому аутентифицированному пользователю,
+    // а он умеет слать уведомления произвольным получателям.
+    expect(Reflect.getMetadata(ROLES_KEY, NotificationsController.prototype.pushChatMessage)).toEqual(
+      ['ADMIN', 'SUPERVISOR'],
+    );
+  });
+
+  it('пользовательские эндпоинты не ограничены ролями (только своим JWT)', () => {
+    for (const method of ['registerDevice', 'list', 'getSettings', 'updateSettings'] as const) {
+      expect(Reflect.getMetadata(ROLES_KEY, NotificationsController.prototype[method])).toBeUndefined();
+    }
   });
 });

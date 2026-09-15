@@ -2,6 +2,11 @@ import { NotificationPushClient } from './notification-push.client';
 import type { ServiceTokenProvider } from './service-token.provider';
 import type { ConfigService } from '@nestjs/config';
 
+/** Ответ notification-service: сводка `{ delivered }` (эндпоинт chat-message). */
+function jsonResponse(body: unknown, status = 200): { ok: boolean; status: number; json: () => Promise<unknown> } {
+  return { ok: status >= 200 && status < 300, status, json: async () => body };
+}
+
 function buildClient(options: { enabled?: boolean | undefined; token?: string | null } = {}) {
   const values: Record<string, unknown> = {
     'notificationService.baseUrl': 'http://localhost:3006',
@@ -58,7 +63,7 @@ describe('NotificationPushClient (chat-service)', () => {
   });
 
   it('дедуплицирует получателей и отправляет их в notification-service', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 201 });
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse({ delivered: 2 }));
     global.fetch = fetchMock as unknown as typeof fetch;
     const { client } = buildClient();
 
@@ -76,35 +81,61 @@ describe('NotificationPushClient (chat-service)', () => {
     const body = JSON.parse((init as RequestInit).body as string);
     expect(body.userIds).toEqual(['u-1', 'u-2']);
     expect(body.type).toBe('CHAT_MESSAGE');
+    expect(body.title).toBe('Новое сообщение');
+    expect(body.body).toBe('привет');
+    expect(body.data).toEqual({ chatId: 'c-1' });
     // Сервисный токен уходит в Authorization.
     expect((init as RequestInit).headers).toMatchObject({
       Authorization: 'Bearer service-token',
     });
   });
 
-  it('404 (эндпоинта chat-message нет) — это не ошибка доставки сообщения', async () => {
+  it('возвращает число доставленных из сводки, а не размер списка получателей', async () => {
+    // Часть получателей могла отключить тип CHAT_MESSAGE в настройках, поэтому
+    // delivered меньше числа id в запросе — берём именно ответ сервиса.
+    global.fetch = jest.fn().mockResolvedValue(
+      jsonResponse({ delivered: 1 }),
+    ) as unknown as typeof fetch;
+    const { client } = buildClient();
+
+    await expect(
+      client.notifyOffline({ userIds: ['u-1', 'u-2'], title: 't', body: 'b', data: {} }),
+    ).resolves.toBe(1);
+  });
+
+  it('ответ без разбираемой сводки считает доставленными всех получателей', async () => {
+    // Успешный (2xx) ответ без тела не должен занижать счётчик до нуля.
     global.fetch = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 404,
+      ok: true,
+      status: 204,
+      json: async () => {
+        throw new Error('пустое тело');
+      },
     }) as unknown as typeof fetch;
     const { client } = buildClient();
 
     await expect(
-      client.notifyOffline({ userIds: ['u-1'], title: 't', body: 'b', data: {} }),
-    ).resolves.toBe(0);
+      client.notifyOffline({ userIds: ['u-1', 'u-2'], title: 't', body: 'b', data: {} }),
+    ).resolves.toBe(2);
   });
 
-  it('прочие ошибки notification-service не бросают исключение', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-    }) as unknown as typeof fetch;
-    const { client } = buildClient();
+  it.each([[404], [500]])(
+    'ошибка notification-service (%i) не бросает исключение',
+    async (status) => {
+      // 404 больше не ожидаемое состояние (эндпоинт есть), но любой сбой push
+      // не должен отменять отправку сообщения в чат.
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status,
+        json: async () => ({ message: 'error' }),
+      }) as unknown as typeof fetch;
+      const { client } = buildClient();
 
-    await expect(
-      client.notifyOffline({ userIds: ['u-1'], title: 't', body: 'b', data: {} }),
-    ).resolves.toBe(0);
-  });
+      await expect(
+        client.notifyOffline({ userIds: ['u-1'], title: 't', body: 'b', data: {} }),
+      ).resolves.toBe(0);
+    },
+  );
 
   it('недоступный notification-service не ломает отправку сообщения', async () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
@@ -116,7 +147,7 @@ describe('NotificationPushClient (chat-service)', () => {
   });
 
   it('по умолчанию push включён', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200 });
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse({ delivered: 1 }));
     global.fetch = fetchMock as unknown as typeof fetch;
     const { client } = buildClient();
 

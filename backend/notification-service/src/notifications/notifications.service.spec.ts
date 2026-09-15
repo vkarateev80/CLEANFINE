@@ -295,6 +295,81 @@ describe('NotificationsService', () => {
     });
   });
 
+  describe('notifyChatMessage', () => {
+    it('создаёт in-app уведомления каждому получателю и отдаёт сводку', async () => {
+      prisma.notification.create.mockResolvedValue(notificationOf());
+
+      const summary = await service.notifyChatMessage({
+        userIds: ['u-1', 'u-2'],
+        title: 'Чат по заявке T-1',
+        body: 'Привет',
+        data: { chatId: 'c-1', messageId: 'm-1', type: 'DIRECT' },
+      });
+
+      expect(summary).toEqual({ delivered: 2 });
+      expect(prisma.notification.create).toHaveBeenCalledTimes(2);
+      expect(prisma.notification.create.mock.calls[0][0].data).toMatchObject({
+        type: 'CHAT_MESSAGE',
+        title: 'Чат по заявке T-1',
+        body: 'Привет',
+        payload: { chatId: 'c-1', messageId: 'm-1', type: 'DIRECT' },
+      });
+    });
+
+    it('не создаёт дубликатов по одному получателю', async () => {
+      prisma.notification.create.mockResolvedValue(notificationOf());
+
+      const summary = await service.notifyChatMessage({
+        userIds: ['u-1', 'u-1', '', 'u-2', 'u-2'],
+        title: 't',
+        body: 'b',
+      });
+
+      // Дубликаты и пустые id отсекает notifyUsers — иначе оффлайн-получатель
+      // получал бы по уведомлению на каждое повторение id в запросе.
+      expect(summary).toEqual({ delivered: 2 });
+      expect(prisma.notification.create).toHaveBeenCalledTimes(2);
+      // data не передан — payload пустой, а не undefined (колонка JSON NOT NULL).
+      expect(prisma.notification.create.mock.calls[0][0].data.payload).toEqual({});
+    });
+
+    it('отправляет push с высоким приоритетом и data чата', async () => {
+      prisma.device.findMany.mockResolvedValue([{ token: VALID_TOKEN }]);
+      prisma.notification.create.mockResolvedValue(notificationOf());
+
+      await service.notifyChatMessage({
+        userIds: ['u-1'],
+        title: 'Чат по заявке T-1',
+        body: 'Привет',
+        data: { chatId: 'c-1', messageId: 'm-1', type: 'DIRECT' },
+      });
+
+      const message = push.send.mock.calls[0][0] as PushMessage;
+      expect(message).toMatchObject({
+        userId: 'u-1',
+        template: 'CHAT_MESSAGE',
+        title: 'Чат по заявке T-1',
+        body: 'Привет',
+        priority: 'high',
+        tokens: [VALID_TOKEN],
+        data: { chatId: 'c-1', messageId: 'm-1', type: 'DIRECT' },
+      });
+    });
+
+    it('уважает отключённый получателем тип CHAT_MESSAGE', async () => {
+      prisma.notificationPreference.findUnique.mockResolvedValue({
+        userId: 'u-1',
+        disabledTypes: ['CHAT_MESSAGE'],
+      });
+
+      await expect(
+        service.notifyChatMessage({ userIds: ['u-1'], title: 't', body: 'b' }),
+      ).resolves.toEqual({ delivered: 0 });
+      expect(prisma.notification.create).not.toHaveBeenCalled();
+      expect(push.send).not.toHaveBeenCalled();
+    });
+  });
+
   describe('deactivateTokens', () => {
     it('возвращает число деактивированных устройств', async () => {
       prisma.device.updateMany.mockResolvedValue({ count: 3 });

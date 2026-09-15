@@ -15,6 +15,10 @@ export const NOTIFICATION_TYPES = [
   'GEOFENCE_EXIT',
   'MATERIAL_LOW',
   'SCHEDULE_MISSED',
+  // Сообщение чата оффлайн-получателю (М5.1): приходит не через RabbitMQ, а
+  // внутренним REST-вызовом chat-service — routing key `chat.message` в
+  // shared/constants/events.ts отсутствует.
+  'CHAT_MESSAGE',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

@@ -29,18 +29,16 @@ export const CHAT_PUSH_NOTIFIER = 'CHAT_PUSH_NOTIFIER';
  * через review архитектора, поэтому RabbitMQ-путь не расширяется молча.
  * Notification-service принимает push через внутренний вызов
  * `POST {NOTIFICATION_SERVICE_URL}/api/notifications/internal/chat-message`
- * (сервисный JWT, тип CHAT_MESSAGE). Пока такого эндпоинта в
- * notification-service нет — вызов отвечает 404, клиент это логирует и
- * возвращает 0. Доставка сообщения в чат от этого не страдает: REST/WS-путь
- * уже завершён, push — лишь ускорение для оффлайн-пользователей.
+ * (сервисный JWT, тип CHAT_MESSAGE) и отвечает сводкой `{ delivered }`:
+ * столько получателей получили in-app запись (и push, если есть устройства).
  *
- * Такой клиент готов к включению push без правок chat-service: достаточно
- * добавить эндпоинт (и тип CHAT_MESSAGE) в notification-service.
+ * Ошибка доставки push не отменяет отправку сообщения в чат: REST/WS-путь уже
+ * завершён, push — лишь ускорение для оффлайн-пользователей, поэтому клиент
+ * только логирует проблему и возвращает 0.
  */
 @Injectable()
 export class NotificationPushClient implements ChatPushNotifier {
   private readonly logger = new Logger(NotificationPushClient.name);
-  private skippedOnce = false;
 
   constructor(
     private readonly config: ConfigService,
@@ -96,23 +94,17 @@ export class NotificationPushClient implements ChatPushNotifier {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
 
-      if (response.status === 404) {
-        // Однократный warning: иначе каждое сообщение оффлайн-пользователю шумит в логах.
-        if (!this.skippedOnce) {
-          this.skippedOnce = true;
-          this.logger.warn(
-            'notification-service не имеет эндпоинта chat-message (404): ' +
-              'push оффлайн-получателям не доставляется (см. README chat-service)',
-          );
-        }
-        return 0;
-      }
       if (!response.ok) {
         this.logger.warn(`notification-service вернул ${response.status} на push сообщения чата`);
         return 0;
       }
-      this.logger.log(`Push оффлайн-получателям: ${userIds.length} чел.`);
-      return userIds.length;
+
+      // Ответ — сводка `{ delivered }`: часть получателей могла отключить тип
+      // CHAT_MESSAGE в настройках, поэтому доставленных считаем по ответу, а не
+      // по длине списка запроса.
+      const delivered = await this.readDelivered(response, userIds.length);
+      this.logger.log(`Push оффлайн-получателям: доставлено ${delivered} из ${userIds.length}`);
+      return delivered;
     } catch (error) {
       // Недоступность notification-service не должна отменять отправку сообщения.
       this.logger.warn(
@@ -122,5 +114,16 @@ export class NotificationPushClient implements ChatPushNotifier {
       );
       return 0;
     }
+  }
+
+  /**
+   * Число доставленных из сводки. Тело разбираем терпимо: старый/урезанный
+   * ответ не должен превращать успешный push в ошибку — тогда считаем, что
+   * уведомлены все получатели запроса.
+   */
+  private async readDelivered(response: Response, fallback: number): Promise<number> {
+    const payload = (await response.json().catch(() => null)) as { delivered?: unknown } | null;
+    const delivered = payload?.delivered;
+    return typeof delivered === 'number' && Number.isFinite(delivered) ? delivered : fallback;
   }
 }
