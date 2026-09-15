@@ -450,6 +450,11 @@ test.describe('Notifications: настройки', () => {
       'TICKET_OVERDUE',
       'GEOFENCE_EXIT',
       'MATERIAL_LOW',
+      // SCHEDULE_MISSED добавлен в NOTIFICATION_TYPES вместе с М4.5
+      // (schedule.missed_checkin → шаблон «Неявка на смену»). Список в спеке отставал
+      // от словаря сервиса, из-за чего набор падал ещё до работ М4.7 — список обновлён
+      // до фактического набора типов, проверка «доступны ВСЕ типы» сохранена.
+      'SCHEDULE_MISSED',
     ]);
 
     const updated = await updateNotificationSettings(request, ['MATERIAL_LOW'], {
