@@ -6,6 +6,7 @@ import {
   listMovements,
   listStocks,
 } from '../../api/materials';
+import { listTickets } from '../../api/tickets';
 import type {
   ListMaterialsQuery,
   ListMovementsQuery,
@@ -74,6 +75,26 @@ export function useObjectOptions() {
   return useQuery({
     queryKey: ['materials-object-options'],
     queryFn: () => listObjects({ skip: 0, take: MAX_TAKE }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Последние заявки для привязки движения; `take` на бэкенде ≤ 100. */
+const TICKET_OPTIONS_TAKE = 50;
+
+/**
+ * Список заявок для необязательной привязки расхода/списания (М4.3).
+ *
+ * Ключ `['materials', 'ticket-options']` — соглашение экрана «Материалы»: одной
+ * инвалидацией `['materials']` после движения обновляется и он. `staleTime`
+ * держит справочник в кэше, иначе каждое открытие модалки движения тянуло бы
+ * список заявок заново. Заявки сортируются бэкендом по `createdAt desc`, то есть
+ * в селекте именно последние.
+ */
+export function useTicketOptions() {
+  return useQuery({
+    queryKey: ['materials', 'ticket-options'],
+    queryFn: () => listTickets({ skip: 0, take: TICKET_OPTIONS_TAKE }),
     staleTime: 5 * 60 * 1000,
   });
 }

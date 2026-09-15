@@ -1,10 +1,14 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import type { CreateOperationPayload, TechOperationWithMaterials } from '../../types/core';
+import type { MaterialListItem } from '../../types/materials';
 import { Button } from '../../components/ui/Button';
-import { ErrorBanner } from '../../components/ui/Feedback';
-import { Checkbox, Field, Input, Textarea } from '../../components/ui/Input';
+import { ErrorBanner, errorMessage } from '../../components/ui/Feedback';
+import { Checkbox, Field, Input, Select, Textarea } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Table, TBody, Td, Th, THead, Tr } from '../../components/ui/Table';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { apiStatus, shortId } from '../Materials/materialsHelpers';
+import { useMaterialsList, MAX_TAKE } from '../Materials/useMaterials';
 import {
   emptyOperationForm,
   equipmentToText,
@@ -23,6 +27,11 @@ import {
  *
  * Материалы передаются полным списком: бэкенд заменяет ими прежний состав
  * операции, поэтому «удалить строку» — это просто убрать её из формы.
+ *
+ * Материал строки выбирается из справочника material-service (М2.6 → М4): в
+ * core-service у `OperationMaterial` нет названия, только `materialId`, поэтому
+ * имя и единица приходят из `GET /api/materials` и тут же показываются рядом со
+ * строкой — UUID не должен быть единственным ориентиром.
  */
 export interface OperationFormModalProps {
   open: boolean;
@@ -64,6 +73,86 @@ export function OperationFormModal({
   const [values, setValues] = useState<OperationFormValues>(() => initialValues(operation));
   const [errors, setErrors] = useState<OperationFormErrors>({});
   const [formError, setFormError] = useState<unknown>(null);
+
+  // ── Справочник материалов ─────────────────────────────────────────────────
+  // Поиск серверный (`search` в `ListMaterialsQueryDto` ищет по названию И
+  // поставщику): клиентская фильтрация загруженной сотни не нашла бы материал,
+  // который в неё не попал. `take: 100` — максимум, который принимает
+  // material-service, поэтому выдача честно ограничена первыми 100 совпадениями.
+  const [materialSearch, setMaterialSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(materialSearch, 300);
+  const catalog = useMaterialsList({
+    skip: 0,
+    take: MAX_TAKE,
+    ...(debouncedSearch.trim() === '' ? {} : { search: debouncedSearch.trim() }),
+  });
+  const catalogItems = useMemo(() => catalog.data?.items ?? [], [catalog.data]);
+
+  /**
+   * Материалы, которые форма уже видела. Нужны для двух случаев:
+   *  • сохранённый `materialId` есть в справочнике, но не попал в текущую
+   *    выдачу (серверный поиск отфильтровал) — подпись обязана остаться именем;
+   *  • материал выбрали, потом изменили фильтр — выбранное значение не должно
+   *    выглядеть как «нет в справочнике».
+   */
+  const [knownMaterials, setKnownMaterials] = useState<MaterialListItem[]>([]);
+  useEffect(() => {
+    const items = catalog.data?.items;
+    if (!items || items.length === 0) return;
+    setKnownMaterials((prev) => {
+      const merged = new Map(prev.map((item) => [item.id, item]));
+      for (const item of items) merged.set(item.id, item);
+      return merged.size === prev.length ? prev : [...merged.values()];
+    });
+  }, [catalog.data]);
+
+  const knownById = useMemo(
+    () => new Map(knownMaterials.map((item) => [item.id, item])),
+    [knownMaterials],
+  );
+
+  // Справочник «ответил» (успешно или ошибкой) — только тогда отсутствие id в
+  // справочнике можно утверждать. Пока запрос идёт, «нет в справочнике» было бы
+  // неправдой: материал мог просто ещё не приехать.
+  const catalogSettled = catalog.isSuccess || catalog.isError;
+  const catalogForbidden = apiStatus(catalog.error) === 403;
+
+  /** Подпись материала строки: имя с единицей либо честная пометка про legacy. */
+  function materialInfo(materialId: string): { label: string; missing: boolean } {
+    if (materialId === '') return { label: 'Материал не выбран', missing: false };
+    const known = knownById.get(materialId);
+    if (known) return { label: `${known.name} (${known.unit})`, missing: false };
+    if (!catalogSettled) return { label: 'Загружаем справочник…', missing: false };
+    return { label: `${shortId(materialId)} — нет в справочнике`, missing: true };
+  }
+
+  /**
+   * Выбор материала из справочника.
+   *
+   * Единицу подставляем всегда: норма и единица — свойства материала, а расхождение
+   * «л» в справочнике и «шт» в строке почти наверняка опечатка. Поле при этом
+   * остаётся редактируемым: единица операции может осознанно отличаться.
+   * Расход подставляем ТОЛЬКО в пустую строку (0 или пусто): иначе выбор материала
+   * затирал бы уже введённое число, которое как раз и отличается от нормы по
+   * умолчанию — а его вводили руками и осознанно.
+   */
+  function pickMaterial(key: string, materialId: string) {
+    const picked = knownById.get(materialId);
+    setValues((prev) => ({
+      ...prev,
+      materials: prev.materials.map((row) => {
+        if (row.key !== key) return row;
+        if (!picked) return { ...row, materialId };
+        return {
+          ...row,
+          materialId,
+          unit: picked.unit,
+          consumptionPerOperation:
+            row.consumptionPerOperation > 0 ? row.consumptionPerOperation : picked.defaultConsumption,
+        };
+      }),
+    }));
+  }
 
   function patch(changes: Partial<OperationFormValues>) {
     setValues((prev) => ({ ...prev, ...changes }));
@@ -235,10 +324,36 @@ export function OperationFormModal({
             </Button>
           </div>
 
-          {/* До М4 справочника материалов нет: id вводится строкой (см. 4.6 спецификации). */}
-          <p className="rounded-md bg-neutral-100 px-4 py-2 text-xs text-neutral-600">
-            Справочник материалов появится в М4. Сейчас идентификатор указывается вручную.
-          </p>
+          {/* Справочник обязателен для выбора материала, но не для сохранения
+              операции: ошибка загрузки оставляет уже указанные (legacy) значения
+              и не мешает сохранить строку — форма не падает и не обнуляет id. */}
+          {catalog.isError && (
+            <p
+              data-testid="operation-material-error"
+              className="rounded-md bg-neutral-100 px-4 py-2 text-xs text-neutral-600"
+            >
+              {catalogForbidden
+                ? 'Справочник материалов недоступен для вашей роли. Уже выбранные материалы сохранятся без изменений.'
+                : `Не удалось загрузить справочник материалов: ${errorMessage(
+                    catalog.error,
+                  )}. Уже выбранные материалы сохранятся без изменений.`}
+            </p>
+          )}
+
+          <Field
+            label="Поиск материала"
+            htmlFor={`${formId}-material-search`}
+            hint="Серверный поиск по названию и поставщику; показываем первые 100 совпадений"
+          >
+            <Input
+              id={`${formId}-material-search`}
+              data-testid="operation-material-search"
+              value={materialSearch}
+              disabled={catalog.isError}
+              placeholder="Например, «стекло»"
+              onChange={(event) => setMaterialSearch(event.target.value)}
+            />
+          </Field>
 
           {errors.materials && <span className="text-xs text-danger-600">{errors.materials}</span>}
 
@@ -253,61 +368,100 @@ export function OperationFormModal({
                 <Th />
               </THead>
               <TBody>
-                {values.materials.map((material) => (
-                  <Tr key={material.key}>
-                    <Td>
-                      <Input
-                        value={material.materialId}
-                        className="font-mono"
-                        placeholder="ID материала (справочник — М4)"
-                        aria-label="ID материала"
-                        onChange={(event) =>
-                          patchMaterial(material.key, { materialId: event.target.value })
-                        }
-                      />
-                    </Td>
-                    <Td align="right">
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        className="w-28 text-right font-mono"
-                        aria-label="Расход на операцию"
-                        value={material.consumptionPerOperation}
-                        onChange={(event) =>
-                          patchMaterial(material.key, {
-                            consumptionPerOperation: Number(event.target.value),
-                          })
-                        }
-                      />
-                    </Td>
-                    <Td>
-                      <Input
-                        list={`${formId}-units`}
-                        className="w-24"
-                        aria-label="Единица измерения"
-                        value={material.unit}
-                        onChange={(event) => patchMaterial(material.key, { unit: event.target.value })}
-                      />
-                    </Td>
-                    <Td align="right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Удалить материал ${material.materialId || 'без названия'}`}
-                        onClick={() =>
-                          setValues((prev) => ({
-                            ...prev,
-                            materials: prev.materials.filter((row) => row.key !== material.key),
-                          }))
-                        }
-                      >
-                        ✕
-                      </Button>
-                    </Td>
-                  </Tr>
-                ))}
+                {values.materials.map((material, index) => {
+                  const info = materialInfo(material.materialId);
+                  // Значение вне текущей выдачи (материал удалён из справочника,
+                  // заведён напрямую в core или отфильтрован поиском) обязано
+                  // оставаться ВЫБРАННЫМ: без своей опции <select> показал бы
+                  // пусто, а сохранение потеряло бы прежний materialId.
+                  const outsideOptions =
+                    material.materialId !== '' &&
+                    catalogSettled &&
+                    !catalogItems.some((item) => item.id === material.materialId);
+                  return (
+                    <Tr key={material.key}>
+                      <Td>
+                        <div className="flex flex-col gap-1">
+                          <Select
+                            // Один и тот же testid у всех строк: базовый id обязателен
+                            // для e2e, конкретная строка находится по `data-row-key`.
+                            data-testid="operation-material-select"
+                            data-row-key={material.key}
+                            aria-label={`Материал строки ${index + 1}`}
+                            className="min-w-[220px]"
+                            value={material.materialId}
+                            disabled={catalog.isLoading}
+                            onChange={(event) => pickMaterial(material.key, event.target.value)}
+                          >
+                            <option value="">
+                              {catalog.isLoading ? 'Загрузка…' : 'Выберите материал'}
+                            </option>
+                            {catalogItems.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.name} ({item.unit})
+                              </option>
+                            ))}
+                            {outsideOptions && (
+                              <option value={material.materialId}>{info.label}</option>
+                            )}
+                          </Select>
+                          <span
+                            data-testid="operation-material-name"
+                            className={
+                              info.missing
+                                ? 'text-xs text-neutral-400'
+                                : 'text-xs text-neutral-500'
+                            }
+                          >
+                            {info.label}
+                          </span>
+                        </div>
+                      </Td>
+                      <Td align="right">
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          className="w-28 text-right font-mono"
+                          aria-label="Расход на операцию"
+                          value={material.consumptionPerOperation}
+                          onChange={(event) =>
+                            patchMaterial(material.key, {
+                              consumptionPerOperation: Number(event.target.value),
+                            })
+                          }
+                        />
+                      </Td>
+                      <Td>
+                        <Input
+                          list={`${formId}-units`}
+                          className="w-24"
+                          aria-label="Единица измерения"
+                          value={material.unit}
+                          onChange={(event) =>
+                            patchMaterial(material.key, { unit: event.target.value })
+                          }
+                        />
+                      </Td>
+                      <Td align="right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Удалить материал ${info.label}`}
+                          onClick={() =>
+                            setValues((prev) => ({
+                              ...prev,
+                              materials: prev.materials.filter((row) => row.key !== material.key),
+                            }))
+                          }
+                        >
+                          ✕
+                        </Button>
+                      </Td>
+                    </Tr>
+                  );
+                })}
               </TBody>
             </Table>
           )}

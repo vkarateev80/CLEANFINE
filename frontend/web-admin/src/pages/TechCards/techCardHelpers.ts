@@ -148,7 +148,9 @@ export function validateOperationForm(values: OperationFormValues): OperationFor
 
   for (const [index, material] of values.materials.entries()) {
     if (material.materialId.trim() === '') {
-      errors.materials = `Строка ${index + 1}: укажите ID материала`;
+      // Материал выбирается из справочника (`OperationFormModal`), поэтому
+      // «укажите ID» больше не описывает действие пользователя.
+      errors.materials = `Строка ${index + 1}: выберите материал`;
       break;
     }
     if (!(material.consumptionPerOperation > 0)) {

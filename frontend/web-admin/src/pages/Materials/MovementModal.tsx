@@ -19,8 +19,13 @@ import {
   type CreateMovementResult,
   type MovementType,
 } from '../../types/materials';
+import {
+  TICKET_STATUS_LABELS,
+  TICKET_TYPE_LABELS,
+  type TicketListItem,
+} from '../../types/tickets';
 import { apiStatus, formatQuantity, parseRequiredNumber, shortId } from './materialsHelpers';
-import { useMaterialsList, useObjectOptions, useStocks } from './useMaterials';
+import { useMaterialsList, useObjectOptions, useStocks, useTicketOptions } from './useMaterials';
 
 /**
  * Модалка движения материала (М4.3): приход, расход, перемещение, списание.
@@ -29,7 +34,9 @@ import { useMaterialsList, useObjectOptions, useStocks } from './useMaterials';
  *  • `IN`/`TRANSFER` увеличивают остаток, `OUT`/`WRITE_OFF` уменьшают;
  *  • попытка уйти в минус → **400** с текстом «Недостаточно материала…» — этот
  *    текст показывается пользователю как есть, без падения экрана;
- *  • `TRANSFER` требует `targetObjectId` ≠ `objectId`.
+ *  • `TRANSFER` требует `targetObjectId` ≠ `objectId`;
+ *  • `ticketId` необязателен для ЛЮБОГО типа, но по смыслу это связь с работой,
+ *    поэтому поле показывается только для списывающих типов (см. `CONSUMING`).
  *
  * Остаток по выбранной паре (материал, объект) известен из `GET /stocks`, и при
  * расходе больше остатка форма показывает предупреждение, но НЕ блокирует
@@ -49,12 +56,25 @@ interface FormState {
   objectId: string;
   quantity: string;
   targetObjectId: string;
+  /** Заявка (ticket-service): пустая строка — «без заявки». */
+  ticketId: string;
 }
 
 type Errors = Partial<Record<keyof FormState, string>>;
 
 /** Типы, которые списывают остаток: для них проверяем достаточность. */
 const CONSUMING: readonly MovementType[] = ['OUT', 'WRITE_OFF'];
+
+function emptyForm(preset?: MovementPreset): FormState {
+  return {
+    type: preset?.type ?? 'IN',
+    materialId: preset?.materialId ?? '',
+    objectId: preset?.objectId ?? '',
+    quantity: '',
+    targetObjectId: '',
+    ticketId: '',
+  };
+}
 
 export function MovementModal({
   open,
@@ -71,14 +91,9 @@ export function MovementModal({
   const queryClient = useQueryClient();
   const objects = useObjectOptions();
   const materials = useMaterialsList({ skip: 0, take: 100 });
+  const tickets = useTicketOptions();
 
-  const [values, setValues] = useState<FormState>(() => ({
-    type: preset?.type ?? 'IN',
-    materialId: preset?.materialId ?? '',
-    objectId: preset?.objectId ?? '',
-    quantity: '',
-    targetObjectId: '',
-  }));
+  const [values, setValues] = useState<FormState>(() => emptyForm(preset));
   const [errors, setErrors] = useState<Errors>({});
 
   // Остаток по выбранному объекту: и подсказка «сколько сейчас», и ориентир для
@@ -110,9 +125,11 @@ export function MovementModal({
   }, [stocks.data, values.materialId, values.objectId]);
 
   const quantity = parseRequiredNumber(values.quantity);
+  /** Списывающий тип: для него важны остаток, предупреждение о нехватке и заявка. */
+  const isConsuming = CONSUMING.includes(values.type);
   const insufficient =
     currentStock !== null &&
-    CONSUMING.includes(values.type) &&
+    isConsuming &&
     Number.isFinite(quantity) &&
     quantity > currentStock.quantity;
 
@@ -145,17 +162,15 @@ export function MovementModal({
       // `targetObjectId` отправляем только для TRANSFER: для остальных типов
       // бэкенд отвечает 400 «targetObjectId допустим только для TRANSFER».
       ...(values.type === 'TRANSFER' ? { targetObjectId: values.targetObjectId } : {}),
+      // `ticketId` уходит только для списывающих типов и только когда выбран:
+      // у прихода и перемещения связи с заявкой нет, а пустое поле в payload
+      // записало бы в историю привязку, которой пользователь не делал.
+      ...(isConsuming && values.ticketId !== '' ? { ticketId: values.ticketId } : {}),
     });
   }
 
   function handleClose() {
-    setValues({
-      type: preset?.type ?? 'IN',
-      materialId: preset?.materialId ?? '',
-      objectId: preset?.objectId ?? '',
-      quantity: '',
-      targetObjectId: '',
-    });
+    setValues(emptyForm(preset));
     setErrors({});
     save.reset();
     onClose();
@@ -166,6 +181,21 @@ export function MovementModal({
 
   function objectLabel(id: string): string {
     return (objects.data?.items ?? []).find((object) => object.id === id)?.name ?? shortId(id);
+  }
+
+  /**
+   * Подпись заявки в селекте: короткий id, тип, статус и объект. У `TicketListItem`
+   * нет ни названия объекта, ни адреса — только `objectId`, поэтому имя берём из
+   * уже загруженного справочника объектов (он нужен модалке всё равно), а если
+   * объекта в нём нет — показываем короткий id, а не выдуманный адрес.
+   */
+  function ticketLabel(ticket: TicketListItem): string {
+    const objectName = (objects.data?.items ?? []).find(
+      (object) => object.id === ticket.objectId,
+    )?.name;
+    return `${shortId(ticket.id)} · ${TICKET_TYPE_LABELS[ticket.type]} · ${
+      TICKET_STATUS_LABELS[ticket.status]
+    } · ${objectName ?? shortId(ticket.objectId)}`;
   }
 
   return (
@@ -299,7 +329,48 @@ export function MovementModal({
               </Select>
             </Field>
           )}
+
+          {/*
+            Заявка — только для списания (OUT/WRITE_OFF): у прихода и перемещения
+            связи с работой нет, и пустое поле в этих формах только сбивало бы.
+            Поле необязательное: привязка — метаданные движения, а не его условие.
+          */}
+          {isConsuming && (
+            <Field
+              label="Заявка"
+              htmlFor="movement-ticket"
+              hint="Необязательно: заявка попадёт в историю движений"
+            >
+              <Select
+                id="movement-ticket"
+                data-testid="movement-ticket"
+                value={values.ticketId}
+                disabled={tickets.isLoading}
+                onChange={(event) => update('ticketId', event.target.value)}
+              >
+                <option value="">{tickets.isLoading ? 'Загрузка…' : 'Без заявки'}</option>
+                {(tickets.data?.items ?? []).map((ticket) => (
+                  <option key={ticket.id} value={ticket.id}>
+                    {ticketLabel(ticket)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
         </div>
+
+        {/*
+          Список заявок не загрузился — движение всё равно проводится: привязка к
+          заявке это метаданные для истории, а не условие пересчёта остатка, и
+          блокировать склад из-за недоступного ticket-service нельзя. Значение
+          по умолчанию — «без заявки», поэтому деградация безопасна.
+        */}
+        {isConsuming && tickets.isError && (
+          <p className="text-xs text-neutral-500" data-testid="movement-ticket-error">
+            Список заявок не загрузился: {errorMessage(tickets.error)}. Движение можно провести
+            без привязки — заявка только уточняет историю.
+          </p>
+        )}
 
         {values.materialId !== '' && values.objectId !== '' && (
           <div className="rounded-lg bg-neutral-100 px-4 py-3 text-xs text-neutral-600">
