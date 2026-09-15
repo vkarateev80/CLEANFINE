@@ -29,5 +29,6 @@ export const ROUTES = {
   employees: '/employees',
   materials: '/materials',
   schedule: '/schedule',
+  messages: '/messages',
   reports: '/reports',
 } as const;

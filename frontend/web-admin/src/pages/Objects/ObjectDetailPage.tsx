@@ -33,6 +33,7 @@ import {
   Tr,
 } from '../../components/ui';
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
+import { ChatPanel } from '../Messages/ChatPanel';
 import { ROUTES } from '../../router/routes';
 import type {
   CreateFloorPayload,
@@ -632,6 +633,20 @@ export function ObjectDetailPage() {
           </Table>
         </Card>
       )}
+
+      {/*
+        Чат объекта (М5.3). Отдельный блок ниже таблиц: он не мешает текущим
+        разделам «Этажи / Помещения / Маршруты», но у чата объекта нет другого
+        входа в админке — из карточки объекта его и открывают. Чат создаётся
+        идемпотентно по objectId (повторный заход вернёт тот же чат).
+      */}
+      <ChatPanel
+        kind="object"
+        refId={detail.id}
+        title="Чат объекта"
+        testId="object-chat"
+        emptyHint="Обсудите объект с бригадирами и администратором: сообщения видят участники чата."
+      />
 
       <Modal
         open={modal?.kind === 'object'}

@@ -8,6 +8,7 @@ import { FloorPlanPage } from '../pages/Floors/FloorPlanPage';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { MapPage } from '../pages/Map/MapPage';
 import { MaterialsPage } from '../pages/Materials/MaterialsPage';
+import { MessagesPage } from '../pages/Messages/MessagesPage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
 import { NotificationsPage } from '../pages/Notifications/NotificationsPage';
 import { SchedulePage } from '../pages/Schedule/SchedulePage';
@@ -118,6 +119,13 @@ export const router = createBrowserRouter([
        * по правам из `usePermissions`.
        */
       { path: 'schedule', element: <SchedulePage /> },
+      /*
+       * Сообщения (М5.3): чаты текущего пользователя. В chat-service каждый
+       * видит только свои чаты (участник), а чужие отдают 403, поэтому RoleGuard
+       * не нужен: раздел нужен всем ролям, а доступ ограничен на сервере по
+       * участию в чате.
+       */
+      { path: 'messages', element: <MessagesPage /> },
       { path: 'reports', element: <PlaceholderPage title="Отчёты" phase="М7" /> },
     ],
   },

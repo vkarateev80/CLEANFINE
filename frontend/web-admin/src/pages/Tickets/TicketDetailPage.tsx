@@ -22,6 +22,7 @@ import {
   Textarea,
 } from '../../components/ui';
 import { useCanAssignTicket, useCanTransitionTicketStatus } from '../../hooks/usePermissions';
+import { ChatPanel } from '../Messages/ChatPanel';
 import { ROUTES } from '../../router/routes';
 import {
   TICKET_PRIORITY_LABELS,
@@ -433,6 +434,20 @@ export function TicketDetailPage() {
               </div>
             </div>
           </Card>
+
+          {/*
+            Чат заявки (М5.3) — отдельный блок под комментариями. Комментарий
+            фиксирует факт в истории заявки, чат нужен для живого обсуждения;
+            чат создаётся идемпотентно по ticketId, поэтому блок монтируется
+            при каждом открытии карточки без риска «второго» чата.
+          */}
+          <ChatPanel
+            kind="ticket"
+            refId={ticket.id}
+            title="Чат заявки"
+            testId="ticket-chat"
+            emptyHint="Обсудите заявку: сообщения видят исполнитель, бригадир и администратор."
+          />
         </div>
 
         <div className="flex flex-col gap-4">
