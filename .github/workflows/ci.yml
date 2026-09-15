@@ -419,6 +419,13 @@ jobs:
       # E2E_CORE_URL/E2E_FILE_URL читают e2e-тесты ядра и файлов (test/e2e/api).
       - name: Run e2e (API + UI)
         working-directory: test
+        # Уборка и SQL-проверки e2e-наборов идут через `docker exec <container> psql`.
+        # В CI postgres — service-контейнер со сгенерированным именем, поэтому
+        # хелперы (E2E_POSTGRES_CONTAINER) получают его id. Контекст `job` доступен
+        # только в ключах шага, не в env джобы, поэтому переменная задана здесь:
+        # без неё sqlAvailable() возвращал false и шесть тестов молча скипались.
+        env:
+          E2E_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: pnpm test:e2e
 
       - name: Upload Playwright report
