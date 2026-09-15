@@ -48,14 +48,25 @@
 - `ticket_operation_completions`: отметки выполнения операций — идемпотентность по
   (ticketId, operationId).
 
-## 6. material-service (М4)
+## 6. material-service (М4) — реализовано (БД `cleaning_ops_materials`, миграция `init_materials`)
 
-- `Material`, `MaterialStock` (@@unique materialId+objectId), `MaterialMovement` (IN/OUT/TRANSFER/WRITE_OFF).
-- Источник: УСТАВ.md → Агент Backend Materials, Prisma-схема.
+Таблицы названы по моделям Prisma (PascalCase, без `@@map`), колонки — camelCase.
 
-## 7. schedule-service (М4)
+- `Material`: name, unit, defaultConsumption, minStockThreshold, costPerUnit, supplier?.
+- `MaterialStock`: materialId, objectId, quantity, `@@unique([materialId, objectId])`.
+- `MaterialMovement`: materialId, objectId, type (IN/OUT/TRANSFER/WRITE_OFF), quantity,
+  ticketId?, userId, targetObjectId? (аддитивно — приход при TRANSFER), createdAt.
+- `ConsumedOperation`: operationId, materialId, ticketId, objectId, quantity, movementId? —
+  `@@unique([operationId, materialId])` для идемпотентности автосписания.
 
-- `Schedule` (objectId, routeId, recurrence, assignees), события/смены (check-in/check-out с координатами и геозоной), привязка к автосозданным заявкам.
+## 7. schedule-service (М4) — реализовано (БД `cleaning_ops_schedule`, миграция `init_schedule`)
+
+- `Schedule`: objectId?, routeId?, name, recurrence JSON (frequency daily/weekly/monthly + days/dayOfMonth
+  + time), assignees String[], isActive.
+- `ScheduleEvent` (смена): scheduleId, objectId, date, plannedStart,
+  status (PLANNED/CHECKED_IN/CHECKED_OUT/MISSED), userId?, checkIn/checkOutAt + координаты,
+  ticketId? (автосозданная плановая заявка), checkOutReason?, `@@unique([scheduleId, date, userId])`.
+- Время трактуется в UTC (таймзона объекта/графика не хранится — дефер).
 
 ## 8. chat-service (М5)
 

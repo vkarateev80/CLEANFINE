@@ -78,13 +78,36 @@
 | POST `/api/tickets/:id/comments` | комментарий | auth |
 | POST `/api/tickets/:id/operations/:operationId/complete` | выполнение операции; идемпотентно (`alreadyCompleted`), эмиссия `ticket.operation.completed` | auth |
 
-## 6. material-service `/api/materials` (М4)
+## 6. material-service `/api/materials` (М4) — реализовано
 
-- CRUD материалов, склады по объектам, движения (IN/OUT/TRANSFER/WRITE_OFF), отчёты по расходу.
+| Метод/путь | Назначение | Доступ |
+|---|---|---|
+| CRUD `/api/materials` | справочник материалов | запись — ADMIN/SUPERVISOR, чтение — auth |
+| GET `/api/materials/stocks?objectId&onlyLow` | остатки по объектам с признаком «ниже порога» | auth |
+| POST `/api/materials/movements` | приход/расход/перемещение/списание; транзакционный пересчёт, минус → 400; TRANSFER требует `targetObjectId` | ADMIN, SUPERVISOR |
+| GET `/api/materials/:id/movements?objectId&from&to&limit` | история движений | auth |
+| GET `/api/materials/report?objectId&from&to` | отчёт по расходу (агрегаты + стоимость) | auth |
 
-## 7. schedule-service `/api/schedule` (М4)
+- Консьюмер `ticket.operation.completed` (очередь `material.ticket.operation.completed`):
+  материалы операции через core API → автосписание `OUT` по объекту заявки → при остатке
+  ниже порога эмиссия `material.low`.
 
-- CRUD графиков (recurrence), события дня, `check-in` / `check-out` (геолокация), статусы неявок.
+## 7. schedule-service `/api/schedule` (М4) — реализовано
+
+| Метод/путь | Назначение | Доступ |
+|---|---|---|
+| CRUD `/api/schedule` | графики с recurrence (daily/weekly/monthly) | запись — ADMIN/SUPERVISOR |
+| GET `/api/schedule/events?date&objectId&userId` | смены на дату | auth |
+| GET `/api/schedule/events/:id` | смена по id | auth |
+| GET `/api/schedule/my` | смены текущего пользователя | auth |
+| POST `/api/schedule/check-in` | check-in с проверкой геозоны (gps-service); вне зоны → 403; идемпотентно | OPERATOR, SUPERVISOR, ADMIN |
+| POST `/api/schedule/check-out` | закрытие смены; без check-in → 400 | OPERATOR, SUPERVISOR, ADMIN |
+| POST `/api/schedule/generate?date=` | детерминированная генерация смен и плановых заявок (для e2e/cron) | ADMIN |
+| POST `/api/schedule/check-missed?date=` | прогон неявок и авто check-out вне cron | ADMIN |
+| GET `/api/schedule/scheduler/state` | состояние планировщика | auth |
+
+- Неявка → статус `MISSED` + событие `schedule.missed_checkin`; авто check-out после
+  `SCHEDULE_AUTO_CHECKOUT_MINUTES` от `plannedStart`.
 
 ## 8. chat-service (WebSocket `/chat`, М5)
 
