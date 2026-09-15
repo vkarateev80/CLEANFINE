@@ -1,0 +1,78 @@
+// Schedule-service: графики, смены, check-in/check-out (М4.4–М4.5).
+// Отдельная БД cleaning_ops_schedule — границы микросервисов как в остальных сервисах.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SCHEDULE_DATABASE_URL")
+}
+
+/// Статус смены (ScheduleEvent).
+enum ScheduleEventStatus {
+  PLANNED
+  CHECKED_IN
+  CHECKED_OUT
+  MISSED
+}
+
+/// График (правило повторения), по которому генерируются смены.
+model Schedule {
+  id         String              @id @default(uuid())
+  /// Объект (core-service). Может быть не задан, если график привязан только к маршруту.
+  objectId   String?
+  /// Маршрут (core-service), необязателен.
+  routeId    String?
+  name       String
+  /// Правило повторения: { frequency: daily|weekly|monthly, days: number[], time: "HH:mm" }.
+  /// Хранится JSON-ом, потому что структура — часть DTO графика, а не реляционная сущность.
+  recurrence Json
+  /// Исполнители (auth-service), по смене на каждого.
+  assignees  String[]
+  isActive   Boolean             @default(true)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  events     ScheduleEvent[]
+
+  @@index([isActive])
+  @@index([objectId])
+}
+
+/// Смена: конкретная дата + исполнитель, порождённая графиком.
+model ScheduleEvent {
+  id           String              @id @default(uuid())
+  scheduleId   String
+  schedule     Schedule            @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  /// День смены (полночь UTC) — по нему фильтруется день и строится план.
+  date         DateTime
+  /// Плановое начало: date + recurrence.time.
+  plannedStart DateTime
+  status       ScheduleEventStatus @default(PLANNED)
+  /// Исполнитель смены (auth-service). null — смена без назначенного исполнителя.
+  userId       String?
+  checkInAt    DateTime?
+  checkOutAt   DateTime?
+  checkInLat   Float?
+  checkInLng   Float?
+  checkOutLat  Float?
+  checkOutLng  Float?
+  /// Заявка, созданная в ticket-service по этой смене (М4.4).
+  ticketId     String?
+  /// Почему смена закрыта без участия оператора (авто check-out, М4.5).
+  checkOutReason String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  /// Идемпотентность генерации: одна смена на график/день/исполнителя.
+  /// Обоснование: генерация вызывается и cron-ом, и вручную (POST /generate), поэтому
+  /// защита от дублей должна быть в БД, а не только в коде. userId входит в ключ, так как
+  /// у графика несколько assignees — на каждого своя смена. NULL-исполнитель в Postgres
+  /// в уникальном индексе не конфликтует сам с собой, поэтому смены без исполнителя
+  /// дополнительно дедуплицируются проверкой в ScheduleService (их порождает только ручной вызов).
+  @@unique([scheduleId, date, userId])
+  @@index([date])
+  @@index([userId, date])
+  @@index([status, plannedStart])
+}
