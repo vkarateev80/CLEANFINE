@@ -5,8 +5,9 @@ import { defineConfig } from 'vite';
 /**
  * Куда dev-прокси отправляет группы эндпоинтов. Сервисы слушают РАЗНЫЕ порты
  * (auth :3001, files :3002, core :3003, gps :3004, tickets :3005,
- * notifications :3006), поэтому одной записи `/api → :3001` больше недостаточно:
- * запросы к core-service уходили бы в auth-service и возвращали 404.
+ * notifications :3006, materials :3007, schedule :3008), поэтому одной записи
+ * `/api → :3001` больше недостаточно: запросы к core-service уходили бы в
+ * auth-service и возвращали 404.
  *
  * Список префиксов, а не «лови всё на auth», выбран сознательно: неизвестный
  * путь лучше отдать честным 404 от Vite, чем молча получить 404 от чужого
@@ -30,6 +31,9 @@ const SERVICE_ROUTES: Array<[prefix: string, target: string]> = [
   ['/api/gps', 'http://localhost:3004'],
   ['/api/tickets', 'http://localhost:3005'],
   ['/api/notifications', 'http://localhost:3006'],
+  // М4 — планирование и учёт
+  ['/api/materials', 'http://localhost:3007'],
+  ['/api/schedule', 'http://localhost:3008'],
 ];
 
 const proxy = Object.fromEntries(

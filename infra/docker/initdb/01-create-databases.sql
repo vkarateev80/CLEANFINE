@@ -10,6 +10,8 @@ CREATE DATABASE cleaning_ops_core;
 CREATE DATABASE cleaning_ops_gps;
 CREATE DATABASE cleaning_ops_tickets;
 CREATE DATABASE cleaning_ops_notifications;
+CREATE DATABASE cleaning_ops_materials;
+CREATE DATABASE cleaning_ops_schedule;
 
 -- PostGIS нужен в каждой БД, где есть геометрия (пока — gps-service).
 \connect cleaning_ops_gps
@@ -25,4 +27,10 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 \connect cleaning_ops_files
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+\connect cleaning_ops_materials
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+\connect cleaning_ops_schedule
 CREATE EXTENSION IF NOT EXISTS postgis;
