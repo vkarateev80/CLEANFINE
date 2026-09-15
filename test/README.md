@@ -30,6 +30,10 @@ test/
     редиректы неавторизованных переходов, 404.
   - **CI** — джоба `e2e` активна (была `if: false`).
 - **М2 (М2.9)** — ✅ ядро домена (`e2e/api/core.api.spec.ts`, 19 тестов): см. раздел ниже.
+- **М3 (М3.8)** — ✅ оперативка (`e2e/api/gps.api.spec.ts`, `tickets.api.spec.ts`,
+  `notifications.api.spec.ts`, `operations.api.spec.ts`; 31 тест): треки и геозоны, заявки
+  со state machine, in-app уведомления и сквозная SOS-вертикаль через RabbitMQ — раздел
+  «e2e «оперативки» М3.8» ниже.
 
 ## Креды dev-стенда
 
@@ -185,6 +189,86 @@ node node_modules/@playwright/test/cli.js test --project=web test/e2e/web/core.u
 (cd test && E2E_RATE_LIMIT=1 E2E_API_URL=http://localhost:3002 \
    node node_modules/@playwright/test/cli.js test --project=api --grep "rate limiting")
 ```
+
+## e2e «оперативки» М3.8 (gps + tickets + notifications + SOS)
+
+Набор из четырёх файлов в `e2e/api/` проверяет оперативный контур М3 целиком: приём
+GPS-треков и геозоны, заявки со state machine, in-app уведомления и сквозную
+SOS-вертикаль через RabbitMQ.
+
+| Файл | Что проверяет | Тестов |
+|---|---|---|
+| `e2e/api/gps.api.spec.ts` | batch-приём точек (`accepted`), создание/список/фильтр геозон, `check` внутри/вне, `employees/nearby` (свежий трек найден, старый — нет), выход из геозоны (`geofenceExits` + `GEOFENCE_EXIT` в уведомлениях), история треков, роли, уборка | 10 |
+| `e2e/api/tickets.api.spec.ts` | плановая/внеплановая заявка, фильтры и пагинация списка, деталь со связями, state machine `new → assigned → in_progress → completed → verified → closed`, `Invalid status transition`, назначение и комментарии, идемпотентность операций, RBAC по фактическим `@Roles` контроллера | 12 |
+| `e2e/api/notifications.api.spec.ts` | upsert устройства, пагинация и лимит 100, `unreadOnly`/`unreadCount`, `PATCH /:id/read` идемпотентно, 404 на чужой id, изоляция по `userId` из JWT, настройки подписок (400 на недопустимый тип) | 7 |
+| `e2e/api/operations.api.spec.ts` | **SOS-вертикаль М3**: `POST /api/tickets/emergency` → RabbitMQ → in-app `EMERGENCY` у получателя; проверяются тип/приоритет/таймер реакции, содержимое уведомления, отметка прочтения, 401 без токена | 2 |
+
+**Итого 31 тест.**
+
+### Требования к стенду
+
+- auth `:3001`, core `:3003` (не обязателен для этих файлов), file `:3002` (не нужен),
+  gps `:3004`, tickets `:3005`, notifications `:3006`;
+- **RabbitMQ `:5672`** — обязателен: без него `ticket.emergency` и `geofence.exit` не дойдут
+  до notification-service, и два теста (SOS и выход из геозоны) честно упадут. Это и есть
+  проверка вертикали, а не флак;
+- PostgreSQL (`docker` контейнер `cleaning-ops-postgres`) — нужен для уборки: у gps/ticket/
+  notification нет DELETE-эндпоинтов, поэтому набор сносит РОВНО свои строки через `psql`
+  (`test/helpers/operations.ts`). Если docker недоступен, `sqlAvailable()` возвращает false:
+  тесты уборки скипаются, остальные продолжают работать, но данные остаются на стенде;
+- `THROTTLE_LOGIN_LIMIT` лучше поднять: набор делает 4 логина ролей + по одному логину на
+  каждого свежего оператора (эти пользователи удаляются в уборке).
+
+```bash
+# сервисы (каждый со своим окружением; порядок не важен)
+(cd backend/gps-service && node dist/main.js)           # PORT=3004
+(cd backend/ticket-service && node dist/main.js)        # PORT=3005
+(cd backend/notification-service && node dist/main.js)  # PORT=3006
+
+# прогон (фильтр пути — только forward slash; из каталога test)
+cd test
+node node_modules/@playwright/test/cli.js test --project=api e2e/api/gps.api.spec.ts \
+  e2e/api/tickets.api.spec.ts e2e/api/notifications.api.spec.ts e2e/api/operations.api.spec.ts
+```
+
+Переменные окружения (все необязательные, дефолты — локальный стенд):
+
+| Переменная | Дефолт | Назначение |
+|---|---|---|
+| `E2E_API_URL` | `http://localhost:3001` | auth-service: access-токены |
+| `E2E_GPS_URL` | `http://localhost:3004` | gps-service: треки, геозоны, nearby, история |
+| `E2E_TICKET_URL` | `http://localhost:3005` | ticket-service: заявки, статусы, SOS |
+| `E2E_NOTIFICATION_URL` | `http://localhost:3006` | notification-service: устройства и in-app |
+| `E2E_POSTGRES_CONTAINER` | `cleaning-ops-postgres` | контейнер для уборки через `psql` |
+
+### Что важно знать про эти тесты
+
+**UUID только v4.** DTO gps-service требуют `@IsUUID('4')`: «нулевой» id вида
+`00000000-0000-0000-0000-...` не проходит валидацию и даёт **400**, а не 404. В наборах
+используются v4-идентификаторы (`00000000-0000-4000-8000-...`).
+
+**Своя площадка на каждый тест.** gps-service ищет БЛИЖАЙШУЮ геозону в радиусе 1000 м,
+поэтому две геозоны в одной точке сделали бы `check` недетерминированным. Тесты строят
+геозону через `uniqueGeofenceCell(index)` — квадрат ~66×66 м со сдвигом от «шумных»
+координат стенда, а тесты внутри файла разведены по `index`.
+
+**Уведомления приходят асинхронно.** События идут через RabbitMQ, поэтому набор нигде не
+«спит» фиксированно: он опрашивает `GET /api/notifications` с таймаутом
+(`waitForNotification`, до 15–20 с). Создание заявки сразу с исполнителем эмитит ДВА события
+(`ticket.created` и `ticket.assigned`) — это две in-app записи `NEW_TICKET`, поэтому
+проверки считают прирост, а не абсолютное «ровно одно».
+
+**Уборка и её границы.** `helpers/operations.ts` помнит созданное (геозоны, треки вместе с
+их явными timestamp, устройства, уведомления, заявки, свежих пользователей) и сносит это в
+`afterEach`; один раз на процесс `sweepOrphanNotifications()` чистит осиротевшие уведомления
+(записи пользователей, которых больше нет в auth). Засеянные роли (`admin@`, `operator@`,
+`supervisor@`, `client@`), объекты ядра и чужие геозоны набор не трогает. Два теста
+(`GPS: уборка`) проверяют саму уборку: до неё строки прогона есть в БД, после — нет.
+
+**RBAC берётся из контроллера**, а не из предположений: `POST /api/tickets` — ADMIN,
+SUPERVISOR, CLIENT (OPERATOR → 403); `POST /api/tickets/emergency` — любая
+аутентифицированная роль; `PATCH /:id/status` — ADMIN, SUPERVISOR, OPERATOR;
+`POST /:id/assign` — ADMIN, SUPERVISOR; комментарии — без `@Roles`.
 
 ## Нагрузка
 
