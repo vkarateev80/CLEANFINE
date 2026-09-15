@@ -1,6 +1,6 @@
 name: CI
 
-# Cleaning Ops — базовый CI (М0.6, расширен М2.9: file-service + core-service).
+# Cleaning Ops — базовый CI (М0.6; расширен М2.9: file/core; М3: gps/tickets/notifications).
 # Прогоняется на PR в develop/main и на пушах. Сервисы backend/* подключаются
 # автоматически по мере появления (в директории должен быть package.json).
 on:
@@ -43,6 +43,9 @@ jobs:
       DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
       FILE_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
       CORE_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
+      GPS_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
+      TICKET_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
+      NOTIFICATION_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_test?schema=public
       REDIS_URL: redis://localhost:6379
       NODE_ENV: test
 
@@ -96,7 +99,7 @@ jobs:
           done
 
   e2e:
-    name: E2E (auth + core + files API, web-admin UI)
+    name: E2E (auth + files + core + gps + tickets + notifications, web-admin UI)
     runs-on: ubuntu-latest
     timeout-minutes: 40
     needs: quality
@@ -115,11 +118,31 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      rabbitmq:
+        # Нужен М3: ticket/gps публикуют события, notification их потребляет
+        # (SOS-вертикаль). Без брокера сервисы всё равно поднимаются (lazy-retry),
+        # но сценарии уведомлений не проверяются.
+        image: rabbitmq:3-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: admin
+          RABBITMQ_DEFAULT_PASS: password
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 5
 
     env:
       DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_e2e?schema=public
       FILE_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_files?schema=public
       CORE_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_core?schema=public
+      GPS_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_gps?schema=public
+      TICKET_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_tickets?schema=public
+      NOTIFICATION_DATABASE_URL: postgresql://admin:password@localhost:5432/cleaning_ops_notifications?schema=public
+      RABBITMQ_URL: amqp://admin:password@localhost:5672
+      GPS_SERVICE_URL: http://localhost:3004
       JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret-ci
       JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret
       # Логин ограничен 5/мин — набор делает больше попыток, лимит поднимаем.
@@ -140,6 +163,9 @@ jobs:
       E2E_API_URL: http://localhost:3001
       E2E_CORE_URL: http://localhost:3003
       E2E_FILE_URL: http://localhost:3002
+      E2E_GPS_URL: http://localhost:3004
+      E2E_TICKET_URL: http://localhost:3005
+      E2E_NOTIFICATION_URL: http://localhost:3006
       E2E_BASE_URL: http://localhost:5173
 
     steps:
@@ -180,16 +206,19 @@ jobs:
           docker logs minio || true
           exit 1
 
-      # Сервис-контейнер postgres создаёт только cleaning_ops_e2e; у file- и
-      # core-service свои БД (границы микросервисов: своя схема на сервис).
-      - name: Create databases (files, core)
+      # Сервис-контейнер postgres создаёт только cleaning_ops_e2e; у остальных
+      # сервисов свои БД (границы микросервисов: своя схема на сервис).
+      - name: Create databases (files, core, gps, tickets, notifications)
         run: |
           docker exec "${{ job.services.postgres.id }}" \
             psql -U admin -d cleaning_ops_e2e -v ON_ERROR_STOP=1 \
             -c 'CREATE DATABASE cleaning_ops_files;' \
-            -c 'CREATE DATABASE cleaning_ops_core;'
+            -c 'CREATE DATABASE cleaning_ops_core;' \
+            -c 'CREATE DATABASE cleaning_ops_gps;' \
+            -c 'CREATE DATABASE cleaning_ops_tickets;' \
+            -c 'CREATE DATABASE cleaning_ops_notifications;'
 
-      - name: Prisma generate + migrate deploy (auth, file, core)
+      - name: Prisma generate + migrate deploy (все сервисы с schema)
         run: |
           pnpm --filter @cleaning-ops/auth-service prisma:generate
           pnpm --filter @cleaning-ops/auth-service prisma:deploy
@@ -197,15 +226,32 @@ jobs:
           pnpm --filter @cleaning-ops/file-service prisma:deploy
           pnpm --filter @cleaning-ops/core-service prisma:generate
           pnpm --filter @cleaning-ops/core-service prisma:deploy
+          pnpm --filter @cleaning-ops/gps-service prisma:generate
+          pnpm --filter @cleaning-ops/gps-service prisma:deploy
+          pnpm --filter @cleaning-ops/ticket-service prisma:generate
+          pnpm --filter @cleaning-ops/ticket-service prisma:deploy
+          pnpm --filter @cleaning-ops/notification-service prisma:generate
+          pnpm --filter @cleaning-ops/notification-service prisma:deploy
+
+      # PostGIS-расширение нужно БД gps (в postgis-образе оно есть только в
+      # POSTGRES_DB, для остальных БД создаётся явно).
+      - name: Enable PostGIS in gps database
+        run: |
+          docker exec "${{ job.services.postgres.id }}" \
+            psql -U admin -d cleaning_ops_gps -v ON_ERROR_STOP=1 \
+            -c 'CREATE EXTENSION IF NOT EXISTS postgis;'
 
       - name: Seed users
         run: node scripts/seed/seed-users.mjs
 
-      - name: Build services (auth, file, core)
+      - name: Build services (auth, file, core, gps, ticket, notification)
         run: |
           pnpm --filter @cleaning-ops/auth-service build
           pnpm --filter @cleaning-ops/file-service build
           pnpm --filter @cleaning-ops/core-service build
+          pnpm --filter @cleaning-ops/gps-service build
+          pnpm --filter @cleaning-ops/ticket-service build
+          pnpm --filter @cleaning-ops/notification-service build
 
       # Примерка готовности: /api/auth/me отвечает 401 без токена — это признак
       # живого сервиса, поэтому проверяем код ответа, а не успех запроса.
@@ -214,7 +260,7 @@ jobs:
         run: |
           nohup node dist/main.js > /tmp/auth-service.log 2>&1 &
           ready=0
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/api/auth/me || true)
             if [ "$code" = "401" ]; then ready=1; break; fi
             sleep 1
@@ -258,6 +304,51 @@ jobs:
           fi
           echo "core-service готов"
 
+      - name: Start gps-service (3004)
+        working-directory: backend/gps-service
+        run: |
+          nohup node dist/main.js > /tmp/gps-service.log 2>&1 &
+          ready=0
+          for _ in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3004/api/gps/tracks || true)
+            if [ "$code" = "401" ]; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            echo "gps-service не поднялся"; tail -n 100 /tmp/gps-service.log || true; exit 1
+          fi
+          echo "gps-service готов"
+
+      - name: Start ticket-service (3005)
+        working-directory: backend/ticket-service
+        run: |
+          nohup node dist/main.js > /tmp/ticket-service.log 2>&1 &
+          ready=0
+          for _ in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3005/api/tickets || true)
+            if [ "$code" = "401" ]; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            echo "ticket-service не поднялся"; tail -n 100 /tmp/ticket-service.log || true; exit 1
+          fi
+          echo "ticket-service готов"
+
+      - name: Start notification-service (3006)
+        working-directory: backend/notification-service
+        run: |
+          nohup node dist/main.js > /tmp/notification-service.log 2>&1 &
+          ready=0
+          for _ in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3006/api/notifications || true)
+            if [ "$code" = "401" ]; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            echo "notification-service не поднялся"; tail -n 100 /tmp/notification-service.log || true; exit 1
+          fi
+          echo "notification-service готов"
+
       - name: Install Playwright browsers
         working-directory: test
         run: pnpm exec playwright install --with-deps chromium
@@ -266,7 +357,7 @@ jobs:
         working-directory: frontend/web-admin
         run: |
           nohup node node_modules/vite/bin/vite.js --port 5173 --strictPort > /tmp/web-admin.log 2>&1 &
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -sf -o /dev/null http://localhost:5173/login; then break; fi
             sleep 1
           done
@@ -288,7 +379,7 @@ jobs:
         if: failure()
         run: |
           mkdir -p service-logs
-          for name in auth-service file-service core-service web-admin; do
+          for name in auth-service file-service core-service gps-service ticket-service notification-service web-admin; do
             echo "=== $name ==="
             tail -n 100 "/tmp/$name.log" || true
             cp "/tmp/$name.log" "service-logs/$name.log" 2>/dev/null || true
