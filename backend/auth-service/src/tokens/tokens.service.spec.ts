@@ -26,9 +26,18 @@ describe('TokensService', () => {
     },
   };
   const jwt = {
-    signAsync: jest.fn().mockImplementation(async (payload, opts) => `${opts.expiresIn}:${payload.sub}`),
+    signAsync: jest.fn().mockImplementation(
+      async (payload: { sub: string; jti?: string }, opts: { expiresIn?: string }) =>
+        `${opts.expiresIn ?? 'none'}:${payload.sub}:${payload.jti ?? 'no-jti'}`,
+    ),
   };
-  const config = { get: jest.fn((k: string) => (k === 'jwt.accessTtl' || k === 'jwt.refreshTtl' ? undefined : 'secret')) };
+  const config = {
+    get: jest.fn((k: string): string | undefined => {
+      if (k === 'jwt.accessTtl') return '15m';
+      if (k === 'jwt.refreshTtl') return '30d';
+      return 'secret';
+    }),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -53,6 +62,46 @@ describe('TokensService', () => {
           data: expect.objectContaining({ userId: 'u1', token: pair.refreshToken }),
         }),
       );
+    });
+
+    it('refresh-токен уникален между вызовами (регрессия: 500 на повторном логине)', async () => {
+      // Без jti два логина в одну секунду дают идентичный JWT → нарушение
+      // unique-констрейнта refresh_tokens.token → PrismaClientKnownRequestError.
+      const first = await service.generatePair(user);
+      const second = await service.generatePair(user);
+
+      expect(first.refreshToken).not.toBe(second.refreshToken);
+
+      const refreshPayloads = jwt.signAsync.mock.calls
+        .map(([payload]) => payload as { jti?: string })
+        .filter((payload) => payload.jti !== undefined);
+
+      expect(refreshPayloads.length).toBe(2);
+      expect(new Set(refreshPayloads.map((p) => p.jti)).size).toBe(2);
+    });
+
+    it('expiresAt выводится из jwt.refreshTtl, а не из хардкода', async () => {
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      config.get.mockImplementation((key: string) => (key === 'jwt.refreshTtl' ? '7d' : 'secret'));
+
+      const before = Date.now();
+      await service.generatePair(user);
+      const after = Date.now();
+
+      const { expiresAt } = prisma.refreshToken.create.mock.calls[0][0].data as { expiresAt: Date };
+      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + sevenDays);
+      expect(expiresAt.getTime()).toBeLessThanOrEqual(after + sevenDays);
+    });
+
+    it('падает обратно на 30 дней при невалидном TTL', async () => {
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+      config.get.mockImplementation((key: string) => (key === 'jwt.refreshTtl' ? 'тридцать дней' : 'secret'));
+
+      const before = Date.now();
+      await service.generatePair(user);
+
+      const { expiresAt } = prisma.refreshToken.create.mock.calls[0][0].data as { expiresAt: Date };
+      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + thirtyDays);
     });
   });
 

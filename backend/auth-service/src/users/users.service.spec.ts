@@ -97,14 +97,96 @@ describe('UsersService', () => {
       prisma.user.findFirst.mockResolvedValue({ id: 'u2' });
       await expect(service.update('u1', { email: 'taken@example.com' })).rejects.toThrow(ConflictException);
     });
+
+    it('должен бросать NotFoundException, если пользователя нет', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      await expect(service.update('missing', { fullName: 'X' })).rejects.toThrow(NotFoundException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('проверяет уникальность и по email, и по телефону одновременно', async () => {
+      prisma.user.findUnique.mockResolvedValue(userRecord);
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.update.mockResolvedValue({ ...userRecord, phone: '+79990000009' });
+
+      await service.update('u1', { email: 'NEW@Cleaning-Ops.COM', phone: '+79990000009' });
+
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: {
+          AND: [
+            { id: { not: 'u1' } },
+            { OR: [{ email: 'new@cleaning-ops.com' }, { phone: '+79990000009' }] },
+          ],
+        },
+      });
+    });
+
+    it('нормализует email при обновлении', async () => {
+      prisma.user.findUnique.mockResolvedValue(userRecord);
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.update.mockResolvedValue(userRecord);
+
+      await service.update('u1', { email: 'UPPER@Example.COM' });
+
+      const { data } = prisma.user.update.mock.calls[0][0] as { data: { email: string } };
+      expect(data.email).toBe('upper@example.com');
+    });
+
+    it('не проверяет дубликаты, если email и телефон не меняются', async () => {
+      prisma.user.findUnique.mockResolvedValue(userRecord);
+      prisma.user.update.mockResolvedValue(userRecord);
+
+      await service.update('u1', { fullName: 'Новое Имя' });
+
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('не отзывает токены при обычном обновлении', async () => {
+      prisma.user.findUnique.mockResolvedValue(userRecord);
+      prisma.user.update.mockResolvedValue(userRecord);
+
+      await service.update('u1', { fullName: 'Новое Имя' });
+
+      expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
+    });
   });
 
-  describe('list', () => {
+  describe('list — фильтры', () => {
     it('должен возвращать items и total', async () => {
       prisma.$transaction.mockResolvedValue([[userRecord], 1]);
       const result = await service.list({});
       expect(result.total).toBe(1);
       expect(result.items[0].fullName).toBe('Оператор');
+    });
+
+    it('пробрасывает пагинацию и фильтры в Prisma', async () => {
+      prisma.$transaction.mockResolvedValue([[], 0]);
+      await service.list({ skip: 10, take: 5, role: 'ADMIN', isActive: true, search: 'иван' });
+
+      const where = prisma.user.findMany.mock.calls[0][0] as {
+        where: { role?: string; isActive?: boolean; OR?: unknown[] };
+        skip: number;
+        take: number;
+      };
+      expect(where.skip).toBe(10);
+      expect(where.take).toBe(5);
+      expect(where.where.role).toBe('ADMIN');
+      expect(where.where.isActive).toBe(true);
+      expect(where.where.OR).toHaveLength(3);
+    });
+
+    it('ограничивает take значением 100', async () => {
+      prisma.$transaction.mockResolvedValue([[], 0]);
+      await service.list({ take: 5000 });
+      const args = prisma.user.findMany.mock.calls[0][0] as { take: number };
+      expect(args.take).toBe(100);
+    });
+
+    it('без поиска не добавляет OR-условие', async () => {
+      prisma.$transaction.mockResolvedValue([[], 0]);
+      await service.list({});
+      const args = prisma.user.findMany.mock.calls[0][0] as { where: { OR?: unknown } };
+      expect(args.where.OR).toBeUndefined();
     });
   });
 });

@@ -100,6 +100,11 @@ describe('AuthService', () => {
       expect(result.accessToken).toBe('a2');
       expect(tokens.rotate).toHaveBeenCalledWith('old-refresh');
     });
+
+    it('должен бросать 401 без refreshToken, а не падать в Prisma', async () => {
+      await expect(service.refresh({})).rejects.toThrow(UnauthorizedException);
+      expect(tokens.rotate).not.toHaveBeenCalled();
+    });
   });
 
   describe('changePassword', () => {
@@ -133,6 +138,131 @@ describe('AuthService', () => {
       expect(prisma.user.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ pinCode: expect.any(String) }) }),
       );
+    });
+
+    it('должен бросать при неверном текущем пароле и не менять PIN', async () => {
+      prisma.user.findUnique.mockResolvedValue(activeUser);
+      await expect(service.changePin('u1', { currentPassword: 'wrong', newPin: '5678' })).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('должен бросать, если пользователь не найден', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      await expect(service.changePin('ghost', { currentPassword: 'x', newPin: '5678' })).rejects.toThrow(
+        'Текущий пароль указан неверно',
+      );
+    });
+  });
+
+  describe('pinLogin — валидация входа', () => {
+    it('должен бросать, если не указаны ни email, ни телефон', async () => {
+      await expect(service.pinLogin({ pinCode: '1234' })).rejects.toThrow('Укажите email или телефон');
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('должен искать по телефону, если email не передан', async () => {
+      prisma.user.findFirst.mockResolvedValue(activeUser);
+      await service.pinLogin({ phone: '+79990000000', pinCode: '1234' });
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { OR: [{ email: undefined }, { phone: '+79990000000' }] },
+      });
+    });
+
+    it('должен нормализовать email (lowercase)', async () => {
+      prisma.user.findFirst.mockResolvedValue(activeUser);
+      await service.pinLogin({ email: 'ADMIN@Cleaning-Ops.COM', pinCode: '1234' });
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { OR: [{ email: 'admin@cleaning-ops.com' }, { phone: undefined }] },
+      });
+    });
+
+    it('должен бросать для деактивированного пользователя', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...activeUser, isActive: false });
+      await expect(service.pinLogin({ email: activeUser.email, pinCode: '1234' })).rejects.toThrow(
+        'Пользователь деактивирован',
+      );
+    });
+
+    it('должен бросать, если пользователь без PIN (не 500)', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...activeUser, pinCode: null });
+      await expect(service.pinLogin({ email: activeUser.email, pinCode: '1234' })).rejects.toThrow('Неверный PIN');
+    });
+
+    it('должен бросать, если пользователь не найден', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      await expect(service.pinLogin({ email: 'nobody@x.y', pinCode: '1234' })).rejects.toThrow('Неверный PIN');
+    });
+  });
+
+  describe('biometricLogin', () => {
+    it('должен возвращать токены при известном ключе', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...activeUser, biometricKey: 'key-1' });
+      const result = await service.biometricLogin({ biometricKey: 'key-1' });
+      expect(result.accessToken).toBe('a1');
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({ where: { biometricKey: 'key-1' } });
+    });
+
+    it('должен бросать для неизвестного ключа', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      await expect(service.biometricLogin({ biometricKey: 'unknown' })).rejects.toThrow(
+        'Биометрический ключ не распознан',
+      );
+    });
+
+    it('должен бросать для деактивированного пользователя', async () => {
+      prisma.user.findFirst.mockResolvedValue({ ...activeUser, biometricKey: 'key-1', isActive: false });
+      await expect(service.biometricLogin({ biometricKey: 'key-1' })).rejects.toThrow(
+        'Биометрический ключ не распознан',
+      );
+    });
+  });
+
+  describe('logout', () => {
+    it('должен отзывать конкретный refresh-токен, если он передан', async () => {
+      await service.logout('u1', { refreshToken: 'r1' });
+      expect(tokens.revoke).toHaveBeenCalledWith('r1');
+      expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
+    });
+
+    it('должен отзывать все токены пользователя, если refresh не передан', async () => {
+      await service.logout('u1');
+      expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u1');
+      expect(tokens.revoke).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('me', () => {
+    it('должен возвращать безопасное представление пользователя', async () => {
+      prisma.user.findUnique.mockResolvedValue(activeUser);
+      const result = await service.me('u1');
+      expect(result.email).toBe(activeUser.email);
+      expect(result).not.toHaveProperty('passwordHash');
+      expect(result).not.toHaveProperty('pinCode');
+    });
+
+    it('должен бросать, если пользователь не найден', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      await expect(service.me('ghost')).rejects.toThrow('Пользователь не найден');
+    });
+  });
+
+  describe('login — нормализация и неактивные пользователи', () => {
+    it('должен нормализовать email перед поиском', async () => {
+      prisma.user.findUnique.mockResolvedValue(activeUser);
+      await service.login({ email: '  ADMIN@Cleaning-Ops.COM  ', password: 'secret123' });
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email: 'admin@cleaning-ops.com' },
+      });
+    });
+
+    it('не должен выдавать токены деактивированному пользователю', async () => {
+      prisma.user.findUnique.mockResolvedValue({ ...activeUser, isActive: false });
+      await expect(service.login({ email: activeUser.email, password: 'secret123' })).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(tokens.generatePair).not.toHaveBeenCalled();
     });
   });
 });

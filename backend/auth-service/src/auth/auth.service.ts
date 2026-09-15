@@ -59,6 +59,11 @@ export class AuthService {
   }
 
   async refresh(dto: RefreshTokenDto): Promise<TokenPair> {
+    // refreshToken необязателен в DTO (нужен для logout без тела) — для ротации
+    // он обязателен, иначе Prisma упала бы с 500 вместо 401.
+    if (!dto.refreshToken) {
+      throw new UnauthorizedException('Невалидный refresh token');
+    }
     return this.tokens.rotate(dto.refreshToken);
   }
 

@@ -1,6 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { randomUUID } from 'node:crypto';
+import { parseTtlToMs } from '../common/ttl';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface JwtPayload {
@@ -14,7 +16,8 @@ export interface TokenPair {
   refreshToken: string;
 }
 
-export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 дней (default)
+/** Дефолтный срок жизни refresh-токена (30 дней), если jwt.refreshTtl не задан. */
+export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class TokensService {
@@ -26,19 +29,30 @@ export class TokensService {
 
   async generatePair(user: { id: string; email: string; role: string }): Promise<TokenPair> {
     const payload: JwtPayload = { sub: user.id, email: user.email, role: user.role };
+    const refreshTtl = this.config.get<string>('jwt.refreshTtl') ?? '30d';
+
     const accessToken = await this.jwt.signAsync(payload, {
       secret: this.config.get<string>('jwt.accessSecret'),
       expiresIn: this.config.get<string>('jwt.accessTtl') ?? '15m',
     });
-    const refreshToken = await this.jwt.signAsync(payload, {
-      secret: this.config.get<string>('jwt.refreshSecret'),
-      expiresIn: this.config.get<string>('jwt.refreshTtl') ?? '30d',
-    });
+    // jti обязателен: без него JWT детерминирован (sub/email/role/iat с точностью
+    // до секунды), и два логина в одну секунду дают идентичный refresh-токен →
+    // нарушение unique-констрейнта на refresh_tokens.token и 500 на логине.
+    const refreshToken = await this.jwt.signAsync(
+      { ...payload, jti: randomUUID() },
+      {
+        secret: this.config.get<string>('jwt.refreshSecret'),
+        expiresIn: refreshTtl,
+      },
+    );
+    // expiresAt выводим из того же TTL, что и подпись JWT, иначе срок в БД
+    // расходится со сроком в токене.
+    const ttlMs = parseTtlToMs(refreshTtl, REFRESH_TOKEN_TTL_MS);
     await this.prisma.refreshToken.create({
       data: {
         token: refreshToken,
         userId: user.id,
-        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
+        expiresAt: new Date(Date.now() + ttlMs),
       },
     });
     return { accessToken, refreshToken };

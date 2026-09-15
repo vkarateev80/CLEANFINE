@@ -19,10 +19,10 @@
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "baseUrl": "./",
     "paths": {
-      "@cleaning-ops/shared/*": ["../../shared/*"]
+      "@cleaning-ops/shared/*": ["../../shared/dist/*"]
     }
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.e2e-spec.ts"]
 }
