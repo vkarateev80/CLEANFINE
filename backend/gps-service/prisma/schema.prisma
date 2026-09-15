@@ -1,0 +1,44 @@
+// Схема БД gps-service (УСТАВ.md → Агент Backend GPS, п.1).
+//
+// Prisma не поддерживает PostGIS-типы: геометрия объявлена через Unsupported,
+// поэтому чтение/запись геометрии идёт только через $queryRaw/$executeRaw
+// (см. src/gps/gps.service.ts и src/gps/geofence.service.ts).
+//
+// Пространственные GIST-индексы выражены через ops: raw(...) — так Prisma знает
+// о них и не предлагает удалить при следующей миграции.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("GPS_DATABASE_URL")
+}
+
+/// GPS-трек: одна точка сотрудника.
+model GpsTrack {
+  id           String                              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String                              @map("user_id") @db.Uuid
+  location     Unsupported("geometry(Point, 4326)")?
+  accuracy     Decimal?                            @db.Decimal(10, 2)
+  speed        Decimal?                            @db.Decimal(10, 2)
+  batteryLevel Int?                                @map("battery_level")
+  timestamp    DateTime                            @default(now()) @db.Timestamptz(6)
+
+  @@index([userId, timestamp(sort: Desc)], map: "idx_gps_tracks_user_time")
+  @@index([location(ops: raw("gist_geometry_ops_2d"))], type: Gist, map: "idx_gps_tracks_location")
+  @@map("gps_tracks")
+}
+
+/// Геозона объекта core-service (object_id — id объекта, связь между сервисами по id).
+model Geofence {
+  id           String                                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  objectId     String                                @map("object_id") @db.Uuid
+  name         String?                               @db.VarChar(255)
+  boundary     Unsupported("geometry(Polygon, 4326)")?
+  radiusMeters Int?                                  @map("radius_meters")
+
+  @@index([boundary(ops: raw("gist_geometry_ops_2d"))], type: Gist, map: "idx_geofences_boundary")
+  @@map("geofences")
+}
