@@ -375,6 +375,109 @@ describe('TicketsService (М3.4–М3.6)', () => {
         expect.objectContaining({ take: 100 }),
       );
     });
+
+    it('поиск уходит в description/id/objectId без учёта регистра', async () => {
+      prisma.ticket.findMany.mockResolvedValue([ticketFixture()]);
+      prisma.ticket.count.mockResolvedValue(1);
+
+      await service.list({ search: 'УБОРКА' });
+
+      // Регистронезависимость — приём соседних сервисов (Prisma contains + mode insensitive);
+      // запрос уходит на сервер как есть, без приведения регистра на клиенте.
+      const or = [
+        { description: { contains: 'УБОРКА', mode: 'insensitive' } },
+        { id: { contains: 'УБОРКА', mode: 'insensitive' } },
+        { objectId: { contains: 'УБОРКА', mode: 'insensitive' } },
+      ];
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { OR: or } }),
+      );
+      // Тот же where и в count: иначе total расходился бы с выдачей.
+      expect(prisma.ticket.count).toHaveBeenCalledWith({ where: { OR: or } });
+    });
+
+    it('поиск комбинируется с фильтрами (AND, а не подмена фильтра)', async () => {
+      prisma.ticket.findMany.mockResolvedValue([]);
+      prisma.ticket.count.mockResolvedValue(0);
+
+      await service.list({ status: 'assigned', search: 'холл' });
+
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            status: 'assigned',
+            OR: [
+              { description: { contains: 'холл', mode: 'insensitive' } },
+              { id: { contains: 'холл', mode: 'insensitive' } },
+              { objectId: { contains: 'холл', mode: 'insensitive' } },
+            ],
+          },
+        }),
+      );
+    });
+
+    it('находит по подстроке в каждом из выбранных полей', async () => {
+      prisma.ticket.count.mockResolvedValue(1);
+
+      // По описанию: подстрока в середине слова.
+      prisma.ticket.findMany.mockResolvedValue([ticketFixture({ description: 'Влажная уборка холла' })]);
+      await expect(service.list({ search: 'уборк' })).resolves.toEqual({
+        items: [expect.objectContaining({ description: 'Влажная уборка холла' })],
+        total: 1,
+      });
+
+      // По id: короткий id заявки копируют из селекта/адреса.
+      prisma.ticket.findMany.mockResolvedValue([ticketFixture({ id: 'a1b2c3d4-0000-4000-8000-000000000001' })]);
+      const byId = await service.list({ search: 'a1b2c3d4' });
+      expect(byId.items).toHaveLength(1);
+      expect(byId.items[0].id).toBe('a1b2c3d4-0000-4000-8000-000000000001');
+
+      // По объекту: у заявки нет адреса, «адресная» привязка — objectId.
+      prisma.ticket.findMany.mockResolvedValue([ticketFixture({ objectId: 'obj-север-7' })]);
+      const byObject = await service.list({ search: 'север' });
+      expect(byObject.items).toHaveLength(1);
+      expect(byObject.items[0].objectId).toBe('obj-север-7');
+    });
+
+    it('по мусорному запросу возвращает пустую выдачу (подгонки на клиенте нет)', async () => {
+      prisma.ticket.findMany.mockResolvedValue([]);
+      prisma.ticket.count.mockResolvedValue(0);
+
+      await expect(service.list({ search: 'ззз-нет-такой-заявки' })).resolves.toEqual({
+        items: [],
+        total: 0,
+      });
+
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            OR: [
+              { description: { contains: 'ззз-нет-такой-заявки', mode: 'insensitive' } },
+              { id: { contains: 'ззз-нет-такой-заявки', mode: 'insensitive' } },
+              { objectId: { contains: 'ззз-нет-такой-заявки', mode: 'insensitive' } },
+            ],
+          },
+        }),
+      );
+    });
+
+    it('без search и с пустой строкой/пробелами фильтра по тексту нет', async () => {
+      prisma.ticket.findMany.mockResolvedValue([ticketFixture()]);
+      prisma.ticket.count.mockResolvedValue(1);
+
+      await service.list({});
+      expect(prisma.ticket.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+
+      // Пустая строка и строка из пробелов — то же самое, что отсутствие параметра.
+      await service.list({ search: '' });
+      await service.list({ search: '   ' });
+      expect(prisma.ticket.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({ where: {} }),
+      );
+      expect(prisma.ticket.count).toHaveBeenLastCalledWith({ where: {} });
+    });
   });
 
   describe('getDetail', () => {

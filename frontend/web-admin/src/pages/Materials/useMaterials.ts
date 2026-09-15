@@ -13,6 +13,7 @@ import type {
   ReportQuery,
   StocksQuery,
 } from '../../types/materials';
+import type { ListTicketsQuery } from '../../types/tickets';
 
 /**
  * Данные экрана «Материалы» (М4.3). Все ключи начинаются с `['materials', …]`:
@@ -83,18 +84,39 @@ export function useObjectOptions() {
 const TICKET_OPTIONS_TAKE = 50;
 
 /**
+ * Параметры подборки заявок. `search` уже принимает `ListTicketsQueryDto`
+ * ticket-service (М4.3), но фронтовый `ListTicketsQuery` его пока не описывает
+ * (файл `types/tickets.ts` вне зоны этой задачи), поэтому расширяем тип локально:
+ * объект не литерал в месте вызова, так что лишнее поле не ломает типизацию
+ * `listTickets`, и подменять вызов прямым `apiClient` (путь `/tickets` разошёлся бы
+ * с контроллером) не приходится.
+ */
+type TicketOptionsQuery = ListTicketsQuery & { search?: string };
+
+/** Запрос подборки заявок: пустой поиск не отправляем — сервер вернёт последние. */
+function ticketOptionsQuery(search: string): TicketOptionsQuery {
+  const trimmed = search.trim();
+  return {
+    skip: 0,
+    take: TICKET_OPTIONS_TAKE,
+    ...(trimmed === '' ? {} : { search: trimmed }),
+  };
+}
+
+/**
  * Список заявок для необязательной привязки расхода/списания (М4.3).
  *
- * Ключ `['materials', 'ticket-options']` — соглашение экрана «Материалы»: одной
- * инвалидацией `['materials']` после движения обновляется и он. `staleTime`
- * держит справочник в кэше, иначе каждое открытие модалки движения тянуло бы
- * список заявок заново. Заявки сортируются бэкендом по `createdAt desc`, то есть
- * в селекте именно последние.
+ * Ключ `['materials', 'ticket-options', search]` — соглашение экрана «Материалы»:
+ * одной инвалидацией `['materials']` после движения обновляется и он. `search`
+ * уходит на сервер (`ListTicketsQueryDto.search`): на стенде с историей нужной
+ * заявки в последних 50 может не оказаться, а без параметра поведение прежнее —
+ * последние заявки без фильтра. `staleTime` держит справочник в кэше, иначе каждое
+ * открытие модалки движения тянуло бы список заявок заново.
  */
-export function useTicketOptions() {
+export function useTicketOptions(search = '') {
   return useQuery({
-    queryKey: ['materials', 'ticket-options'],
-    queryFn: () => listTickets({ skip: 0, take: TICKET_OPTIONS_TAKE }),
+    queryKey: ['materials', 'ticket-options', search.trim()],
+    queryFn: () => listTickets(ticketOptionsQuery(search)),
     staleTime: 5 * 60 * 1000,
   });
 }

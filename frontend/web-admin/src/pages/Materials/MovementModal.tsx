@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createMovement } from '../../api/materials';
 import {
@@ -12,6 +12,7 @@ import {
   SoftWarning,
 } from '../../components/ui';
 import { errorMessage } from '../../components/ui/Feedback';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   MOVEMENT_TYPES,
   MOVEMENT_TYPE_LABELS,
@@ -91,10 +92,46 @@ export function MovementModal({
   const queryClient = useQueryClient();
   const objects = useObjectOptions();
   const materials = useMaterialsList({ skip: 0, take: 100 });
-  const tickets = useTicketOptions();
+
+  /*
+   * Поиск заявки (М4.3). До него селект показывал только последние 50 заявок, и на
+   * стенде с историей нужной заявки там могло не быть. Поиск серверный
+   * (`ListTicketsQueryDto.search`), с debounce 300 мс — иначе запрос уходил бы на
+   * каждое нажатие клавиши.
+   */
+  const [ticketSearch, setTicketSearch] = useState('');
+  const debouncedTicketSearch = useDebouncedValue(ticketSearch, 300);
+  const tickets = useTicketOptions(debouncedTicketSearch);
 
   const [values, setValues] = useState<FormState>(() => emptyForm(preset));
   const [errors, setErrors] = useState<Errors>({});
+
+  /**
+   * Заявки, которые модалка уже видела. Нужны для случая «выбрали заявку, потом
+   * изменили поиск»: серверный поиск отфильтровал выбранную заявку, но `<select>` не
+   * должен показывать «Без заявки» — иначе в payload ушёл бы невидимый ticketId.
+   * Тот же приём, что в `OperationFormModal` для справочника материалов.
+   */
+  const [knownTickets, setKnownTickets] = useState<TicketListItem[]>([]);
+  useEffect(() => {
+    const items = tickets.data?.items;
+    if (!items || items.length === 0) return;
+    setKnownTickets((prev) => {
+      const merged = new Map(prev.map((ticket) => [ticket.id, ticket]));
+      for (const ticket of items) merged.set(ticket.id, ticket);
+      return merged.size === prev.length ? prev : [...merged.values()];
+    });
+  }, [tickets.data]);
+
+  /** Опции селекта: выдача поиска + выбранная заявка, если она из неё выпала. */
+  const ticketOptions = useMemo(() => {
+    const items = tickets.data?.items ?? [];
+    if (values.ticketId === '' || items.some((ticket) => ticket.id === values.ticketId)) {
+      return items;
+    }
+    const selected = knownTickets.find((ticket) => ticket.id === values.ticketId);
+    return selected ? [selected, ...items] : items;
+  }, [tickets.data, knownTickets, values.ticketId]);
 
   // Остаток по выбранному объекту: и подсказка «сколько сейчас», и ориентир для
   // предупреждения о нехватке. Запрос идёт и без выбора объекта (все остатки) —
@@ -172,6 +209,9 @@ export function MovementModal({
   function handleClose() {
     setValues(emptyForm(preset));
     setErrors({});
+    // Поиск заявки — состояние формы, а не данные: при следующем открытии модалка
+    // снова показывает «последние 50», как до появления поиска.
+    setTicketSearch('');
     save.reset();
     onClose();
   }
@@ -334,30 +374,64 @@ export function MovementModal({
             Заявка — только для списания (OUT/WRITE_OFF): у прихода и перемещения
             связи с работой нет, и пустое поле в этих формах только сбивало бы.
             Поле необязательное: привязка — метаданные движения, а не его условие.
+            Поиск стоит рядом с селектом отдельным полем: серверный фильтр меняет
+            саму выдачу селекта, а не подсвечивает строки в ней.
           */}
           {isConsuming && (
-            <Field
-              label="Заявка"
-              htmlFor="movement-ticket"
-              hint="Необязательно: заявка попадёт в историю движений"
-            >
-              <Select
-                id="movement-ticket"
-                data-testid="movement-ticket"
-                value={values.ticketId}
-                disabled={tickets.isLoading}
-                onChange={(event) => update('ticketId', event.target.value)}
+            <>
+              <Field
+                label="Поиск заявки"
+                htmlFor="movement-ticket-search"
+                hint="Ищем по id, описанию и объекту заявки"
               >
-                <option value="">{tickets.isLoading ? 'Загрузка…' : 'Без заявки'}</option>
-                {(tickets.data?.items ?? []).map((ticket) => (
-                  <option key={ticket.id} value={ticket.id}>
-                    {ticketLabel(ticket)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+                <Input
+                  id="movement-ticket-search"
+                  data-testid="movement-ticket-search"
+                  placeholder="Например, влажная уборка"
+                  value={ticketSearch}
+                  onChange={(event) => setTicketSearch(event.target.value)}
+                />
+              </Field>
+
+              <Field
+                label="Заявка"
+                htmlFor="movement-ticket"
+                hint="Необязательно: заявка попадёт в историю движений"
+              >
+                <Select
+                  id="movement-ticket"
+                  data-testid="movement-ticket"
+                  value={values.ticketId}
+                  disabled={tickets.isLoading}
+                  onChange={(event) => update('ticketId', event.target.value)}
+                >
+                  <option value="">{tickets.isLoading ? 'Загрузка…' : 'Без заявки'}</option>
+                  {ticketOptions.map((ticket) => (
+                    <option key={ticket.id} value={ticket.id}>
+                      {ticketLabel(ticket)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </>
           )}
         </div>
+
+        {/*
+          Поиск не нашёл ни одной заявки: говорим об этом прямо, иначе «Без заявки»
+          выглядело бы как обычный пустой справочник, а не как результат фильтра.
+          Движение при этом по-прежнему проводится без привязки.
+        */}
+        {isConsuming &&
+          debouncedTicketSearch.trim() !== '' &&
+          !tickets.isLoading &&
+          !tickets.isError &&
+          ticketOptions.length === 0 && (
+            <p className="text-xs text-neutral-500" data-testid="movement-ticket-empty">
+              По запросу «{debouncedTicketSearch.trim()}» заявок не найдено. Измените поиск или
+              проведите движение без привязки.
+            </p>
+          )}
 
         {/*
           Список заявок не загрузился — движение всё равно проводится: привязка к

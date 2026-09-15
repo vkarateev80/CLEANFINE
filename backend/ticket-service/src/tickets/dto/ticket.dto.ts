@@ -204,4 +204,15 @@ export class ListTicketsQueryDto {
 
   @ApiPropertyOptional({ description: 'Фильтр по исполнителю' })
   @IsOptional() @IsString() assigneeId?: string;
+
+  /**
+   * Поиск по тексту заявки (М4.3): в модалке движения материала нужна конкретная
+   * заявка, а селект показывает только последние 50. Пустая строка и отсутствие
+   * параметра означают «без фильтра» — как в core/material/auth-service.
+   */
+  @ApiPropertyOptional({
+    description: 'Поиск по id, описанию и объекту (без учёта регистра)',
+    example: 'влажная уборка',
+  })
+  @IsOptional() @IsString() search?: string;
 }

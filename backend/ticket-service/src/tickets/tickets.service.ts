@@ -214,6 +214,27 @@ export class TicketsService {
     if (query.objectId) where.objectId = query.objectId;
     if (query.assigneeId) where.assigneeId = query.assigneeId;
 
+    /*
+     * Поиск (М4.3). Выбор только из полей, которые у заявки реально есть:
+     *  • `description` — единственный содержательный текст («влажная уборка холла»),
+     *    по нему заявку и ищут;
+     *  • `id` — короткий id виден в селекте движения, и его копируют из адреса;
+     *  • `objectId` — адреса у заявки нет (адрес живёт в core-service, а FK между
+     *    сервисами запрещён), поэтому «адресная» привязка заявки — это объект.
+     * `roomId`/`assigneeId`/`createdBy` не ищем: это uuid, которые пользователь
+     * не набирает руками, а `assigneeId` уже есть отдельным фильтром.
+     * Пусто/пробелы = без фильтра: пустой `contains: ''` вернул бы всё, но лишний
+     * OR только мешал бы индексам и ломал тесты «без параметра возвращает всё».
+     */
+    const search = query.search?.trim();
+    if (search) {
+      where.OR = [
+        { description: { contains: search, mode: 'insensitive' } },
+        { id: { contains: search, mode: 'insensitive' } },
+        { objectId: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
     const [items, total] = await this.prisma.$transaction([
       this.prisma.ticket.findMany({
         where,
