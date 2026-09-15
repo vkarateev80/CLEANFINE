@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-sans), system-ui, sans-serif;
+    color: var(--color-neutral-900);
+    background: var(--color-neutral-50);
+  }
+
+  /*
+   * Таб-бар портала fixed, поэтому горизонтальный скролл на телефоне получается
+   * «на ровном месте»: любая карточка с длинным словом (email, UUID заявки)
+   * растягивает документ. Ширину гасим только по X, вертикальный скролл остаётся.
+   */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* iOS Safari зумит страницу при фокусе в поле со шрифтом < 16 px (DS-004 п. 7.5). */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@layer components {
+  /*
+   * Safe-area. Токенов для `env(safe-area-inset-*)` в `design/tokens` нет
+   * (зафиксированный пробел, см. design/screens/web-client/README.md п. 2),
+   * поэтому отступы задаются функциями окружения.
+   *
+   * В `calc()` сумма записана как `4rem + 0px`: без второго слагаемого браузеры
+   * без поддержки `env()` отбрасывают ВСЁ свойство, и таб-бар перекрыл бы
+   * последнюю карточку. Значение по умолчанию (`0px`) делает правило безопасным.
+   * Высота таб-бара — 4rem (`h-16`).
+   */
+  .portal-main {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .portal-tabbar {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Футер «шторки»: тоже над домашним индикатором. */
+  .portal-sheet-footer {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Служебные отступы под клавиатуру вместо `100vh` (iOS «уезжает» при фокусе). */
+  .portal-viewport {
+    min-height: 100dvh;
+  }
+}
