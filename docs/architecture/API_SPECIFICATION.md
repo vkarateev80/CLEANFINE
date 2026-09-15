@@ -47,6 +47,7 @@
 | POST `/api/floors/:id/plan-url` | привязка уже загруженного плана (URL + масштаб + размеры) | ADMIN, SUPERVISOR |
 | CRUD `/api/floors/:floorId/rooms`, `/api/rooms/:id` | экспликация; координаты валидируются по реальному размеру плана | запись — ADMIN/SUPERVISOR |
 | CRUD `/api/floors/:floorId/routes`, `/api/routes/:id` | маршруты, статусы DRAFT/ACTIVE/ARCHIVED | запись — ADMIN/SUPERVISOR |
+| GET `/api/routes?objectId&floorId&skip&take` | плоский список маршрутов всех объектов (take ≤ 100); нужен там, где `floorId` неизвестен (выбор маршрута в графике) | auth |
 | POST `/api/routes/:id/points`, PATCH/DELETE `/api/route-points/:id` | точки маршрута (порядок пересобирается плотно) | ADMIN, SUPERVISOR |
 | PATCH `/api/routes/:id/reorder` | полный список `pointIds` в новом порядке | ADMIN, SUPERVISOR |
 | CRUD `/api/tech-cards`, `/api/tech-operations` | техкарты, операции и материалы | запись — ADMIN/SUPERVISOR |
@@ -71,7 +72,7 @@
 |---|---|---|
 | POST `/api/tickets` | плановая/внеплановая заявка | ADMIN, SUPERVISOR, CLIENT |
 | POST `/api/tickets/emergency` | аварийная (SOS): CRITICAL, ближние операторы, `ticket.emergency` | ADMIN, SUPERVISOR, CLIENT |
-| GET `/api/tickets` | список с фильтрами (status/type/priority/objectId/assigneeId) и пагинацией | auth |
+| GET `/api/tickets` | список с фильтрами (status/type/priority/objectId/assigneeId/search) и пагинацией; `search` — регистронезависимо по описанию, id и objectId | auth |
 | GET `/api/tickets/:id` | деталь: назначения, комментарии, операции | auth |
 | PATCH `/api/tickets/:id/status` | смена статуса; невалидный переход → 400 `Invalid status transition` | auth (по правилам контроллера) |
 | POST `/api/tickets/:id/assign` | назначение исполнителя → `ticket.assigned` | ADMIN, SUPERVISOR |
@@ -102,8 +103,8 @@
 | GET `/api/schedule/my` | смены текущего пользователя | auth |
 | POST `/api/schedule/check-in` | check-in с проверкой геозоны (gps-service); вне зоны → 403; идемпотентно | OPERATOR, SUPERVISOR, ADMIN |
 | POST `/api/schedule/check-out` | закрытие смены; без check-in → 400 | OPERATOR, SUPERVISOR, ADMIN |
-| POST `/api/schedule/generate?date=` | детерминированная генерация смен и плановых заявок (для e2e/cron) | ADMIN |
-| POST `/api/schedule/check-missed?date=` | прогон неявок и авто check-out вне cron | ADMIN |
+| POST `/api/schedule/generate?date&scheduleId` | детерминированная генерация смен и плановых заявок (для e2e/cron); `scheduleId` сужает проход одним графиком | ADMIN |
+| POST `/api/schedule/check-missed?date&scheduleId&eventId` | прогон неявок и авто check-out вне cron; `scheduleId` — только смены графика, `eventId` — ровно одна смена (приоритетнее); неизвестный id → 404 | ADMIN |
 | GET `/api/schedule/scheduler/state` | состояние планировщика | ADMIN |
 
 - Неявка → статус `MISSED` + событие `schedule.missed_checkin`; авто check-out после
