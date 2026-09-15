@@ -1,0 +1,41 @@
+# ============================================================
+# Cleaning Ops — .dockerignore для сборки с контекстом = КОРЕНЬ репозитория.
+#
+# Все сервисные Dockerfile-ы собираются из корня
+# (docker build -f backend/<svc>/Dockerfile .), потому что tsconfig маппит
+# @cleaning-ops/shared/* в ../../shared/dist/* и образ обязан сохранять
+# раскладку монорепо.
+#
+# ВАЖНО, что НЕ исключается:
+#   * shared/ (и особенно shared/dist) — контракты, без них сервисы не собираются;
+#   * backend/*/prisma — нужен для `prisma generate` на сборке и `migrate deploy`;
+#   * backend/*/src, tsconfig.json, nest-cli.json, package.json.
+#
+# Шаблоны артефактов сборки заданы с ЯКОРЕМ (**/node_modules, /backend/*/dist),
+# а не как голые `dist`: в этом контексте голый шаблон матчится только на верхнем
+# уровне, а `**/dist` снёс бы нужный shared/dist.
+# ============================================================
+
+# --- зависимости и артефакты сборки ---
+**/node_modules
+**/coverage
+**/.turbo
+**/*.tsbuildinfo
+/backend/*/dist
+/frontend/*/dist
+
+# --- окружение и секреты (в образ не попадают) ---
+**/.env
+**/.env.*
+
+# --- VCS, IDE, логи ---
+**/.git
+**/.gitignore
+**/.vscode
+**/.idea
+**/*.log
+
+# --- артефакты тестов (Playwright/Jest) ---
+**/test-results
+**/playwright-report
+/test/reports

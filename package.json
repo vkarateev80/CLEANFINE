@@ -8,8 +8,10 @@
   },
   "packageManager": "pnpm@8.0.0",
   "scripts": {
+    "build:shared": "pnpm --filter @cleaning-ops/shared build",
+    "build": "pnpm build:shared && pnpm -r build --if-present",
     "lint": "pnpm -r lint --if-present",
-    "typecheck": "pnpm -r typecheck --if-present",
+    "typecheck": "pnpm --filter @cleaning-ops/shared typecheck && pnpm -r typecheck --if-present",
     "test": "pnpm -r test --if-present",
     "test:e2e": "pnpm -r test:e2e --if-present",
     "format:check": "prettier --check package.json pnpm-workspace.yaml .prettierrc shared/package.json shared/tsconfig.json \"shared/types/**/*.ts\" \"shared/constants/**/*.ts\""
