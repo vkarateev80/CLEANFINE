@@ -99,7 +99,9 @@ describe('NotificationsService', () => {
       expect(args.where).toEqual({ userId: 'u-1' });
       expect(args.skip).toBe(0);
       expect(args.take).toBe(DEFAULT_PAGE_SIZE);
-      expect(args.orderBy).toEqual({ createdAt: 'desc' });
+      // `id` вторым ключом: у записей одного тика одинаковый createdAt, и без
+      // tie-breaker страницы page/limit пересекались (падало в e2e).
+      expect(args.orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
     });
 
     it('считает skip по странице и уважает фильтр непрочитанных', async () => {

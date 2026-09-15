@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
 import { authHeader, loginAs, runTag, type Role } from './core';
+import { dbNameFromUrl } from './db-name';
 
 /**
  * Хелперы «оперативки» М3.8: gps-service, ticket-service, notification-service.
@@ -32,10 +33,16 @@ export const NOTIFICATIONS_URL = process.env.E2E_NOTIFICATION_URL ?? 'http://loc
 const POSTGRES_CONTAINER = process.env.E2E_POSTGRES_CONTAINER ?? 'cleaning-ops-postgres';
 const POSTGRES_USER = process.env.E2E_POSTGRES_USER ?? 'admin';
 const DB = {
-  auth: process.env.E2E_AUTH_DB ?? 'cleaning_ops',
-  gps: process.env.E2E_GPS_DB ?? 'cleaning_ops_gps',
-  tickets: process.env.E2E_TICKETS_DB ?? 'cleaning_ops_tickets',
-  notifications: process.env.E2E_NOTIFICATIONS_DB ?? 'cleaning_ops_notifications',
+  auth: process.env.E2E_AUTH_DB ?? dbNameFromUrl(process.env.DATABASE_URL) ?? 'cleaning_ops',
+  gps: process.env.E2E_GPS_DB ?? dbNameFromUrl(process.env.GPS_DATABASE_URL) ?? 'cleaning_ops_gps',
+  tickets:
+    process.env.E2E_TICKETS_DB ??
+    dbNameFromUrl(process.env.TICKET_DATABASE_URL) ??
+    'cleaning_ops_tickets',
+  notifications:
+    process.env.E2E_NOTIFICATIONS_DB ??
+    dbNameFromUrl(process.env.NOTIFICATION_DATABASE_URL) ??
+    'cleaning_ops_notifications',
 } as const;/** Стабильный UUID объекта core для «оперативных» заявок и геозон (объект создавать не нужно). */
 export const OPERATIONS_OBJECT_ID =
   process.env.E2E_OPERATIONS_OBJECT_ID ?? '00000000-0000-4000-8000-0000000000aa';

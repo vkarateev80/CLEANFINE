@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
 import { authHeader, loginAs, type Role } from './core';
+import { dbNameFromUrl } from './db-name';
 import { expectStatus, operationsTracker, sqlAvailable, type ApiOptions } from './operations';
 
 /**
@@ -32,8 +33,14 @@ export const MATERIALS_URL = process.env.E2E_MATERIALS_URL ?? 'http://localhost:
 const POSTGRES_CONTAINER = process.env.E2E_POSTGRES_CONTAINER ?? 'cleaning-ops-postgres';
 const POSTGRES_USER = process.env.E2E_POSTGRES_USER ?? 'admin';
 const DB = {
-  schedule: process.env.E2E_SCHEDULE_DB ?? 'cleaning_ops_schedule',
-  materials: process.env.E2E_MATERIALS_DB ?? 'cleaning_ops_materials',
+  schedule:
+    process.env.E2E_SCHEDULE_DB ??
+    dbNameFromUrl(process.env.SCHEDULE_DATABASE_URL) ??
+    'cleaning_ops_schedule',
+  materials:
+    process.env.E2E_MATERIALS_DB ??
+    dbNameFromUrl(process.env.MATERIAL_DATABASE_URL) ??
+    'cleaning_ops_materials',
 } as const;
 
 /** Идентификатор автора автосписания (`MaterialConsumptionService.SYSTEM_USER_ID`). */

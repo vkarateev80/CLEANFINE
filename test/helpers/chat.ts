@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
 import { authHeader, loginAs, type Role } from './core';
+import { dbNameFromUrl } from './db-name';
 import { expectStatus, sqlAvailable } from './operations';
 
 /**
@@ -33,7 +34,8 @@ export const CHAT_WS_URL = `${CHAT_URL}/chat`;
 /** Контейнер и база чатов для точечной уборки (те же имена, что у остальных наборов). */
 const POSTGRES_CONTAINER = process.env.E2E_POSTGRES_CONTAINER ?? 'cleaning-ops-postgres';
 const POSTGRES_USER = process.env.E2E_POSTGRES_USER ?? 'admin';
-const CHAT_DB = process.env.E2E_CHAT_DB ?? 'cleaning_ops_chat';
+const CHAT_DB =
+  process.env.E2E_CHAT_DB ?? dbNameFromUrl(process.env.CHAT_DATABASE_URL) ?? 'cleaning_ops_chat';
 
 export type ChatType = 'object' | 'ticket' | 'direct' | 'system';
 

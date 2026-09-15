@@ -90,7 +90,10 @@ export class NotificationsService {
     const [items, total, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // Второй ключ сортировки обязателен: события одного тика (ticket.created и
+        // ticket.assigned) попадают в одну миллисекунду, и без tie-breaker Postgres
+        // возвращает их в произвольном порядке — страницы page/limit пересекались.
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
