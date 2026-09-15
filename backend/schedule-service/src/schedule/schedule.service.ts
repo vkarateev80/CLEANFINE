@@ -14,6 +14,12 @@ import {
   type ScheduleEvent,
 } from '@prisma/client';
 import { ROUTING_KEYS } from '@cleaning-ops/shared/constants/events';
+// Контракт статуса для ответов API берём из shared-словаря (то же значение видит
+// админка). Запросы и записи в БД остаются на enum `@prisma/client` — его тип
+// требует Prisma Client. При этом `toView` ниже присваивает статус Prisma в поле
+// shared-типа, поэтому лишнее значение, появившееся только в схеме, ломает сборку,
+// а расхождение в обратную сторону ловит `schedule-dictionary.spec.ts`.
+import type { ScheduleEventStatus as ApiScheduleEventStatus } from '@cleaning-ops/shared/types/schedule';
 import {
   ExternalServiceUnavailableException,
   geofenceUnavailable,
@@ -57,7 +63,8 @@ export interface ScheduleEventView {
   routeId: string | null;
   date: string;
   plannedStart: string;
-  status: ScheduleEventStatus;
+  /** Статус смены: shared-словарь (админка и мобильное приложение — те же значения). */
+  status: ApiScheduleEventStatus;
   userId: string | null;
   checkInAt: string | null;
   checkOutAt: string | null;
@@ -100,6 +107,23 @@ export interface MissedScanResult {
 export interface AutoCheckoutResult {
   closed: number;
   eventIds: string[];
+}
+
+/**
+ * Область ручного прохода (задача A2): конкретный график или конкретная смена.
+ *
+ * Зачем: ручные триггеры /generate и /check-missed работают на общем стенде, где
+ * параллельно идут чужие прогоны. Без ограничения проход задевает ВСЕ смены, и
+ * e2e-прогон одного теста ломает данные другого. Пустой объект = прежнее поведение.
+ */
+export interface SweepScope {
+  /** Ограничить проход сменами одного графика. */
+  scheduleId?: string;
+  /**
+   * Обработать ровно одну смену. Приоритетнее scheduleId (и date в checkMissed):
+   * явный адрес смены не должен «гаситься» остальными фильтрами.
+   */
+  eventId?: string;
 }
 
 export interface DeleteScheduleResult {
@@ -258,8 +282,17 @@ export class ScheduleService {
    * если ticket-service недоступен ДО записи смен: иначе смысл генерации теряется
    * (смены без заявок), а состояние остаётся консистентным — повторный вызов до-создаст
    * заявки. Сбой по отдельной смене не прерывает проход: error попадает в errors[].
+   *
+   * `scope.scheduleId` ограничивает проход одним графиком (задача A2). Несуществующий
+   * график — 404, а не «успех с нулями»: иначе опечатка в id выглядела бы как
+   * выполненная генерация. Фильтр `isActive` сохраняется: выключенный график
+   * смен не порождает даже при явном запросе.
    */
-  async generateForDate(dateValue?: string, now: Date = new Date()): Promise<GenerationResult> {
+  async generateForDate(
+    dateValue?: string,
+    now: Date = new Date(),
+    scope: SweepScope = {},
+  ): Promise<GenerationResult> {
     const date = dateValue ? this.parseDate(dateValue) : todayUtc(now);
     const result: GenerationResult = {
       date: formatDateOnly(date),
@@ -273,8 +306,12 @@ export class ScheduleService {
       errors: [],
     };
 
+    if (scope.scheduleId) {
+      await this.assertScheduleExists(scope.scheduleId);
+    }
+
     const schedules = await this.prisma.schedule.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...(scope.scheduleId ? { id: scope.scheduleId } : {}) },
       orderBy: { createdAt: 'asc' },
     });
     const matching = schedules.filter((schedule) =>
@@ -511,10 +548,24 @@ export class ScheduleService {
    *
    * Один проход = один переход статуса. Повторный проход видит MISSED и события не
    * публикует — это и есть защита от дублей (таймер срабатывания не нужен).
+   *
+   * `scope` (задача A2) ограничивает проход одним графиком или одной сменой; условие
+   * «время начала прошло» при этом сохраняется — ограничение сужает выборку, а не
+   * форсирует переход незрелой смены в MISSED.
    */
   async checkMissed(
     dateValue?: string,
     now: Date = new Date(),
+    scope: SweepScope = {},
+  ): Promise<MissedScanResult> {
+    await this.assertScopeExists(scope);
+    return this.runCheckMissed(dateValue, now, scope);
+  }
+
+  private async runCheckMissed(
+    dateValue: string | undefined,
+    now: Date,
+    scope: SweepScope,
   ): Promise<MissedScanResult> {
     const dateFilter = dateValue ? this.parseDate(dateValue) : null;
     const batchSize = this.config.get<number>('schedule.batchSize') ?? 200;
@@ -526,7 +577,10 @@ export class ScheduleService {
         plannedStart: { lte: now },
         // Смены без исполнителя не «неявка»: отметиться некому.
         userId: { not: null },
-        ...(dateFilter ? { date: dateFilter } : {}),
+        // При eventId дата игнорируется: смена адресована точно, а лишний фильтр
+        // мог бы «погасить» её и вернуть нули вместо обработки.
+        ...(dateFilter && !scope.eventId ? { date: dateFilter } : {}),
+        ...this.scopeWhere(scope),
       },
       include: { schedule: true },
       orderBy: { plannedStart: 'asc' },
@@ -556,8 +610,16 @@ export class ScheduleService {
   /**
    * Авто check-out (М4.5): смена CHECKED_IN, у которой с plannedStart прошло больше
    * SCHEDULE_AUTO_CHECKOUT_MINUTES → CHECKED_OUT с пометкой причины.
+   *
+   * `scope` (задача A2) ограничивает проход одним графиком или одной сменой; порог
+   * времени сохраняется по тем же причинам, что и в checkMissed.
    */
-  async autoCheckout(now: Date = new Date()): Promise<AutoCheckoutResult> {
+  async autoCheckout(now: Date = new Date(), scope: SweepScope = {}): Promise<AutoCheckoutResult> {
+    await this.assertScopeExists(scope);
+    return this.runAutoCheckout(now, scope);
+  }
+
+  private async runAutoCheckout(now: Date, scope: SweepScope): Promise<AutoCheckoutResult> {
     const minutes = this.config.get<number>('schedule.autoCheckoutMinutes') ?? 15;
     const threshold = new Date(now.getTime() - minutes * 60_000);
     const batchSize = this.config.get<number>('schedule.batchSize') ?? 200;
@@ -567,6 +629,7 @@ export class ScheduleService {
         status: ScheduleEventStatus.CHECKED_IN,
         checkOutAt: null,
         plannedStart: { lte: threshold },
+        ...this.scopeWhere(scope),
       },
       include: { schedule: true },
       orderBy: { plannedStart: 'asc' },
@@ -598,13 +661,56 @@ export class ScheduleService {
   async scanMissedAndAutoCheckout(
     dateValue?: string,
     now: Date = new Date(),
+    scope: SweepScope = {},
   ): Promise<{ missed: MissedScanResult; autoCheckout: AutoCheckoutResult }> {
-    const autoCheckout = await this.autoCheckout(now);
-    const missed = await this.checkMissed(dateValue, now);
+    // Область проверяем здесь один раз, а не в обоих публичных методах: иначе один
+    // ручной прогон делал бы два лишних запроса за существованием того же id.
+    await this.assertScopeExists(scope);
+    const autoCheckout = await this.runAutoCheckout(now, scope);
+    const missed = await this.runCheckMissed(dateValue, now, scope);
     return { missed, autoCheckout };
   }
 
   // ------------------------------------------------------------------ helpers
+
+  /**
+   * Проверка области ручного прохода: неизвестный график или смена → 404.
+   *
+   * Пустая область — сразу выход: cron-проход и вызовы без параметров не должны
+   * ходить в БД за проверкой того, чего в запросе нет.
+   */
+  private async assertScopeExists(scope: SweepScope): Promise<void> {
+    if (scope.eventId) {
+      // Приоритет eventId (задача A2): scheduleId при явной смене не проверяем —
+      // он не участвует в выборке и не должен влиять на результат.
+      const event = await this.prisma.scheduleEvent.findUnique({ where: { id: scope.eventId } });
+      if (!event) {
+        throw new NotFoundException('Смена не найдена');
+      }
+      return;
+    }
+    if (scope.scheduleId) {
+      await this.assertScheduleExists(scope.scheduleId);
+    }
+  }
+
+  private async assertScheduleExists(scheduleId: string): Promise<void> {
+    const schedule = await this.prisma.schedule.findUnique({ where: { id: scheduleId } });
+    if (!schedule) {
+      throw new NotFoundException('График не найден');
+    }
+  }
+
+  /** Фильтр Prisma по области прохода: eventId приоритетнее scheduleId. */
+  private scopeWhere(scope: SweepScope): Prisma.ScheduleEventWhereInput {
+    if (scope.eventId) {
+      return { id: scope.eventId };
+    }
+    if (scope.scheduleId) {
+      return { scheduleId: scope.scheduleId };
+    }
+    return {};
+  }
 
   /**
    * Длительность смены для авто check-out. В модели хранится только начало,

@@ -1,3 +1,5 @@
+import type { ScheduleFrequency } from '@cleaning-ops/shared/types/schedule';
+
 /**
  * Payload'ы событий schedule-service.
  *
@@ -22,9 +24,13 @@ export interface ScheduleMissedCheckinPayload {
   detectedAt: string;
 }
 
-/** Расписание повторения графика (хранится JSON-ом в Schedule.recurrence). */
+/**
+ * Расписание повторения графика (хранится JSON-ом в Schedule.recurrence).
+ * `frequency` — из shared-словаря: частоты задаёт админка, принимает DTO
+ * (`@IsIn(FREQUENCIES)`) и обрабатывает генерация, поэтому значение одно на всех.
+ */
 export interface RecurrenceRule {
-  frequency: 'daily' | 'weekly' | 'monthly';
+  frequency: ScheduleFrequency;
   /** Для weekly — дни недели (1=Пн … 7=Вс). Для daily/monthly игнорируется. */
   days?: number[];
   /**

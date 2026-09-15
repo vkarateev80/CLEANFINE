@@ -187,6 +187,15 @@ export class GenerateQueryDto {
   @IsOptional()
   @IsString()
   date?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Сгенерировать смены и плановые заявки только по этому графику. ' +
+      'Несуществующий график → 404. Без параметра — все активные графики',
+  })
+  @IsOptional()
+  @IsString()
+  scheduleId?: string;
 }
 
 /** POST /api/schedule/check-missed?date=YYYY-MM-DD — ручной прогон проверки неявок. */
@@ -197,4 +206,22 @@ export class CheckMissedQueryDto {
   @IsOptional()
   @IsString()
   date?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Ограничить проход сменами одного графика (несуществующий → 404). ' +
+      'Без параметра — все графики',
+  })
+  @IsOptional()
+  @IsString()
+  scheduleId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Обработать ровно одну смену по её id: неявку (→ MISSED) и/или авто check-out. ' +
+      'Приоритетнее scheduleId и date; несуществующая смена → 404',
+  })
+  @IsOptional()
+  @IsString()
+  eventId?: string;
 }

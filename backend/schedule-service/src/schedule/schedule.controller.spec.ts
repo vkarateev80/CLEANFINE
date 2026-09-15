@@ -101,13 +101,20 @@ describe('ScheduleController', () => {
     const { controller, schedule, scheduler } = build();
 
     await controller.generate({ date: '2026-09-16' });
-    expect(schedule.generateForDate).toHaveBeenCalledWith('2026-09-16');
+    expect(schedule.generateForDate).toHaveBeenCalledWith('2026-09-16', undefined, {
+      scheduleId: undefined,
+    });
 
     await controller.generate({});
-    expect(schedule.generateForDate).toHaveBeenLastCalledWith(undefined);
+    expect(schedule.generateForDate).toHaveBeenLastCalledWith(undefined, undefined, {
+      scheduleId: undefined,
+    });
 
     await controller.checkMissed({ date: '2026-09-16' });
-    expect(schedule.scanMissedAndAutoCheckout).toHaveBeenCalledWith('2026-09-16');
+    expect(schedule.scanMissedAndAutoCheckout).toHaveBeenCalledWith('2026-09-16', undefined, {
+      scheduleId: undefined,
+      eventId: undefined,
+    });
 
     expect(await controller.schedulerState()).toEqual({
       lastGenerateAt: null,
@@ -115,5 +122,26 @@ describe('ScheduleController', () => {
       lastGenerateDate: null,
     });
     expect(scheduler.getState).toHaveBeenCalled();
+  });
+
+  it('generate/check-missed передают область прохода scheduleId/eventId (задача A2)', async () => {
+    const { controller, schedule } = build();
+
+    await controller.generate({ date: '2026-09-16', scheduleId: 'schedule-7' });
+    expect(schedule.generateForDate).toHaveBeenLastCalledWith('2026-09-16', undefined, {
+      scheduleId: 'schedule-7',
+    });
+
+    await controller.checkMissed({ scheduleId: 'schedule-7' });
+    expect(schedule.scanMissedAndAutoCheckout).toHaveBeenLastCalledWith(undefined, undefined, {
+      scheduleId: 'schedule-7',
+      eventId: undefined,
+    });
+
+    await controller.checkMissed({ eventId: 'event-9' });
+    expect(schedule.scanMissedAndAutoCheckout).toHaveBeenLastCalledWith(undefined, undefined, {
+      scheduleId: undefined,
+      eventId: 'event-9',
+    });
   });
 });

@@ -117,12 +117,16 @@ export class ScheduleController {
     description:
       'Детерминированный триггер для e2e и ручных прогонов. Идемпотентен: повторный вызов ' +
       'на ту же дату не создаёт ни смен, ни заявок; смены без заявки после сбоя ticket-service ' +
-      'до-создаются. Если ticket-service недоступен до записи смен — 502.',
+      'до-создаются. Необязательный scheduleId ограничивает проход одним графиком ' +
+      '(несуществующий → 404) — так параллельные прогоны на общем стенде не мешают друг другу. ' +
+      'Если ticket-service недоступен до записи смен — 502.',
   })
   @ApiResponse({ status: 201, description: 'Сводка: смены, заявки, пропуски' })
+  @ApiResponse({ status: 404, description: 'График не найден' })
   @ApiResponse({ status: 502, description: 'ticket-service недоступен' })
   async generate(@Query() query: GenerateQueryDto) {
-    return this.schedule.generateForDate(query.date);
+    // scope третьим аргументом: `now` подставляется сервисом, ручной триггер не задаёт время.
+    return this.schedule.generateForDate(query.date, undefined, { scheduleId: query.scheduleId });
   }
 
   @Post('check-missed')
@@ -131,10 +135,18 @@ export class ScheduleController {
     summary: 'Прогнать проверку неявок и авто check-out вне расписания (ADMIN)',
     description:
       'Проверяет смены PLANNED с прошедшим plannedStart → MISSED + schedule.missed_checkin, ' +
-      'и закрывает «зависшие» смены CHECKED_IN (SCHEDULE_AUTO_CHECKOUT_MINUTES).',
+      'и закрывает «зависшие» смены CHECKED_IN (SCHEDULE_AUTO_CHECKOUT_MINUTES). ' +
+      'Необязательные scheduleId (только смены этого графика) и eventId (ровно одна смена; ' +
+      'приоритетнее scheduleId и date) сужают проход — параллельные прогоны не влияют друг ' +
+      'на друга. Несуществующий id → 404. Без параметров поведение прежнее: все смены.',
   })
+  @ApiResponse({ status: 201, description: 'Сводка: неявки и закрытые смены' })
+  @ApiResponse({ status: 404, description: 'График или смена не найдены' })
   async checkMissed(@Query() query: CheckMissedQueryDto) {
-    return this.schedule.scanMissedAndAutoCheckout(query.date);
+    return this.schedule.scanMissedAndAutoCheckout(query.date, undefined, {
+      scheduleId: query.scheduleId,
+      eventId: query.eventId,
+    });
   }
 
   @Get('scheduler/state')

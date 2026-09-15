@@ -13,10 +13,17 @@
  *    в контракте не задан.
  */
 
-export const FREQUENCIES = ['daily', 'weekly', 'monthly'] as const;
-export type Frequency = (typeof FREQUENCIES)[number];
-
+import { SCHEDULE_FREQUENCIES, type ScheduleFrequency } from '@cleaning-ops/shared/types/schedule';
 import type { RecurrenceRule } from '../events/event-payloads';
+
+/**
+ * Реэкспорт shared-словаря под историческими именами сервиса: `FREQUENCIES`
+ * читают DTO (`@IsIn`) и тесты, переписывать их импорты смысла нет — важно, что
+ * значения теперь ровно одни и те же у схемы, валидации и админки.
+ * Расхождение с prisma-схемой ловит `schedule-dictionary.spec.ts`.
+ */
+export const FREQUENCIES = SCHEDULE_FREQUENCIES;
+export type Frequency = ScheduleFrequency;
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;

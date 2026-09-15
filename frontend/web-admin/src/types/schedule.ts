@@ -1,3 +1,8 @@
+import type {
+  ScheduleEventStatus,
+  ScheduleFrequency,
+} from '@cleaning-ops/shared/types/schedule';
+
 /**
  * Типы ответов schedule-service (М4.6). Поля повторяют
  * `backend/schedule-service/prisma/schema.prisma` и вьюхи `ScheduleEventView` /
@@ -5,47 +10,25 @@
  * строки: axios отдаёт JSON, в котором `Date` уже сериализован в ISO 8601 (то же
  * решение, что в `src/types/core.ts`, `tickets.ts` и `materials.ts`).
  *
- * Словарь статусов смены и частоты повторения продублированы здесь локально:
- * модуля `@cleaning-ops/shared/types/schedule` пока не существует (`shared/types`
- * содержит только core/tickets/materials/chat/events/roles). Значения выписаны
- * ровно как `ScheduleEventStatus` в prisma-схеме schedule-service и `FREQUENCIES`
- * в `backend/schedule-service/src/schedule/recurrence.ts`; локализованные подписи
- * типизированы `Record<…>`, поэтому новый статус или частота в этих источниках
- * ломают компиляцию, а не показываются пользователю сырым `CHECKED_IN`. Когда
- * словарь переедет в `shared/types/schedule.ts`, оба блока заменяются
- * реэкспортом — как это сделано в `src/types/materials.ts`.
+ * Словарь статусов смены, частот и дней недели НЕ дублируется:
+ * `SCHEDULE_EVENT_STATUSES`, `SCHEDULE_EVENT_STATUS_LABELS`, `SCHEDULE_FREQUENCIES`,
+ * `SCHEDULE_FREQUENCY_LABELS` и `WEEKDAY_LABELS` живут в
+ * `@cleaning-ops/shared/types/schedule` — оттуда их берёт и schedule-service
+ * (значения статусов закреплены prisma-схемой и сверяются юнит-тестом сервиса),
+ * поэтому подписи в админке не могут разойтись с тем, что отдаёт API. Здесь они
+ * только реэкспортируются, чтобы экраны импортировали домен из одного места.
  */
 
-/** Значения `ScheduleEventStatus` (prisma/schema.prisma schedule-service). */
-export const SCHEDULE_EVENT_STATUSES = [
-  'PLANNED',
-  'CHECKED_IN',
-  'CHECKED_OUT',
-  'MISSED',
-] as const;
-
-export type ScheduleEventStatus = (typeof SCHEDULE_EVENT_STATUSES)[number];
-
-/** Подписи статусов смены для бейджей и фильтров. */
-export const SCHEDULE_EVENT_STATUS_LABELS: Record<ScheduleEventStatus, string> = {
-  PLANNED: 'Запланирована',
-  CHECKED_IN: 'Открыта',
-  CHECKED_OUT: 'Закрыта',
-  MISSED: 'Неявка',
-};
+export {
+  SCHEDULE_EVENT_STATUSES,
+  SCHEDULE_EVENT_STATUS_LABELS,
+  SCHEDULE_FREQUENCIES,
+  SCHEDULE_FREQUENCY_LABELS,
+  WEEKDAY_LABELS,
+} from '@cleaning-ops/shared/types/schedule';
+export type { ScheduleEventStatus, ScheduleFrequency } from '@cleaning-ops/shared/types/schedule';
 
 // ── Графики ────────────────────────────────────────────────────────────────
-
-/** Частоты повторения: значения совпадают с `FREQUENCIES` из `recurrence.ts`. */
-export const SCHEDULE_FREQUENCIES = ['daily', 'weekly', 'monthly'] as const;
-
-export type ScheduleFrequency = (typeof SCHEDULE_FREQUENCIES)[number];
-
-export const SCHEDULE_FREQUENCY_LABELS: Record<ScheduleFrequency, string> = {
-  daily: 'Ежедневно',
-  weekly: 'По дням недели',
-  monthly: 'Ежемесячно',
-};
 
 /**
  * Правило повторения (`RecurrenceDto`). `days` — ISO-дни: 1 = понедельник …

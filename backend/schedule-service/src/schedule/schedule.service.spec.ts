@@ -781,6 +781,176 @@ describe('ScheduleService (М4.4–М4.5)', () => {
     });
   });
 
+  describe('ограничение ручных проходов одним графиком/сменой (задача A2)', () => {
+    it('generateForDate по scheduleId фильтрует графики', async () => {
+      const { service, prisma } = build();
+      prisma.schedule.findUnique.mockResolvedValue(scheduleFixture());
+      prisma.schedule.findMany.mockResolvedValue([scheduleFixture()]);
+      prisma.scheduleEvent.create.mockResolvedValue(eventFixture());
+
+      const result = await service.generateForDate('2026-09-16', NOW, { scheduleId: SCHEDULE_ID });
+
+      expect(prisma.schedule.findMany).toHaveBeenCalledWith({
+        where: { isActive: true, id: SCHEDULE_ID },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(result.schedulesMatched).toBe(1);
+      expect(result.shiftsCreated).toBe(1);
+      expect(result.ticketsCreated).toBe(1);
+    });
+
+    it('generateForDate с неизвестным scheduleId → 404, генерации нет', async () => {
+      const { service, prisma } = build();
+      prisma.schedule.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.generateForDate('2026-09-16', NOW, { scheduleId: 'nope' }),
+      ).rejects.toMatchObject({ status: 404, message: 'График не найден' });
+      expect(prisma.schedule.findMany).not.toHaveBeenCalled();
+      expect(prisma.scheduleEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('generateForDate без scheduleId работает по всем активным графикам', async () => {
+      const { service, prisma } = build();
+
+      await service.generateForDate('2026-09-16', NOW);
+
+      expect(prisma.schedule.findMany).toHaveBeenCalledWith({
+        where: { isActive: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      // Область не задана — лишнего запроса «существует ли график» нет.
+      expect(prisma.schedule.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('checkMissed по scheduleId ограничивает выборку сменами графика', async () => {
+      const { service, prisma } = build();
+      prisma.schedule.findUnique.mockResolvedValue(scheduleFixture());
+
+      await service.checkMissed('2026-09-16', NOW, { scheduleId: SCHEDULE_ID });
+
+      const where = prisma.scheduleEvent.findMany.mock.calls[0][0].where;
+      expect(where.scheduleId).toBe(SCHEDULE_ID);
+      expect(where.id).toBeUndefined();
+      // Дата продолжает действовать: ограничение графика её не отменяет.
+      expect(where.date).toEqual(new Date('2026-09-16T00:00:00.000Z'));
+    });
+
+    it('checkMissed по eventId обрабатывает ровно одну смену и игнорирует дату', async () => {
+      const { service, prisma, publisher } = build();
+      prisma.scheduleEvent.findUnique.mockResolvedValue(eventFixture());
+      prisma.scheduleEvent.findMany.mockResolvedValue([eventFixture()]);
+
+      const result = await service.checkMissed('2026-01-01', NOW, { eventId: 'event-1' });
+
+      const where = prisma.scheduleEvent.findMany.mock.calls[0][0].where;
+      expect(where.id).toBe('event-1');
+      expect(where.scheduleId).toBeUndefined();
+      expect(where.date).toBeUndefined();
+      expect(result).toEqual({ scanned: 1, missed: 1, eventIds: ['event-1'] });
+      expect(prisma.scheduleEvent.updateMany).toHaveBeenCalledTimes(1);
+      expect(publisher.publish).toHaveBeenCalledTimes(1);
+    });
+
+    it('autoCheckout ограничивается графиком или сменой', async () => {
+      const { service, prisma } = build();
+      prisma.schedule.findUnique.mockResolvedValue(scheduleFixture());
+
+      await service.autoCheckout(NOW, { scheduleId: SCHEDULE_ID });
+      expect(prisma.scheduleEvent.findMany.mock.calls[0][0].where).toMatchObject({
+        scheduleId: SCHEDULE_ID,
+        status: ScheduleEventStatus.CHECKED_IN,
+      });
+
+      prisma.scheduleEvent.findUnique.mockResolvedValue(eventFixture());
+      await service.autoCheckout(NOW, { eventId: 'event-1' });
+      expect(prisma.scheduleEvent.findMany.mock.calls[1][0].where).toMatchObject({
+        id: 'event-1',
+        status: ScheduleEventStatus.CHECKED_IN,
+      });
+    });
+
+    it('scanMissedAndAutoCheckout прокидывает область в оба прохода и проверяет id один раз', async () => {
+      const { service, prisma } = build();
+      prisma.schedule.findUnique.mockResolvedValue(scheduleFixture());
+      prisma.scheduleEvent.findMany
+        .mockResolvedValueOnce([eventFixture({ id: 'hung', status: ScheduleEventStatus.CHECKED_IN, checkInAt: NOW })])
+        .mockResolvedValueOnce([eventFixture({ id: 'missed' })]);
+
+      const result = await service.scanMissedAndAutoCheckout('2026-09-16', NOW, {
+        scheduleId: SCHEDULE_ID,
+      });
+
+      expect(result.autoCheckout.eventIds).toEqual(['hung']);
+      expect(result.missed.eventIds).toEqual(['missed']);
+      expect(prisma.schedule.findUnique).toHaveBeenCalledTimes(1);
+      expect(prisma.scheduleEvent.findMany.mock.calls[0][0].where.scheduleId).toBe(SCHEDULE_ID);
+      expect(prisma.scheduleEvent.findMany.mock.calls[1][0].where.scheduleId).toBe(SCHEDULE_ID);
+    });
+
+    it('неизвестный eventId или scheduleId → 404 с русским текстом', async () => {
+      const { service, prisma } = build();
+      prisma.scheduleEvent.findUnique.mockResolvedValue(null);
+      prisma.schedule.findUnique.mockResolvedValue(null);
+
+      await expect(service.checkMissed(undefined, NOW, { eventId: 'nope' })).rejects.toMatchObject({
+        status: 404,
+        message: 'Смена не найдена',
+      });
+      await expect(service.checkMissed(undefined, NOW, { scheduleId: 'nope' })).rejects.toMatchObject({
+        status: 404,
+        message: 'График не найден',
+      });
+      await expect(service.autoCheckout(NOW, { eventId: 'nope' })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      await expect(service.autoCheckout(NOW, { scheduleId: 'nope' })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      await expect(
+        service.scanMissedAndAutoCheckout(undefined, NOW, { eventId: 'nope' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      // 404 отдаётся до выборки смен: чужие данные в проход не попадают.
+      expect(prisma.scheduleEvent.findMany).not.toHaveBeenCalled();
+    });
+
+    it('при обоих id приоритет у eventId: scheduleId не проверяется', async () => {
+      const { service, prisma } = build();
+      prisma.scheduleEvent.findUnique.mockResolvedValue(eventFixture());
+      prisma.scheduleEvent.findMany.mockResolvedValue([]);
+
+      await service.scanMissedAndAutoCheckout(undefined, NOW, {
+        scheduleId: 'nope',
+        eventId: 'event-1',
+      });
+
+      expect(prisma.scheduleEvent.findUnique).toHaveBeenCalledWith({ where: { id: 'event-1' } });
+      expect(prisma.schedule.findUnique).not.toHaveBeenCalled();
+      expect(prisma.scheduleEvent.findMany.mock.calls[0][0].where.id).toBe('event-1');
+    });
+
+    it('без параметров проходы не фильтруются по графику и смене', async () => {
+      const { service, prisma } = build();
+      prisma.scheduleEvent.findMany.mockResolvedValue([]);
+
+      await service.checkMissed(undefined, NOW);
+      await service.autoCheckout(NOW);
+      await service.generateForDate('2026-09-16', NOW);
+
+      expect(prisma.scheduleEvent.findMany.mock.calls.length).toBeGreaterThan(0);
+      for (const call of prisma.scheduleEvent.findMany.mock.calls) {
+        expect(call[0].where.id).toBeUndefined();
+        expect(call[0].where.scheduleId).toBeUndefined();
+      }
+      expect(prisma.schedule.findMany).toHaveBeenCalledWith({
+        where: { isActive: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(prisma.schedule.findUnique).not.toHaveBeenCalled();
+      expect(prisma.scheduleEvent.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
   describe('выборки смен', () => {
     it('listEvents фильтрует по дню, объекту и исполнителю', async () => {
       const { service, prisma } = build();
