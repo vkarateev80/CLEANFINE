@@ -100,8 +100,21 @@ jobs:
             fi
           done
 
+      # Фронтенды в этой джобе не собирались вообще: ошибка типов в web-admin
+      # или в портале всплывала только на шаге e2e или не всплывала совсем.
+      - name: Typecheck + build frontends (web-admin, web-client)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for dir in frontend/*/; do
+            if [ -f "$dir/package.json" ]; then
+              echo "== $dir =="
+              (cd "$dir" && pnpm typecheck && pnpm build)
+            fi
+          done
+
   e2e:
-    name: E2E (auth + files + core + gps + tickets + notifications + materials + schedule, web-admin UI)
+    name: E2E (auth + files + core + gps + tickets + notifications + materials + schedule + chat, web-admin и портал)
     runs-on: ubuntu-latest
     timeout-minutes: 40
     needs: quality
@@ -179,6 +192,7 @@ jobs:
       E2E_SCHEDULE_URL: http://localhost:3008
       E2E_CHAT_URL: http://localhost:3009
       E2E_BASE_URL: http://localhost:5173
+      E2E_PORTAL_URL: http://localhost:5174
       # Периодические проходы schedule-service в e2e выключены: набор проверяет
       # те же действия через детерминированные триггеры (POST /generate,
       # POST /check-missed). Фоновый проход неявок раз в 5 минут переводил бы
@@ -436,6 +450,17 @@ jobs:
             sleep 1
           done
 
+      # Портал заказчика (М5.4) — отдельное приложение на 5174; его UI-наборы
+      # читают E2E_PORTAL_URL.
+      - name: Start web-client (портал)
+        working-directory: frontend/web-client
+        run: |
+          nohup node node_modules/vite/bin/vite.js --port 5174 --strictPort > /tmp/web-client.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -sf -o /dev/null http://localhost:5174/login; then break; fi
+            sleep 1
+          done
+
       # E2E_CORE_URL/E2E_FILE_URL читают e2e-тесты ядра и файлов (test/e2e/api).
       - name: Run e2e (API + UI)
         working-directory: test
@@ -460,7 +485,7 @@ jobs:
         if: failure()
         run: |
           mkdir -p service-logs
-          for name in auth-service file-service core-service gps-service ticket-service notification-service material-service schedule-service web-admin; do
+          for name in auth-service file-service core-service gps-service ticket-service notification-service material-service schedule-service chat-service web-admin web-client; do
             echo "=== $name ==="
             tail -n 100 "/tmp/$name.log" || true
             cp "/tmp/$name.log" "service-logs/$name.log" 2>/dev/null || true
