@@ -1,0 +1,77 @@
+// Prisma-схема file-service (М2.1). Источник: УСТАВ.md → Агент Backend Files, п.2
+// (метаданные фото) + docs/architecture/DATABASE_SCHEMA.md, раздел 2.
+//
+// Границы микросервисов: файл-сервис не держит FK на сущности других сервисов
+// (ticket, chat, floor). Привязка — по entityType + entityId (UUID).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("FILE_DATABASE_URL")
+}
+
+enum Bucket {
+  PHOTOS
+  PLANS
+  AVATARS
+  DOCUMENTS
+}
+
+/// Куда привязан файл (вложения чата, аватар, план этажа, фото заявки).
+enum EntityType {
+  FLOOR_PLAN
+  TICKET
+  CHAT_MESSAGE
+  AVATAR
+  DOCUMENT
+}
+
+/// Связь файла с сущностью другого сервиса.
+model FileAttachment {
+  id         String     @id @default(uuid())
+  fileId     String
+  file       StoredFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  entityType EntityType
+  entityId   String
+  createdAt  DateTime   @default(now())
+
+  @@map("file_attachments")
+  @@index([entityType, entityId])
+  @@index([fileId])
+}
+
+/// Метаданные объекта в MinIO.
+model StoredFile {
+  id            String   @id @default(uuid())
+  bucket        Bucket
+  /// Ключ объекта в бакете (уникален внутри бакета).
+  objectKey     String
+  originalName  String
+  mimeType      String
+  sizeBytes     Int
+  width         Int?
+  height        Int?
+  /// URL оригинала (водяной знак уже наложен для фото).
+  url           String
+  /// URL миниатюры (только для изображений).
+  thumbnailUrl  String?
+  /// Ключ миниатюры в том же бакете.
+  thumbnailKey  String?
+  /// Наложен ли водяной знак (имя, дата, координаты).
+  watermarked   Boolean  @default(false)
+  // Данные водяного знака (сохраняются, чтобы можно было перегенерировать).
+  uploadedById  String?
+  uploadedByName String?
+  takenAt       DateTime?
+  lat           Float?
+  lng           Float?
+  createdAt     DateTime @default(now())
+  attachments   FileAttachment[]
+
+  @@map("stored_files")
+  @@unique([bucket, objectKey])
+  @@index([createdAt])
+}
