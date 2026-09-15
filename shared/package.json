@@ -4,12 +4,21 @@
   "private": true,
   "description": "Общие типы, константы и контракты событий Cleaning Ops (изменения — только с review архитектора)",
   "type": "module",
+  "main": "./dist/constants/events.js",
+  "types": "./dist/constants/events.d.ts",
   "exports": {
-    "./types/*": "./types/*",
-    "./constants/*": "./constants/*"
+    "./types/*": {
+      "types": "./dist/types/*.d.ts",
+      "import": "./dist/types/*.js"
+    },
+    "./constants/*": {
+      "types": "./dist/constants/*.d.ts",
+      "import": "./dist/constants/*.js"
+    }
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "build": "tsc -b --force",
+    "typecheck": "tsc -b --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.4.5"
