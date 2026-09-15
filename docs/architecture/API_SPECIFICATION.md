@@ -84,7 +84,7 @@
 |---|---|---|
 | CRUD `/api/materials` | справочник материалов | запись — ADMIN/SUPERVISOR, чтение — auth |
 | GET `/api/materials/stocks?objectId&onlyLow` | остатки по объектам с признаком «ниже порога» | auth |
-| POST `/api/materials/movements` | приход/расход/перемещение/списание; транзакционный пересчёт, минус → 400; TRANSFER требует `targetObjectId` | ADMIN, SUPERVISOR |
+| POST `/api/materials/movements` | приход/расход/перемещение/списание; транзакционный пересчёт, минус → 400; TRANSFER требует `targetObjectId` | ADMIN, SUPERVISOR, OPERATOR |
 | GET `/api/materials/:id/movements?objectId&from&to&limit` | история движений | auth |
 | GET `/api/materials/report?objectId&from&to` | отчёт по расходу (агрегаты + стоимость) | auth |
 
@@ -104,7 +104,7 @@
 | POST `/api/schedule/check-out` | закрытие смены; без check-in → 400 | OPERATOR, SUPERVISOR, ADMIN |
 | POST `/api/schedule/generate?date=` | детерминированная генерация смен и плановых заявок (для e2e/cron) | ADMIN |
 | POST `/api/schedule/check-missed?date=` | прогон неявок и авто check-out вне cron | ADMIN |
-| GET `/api/schedule/scheduler/state` | состояние планировщика | auth |
+| GET `/api/schedule/scheduler/state` | состояние планировщика | ADMIN |
 
 - Неявка → статус `MISSED` + событие `schedule.missed_checkin`; авто check-out после
   `SCHEDULE_AUTO_CHECKOUT_MINUTES` от `plannedStart`.

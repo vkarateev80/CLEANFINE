@@ -34,6 +34,11 @@ test/
   `notifications.api.spec.ts`, `operations.api.spec.ts`; 31 тест): треки и геозоны, заявки
   со state machine, in-app уведомления и сквозная SOS-вертикаль через RabbitMQ — раздел
   «e2e «оперативки» М3.8» ниже.
+- **М4 (М4.7)** — ✅ планирование и учёт (`e2e/api/planning.api.spec.ts`, 16 тестов;
+  `e2e/web/materials.ui.spec.ts` — 6, `e2e/web/schedule.ui.spec.ts` — 7,
+  `e2e/web/m43-integration.ui.spec.ts` — 4): графики и генерация плановых заявок, check-in по
+  геозоне, неявки, справочник и движения материалов, сквозное автосписание по завершённой
+  операции, выбор материала техкарты из справочника — раздел «e2e «планирования» М4.7» ниже.
 
 ## Креды dev-стенда
 
@@ -239,7 +244,40 @@ node node_modules/@playwright/test/cli.js test --project=api e2e/api/gps.api.spe
 | `E2E_GPS_URL` | `http://localhost:3004` | gps-service: треки, геозоны, nearby, история |
 | `E2E_TICKET_URL` | `http://localhost:3005` | ticket-service: заявки, статусы, SOS |
 | `E2E_NOTIFICATION_URL` | `http://localhost:3006` | notification-service: устройства и in-app |
+| `E2E_MATERIAL_URL` | `http://localhost:3007` | material-service: справочник, склады, движения, отчёт |
+| `E2E_SCHEDULE_URL` | `http://localhost:3008` | schedule-service: графики, смены, check-in/check-out |
+| `E2E_BASE_URL` | `http://localhost:5173` | web-admin: UI-проект Playwright |
 | `E2E_POSTGRES_CONTAINER` | `cleaning-ops-postgres` | контейнер для уборки через `psql` |
+
+## e2e «планирования» М4.7
+
+Набор замыкает цепочку «план → заявка → списание»: график в schedule-service порождает смены и
+плановые заявки в ticket-service, оператор отмечается по геозоне, а завершение операции техкарты
+списывает материалы в material-service и шлёт `material.low` при остатке ниже порога.
+
+| Файл | Что проверяет | Тестов |
+|---|---|---|
+| `e2e/api/planning.api.spec.ts` | графики и валидация recurrence (400 на `weekly` без дней и мусорную частоту); `generate` → смены + плановые заявки со сверкой через ticket-service и идемпотентностью повтора; фильтры смен дня; check-in по геозоне (201 внутри, 403 с серверным текстом снаружи, 404, повтор идемпотентен); check-out (400 без check-in); неявка → `MISSED` + in-app `SCHEDULE_MISSED` без повторной публикации; права OPERATOR/CLIENT/SUPERVISOR/аноним; CRUD справочника и поиск; движения `IN`/`OUT`/`TRANSFER` и отказ при нехватке; отчёт `OUT`+`WRITE_OFF` со сверкой с движениями; сквозное автосписание → `system:auto-consumption` и порог → `MATERIAL_LOW`; удаление материала уносит его `ConsumedOperation` и не трогает строки соседнего материала; история движений с фильтрами | 16 |
+| `e2e/web/materials.ui.spec.ts` | вкладки и `tab` в query-строке (в том числе после перезагрузки), создание материала через модалку и поиск по справочнику, движение `IN` → `movement-notice` и остаток на вкладке «Остатки», расход больше остатка → серверный текст «Недостаточно материала», отчёт, история с фильтрами | 6 |
+| `e2e/web/schedule.ui.spec.ts` | deep-link вкладок, создание графика через модалку, клиентская валидация `weekly` без дней (запрос не уходит), видимость ADMIN-триггеров и генерация на дату ≠ сегодня, модалка отметки, удаление графика через ConfirmDialog | 7 |
+| `e2e/web/m43-integration.ui.spec.ts` | выбор материала операции **из справочника** (серверный поиск: материал вне текущей выдачи отсутствует в списке; подстановка единицы и нормы, незатирание вручную введённого расхода, сохранение в core), legacy-`materialId` сохраняется без подмены, поле «Заявка» есть только у расходных типов (`OUT` пишет `ticketId`, `IN` — нет), уборка | 4 |
+
+**Итого 33 теста** (16 API + 17 UI). Полная регрессия: `--project=api` 84 passed / 1 skipped,
+`--project=web` 29 passed.
+
+### Требования к стенду (М4.7)
+
+- auth `:3001`, core `:3003`, gps `:3004`, tickets `:3005`, notifications `:3006`,
+  material `:3007`, schedule `:3008`, web-admin `:5173`;
+- **RabbitMQ обязателен**: без него `ticket.operation.completed` не дойдёт до автосписания,
+  а `schedule.missed_checkin` и `material.low` — до уведомлений;
+- **`SCHEDULE_CRON_ENABLED=false`**: набор проверяет неявки и генерацию ручными триггерами
+  (`POST /api/schedule/generate`, `POST /api/schedule/check-missed`), а фоновый проход раз в
+  5 минут менял бы смены прямо во время прогона. Тем же флагом поднимается CI;
+- **auth с поднятыми лимитами логина** (`THROTTLE_LOGIN_LIMIT=1000`, `THROTTLE_GLOBAL_LIMIT=10000`):
+  иначе набор упирается в боевой лимит 5 логинов/мин;
+- **PostgreSQL через `docker exec`** нужен для уборки и SQL-проверок: без него зависимые тесты
+  скипаются, а не «зеленеют» на грязных данных.
 
 ### Что важно знать про эти тесты
 
