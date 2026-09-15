@@ -21,6 +21,8 @@ describe('NOTIFICATION_TEMPLATES (М3.3, п.3)', () => {
   it('аварийные и просроченные уведомления — высокий приоритет', () => {
     expect(NOTIFICATION_TEMPLATES.EMERGENCY.priority).toBe('high');
     expect(NOTIFICATION_TEMPLATES.TICKET_OVERDUE.priority).toBe('high');
+    // Неявка на смену — операционно значимое событие: не теряем его в потоке.
+    expect(NOTIFICATION_TEMPLATES.SCHEDULE_MISSED.priority).toBe('high');
   });
 });
 
@@ -81,6 +83,20 @@ describe('renderTemplate', () => {
     expect(renderTemplate('TICKET_OVERDUE', { ticketId: 't-7', minutes: 30 }).body).toBe(
       'Заявка t-7 просрочена на 30 минут',
     );
+  });
+
+  it('рендерит SCHEDULE_MISSED с объектом и временем начала смены', () => {
+    expect(
+      renderTemplate('SCHEDULE_MISSED', {
+        objectName: 'БЦ «Северный»',
+        plannedStart: '01.02.2026 08:00 UTC',
+      }),
+    ).toEqual({
+      type: 'SCHEDULE_MISSED',
+      title: '⚠️ Неявка на смену',
+      body: 'Неявка на смену: БЦ «Северный», плановое начало 01.02.2026 08:00 UTC',
+      priority: 'high',
+    });
   });
 });
 

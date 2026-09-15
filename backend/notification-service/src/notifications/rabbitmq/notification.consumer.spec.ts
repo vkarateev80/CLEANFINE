@@ -93,7 +93,7 @@ describe('NotificationConsumer', () => {
   afterEach(() => jest.restoreAllMocks());
 
   describe('подписки', () => {
-    it('подписывается на шесть очередей из общего контракта', () => {
+    it('подписывается на все очереди уведомлений из общего контракта', () => {
       const { rabbit, consumer } = build();
 
       consumer.onModuleInit();
@@ -105,6 +105,7 @@ describe('NotificationConsumer', () => {
         'notification.ticket.overdue',
         'notification.geofence.exit',
         'notification.material.low',
+        'notification.schedule.missed_checkin',
       ]);
       expect(rabbit.subscribe.mock.calls.map((call) => call[1])).toEqual([
         'ticket.created',
@@ -113,7 +114,12 @@ describe('NotificationConsumer', () => {
         'ticket.overdue',
         'geofence.exit',
         'material.low',
+        'schedule.missed_checkin',
       ]);
+      // Очередь material.ticket.operation.completed обрабатывает material-service.
+      expect(rabbit.subscribe.mock.calls.map((call) => call[0])).not.toContain(
+        'material.ticket.operation.completed',
+      );
     });
   });
 
@@ -264,6 +270,81 @@ describe('NotificationConsumer', () => {
     });
   });
 
+  describe('schedule.missed_checkin (неявка на смену)', () => {
+    const event = {
+      eventId: 'e-1',
+      scheduleId: 's-1',
+      userId: 'u-8',
+      objectId: 'o-5',
+      objectName: 'БЦ «Северный»',
+      plannedStart: '2026-02-01T08:00:00.000Z',
+      detectedAt: '2026-02-01T08:20:00.000Z',
+    };
+
+    it('событие schedule.missed_checkin → push залогирован + in-app запись сотруднику', async () => {
+      const { prisma, push, consumer } = build();
+      devicesFindMany(prisma);
+
+      await consumer.handle(message('schedule.missed_checkin', event));
+
+      // 1) push «отправлен» ровно адресату из payload и залогирован мок-адаптером.
+      expect(push.sent).toHaveLength(1);
+      expect(push.sent[0]).toMatchObject({
+        userId: 'u-8',
+        template: 'SCHEDULE_MISSED',
+        title: '⚠️ Неявка на смену',
+        body: 'Неявка на смену: БЦ «Северный», плановое начало 01.02.2026 08:00 UTC',
+        priority: 'high',
+        tokens: [VALID_TOKEN],
+        data: {
+          eventId: 'e-1',
+          scheduleId: 's-1',
+          userId: 'u-8',
+          objectId: 'o-5',
+          objectName: 'БЦ «Северный»',
+          plannedStart: '2026-02-01T08:00:00.000Z',
+          detectedAt: '2026-02-01T08:20:00.000Z',
+        },
+      });
+      expect(
+        log.mock.calls.map((call) => String(call[0])).filter((line) => line.includes('[MOCK PUSH]')),
+      ).toHaveLength(1);
+
+      // 2) in-app запись создана именно указанному пользователю.
+      expect(prisma.notification.create).toHaveBeenCalledTimes(1);
+      expect(prisma.notification.create.mock.calls[0][0].data).toMatchObject({
+        userId: 'u-8',
+        type: 'SCHEDULE_MISSED',
+        title: '⚠️ Неявка на смену',
+        body: 'Неявка на смену: БЦ «Северный», плановое начало 01.02.2026 08:00 UTC',
+        payload: event,
+      });
+
+      // 3) broadcast не сработал: уведомление адресное, а не «всем».
+      expect(prisma.device.findMany).toHaveBeenCalledWith({
+        where: { userId: 'u-8', isActive: true },
+        select: { token: true },
+      });
+      expect(prisma.device.findMany).not.toHaveBeenCalledWith(
+        expect.objectContaining({ distinct: ['userId'] }),
+      );
+    });
+
+    it('пустой userId у события → broadcast по владельцам активных устройств', async () => {
+      const { prisma, push, consumer } = build();
+      devicesFindMany(prisma);
+
+      await consumer.handle(message('schedule.missed_checkin', { ...event, userId: '' }));
+
+      expect(push.sent.map((sent) => sent.userId)).toEqual(['u-1', 'u-2']);
+      expect(prisma.device.findMany).toHaveBeenCalledWith({
+        where: { isActive: true },
+        distinct: ['userId'],
+        select: { userId: true },
+      });
+    });
+  });
+
   describe('фильтрация и ошибки', () => {
     it('отключённый тип не создаёт ни push, ни in-app запись', async () => {
       const { prisma, push, consumer } = build();
@@ -285,7 +366,7 @@ describe('NotificationConsumer', () => {
       const { prisma, push, consumer } = build();
 
       await expect(
-        consumer.handle(message('schedule.missed_checkin', { userId: 'u-1', scheduleId: 's-1' })),
+        consumer.handle(message('schedule.unknown', { userId: 'u-1', scheduleId: 's-1' })),
       ).resolves.toBeUndefined();
 
       expect(push.sent).toHaveLength(0);

@@ -49,6 +49,15 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, NotificationTempla
     body: '{materialName} на объекте {objectName} ниже порога',
     priority: 'normal',
   },
+  // Параметры — только те, что реально есть в payload schedule.missed_checkin
+  // (event-payloads.ts schedule-service): objectName и plannedStart.
+  // Имени графика в событии нет, поэтому «имя» — это объект смены.
+  SCHEDULE_MISSED: {
+    type: 'SCHEDULE_MISSED',
+    title: '⚠️ Неявка на смену',
+    body: 'Неявка на смену: {objectName}, плановое начало {plannedStart}',
+    priority: 'high',
+  },
 };
 
 export interface RenderedNotification {

@@ -14,6 +14,7 @@ export const NOTIFICATION_TYPES = [
   'TICKET_OVERDUE',
   'GEOFENCE_EXIT',
   'MATERIAL_LOW',
+  'SCHEDULE_MISSED',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

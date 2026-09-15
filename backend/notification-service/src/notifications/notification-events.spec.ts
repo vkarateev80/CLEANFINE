@@ -2,7 +2,7 @@ import { EVENT_QUEUES, ROUTING_KEYS } from '@cleaning-ops/shared/constants/event
 import { NOTIFICATION_ROUTING_KEYS, resolveEvent } from './notification-events';
 
 describe('NOTIFICATION_ROUTING_KEYS', () => {
-  it('слушает ровно шесть очередей из shared/constants/events.ts', () => {
+  it('слушает все очереди EVENT_QUEUES, кроме material.ticket.operation.completed', () => {
     expect([...NOTIFICATION_ROUTING_KEYS]).toEqual([
       'ticket.created',
       'ticket.assigned',
@@ -10,9 +10,22 @@ describe('NOTIFICATION_ROUTING_KEYS', () => {
       'ticket.overdue',
       'geofence.exit',
       'material.low',
+      'schedule.missed_checkin',
     ]);
+
+    // Контракт — источник истины: новую очередь в EVENT_QUEUES нельзя забыть
+    // здесь, иначе события молча копятся в брокере без получателя.
+    const notificationQueues = Object.entries(EVENT_QUEUES)
+      .filter(([, queue]) => queue !== 'material.ticket.operation.completed')
+      .map(([routingKey]) => routingKey)
+      .sort();
+    expect([...NOTIFICATION_ROUTING_KEYS].sort()).toEqual(notificationQueues);
+
     // Имя очереди не дублируется в коде сервиса: оно берётся из общего контракта.
     expect(EVENT_QUEUES[ROUTING_KEYS.TICKET_EMERGENCY]).toBe('notification.ticket.emergency');
+    expect(EVENT_QUEUES[ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN]).toBe(
+      'notification.schedule.missed_checkin',
+    );
   });
 });
 
@@ -225,9 +238,85 @@ describe('resolveEvent', () => {
     });
   });
 
+  describe('schedule.missed_checkin', () => {
+    const missedPayload = {
+      eventId: 'e-1',
+      scheduleId: 's-1',
+      userId: 'u-8',
+      objectId: 'o-5',
+      objectName: 'БЦ «Северный»',
+      plannedStart: '2026-02-01T08:00:00.000Z',
+      detectedAt: '2026-02-01T08:20:00.000Z',
+    };
+
+    it('адресует уведомление сотруднику из userId и форматирует начало смены', () => {
+      const resolved = resolveEvent(ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN, missedPayload);
+
+      expect(resolved).toEqual({
+        routingKey: 'schedule.missed_checkin',
+        template: 'SCHEDULE_MISSED',
+        userIds: ['u-8'],
+        params: { objectName: 'БЦ «Северный»', plannedStart: '01.02.2026 08:00 UTC' },
+        data: {
+          eventId: 'e-1',
+          scheduleId: 's-1',
+          userId: 'u-8',
+          objectId: 'o-5',
+          objectName: 'БЦ «Северный»',
+          plannedStart: '2026-02-01T08:00:00.000Z',
+          detectedAt: '2026-02-01T08:20:00.000Z',
+        },
+      });
+    });
+
+    it('без userId → пустой список получателей (консьюмер сделает broadcast)', () => {
+      // schedule-service публикует userId: event.userId ?? '' — пустая строка
+      // тоже означает «сотрудник неизвестен».
+      const resolved = resolveEvent(ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN, {
+        ...missedPayload,
+        userId: '',
+      });
+
+      expect(resolved?.userIds).toEqual([]);
+      expect(resolved?.data.userId).toBe('');
+    });
+
+    it('без objectName (у графика нет objectId) и без plannedStart — понятный текст', () => {
+      const resolved = resolveEvent(ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN, {
+        scheduleId: 's-2',
+        userId: 'u-1',
+        objectName: '',
+      });
+
+      expect(resolved?.params).toEqual({
+        objectName: 'объект не указан',
+        plannedStart: 'по графику',
+      });
+      expect(resolved?.data.objectName).toBe('объект не указан');
+    });
+
+    it('неразбираемый plannedStart показывается как есть, а не «Invalid Date»', () => {
+      const resolved = resolveEvent(ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN, {
+        scheduleId: 's-3',
+        userId: 'u-1',
+        plannedStart: 'завтра утром',
+      });
+
+      expect(resolved?.params).toEqual({
+        objectName: 'объект не указан',
+        plannedStart: 'завтра утром',
+      });
+    });
+
+    it('без scheduleId → null (контракт нарушен)', () => {
+      const { scheduleId: _scheduleId, ...withoutSchedule } = missedPayload;
+      expect(resolveEvent(ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN, withoutSchedule)).toBeNull();
+    });
+  });
+
   describe('неподдержанные сообщения', () => {
     it.each([
-      ['неизвестный routing key', ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN, { userId: 'u-1' }],
+      ['неизвестный routing key', 'schedule.unknown', { userId: 'u-1' }],
       ['завершение операции', ROUTING_KEYS.TICKET_OPERATION_COMPLETED, { operationId: 'op-1' }],
     ])('%s → null', (_title, routingKey, payload) => {
       expect(resolveEvent(routingKey, payload)).toBeNull();
