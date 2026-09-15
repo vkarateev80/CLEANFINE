@@ -23,13 +23,36 @@
 | POST `/api/auth/change-pin` | смена PIN | auth |
 | CRUD `/api/users` | управление сотрудниками | ADMIN |
 
-## 2. file-service `/api/files` (М2)
+## 2. file-service `/api/files` (М2) — реализовано
 
-- Загрузка/метаданные; buckets: photos/plans/avatars/documents; фото: водяной знак + миниатюра; лимиты: JPEG/PNG/MP4, ≤10 МБ, фото ≥1280×720.
+| Метод/путь | Назначение | Доступ |
+|---|---|---|
+| POST `/api/files/upload` | multipart `file` + `kind` (photo/plan/avatar/document); фото — водяной знак + миниатюра | auth |
+| GET `/api/files` | список с фильтрами (bucket, entityType/entityId, uploadedById), пагинация | auth |
+| GET `/api/files/:id` | метаданные (url, thumbnailUrl, width/height, size) | auth |
+| POST `/api/files/:id/attach` | привязка к сущности (FLOOR_PLAN/TICKET/CHAT_MESSAGE/AVATAR/DOCUMENT) | auth |
+| GET `/api/files/attachments/:entityType/:entityId` | вложения сущности | auth |
+| DELETE `/api/files/:id` | удаление из MinIO и БД | ADMIN, SUPERVISOR |
+| GET `/api/files/health/ping` | статус сервиса и MinIO | public |
 
-## 3. core-service `/api` (М2)
+- Buckets: photos/plans/avatars/documents; лимиты: JPEG/PNG/MP4, ≤10 МБ, фото ≥1280×720.
 
-- CRUD `objects`, `floors` (+ `POST /api/floors/:id/plan` — загрузка плана), `rooms` (экспликация), `routes` (+ `POST /api/routes/:id/reorder`), `route-points`, `tech-cards`, операции техкарт.
+## 3. core-service `/api` (М2) — реализовано
+
+| Метод/путь | Назначение | Доступ |
+|---|---|---|
+| CRUD `/api/objects` (+ `/:id/detail`, фильтры статус/тип/поиск) | объекты; удаление запрещено при активном маршруте | чтение — auth, запись — ADMIN/SUPERVISOR |
+| CRUD `/api/objects/:objectId/floors`, `/api/floors/:id` | этажи; номер уникален в объекте (409) | запись — ADMIN/SUPERVISOR |
+| POST `/api/floors/:id/plan` | multipart-план → file-service (проброс токена); сохраняет URL, масштаб, размеры | ADMIN, SUPERVISOR |
+| POST `/api/floors/:id/plan-url` | привязка уже загруженного плана (URL + масштаб + размеры) | ADMIN, SUPERVISOR |
+| CRUD `/api/floors/:floorId/rooms`, `/api/rooms/:id` | экспликация; координаты валидируются по реальному размеру плана | запись — ADMIN/SUPERVISOR |
+| CRUD `/api/floors/:floorId/routes`, `/api/routes/:id` | маршруты, статусы DRAFT/ACTIVE/ARCHIVED | запись — ADMIN/SUPERVISOR |
+| POST `/api/routes/:id/points`, PATCH/DELETE `/api/route-points/:id` | точки маршрута (порядок пересобирается плотно) | ADMIN, SUPERVISOR |
+| PATCH `/api/routes/:id/reorder` | полный список `pointIds` в новом порядке | ADMIN, SUPERVISOR |
+| CRUD `/api/tech-cards`, `/api/tech-operations` | техкарты, операции и материалы | запись — ADMIN/SUPERVISOR |
+| PATCH `/api/tech-cards/:id/reorder` | полный список `operationIds` | ADMIN, SUPERVISOR |
+
+- Архивный маршрут (`ARCHIVED`) неизменяем: мутации точек → 400.
 
 ## 4. gps-service `/api/gps` (М3)
 

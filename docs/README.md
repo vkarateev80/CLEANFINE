@@ -249,17 +249,23 @@ Code review обязателен для merge в main
 
 📊 Статус проекта
 Компонент	Статус	Прогресс
-Design System	🔴 Не начат	0%
-Backend Services	🔴 Не начат	0%
-Web Admin	🔴 Не начат	0%
-Mobile App	🔴 Не начат	0%
-DevOps	🔴 Не начат	0%
-QA	🔴 Не начат	0%
+Design System	🟡 Токены DS-001 + экраны DS-003	~40%
+Backend Services	🟢 auth, files, core	~35% (3 из 9 сервисов)
+Web Admin	🟡 Экраны входа и ядра	~30%
+Mobile App	🔴 Не начат (М6)	0%
+DevOps	🟡 Docker + CI (не прогнан на GitHub)	~40%
+QA	🟢 Unit 100% (core), e2e: auth + ядро	~30%
 
-> **Обновление М1 (2026-09-02, см. ПЛАН.md + КОНТЕКСТ.md):**
-> - **М0 завершена:** монорепо, конвенции, инфра-конфигурация (docker compose), каркас CI, контракты событий (`shared/`), QA-каркас, документация `docs/`. Проверка контейнеров отложена (Docker/WSL2 не готовы на машине — риск R2).
-> - **М1 частично:** Design System — дизайн-токены DS-001 ✅ (tokens + генератор CSS/Flutter); Backend Auth — код auth-service ✅ (JWT/PIN/биометрия, RBAC, users CRUD, rate-limit, Dockerfile, seed), юнит-тесты 23/23 ✅, typecheck ✅ — миграции БД и e2e ждут Docker; Web Admin — каркас ✅ (Vite+React, роутер, auth, логин; typecheck+build OK).
-> - Статусы компонентов: Design System 🟡 (токены), Backend Services 🟡 (auth), Web Admin 🟡 (каркас), Mobile/DevOps/QA 🔴.
+> **Обновление М2 (2026-09-15, см. ПЛАН.md + КОНТЕКСТ.md):**
+> - **М0 и М1 завершены:** Docker заработал (контейнеры `healthy`), миграции/seed/смоук логина выполнены,
+>   auth покрыт юнит-тестами на 100 %, e2e вертикали входа зелёные.
+> - **М2 завершена:** file-service (MinIO, водяные знаки, миниатюры, привязки) и core-service
+>   (объекты → этажи → помещения → маршруты → техкарты; 274 unit-теста, покрытие 100 %);
+>   экраны web-admin (Objects/Floors/Routes/TechCards); e2e ядра 19 тестов + UI-сценарий М2.7
+>   (4 теста); Dockerfile для file/core и CI-джобы quality/e2e. 8 дефектов, найденных QA, исправлены.
+> - Статусы компонентов: Design System 🟡 (токены + DS-003), Backend Services 🟢 (auth/files/core,
+>   остальные сервисы — М3+), Web Admin 🟡 (вход + ядро, дальше заявки/карта), Mobile/DevOps/QA —
+>   см. таблицу.
 > - Актуальное состояние, коммиты и обходные пути окружения: [`КОНТЕКСТ.md`](../../КОНТЕКСТ.md) в корне репозитория.
 📝 Конвенции
 Git
