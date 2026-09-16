@@ -36,6 +36,15 @@ class FakeScheduleRepository extends ScheduleRepository {
     return Ok<List<ScheduleEvent>>(_events);
   }
 
+  /// Деталь смены: маршрут дня грузит её первой (`route_map.md` §5).
+  @override
+  Future<Result<ScheduleEvent>> eventById(String id) async {
+    if (eventsFailure != null) return Err<ScheduleEvent>(eventsFailure!);
+    final ScheduleEvent? found = _events.where((ScheduleEvent event) => event.id == id).firstOrNull;
+    if (found == null) return const Err<ScheduleEvent>(NotFoundFailure('Смена не найдена'));
+    return Ok<ScheduleEvent>(found);
+  }
+
   @override
   Future<Result<bool>> checkIn({
     required String scheduleId,
@@ -56,11 +65,12 @@ class FakeScheduleRepository extends ScheduleRepository {
 }
 
 class FakeCoreRepository extends CoreRepository {
-  FakeCoreRepository({this.routeDetail, this.objectSummary})
+  FakeCoreRepository({this.routeDetail, this.objectSummary, this.floorPlan})
       : super(fakeApiClient(FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{}))));
 
   final RouteDetail? routeDetail;
   final ObjectSummary? objectSummary;
+  final FloorPlan? floorPlan;
 
   @override
   Future<Result<ObjectSummary>> object(String id) async => objectSummary == null
@@ -71,6 +81,11 @@ class FakeCoreRepository extends CoreRepository {
   Future<Result<RouteDetail>> route(String id) async => routeDetail == null
       ? const Err<RouteDetail>(NotFoundFailure())
       : Ok<RouteDetail>(routeDetail!);
+
+  @override
+  Future<Result<FloorPlan>> floor(String id) async => floorPlan == null
+      ? const Err<FloorPlan>(NotFoundFailure())
+      : Ok<FloorPlan>(floorPlan!);
 }
 
 class FakeTicketsRepository extends TicketsRepository {

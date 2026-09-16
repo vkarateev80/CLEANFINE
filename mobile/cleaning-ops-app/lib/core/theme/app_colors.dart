@@ -70,15 +70,24 @@ Color ticketPriorityColor(String priority) => switch (priority) {
       _ => AppPalette.textSecondary,
     };
 
-/// Статус точки маршрута на плане этажа.
+/// Статус точки маршрута на плане этажа (`design/screens/mobile/route_map.md` §3).
+///
+/// Подписи и цвета — дословно из спецификации: «Ожидает», «В работе», «Выполнено»,
+/// «Пропущено». Сервер прогресс не хранит, поэтому статус считает приложение.
 enum RoutePointStatus {
-  pending('Ожидает', AppPalette.textSecondary),
-  current('Текущая', AppPalette.primary),
-  done('Выполнена', AppPalette.success),
-  skipped('Пропущена', AppPalette.warning);
+  pending('pending', 'Ожидает', AppPalette.textSecondary),
+  active('active', 'В работе', AppPalette.primary),
+  done('done', 'Выполнено', AppPalette.success),
+  skipped('skipped', 'Пропущено', AppPalette.warning);
 
-  const RoutePointStatus(this.label, this.color);
+  const RoutePointStatus(this.code, this.label, this.color);
 
+  final String code;
   final String label;
   final Color color;
+
+  static RoutePointStatus of(String value) => RoutePointStatus.values.firstWhere(
+        (RoutePointStatus status) => status.code == value,
+        orElse: () => RoutePointStatus.pending,
+      );
 }
