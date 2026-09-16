@@ -1,0 +1,11 @@
+name: cleaning_ops_tokens
+description: Сгенерированные дизайн-токены Cleaning Ops (DS-001) для Flutter-приложения (М6).
+version: 1.0.0
+publish_to: none
+
+# Этот pubspec написан вручную (единственный файл пакета, который не генерируется):
+# сам app_tokens.dart создаёт `node design/scripts/generate.mjs`, а мобильное
+# приложение подключает каталог как path-зависимость — так источник токенов один.
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'

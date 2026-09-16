@@ -1,5 +1,5 @@
 // Генератор артефактов дизайн-токенов (М1.1, задача DS-001).
-// Читает design/tokens/*.json → пишет design/tokens/generated/{tokens.css, app_tokens.dart}.
+// Читает design/tokens/*.json → пишет design/tokens/generated/{tokens.css, lib/app_tokens.dart}.
 // Запуск: node design/scripts/generate.mjs
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -98,8 +98,12 @@ if (badIdentifiers.length > 0) {
   throw new Error(`невалидные Dart-идентификаторы в app_tokens.dart: ${badIdentifiers.join(', ')}`);
 }
 
-writeFileSync(join(outDir, 'app_tokens.dart'), dart.join('\n') + '\n', 'utf8');
+// Dart-файл лежит в `lib/` каталога-пакета: мобильное приложение подключает
+// design/tokens/generated как path-зависимость `cleaning_ops_tokens`, а Dart
+// видит в пакете только то, что лежит под `lib/`.
+mkdirSync(join(outDir, 'lib'), { recursive: true });
+writeFileSync(join(outDir, 'lib', 'app_tokens.dart'), dart.join('\n') + '\n', 'utf8');
 
 console.log('Generated:');
 console.log('  - design/tokens/generated/tokens.css');
-console.log('  - design/tokens/generated/app_tokens.dart');
+console.log('  - design/tokens/generated/lib/app_tokens.dart');

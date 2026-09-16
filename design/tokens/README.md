@@ -14,7 +14,9 @@ design/
 │   ├── borderRadius.json  # sm/md/lg/xl + full
 │   ├── generated/         # ← артефакты (генерируются, в git)
 │   │   ├── tokens.css     # CSS-переменные
-│   │   └── app_tokens.dart# Константы Flutter (Color-ints и размеры)
+│   │   ├── pubspec.yaml   # пакет cleaning_ops_tokens (единственный неруками сгенерированный файл)
+│   │   └── lib/
+│   │       └── app_tokens.dart # Константы Flutter (Color-ints и размеры)
 │   └── README.md
 └── scripts/
     └── generate.mjs       # генератор
@@ -41,7 +43,10 @@ design/
 
    Tailwind-маппинг (`web-admin`) выполняется в М1.5 поверх этих переменных.
 
-4. **Mobile (Flutter):** импортировать `app_tokens.dart` (лежит рядом с приложением после М6 или копируется); цвета — `Color(AppColors.primary500)`. Сборка `ThemeData` — в М6.
+4. **Mobile (Flutter):** каталог `generated/` подключается как path-зависимость `cleaning_ops_tokens`
+   (так у токенов один источник на web и mobile), импорт — `package:cleaning_ops_tokens/app_tokens.dart`;
+   цвета — `Color(AppColors.primary500)`. `ThemeData` собирается в приложении:
+   `mobile/cleaning-ops-app/lib/core/theme/app_theme.dart` (М6.0).
 
 ## Примечания (решения архитектора, М1.1)
 
