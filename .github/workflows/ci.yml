@@ -110,6 +110,37 @@ jobs:
             fi
           done
 
+  mobile:
+    # Мобильное приложение (М6) проверяется отдельной джобой: у него свой SDK.
+    # Сборка APK/IPA здесь не делается — на раннере нет Android SDK/Xcode, а
+    # приёмка М6.0/М6.8 требует именно `flutter analyze` и `flutter test`.
+    name: Mobile (flutter analyze + test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.6'
+          channel: stable
+          cache: true
+
+      # Дизайн-токены лежат в design/tokens/generated и подключены path-зависимостью
+      # (`cleaning_ops_tokens`), поэтому подкаталог уже в чекауте — ничего копировать не надо.
+      - name: Install dependencies
+        working-directory: mobile/cleaning-ops-app
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: mobile/cleaning-ops-app
+        run: flutter analyze
+
+      - name: Tests
+        working-directory: mobile/cleaning-ops-app
+        run: flutter test
+
   e2e:
     name: E2E (auth + files + core + gps + tickets + notifications + materials + schedule + chat, web-admin и портал)
     runs-on: ubuntu-latest
