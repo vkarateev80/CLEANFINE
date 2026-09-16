@@ -73,16 +73,24 @@ lib/
 ├── main.dart              # ProviderScope + запуск
 ├── app.dart               # MaterialApp.router, тема
 ├── core/
-│   ├── constants/         # api_constants.dart, app_constants.dart
-│   ├── theme/             # app_theme.dart (поверх design/tokens/generated/app_tokens.dart)
-│   ├── utils/             # validators.dart, formatters.dart
+│   ├── constants/         # api_constants.dart, labels.dart
+│   ├── theme/             # app_theme.dart, app_colors.dart (поверх design/tokens/generated/app_tokens.dart)
+│   ├── utils/             # validators.dart, formatters.dart, clock.dart
 │   └── errors/            # exceptions.dart, failures.dart
-├── features/<фича>/       # data / domain / presentation (feature-first)
-├── shared/widgets/        # переиспользуемые виджеты (оффлайн-баннер, пустые состояния)
+├── features/              # feature-first: auth, home, route_map, checklist, sos, chat, profile, offline
+│   └── <фича>/            # data / presentation (страницы, виджеты, провайдеры)
+├── shared/
+│   ├── data/              # модели, репозитории, Result/Failure, pending_actions.dart (очередь)
+│   ├── services/          # location_service.dart, photo_service.dart
+│   └── widgets/           # переиспользуемые виджеты (каркас с табами и SOS)
 ├── router/app_router.dart # go_router + guard авторизации
-├── services/              # api_client.dart, secure_storage_service.dart, location_service.dart
-└── database/              # app_database.dart (drift) + сгенерированный app_database.g.dart
+└── services/              # api_client.dart, secure_storage_service.dart, service_providers.dart
 ```
+
+Сделано по фазам М6: каркас и авторизация (М6.0–М6.2), «Сегодня» и маршрут дня (М6.3), чек-лист
+помещения (М6.4). Состояние приёмки: `flutter analyze` — 0 замечаний, `flutter test` — 67 тестов.
+Каталог `lib/database/` (drift) появится в М6.7 — сейчас очередь действий живёт в памяти процесса
+(`lib/shared/data/pending_actions.dart`).
 
 Правила кода — «Правила написания кода в Dash» (`УСТАВ.md`): PascalCase для классов и виджетов,
 camelCase для полей и методов, snake_case для файлов, суффиксы виджетов (`Page`, `Screen`,
@@ -91,9 +99,13 @@ camelCase для полей и методов, snake_case для файлов, �
 ## Оффлайн-модель (кратко)
 
 1. Действия оператора (SOS, завершение операции, сообщение в чат) сначала пишутся в локальную
-   очередь drift (`pending_actions`) со статусом `pending`.
+   очередь (`pending_actions`) со статусом `pending`. До М6.7 очередь держится в памяти
+   (`InMemoryPendingActionQueue`), дальше её заменяет таблица drift — интерфейс `PendingActionQueue`
+   уже тот, которым будет пользоваться синхронизатор.
 2. Синхронизатор при появлении сети отправляет действия по порядку, с экспоненциальной задержкой
    и идемпотентными ключами (у операций — `operationId`, у SOS — локальный `clientRequestId`).
 3. UI показывает индикатор «оффлайн» и число неотправленных действий; после синка статус меняется
    на `synced`.
 4. План этажа и данные смены кэшируются, чтобы маршрут открывался без сети.
+5. Завершение операции без сети сохраняет снимок на устройстве, а в очереди лежит `localPhotoPath`:
+   фото уходит в file-service, когда соединение вернётся.

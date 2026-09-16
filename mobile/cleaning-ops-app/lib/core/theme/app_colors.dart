@@ -17,11 +17,16 @@ class AppPalette {
 
   static const Color textPrimary = Color(AppColors.neutral900);
   static const Color textSecondary = Color(AppColors.neutral500);
+  static const Color textMuted = Color(AppColors.neutral400);
+  static const Color textStrong = Color(AppColors.neutral700);
   static const Color textOnPrimary = Colors.white;
 
   static const Color success = Color(AppColors.success500);
+  static const Color successText = Color(AppColors.success600);
   static const Color warning = Color(AppColors.warning500);
+  static const Color warningText = Color(AppColors.warning600);
   static const Color danger = Color(AppColors.danger500);
+  static const Color dangerText = Color(AppColors.danger600);
   static const Color info = Color(AppColors.info500);
 }
 

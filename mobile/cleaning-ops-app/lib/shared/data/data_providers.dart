@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/service_providers.dart';
+import 'repositories/files_repository.dart';
 import 'repositories/operator_repositories.dart';
 import 'repositories/schedule_repository.dart';
 
@@ -15,4 +16,8 @@ final coreRepositoryProvider = Provider<CoreRepository>((ref) {
 
 final ticketsRepositoryProvider = Provider<TicketsRepository>((ref) {
   return TicketsRepository(ref.watch(ticketsApiProvider));
+});
+
+final filesRepositoryProvider = Provider<FilesRepository>((ref) {
+  return FilesRepository(ref.watch(filesApiProvider));
 });

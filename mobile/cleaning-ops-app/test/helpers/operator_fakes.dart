@@ -1,6 +1,8 @@
 import 'package:cleaning_ops_app/core/errors/failures.dart';
+import 'package:cleaning_ops_app/shared/data/models/operation_completion.dart';
 import 'package:cleaning_ops_app/shared/data/models/operator_models.dart';
 import 'package:cleaning_ops_app/shared/data/models/schedule_event.dart';
+import 'package:cleaning_ops_app/shared/data/models/tech_card_models.dart';
 import 'package:cleaning_ops_app/shared/data/repositories/operator_repositories.dart';
 import 'package:cleaning_ops_app/shared/data/repositories/schedule_repository.dart';
 import 'package:cleaning_ops_app/shared/data/result.dart';
@@ -65,12 +67,19 @@ class FakeScheduleRepository extends ScheduleRepository {
 }
 
 class FakeCoreRepository extends CoreRepository {
-  FakeCoreRepository({this.routeDetail, this.objectSummary, this.floorPlan})
-      : super(fakeApiClient(FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{}))));
+  FakeCoreRepository({
+    this.routeDetail,
+    this.objectSummary,
+    this.floorPlan,
+    this.roomDetail,
+    this.techCardDetail,
+  }) : super(fakeApiClient(FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{}))));
 
   final RouteDetail? routeDetail;
   final ObjectSummary? objectSummary;
   final FloorPlan? floorPlan;
+  final RoomDetail? roomDetail;
+  final TechCardDetail? techCardDetail;
 
   @override
   Future<Result<ObjectSummary>> object(String id) async => objectSummary == null
@@ -86,17 +95,61 @@ class FakeCoreRepository extends CoreRepository {
   Future<Result<FloorPlan>> floor(String id) async => floorPlan == null
       ? const Err<FloorPlan>(NotFoundFailure())
       : Ok<FloorPlan>(floorPlan!);
+
+  @override
+  Future<Result<RoomDetail>> room(String id) async => roomDetail == null
+      ? const Err<RoomDetail>(NotFoundFailure('Помещение не найдено'))
+      : Ok<RoomDetail>(roomDetail!);
+
+  @override
+  Future<Result<TechCardDetail>> techCard(String id) async => techCardDetail == null
+      ? const Err<TechCardDetail>(NotFoundFailure('Техкарта не найдена'))
+      : Ok<TechCardDetail>(techCardDetail!);
 }
 
 class FakeTicketsRepository extends TicketsRepository {
-  FakeTicketsRepository({this.tickets = const <TicketSummary>[]})
+  FakeTicketsRepository({this.tickets = const <TicketSummary>[], this.completeFailure})
       : super(fakeApiClient(FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{}))));
 
   final List<TicketSummary> tickets;
 
+  /// Ошибка завершения операции: сеть (`NetworkFailure`) или серверная.
+  final Failure? completeFailure;
+
+  /// Что именно ушло в `POST /api/tickets/:id/operations/:operationId/complete`.
+  final List<Map<String, Object?>> completeCalls = <Map<String, Object?>>[];
+
   @override
   Future<Result<List<TicketSummary>>> assignedTo(String userId, {int take = 20, int skip = 0}) async =>
       Ok<List<TicketSummary>>(tickets);
+
+  @override
+  Future<Result<CompleteOperationResult>> completeOperation({
+    required String ticketId,
+    required String operationId,
+    DateTime? completedAt,
+    String? photoUrl,
+    bool requiresPhoto = false,
+    int? totalOperations,
+  }) async {
+    completeCalls.add(<String, Object?>{
+      'ticketId': ticketId,
+      'operationId': operationId,
+      'completedAt': completedAt?.toUtc().toIso8601String(),
+      'photoUrl': photoUrl,
+      'requiresPhoto': requiresPhoto,
+      'totalOperations': totalOperations,
+    });
+    if (completeFailure != null) return Err<CompleteOperationResult>(completeFailure!);
+    return Ok<CompleteOperationResult>(
+      CompleteOperationResult(
+        operationId: operationId,
+        ticketId: ticketId,
+        completedAt: completedAt?.toUtc().toIso8601String(),
+        photoUrl: photoUrl,
+      ),
+    );
+  }
 }
 
 class FakeLocationService implements LocationService {
@@ -118,6 +171,7 @@ ScheduleEvent plannedEvent({
   String? routeId = 'route-1',
   String? objectId = 'object-1',
   String status = 'PLANNED',
+  String? ticketId,
 }) {
   return ScheduleEvent(
     id: id,
@@ -127,5 +181,6 @@ ScheduleEvent plannedEvent({
     status: status,
     objectId: objectId,
     routeId: routeId,
+    ticketId: ticketId,
   );
 }

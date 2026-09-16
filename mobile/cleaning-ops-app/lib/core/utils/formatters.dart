@@ -31,4 +31,11 @@ class Formatters {
     if (value == null || value.isEmpty) return null;
     return DateTime.tryParse(value)?.toLocal();
   }
+
+  /// «02:14» — таймер операции (минуты:секунды, часы уходят в минуты).
+  static String duration(Duration value) {
+    final int minutes = value.inMinutes;
+    final int seconds = value.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
 }
