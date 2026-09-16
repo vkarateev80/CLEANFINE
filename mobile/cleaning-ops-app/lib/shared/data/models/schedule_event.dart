@@ -1,0 +1,70 @@
+/// Модели ответов schedule-service (`ScheduleEventView`).
+class ScheduleEvent {
+  const ScheduleEvent({
+    required this.id,
+    required this.scheduleName,
+    required this.date,
+    required this.plannedStart,
+    required this.status,
+    this.objectId,
+    this.routeId,
+    this.checkInAt,
+    this.checkOutAt,
+    this.ticketId,
+    this.checkOutReason,
+  });
+
+  final String id;
+  final String scheduleName;
+  final String date;
+  final String plannedStart;
+  final String status;
+  final String? objectId;
+  final String? routeId;
+  final String? checkInAt;
+  final String? checkOutAt;
+  final String? ticketId;
+
+  /// Причина авто check-out; непустая — показываем строкой-предупреждением.
+  final String? checkOutReason;
+
+  bool get isPlanned => status == 'PLANNED';
+  bool get isCheckedIn => status == 'CHECKED_IN';
+  bool get isCheckedOut => status == 'CHECKED_OUT';
+  bool get isMissed => status == 'MISSED';
+
+  /// Маршрут назначен: без него кнопка маршрута показывает snackbar.
+  bool get hasRoute => routeId != null && routeId!.isNotEmpty;
+
+  static ScheduleEvent? tryParse(dynamic body) {
+    if (body is! Map) return null;
+    final String? id = body['id']?.toString();
+    if (id == null || id.isEmpty) return null;
+    return ScheduleEvent(
+      id: id,
+      scheduleName: body['scheduleName']?.toString() ?? 'Смена',
+      date: body['date']?.toString() ?? '',
+      plannedStart: body['plannedStart']?.toString() ?? '',
+      status: body['status']?.toString() ?? 'PLANNED',
+      objectId: _text(body['objectId']),
+      routeId: _text(body['routeId']),
+      checkInAt: _text(body['checkInAt']),
+      checkOutAt: _text(body['checkOutAt']),
+      ticketId: _text(body['ticketId']),
+      checkOutReason: _text(body['checkOutReason']),
+    );
+  }
+
+  static List<ScheduleEvent> listFrom(dynamic body) {
+    if (body is! List) return const <ScheduleEvent>[];
+    return body
+        .map(ScheduleEvent.tryParse)
+        .whereType<ScheduleEvent>()
+        .toList(growable: false);
+  }
+
+  static String? _text(dynamic value) {
+    final String text = value?.toString() ?? '';
+    return text.isEmpty ? null : text;
+  }
+}
