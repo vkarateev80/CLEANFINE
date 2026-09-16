@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../services/secure_storage_service.dart';
 import '../../../../services/service_providers.dart';
+import '../../data/repositories/auth_session_writer.dart';
 
 /// Состояние сессии: приложение стартует «в неизвестности», пока не прочитало
 /// токены из защищённого хранилища.
@@ -30,7 +31,10 @@ class SessionState {
 /// Роутер слушает это состояние: `unknown` → splash, нет сессии → `/login`,
 /// есть → `/home`. Фича авторизации вызывает [signIn] после успешного входа
 /// (пароль, PIN или биометрия).
-class SessionController extends Notifier<SessionState> {
+///
+/// Реализует [AuthSessionWriter]: репозиторий авторизации закрепляет сессию
+/// через этот контракт и не зависит от Riverpod.
+class SessionController extends Notifier<SessionState> implements AuthSessionWriter {
   /// «Голый» Dio для refresh: без интерцепторов `ApiClient`, иначе 401 при
   /// обновлении токена уйдёт в тот же обработчик и зациклится.
   final Dio _refreshDio = Dio(
@@ -68,6 +72,7 @@ class SessionController extends Notifier<SessionState> {
   }
 
   /// Сохранение сессии после успешного входа.
+  @override
   Future<void> signIn({
     required String accessToken,
     required String refreshToken,
@@ -89,6 +94,14 @@ class SessionController extends Notifier<SessionState> {
   /// Замена пары токенов (после refresh).
   Future<void> updateTokens({required String accessToken, required String refreshToken}) {
     return _storage.saveTokens(accessToken: accessToken, refreshToken: refreshToken);
+  }
+
+  /// То же, что [updateTokens], но под именем контракта [AuthSessionWriter]:
+  /// репозиторий сохраняет токены, ещё не объявляя сессию установленной
+  /// (сначала нужно проверить роль в `GET /api/auth/me`).
+  @override
+  Future<void> saveTokens({required String accessToken, required String refreshToken}) {
+    return updateTokens(accessToken: accessToken, refreshToken: refreshToken);
   }
 
   /// Обновление пары токенов по refresh-токену. Вызывается `SessionBridge`
@@ -121,6 +134,7 @@ class SessionController extends Notifier<SessionState> {
   }
 
   /// Выход: локальная сессия чистится всегда, даже если серверный logout упал.
+  @override
   Future<void> signOut() async {
     await _storage.clearSession();
     state = const SessionState.unauthenticated();
