@@ -1,13 +1,21 @@
 import 'package:cleaning_ops_app/app.dart';
 import 'package:cleaning_ops_app/services/secure_storage_service.dart';
 import 'package:cleaning_ops_app/services/service_providers.dart';
+import 'package:cleaning_ops_app/shared/data/data_providers.dart';
+import 'package:cleaning_ops_app/shared/services/location_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
+import 'helpers/operator_fakes.dart';
 
 /// Тесты каркаса М6.0: роутер, guard авторизации, таб-бар и кнопка SOS.
 /// Хранилище подменяется in-memory реализацией — платформенные каналы не нужны.
 void main() {
+  // Даты на экранах форматируются по-русски (`main.dart` делает это при старте).
+  setUpAll(() async => initializeDateFormatting('ru'));
+
   testWidgets('без сессии приложение уводит со splash на экран входа', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -59,7 +67,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [secureStorageProvider.overrideWithValue(storage)],
+        overrides: [
+          secureStorageProvider.overrideWithValue(storage),
+          // Экран SOS читает смену и координаты: без подмены тест упирался бы
+          // в реальную сеть и платформенный канал геолокации.
+          scheduleRepositoryProvider.overrideWithValue(FakeScheduleRepository()),
+          locationServiceProvider.overrideWithValue(FakeLocationService()),
+        ],
         child: const CleaningOpsApp(),
       ),
     );

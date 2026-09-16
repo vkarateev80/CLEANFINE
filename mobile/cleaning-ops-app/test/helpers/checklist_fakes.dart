@@ -16,13 +16,22 @@ import 'operator_fakes.dart';
 
 /// Загрузка фото: запоминает, что ушло в file-service.
 class FakeFilesRepository extends FilesRepository {
-  FakeFilesRepository({this.uploadFailure, this.url = 'http://files.test/photo.jpg'})
-      : super(fakeApiClient(FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{}))));
+  FakeFilesRepository({
+    this.uploadFailure,
+    this.attachFailure,
+    this.url = 'http://files.test/photo.jpg',
+    this.fileId = 'file-1',
+  }) : super(fakeApiClient(FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{}))));
 
   final Failure? uploadFailure;
+
+  /// Ошибка привязки фото к заявке (`POST /api/files/:id/attach`).
+  final Failure? attachFailure;
   final String url;
+  final String fileId;
 
   final List<Map<String, Object?>> uploads = <Map<String, Object?>>[];
+  final List<Map<String, Object?>> attachments = <Map<String, Object?>>[];
 
   @override
   Future<Result<UploadedFile>> uploadPhoto({
@@ -42,7 +51,7 @@ class FakeFilesRepository extends FilesRepository {
     if (uploadFailure != null) return Err<UploadedFile>(uploadFailure!);
     return Ok<UploadedFile>(
       UploadedFile(
-        id: 'file-1',
+        id: fileId,
         url: url,
         thumbnailUrl: '$url.thumb.jpg',
         width: 1920,
@@ -50,6 +59,13 @@ class FakeFilesRepository extends FilesRepository {
         watermarked: true,
       ),
     );
+  }
+
+  @override
+  Future<Result<String>> attachToTicket({required String fileId, required String ticketId}) async {
+    attachments.add(<String, Object?>{'fileId': fileId, 'ticketId': ticketId});
+    if (attachFailure != null) return Err<String>(attachFailure!);
+    return const Ok<String>('attachment-1');
   }
 }
 
@@ -132,9 +148,16 @@ ScheduleEvent checkedInEvent({
   String id = 'ev1',
   String? ticketId = 'ticket-1',
   String? routeId = 'r1',
+  String? objectId = 'object-1',
   String status = 'CHECKED_IN',
 }) {
-  return plannedEvent(id: id, status: status, ticketId: ticketId, routeId: routeId);
+  return plannedEvent(
+    id: id,
+    status: status,
+    ticketId: ticketId,
+    routeId: routeId,
+    objectId: objectId,
+  );
 }
 
 /// Маршрут из двух помещений: `room-1` (санузел) и `room-2` (кухня).

@@ -1,4 +1,5 @@
 import 'package:cleaning_ops_app/core/errors/failures.dart';
+import 'package:cleaning_ops_app/shared/data/models/emergency_ticket.dart';
 import 'package:cleaning_ops_app/shared/data/models/operation_completion.dart';
 import 'package:cleaning_ops_app/shared/data/models/operator_models.dart';
 import 'package:cleaning_ops_app/shared/data/models/schedule_event.dart';
@@ -108,16 +109,31 @@ class FakeCoreRepository extends CoreRepository {
 }
 
 class FakeTicketsRepository extends TicketsRepository {
-  FakeTicketsRepository({this.tickets = const <TicketSummary>[], this.completeFailure})
-      : super(fakeApiClient(FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{}))));
+  FakeTicketsRepository({
+    this.tickets = const <TicketSummary>[],
+    this.completeFailure,
+    this.emergencyFailure,
+    this.nearbyOperators = const <NearbyOperator>[],
+    this.emergencyId = 'ticket-sos',
+  }) : super(fakeApiClient(FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{}))));
 
   final List<TicketSummary> tickets;
 
   /// Ошибка завершения операции: сеть (`NetworkFailure`) или серверная.
   final Failure? completeFailure;
 
+  /// Ошибка создания аварийной заявки.
+  final Failure? emergencyFailure;
+
+  /// Кого «нашёл» gps-service для аварийной заявки.
+  final List<NearbyOperator> nearbyOperators;
+  final String emergencyId;
+
   /// Что именно ушло в `POST /api/tickets/:id/operations/:operationId/complete`.
   final List<Map<String, Object?>> completeCalls = <Map<String, Object?>>[];
+
+  /// Что именно ушло в `POST /api/tickets/emergency`.
+  final List<Map<String, Object?>> emergencyCalls = <Map<String, Object?>>[];
 
   @override
   Future<Result<List<TicketSummary>>> assignedTo(String userId, {int take = 20, int skip = 0}) async =>
@@ -147,6 +163,44 @@ class FakeTicketsRepository extends TicketsRepository {
         ticketId: ticketId,
         completedAt: completedAt?.toUtc().toIso8601String(),
         photoUrl: photoUrl,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<EmergencyTicket>> createEmergency({
+    required String objectId,
+    required String description,
+    required double lat,
+    required double lng,
+    String? roomId,
+    String? objectName,
+    String? floor,
+    int? radiusM,
+  }) async {
+    emergencyCalls.add(<String, Object?>{
+      'objectId': objectId,
+      'description': description,
+      'lat': lat,
+      'lng': lng,
+      'roomId': roomId,
+      'objectName': objectName,
+      'floor': floor,
+      'radiusM': radiusM,
+    });
+    if (emergencyFailure != null) return Err<EmergencyTicket>(emergencyFailure!);
+    return Ok<EmergencyTicket>(
+      EmergencyTicket(
+        id: emergencyId,
+        type: 'emergency',
+        priority: 'critical',
+        status: 'new',
+        description: description,
+        objectId: objectId,
+        roomId: roomId,
+        lat: lat,
+        lng: lng,
+        nearbyOperators: nearbyOperators,
       ),
     );
   }

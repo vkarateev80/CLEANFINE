@@ -1,6 +1,7 @@
 import '../../../core/constants/api_constants.dart';
 import '../../../core/errors/exceptions.dart';
 import '../../../services/api_client.dart';
+import '../models/emergency_ticket.dart';
 import '../models/operation_completion.dart';
 import '../models/operator_models.dart';
 import '../models/tech_card_models.dart';
@@ -103,6 +104,42 @@ class TicketsRepository {
         throw const ServerException('Некорректный ответ сервера: не удалось разобрать завершение операции');
       }
       return result;
+    });
+  }
+
+  /// `POST /api/tickets/emergency` (SOS, М3.5): CRITICAL-заявка плюс ближние операторы.
+  ///
+  /// Доступен любой аутентифицированной роли — в отличие от обычного
+  /// `POST /api/tickets`, который оператору запрещён.
+  Future<Result<EmergencyTicket>> createEmergency({
+    required String objectId,
+    required String description,
+    required double lat,
+    required double lng,
+    String? roomId,
+    String? objectName,
+    String? floor,
+    int? radiusM,
+  }) {
+    return guard(() async {
+      final response = await _api.post(
+        '${ApiConstants.apiPrefix}/tickets/emergency',
+        data: <String, dynamic>{
+          'objectId': objectId,
+          'description': description,
+          'lat': lat,
+          'lng': lng,
+          if (roomId != null) 'roomId': roomId,
+          if (objectName != null) 'objectName': objectName,
+          if (floor != null) 'floor': floor,
+          if (radiusM != null) 'radiusM': radiusM,
+        },
+      );
+      final EmergencyTicket? ticket = EmergencyTicket.tryParse(response.data);
+      if (ticket == null) {
+        throw const ServerException('Некорректный ответ сервера: не удалось разобрать аварийную заявку');
+      }
+      return ticket;
     });
   }
 }

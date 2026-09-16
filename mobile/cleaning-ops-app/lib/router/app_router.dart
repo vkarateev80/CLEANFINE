@@ -40,6 +40,10 @@ class AppRoutes {
   static String checklistFor({required String eventId, required String roomId}) =>
       '$routeMap/$eventId/room/$roomId';
 
+  /// Аварийная заявка: `/sos` плюс помещение, из которого её открыли.
+  static String sosFor({String? roomId}) =>
+      roomId == null || roomId.isEmpty ? sos : '$sos?roomId=$roomId';
+
   /// Переписка: `/chats/<chatId>`.
   static String chatThreadFor(String chatId) => '$chats/$chatId';
 }
@@ -97,7 +101,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Полноэкранные маршруты поверх таб-бара: SOS и оффлайн-очередь.
       GoRoute(
         path: AppRoutes.sos,
-        builder: (context, state) => const SosPage(),
+        builder: (context, state) => SosPage(roomId: state.uri.queryParameters['roomId']),
       ),
       GoRoute(
         path: AppRoutes.offline,

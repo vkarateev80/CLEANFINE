@@ -95,7 +95,7 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
             key: const Key('checklist_sos_button'),
             tooltip: 'Аварийная заявка',
             icon: const Icon(Icons.warning_amber),
-            onPressed: () => context.push(AppRoutes.sos),
+            onPressed: () => context.push(AppRoutes.sosFor(roomId: widget.roomId)),
           ),
         ],
       ),

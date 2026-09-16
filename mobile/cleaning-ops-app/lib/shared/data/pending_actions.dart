@@ -11,6 +11,13 @@ class PendingActionTypes {
   /// Завершение помещения: серверного эндпоинта нет (DS-002 `checklist.md` п. 11.1),
   /// отметка живёт локально и уходит бригадиру вместе с операциями.
   static const String roomCompleted = 'room_completed';
+
+  /// Аварийная заявка: `POST /api/tickets/emergency` плюс загрузка фото (DS-002
+  /// `sos.md` §3.6 — одна запись очереди на все три шага).
+  static const String sos = 'sos';
+
+  /// Привязка фото к уже созданной аварийной заявке (`POST /api/files/:id/attach`).
+  static const String sosAttachPhoto = 'sos_attach_photo';
 }
 
 enum PendingActionStatus {

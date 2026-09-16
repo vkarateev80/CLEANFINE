@@ -47,4 +47,27 @@ class FilesRepository {
       return file;
     });
   }
+
+  /// `POST /api/files/:id/attach` — связать файл с сущностью.
+  ///
+  /// Аварийной заявке (`EmergencyTicketDto`) поле `photoUrl` незнакомо (DS-002
+  /// `sos.md` п. 10.2), поэтому фото привязывается отдельным вызовом: без него
+  /// снимок остаётся в бакете и не виден в `GET /api/files/attachments/TICKET/:id`.
+  Future<Result<String>> attachToTicket({
+    required String fileId,
+    required String ticketId,
+  }) {
+    return guard(() async {
+      final response = await _api.post(
+        '${ApiConstants.apiPrefix}/files/$fileId/attach',
+        data: <String, dynamic>{'entityType': 'TICKET', 'entityId': ticketId},
+      );
+      final dynamic body = response.data;
+      final String? id = body is Map ? body['id']?.toString() : null;
+      if (id == null || id.isEmpty) {
+        throw const ServerException('Некорректный ответ сервера: не удалось привязать файл');
+      }
+      return id;
+    });
+  }
 }

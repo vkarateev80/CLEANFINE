@@ -45,7 +45,9 @@ class _RouteMapPageState extends ConsumerState<RouteMapPage> {
             key: const Key('route_sos_button'),
             tooltip: 'Аварийная заявка',
             icon: const Icon(Icons.warning_amber),
-            onPressed: () => context.push(AppRoutes.sos),
+            onPressed: () => context.push(
+              AppRoutes.sosFor(roomId: dayAsync.valueOrNull?.active?.point.roomId),
+            ),
           ),
         ],
       ),
