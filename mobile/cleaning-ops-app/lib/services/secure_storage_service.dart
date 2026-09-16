@@ -1,0 +1,98 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../core/errors/exceptions.dart';
+import 'api_client.dart';
+
+/// Ключи защищённого хранилища. Значения — часть контракта: их читают
+/// `ApiClient` (токены) и фича авторизации (биометрия, PIN).
+class StorageKeys {
+  const StorageKeys._();
+
+  static const String accessToken = 'access_token';
+  static const String refreshToken = 'refresh_token';
+  static const String biometricKey = 'biometric_key';
+  static const String userId = 'user_id';
+  static const String role = 'user_role';
+}
+
+/// Токены, биометрический ключ и данные сессии — в Keychain/EncryptedSharedPreferences.
+///
+/// Реализует [TokenStore], поэтому `ApiClient` читает токены отсюда и не знает,
+/// как именно они защищены.
+class SecureStorageService implements TokenStore {
+  SecureStorageService({FlutterSecureStorage? storage})
+      : _storage = storage ??
+            const FlutterSecureStorage(
+              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              // `first_unlock`: GPS-трекинг в фоне должен читать токен после
+              // блокировки экрана, но не до первой разблокировки после перезагрузки.
+              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+            );
+
+  final FlutterSecureStorage _storage;
+
+  @override
+  Future<String?> readAccessToken() => _read(StorageKeys.accessToken);
+
+  @override
+  Future<String?> readRefreshToken() => _read(StorageKeys.refreshToken);
+
+  @override
+  Future<void> saveTokens({required String accessToken, required String refreshToken}) async {
+    await _write(StorageKeys.accessToken, accessToken);
+    await _write(StorageKeys.refreshToken, refreshToken);
+  }
+
+  @override
+  Future<void> clearTokens() async {
+    await _delete(StorageKeys.accessToken);
+    await _delete(StorageKeys.refreshToken);
+  }
+
+  /// Биометрический ключ приходит с сервера после первого входа по паролю.
+  Future<String?> readBiometricKey() => _read(StorageKeys.biometricKey);
+
+  Future<void> saveBiometricKey(String value) => _write(StorageKeys.biometricKey, value);
+
+  Future<void> deleteBiometricKey() => _delete(StorageKeys.biometricKey);
+
+  Future<String?> readUserId() => _read(StorageKeys.userId);
+
+  Future<void> saveUserId(String value) => _write(StorageKeys.userId, value);
+
+  Future<String?> readRole() => _read(StorageKeys.role);
+
+  Future<void> saveRole(String value) => _write(StorageKeys.role, value);
+
+  /// Полный выход: чистим только сессию, биометрический ключ устройства остаётся
+  /// (иначе после выхода пришлось бы заново включать биометрию).
+  Future<void> clearSession() async {
+    await clearTokens();
+    await _delete(StorageKeys.userId);
+    await _delete(StorageKeys.role);
+  }
+
+  Future<String?> _read(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } on Exception catch (error) {
+      throw StorageException('Не удалось прочитать $key: $error');
+    }
+  }
+
+  Future<void> _write(String key, String value) async {
+    try {
+      await _storage.write(key: key, value: value);
+    } on Exception catch (error) {
+      throw StorageException('Не удалось сохранить $key: $error');
+    }
+  }
+
+  Future<void> _delete(String key) async {
+    try {
+      await _storage.delete(key: key);
+    } on Exception catch (error) {
+      throw StorageException('Не удалось удалить $key: $error');
+    }
+  }
+}
