@@ -41,9 +41,9 @@ class AppSpacing {
   static const double md = 12;
   static const double lg = 16;
   static const double xl = 24;
-  static const double 2xl = 32;
-  static const double 3xl = 48;
-  static const double 4xl = 64;
+  static const double space2xl = 32;
+  static const double space3xl = 48;
+  static const double space4xl = 64;
 }
 
 class AppRadius {

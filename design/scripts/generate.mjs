@@ -42,6 +42,17 @@ writeFileSync(join(outDir, 'tokens.css'), cssLines.join('\n') + '\n', 'utf8');
 
 // ---------- Dart (Flutter) ----------
 const hexToInt = (hex) => `0xFF${hex.slice(1).toUpperCase()}`;
+
+/**
+ * Идентификатор Dart: не может начинаться с цифры, поэтому ключи вида `2xl`
+ * (шаг шкалы отступов) становятся `space2xl`. Иначе сгенерированный файл не
+ * компилируется во Flutter (`static const double 2xl = 32;` — ошибка парсера).
+ */
+const dartIdent = (name, prefix = 'space') => {
+  const cleaned = String(name).replace(/[^A-Za-z0-9_]/g, '');
+  return /^[0-9]/.test(cleaned) ? `${prefix}${cleaned}` : cleaned;
+};
+
 const dart = [];
 dart.push('// Сгенерировано автоматически: node design/scripts/generate.mjs. Не редактировать вручную.');
 dart.push('/// Дизайн-токены Cleaning Ops (источник: design/tokens/*.json).');
@@ -59,11 +70,13 @@ dart.push('}');
 dart.push('');
 dart.push('class AppSpacing {');
 dart.push(`  static const double base = ${spacing.base};`);
-for (const [step, px] of Object.entries(spacing.scale)) dart.push(`  static const double ${step} = ${px};`);
+for (const [step, px] of Object.entries(spacing.scale))
+  dart.push(`  static const double ${dartIdent(step)} = ${px};`);
 dart.push('}');
 dart.push('');
 dart.push('class AppRadius {');
-for (const [level, px] of Object.entries(radius.levels)) dart.push(`  static const double ${level} = ${px};`);
+for (const [level, px] of Object.entries(radius.levels))
+  dart.push(`  static const double ${dartIdent(level, 'radius')} = ${px};`);
 dart.push('}');
 dart.push('');
 dart.push('class AppTypography {');
@@ -74,6 +87,17 @@ for (const [size, px] of Object.entries(typography.sizes)) {
 }
 for (const [weight, val] of Object.entries(typography.weights)) dart.push(`  static const int weight${weight[0].toUpperCase() + weight.slice(1)} = ${val};`);
 dart.push('}');
+
+// Проверка: сгенерированные константы должны быть валидными Dart-идентификаторами.
+// Ломающий пример уже был: шкала отступов содержит `2xl`, и Flutter не собирался.
+const badIdentifiers = dart
+  .map((line) => /^\s+static const \w+ ([A-Za-z0-9_]+) =/.exec(line))
+  .filter((match) => match && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(match[1]))
+  .map((match) => match[1]);
+if (badIdentifiers.length > 0) {
+  throw new Error(`невалидные Dart-идентификаторы в app_tokens.dart: ${badIdentifiers.join(', ')}`);
+}
+
 writeFileSync(join(outDir, 'app_tokens.dart'), dart.join('\n') + '\n', 'utf8');
 
 console.log('Generated:');
