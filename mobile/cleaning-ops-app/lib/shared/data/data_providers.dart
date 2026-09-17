@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/service_providers.dart';
 import 'repositories/files_repository.dart';
+import 'repositories/gps_repository.dart';
 import 'repositories/operator_repositories.dart';
 import 'repositories/schedule_repository.dart';
 
@@ -20,4 +21,8 @@ final ticketsRepositoryProvider = Provider<TicketsRepository>((ref) {
 
 final filesRepositoryProvider = Provider<FilesRepository>((ref) {
   return FilesRepository(ref.watch(filesApiProvider));
+});
+
+final gpsRepositoryProvider = Provider<GpsRepository>((ref) {
+  return GpsRepository(ref.watch(gpsApiProvider));
 });
