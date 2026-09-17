@@ -1,4 +1,5 @@
 import 'package:cleaning_ops_app/core/errors/failures.dart';
+import 'package:cleaning_ops_app/database/database_provider.dart';
 import 'package:cleaning_ops_app/features/sos/domain/emergency_category.dart';
 import 'package:cleaning_ops_app/features/sos/presentation/pages/sos_page.dart';
 import 'package:cleaning_ops_app/features/sos/presentation/providers/sos_providers.dart';
@@ -143,9 +144,10 @@ void main() {
     expect(find.byKey(const Key('sos_success_view')), findsOneWidget);
     expect(find.text(SosTexts.queued), findsOneWidget);
 
-    final PendingAction action = (await queue.pending()).single;
+    final PendingAction action = (await queue.all()).single;
     expect(action.type, PendingActionTypes.sos);
     expect(action.status, PendingActionStatus.pending);
+    expect(action.idempotencyKey, startsWith('sos:'));
     expect(action.payload['clientRequestId'], isNotNull);
     expect(action.payload['objectId'], 'object-1');
     expect(action.payload['localPhotoPath'], isNotNull);
@@ -241,8 +243,9 @@ void main() {
 
     expect(find.byKey(const Key('sos_success_view')), findsOneWidget);
     expect(find.text(SosTexts.photoNotAttached), findsOneWidget);
-    final PendingAction action = (await queue.pending()).single;
+    final PendingAction action = (await queue.all()).single;
     expect(action.type, PendingActionTypes.sosAttachPhoto);
+    expect(action.idempotencyKey, 'sos-attach:file-1');
     expect(action.payload['ticketId'], 'ticket-sos');
   });
 

@@ -1,7 +1,9 @@
 import 'package:cleaning_ops_app/app.dart';
+import 'package:cleaning_ops_app/database/database_provider.dart';
 import 'package:cleaning_ops_app/services/secure_storage_service.dart';
 import 'package:cleaning_ops_app/services/service_providers.dart';
 import 'package:cleaning_ops_app/shared/data/data_providers.dart';
+import 'package:cleaning_ops_app/shared/data/pending_actions.dart';
 import 'package:cleaning_ops_app/shared/services/location_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,10 +71,11 @@ void main() {
       ProviderScope(
         overrides: [
           secureStorageProvider.overrideWithValue(storage),
-          // Экран SOS читает смену и координаты: без подмены тест упирался бы
-          // в реальную сеть и платформенный канал геолокации.
+          // Экран SOS читает смену, координаты и очередь действий: без подмены тест
+          // упирался бы в реальную сеть, платформенный канал геолокации и файл БД.
           scheduleRepositoryProvider.overrideWithValue(FakeScheduleRepository()),
           locationServiceProvider.overrideWithValue(FakeLocationService()),
+          pendingActionQueueProvider.overrideWithValue(InMemoryPendingActionQueue()),
         ],
         child: const CleaningOpsApp(),
       ),

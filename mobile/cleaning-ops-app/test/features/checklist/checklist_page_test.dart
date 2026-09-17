@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cleaning_ops_app/core/errors/failures.dart';
 import 'package:cleaning_ops_app/core/utils/clock.dart';
+import 'package:cleaning_ops_app/database/database_provider.dart';
 import 'package:cleaning_ops_app/features/checklist/presentation/checklist_texts.dart';
 import 'package:cleaning_ops_app/features/checklist/presentation/pages/checklist_page.dart';
 import 'package:cleaning_ops_app/features/checklist/presentation/providers/checklist_providers.dart';
@@ -222,10 +223,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(await queue.pendingCount(), 1);
-    final PendingAction action = (await queue.pending()).single;
+    final PendingAction action = (await queue.all()).single;
     expect(action.type, PendingActionTypes.operationCompleted);
     expect(action.payload['operationId'], 'op1');
     expect(action.payload['ticketId'], 'ticket-1');
+    expect(action.idempotencyKey, 'op:ticket-1:op1');
 
     expect(find.byKey(const Key('checklist_op_queued_op1')), findsOneWidget);
     expect(find.text(ChecklistTexts.sending), findsOneWidget);

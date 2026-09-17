@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/clock.dart';
+import '../../../../database/database_provider.dart';
 import '../../../../shared/data/data_providers.dart';
 import '../../../../shared/data/models/file_models.dart';
 import '../../../../shared/data/models/operation_completion.dart';
@@ -471,6 +472,9 @@ class ChecklistController extends FamilyAsyncNotifier<ChecklistState, ChecklistA
   }) async {
     await ref.read(pendingActionQueueProvider).add(
           type: PendingActionTypes.operationCompleted,
+          // Ключ идемпотентности из DS-002 `offline.md` §4.2: повтор из очереди
+          // не создаст второе завершение той же операции.
+          idempotencyKey: 'op:${current.ticketId}:${op.operation.id}',
           payload: <String, dynamic>{
             'eventId': current.event.id,
             'roomId': current.room.id,

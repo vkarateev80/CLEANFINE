@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/errors/failures.dart';
+import '../../../../database/database_provider.dart';
 import '../../../../shared/data/data_providers.dart';
 import '../../../../shared/data/models/emergency_ticket.dart';
 import '../../../../shared/data/models/file_models.dart';
@@ -291,6 +292,7 @@ class SosController extends FamilyAsyncNotifier<SosState, String?> {
         photoNotAttached = true;
         await ref.read(pendingActionQueueProvider).add(
               type: PendingActionTypes.sosAttachPhoto,
+              idempotencyKey: 'sos-attach:$fileId',
               payload: <String, dynamic>{'fileId': fileId, 'ticketId': ticket.id},
             );
       }
@@ -310,6 +312,9 @@ class SosController extends FamilyAsyncNotifier<SosState, String?> {
   Future<String?> _enqueue(SosState current, String description, GeoPoint point) async {
     await ref.read(pendingActionQueueProvider).add(
           type: PendingActionTypes.sos,
+          // У SOS серверной идемпотентности нет (DS-002 `sos.md` п. 10.4), поэтому
+          // ключ локальный — по нему видно, что запись уже отправлялась.
+          idempotencyKey: 'sos:$clientRequestId',
           payload: <String, dynamic>{
             'clientRequestId': clientRequestId,
             'objectId': current.objectId,

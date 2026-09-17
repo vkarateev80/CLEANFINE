@@ -1,29 +1,42 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-/// Типы отложенных действий: то, что оператор сделал без сети.
+/// Виды отложенных действий оператора (DS-002 `offline.md` §4.1).
+///
+/// Значение `kind` пишется в drift, поэтому строки не переименовываются задним
+/// числом: по ним строится и `idempotencyKey`, и приоритет отправки.
 class PendingActionTypes {
   const PendingActionTypes._();
+
+  /// Аварийная заявка: (1) загрузка фото → (2) `POST /api/tickets/emergency` →
+  /// (3) привязка фото. Серверной идемпотентности у SOS нет, поэтому ключ
+  /// (`sos:<clientRequestId>`) живёт только на устройстве.
+  static const String sos = 'sos';
+
+  /// Привязка фото к уже созданной аварийной заявке.
+  ///
+  /// Отдельная запись, а не повтор всей цепочки `sos`: заявка уже существует, а
+  /// идемпотентности у `POST /api/tickets/emergency` нет — повтор создал бы дубль
+  /// (DS-002 `sos.md` п. 10.4).
+  static const String sosAttachPhoto = 'sos_attach_photo';
 
   /// Завершение операции техкарты (`POST /api/tickets/:id/operations/:operationId/complete`).
   static const String operationCompleted = 'operation_completed';
 
-  /// Завершение помещения: серверного эндпоинта нет (DS-002 `checklist.md` п. 11.1),
-  /// отметка живёт локально и уходит бригадиру вместе с операциями.
-  static const String roomCompleted = 'room_completed';
-
-  /// Аварийная заявка: `POST /api/tickets/emergency` плюс загрузка фото (DS-002
-  /// `sos.md` §3.6 — одна запись очереди на все три шага).
-  static const String sos = 'sos';
-
-  /// Привязка фото к уже созданной аварийной заявке (`POST /api/files/:id/attach`).
-  static const String sosAttachPhoto = 'sos_attach_photo';
+  /// Приоритет отправки: меньше — раньше (DS-002 `offline.md` §4.1).
+  static int priorityOf(String kind) => switch (kind) {
+        sos => 1,
+        operationCompleted => 2,
+        sosAttachPhoto => 3,
+        _ => 9,
+      };
 }
 
+/// Статус записи очереди: подписи дословно из DS-002 `offline.md` §9.
 enum PendingActionStatus {
-  pending('pending', 'Отправляется…'),
+  pending('pending', 'Ожидает'),
+  sending('sending', 'Отправляется…'),
   synced('synced', 'Отправлено'),
-  failed('failed', 'Ошибка отправки');
+  failed('failed', 'Ошибка');
 
   const PendingActionStatus(this.code, this.label);
 
@@ -36,53 +49,124 @@ enum PendingActionStatus {
       );
 }
 
-/// Действие, которое не удалось отправить: в памяти (М6.4) или в drift (М6.7).
+/// Действие оператора, которое не ушло на сервер (таблица `pending_actions`).
 class PendingAction {
   const PendingAction({
     required this.id,
     required this.type,
     required this.payload,
     required this.createdAt,
+    this.idempotencyKey,
     this.status = PendingActionStatus.pending,
     this.attempts = 0,
+    this.lastError,
+    this.nextAttemptAt,
+    this.syncedAt,
   });
 
+  /// Локальный uuid v4: ключ интерфейса и логов.
   final String id;
+
+  /// `kind` из DS-002: `sos`, `operation_completed`, …
   final String type;
+
   final Map<String, dynamic> payload;
+
+  /// `op:<ticketId>:<operationId>` | `sos:<clientRequestId>` — защита от дублей.
+  final String? idempotencyKey;
+
   final DateTime createdAt;
   final PendingActionStatus status;
+
+  /// Сколько раз пытались отправить.
   final int attempts;
 
-  PendingAction copyWith({PendingActionStatus? status, int? attempts}) {
+  /// Текст последней ошибки: его видит оператор на `/offline`.
+  final String? lastError;
+
+  /// Когда пробовать снова (экспоненциальная задержка, DS-002 §5.2).
+  final DateTime? nextAttemptAt;
+
+  final DateTime? syncedAt;
+
+  /// Записи, которые ещё не ушли на сервер (для счётчика в `AppBar`).
+  bool get isOutgoing =>
+      status == PendingActionStatus.pending ||
+      status == PendingActionStatus.sending ||
+      status == PendingActionStatus.failed;
+
+  int get priority => PendingActionTypes.priorityOf(type);
+
+  PendingAction copyWith({
+    PendingActionStatus? status,
+    int? attempts,
+    String? lastError,
+    bool clearLastError = false,
+    DateTime? nextAttemptAt,
+    DateTime? syncedAt,
+  }) {
     return PendingAction(
       id: id,
       type: type,
       payload: payload,
+      idempotencyKey: idempotencyKey,
       createdAt: createdAt,
       status: status ?? this.status,
       attempts: attempts ?? this.attempts,
+      lastError: clearLastError ? null : lastError ?? this.lastError,
+      nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
+      syncedAt: syncedAt ?? this.syncedAt,
     );
   }
 }
 
 /// Очередь «сделано без сети — отправить потом».
 ///
-/// В М6.4 очередь держится в памяти процесса: этого достаточно, чтобы завершение
-/// операции не падало с ошибкой и было видно в интерфейсе. М6.7 заменяет
-/// реализацию на drift-таблицу `pending_actions` (та же очередь переживёт
-/// перезапуск приложения) и добавляет собственно синхронизацию с сетью.
+/// Рабочая реализация — drift (`lib/database`): очередь переживает перезапуск
+/// приложения. [InMemoryPendingActionQueue] остаётся для тестов и для случая,
+/// когда база недоступна (например, на платформе без sqlite3).
 abstract class PendingActionQueue {
-  Future<PendingAction> add({required String type, required Map<String, dynamic> payload});
+  /// Кладёт действие в очередь. [idempotencyKey] защищает от дублей при повторе.
+  Future<PendingAction> add({
+    required String type,
+    required Map<String, dynamic> payload,
+    String? idempotencyKey,
+    DateTime? createdAt,
+  });
 
-  Future<List<PendingAction>> pending();
+  /// Все записи в порядке приоритета и времени создания — для экрана `/offline`.
+  Future<List<PendingAction>> all();
 
+  /// Записи, готовые к отправке сейчас: `pending` и `nextAttemptAt <= now`.
+  ///
+  /// Сначала по приоритету вида действия, внутри вида — FIFO (DS-002 §5.2).
+  Future<List<PendingAction>> ready(DateTime now);
+
+  /// Сколько действий ждёт отправки (`pending` + `sending` + `failed`).
   Future<int> pendingCount();
+
+  Future<PendingAction?> byId(String id);
+
+  Future<void> markSending(String id);
+
+  Future<void> markSynced(String id, {DateTime? at});
+
+  /// Ошибка отправки: попытка засчитана, назначено время следующего повтора.
+  Future<void> markFailed(
+    String id, {
+    required String error,
+    required int attempts,
+    DateTime? nextAttemptAt,
+  });
+
+  /// Ручной повтор: отправлять немедленно, счётчик попыток не сбрасываем.
+  Future<void> retryNow(String id);
+
+  Future<void> remove(String id);
 }
 
-/// Очередь в памяти: живёт до перезапуска приложения.
-class InMemoryPendingActionQueue implements PendingActionQueue {
-  InMemoryPendingActionQueue({Uuid? uuid, DateTime Function()? now, List<PendingAction>? initial})
+/// Очередь в памяти: живёт до перезапуска приложения, используется в тестах.
+class InMemoryPendingActionQueue implements PendingActionQueue {  InMemoryPendingActionQueue({Uuid? uuid, DateTime Function()? now, List<PendingAction>? initial})
       : _uuid = uuid ?? const Uuid(),
         _now = now ?? DateTime.now,
         _actions = <PendingAction>[...?initial];
@@ -91,28 +175,112 @@ class InMemoryPendingActionQueue implements PendingActionQueue {
   final DateTime Function() _now;
   final List<PendingAction> _actions;
 
+  PendingAction? _find(String id) {
+    for (final PendingAction action in _actions) {
+      if (action.id == id) return action;
+    }
+    return null;
+  }
+
+  void _replace(PendingAction updated) {
+    final int index = _actions.indexWhere((PendingAction action) => action.id == updated.id);
+    if (index >= 0) _actions[index] = updated;
+  }
+
+  /// Приоритет вида действия, внутри вида — FIFO.
+  List<PendingAction> _sorted(Iterable<PendingAction> source) {
+    final List<PendingAction> list = source.toList();
+    list.sort((PendingAction a, PendingAction b) {
+      final int byPriority = a.priority.compareTo(b.priority);
+      return byPriority != 0 ? byPriority : a.createdAt.compareTo(b.createdAt);
+    });
+    return list;
+  }
+
   @override
-  Future<PendingAction> add({required String type, required Map<String, dynamic> payload}) async {
+  Future<PendingAction> add({
+    required String type,
+    required Map<String, dynamic> payload,
+    String? idempotencyKey,
+    DateTime? createdAt,
+  }) async {
     final PendingAction action = PendingAction(
       id: _uuid.v4(),
       type: type,
       payload: payload,
-      createdAt: _now(),
+      idempotencyKey: idempotencyKey,
+      createdAt: createdAt ?? _now(),
     );
     _actions.add(action);
     return action;
   }
 
   @override
-  Future<List<PendingAction>> pending() async => _actions
-      .where((PendingAction action) => action.status == PendingActionStatus.pending)
-      .toList(growable: false);
+  Future<List<PendingAction>> all() async => _sorted(_actions);
 
   @override
-  Future<int> pendingCount() async => (await pending()).length;
-}
+  Future<List<PendingAction>> ready(DateTime now) async => _sorted(
+        _actions.where(
+          (PendingAction action) =>
+              action.status == PendingActionStatus.pending &&
+              (action.nextAttemptAt == null || !action.nextAttemptAt!.isAfter(now)),
+        ),
+      );
 
-/// Очередь отложенных действий приложения.
-final pendingActionQueueProvider = Provider<PendingActionQueue>((Ref ref) {
-  return InMemoryPendingActionQueue();
-});
+  @override
+  Future<int> pendingCount() async =>
+      _actions.where((PendingAction action) => action.isOutgoing).length;
+
+  @override
+  Future<PendingAction?> byId(String id) async => _find(id);
+
+  @override
+  Future<void> markSending(String id) async {
+    final PendingAction? action = _find(id);
+    if (action != null) _replace(action.copyWith(status: PendingActionStatus.sending));
+  }
+
+  @override
+  Future<void> markSynced(String id, {DateTime? at}) async {
+    final PendingAction? action = _find(id);
+    if (action == null) return;
+    _replace(
+      action.copyWith(
+        status: PendingActionStatus.synced,
+        syncedAt: at ?? _now(),
+        clearLastError: true,
+      ),
+    );
+  }
+
+  @override
+  Future<void> markFailed(
+    String id, {
+    required String error,
+    required int attempts,
+    DateTime? nextAttemptAt,
+  }) async {
+    final PendingAction? action = _find(id);
+    if (action == null) return;
+    _replace(
+      action.copyWith(
+        status: PendingActionStatus.failed,
+        attempts: attempts,
+        lastError: error,
+        nextAttemptAt: nextAttemptAt,
+      ),
+    );
+  }
+
+  @override
+  Future<void> retryNow(String id) async {
+    final PendingAction? action = _find(id);
+    if (action == null) return;
+    _replace(action.copyWith(status: PendingActionStatus.pending, nextAttemptAt: _now()));
+  }
+
+  @override
+  Future<void> remove(String id) async {
+    _actions.removeWhere((PendingAction action) => action.id == id);
+  }
+}
