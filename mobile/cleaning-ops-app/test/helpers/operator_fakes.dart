@@ -207,15 +207,40 @@ class FakeTicketsRepository extends TicketsRepository {
 }
 
 class FakeLocationService implements LocationService {
-  FakeLocationService({this.point = const GeoPoint(55.7558, 37.6173), this.errorMessage});
+  FakeLocationService({
+    this.point = const GeoPoint(55.7558, 37.6173),
+    this.errorMessage,
+    this.access = LocationAccess.granted,
+    this.accuracy = 5,
+    this.speed = 0,
+  });
 
   final GeoPoint point;
   final String? errorMessage;
 
+  /// Разрешение на геолокацию — его показывает профиль (М6.6).
+  final LocationAccess access;
+  final double? accuracy;
+  final double? speed;
+
+  int settingsCalls = 0;
+
   @override
-  Future<GeoPoint> currentPosition() async {
+  Future<GeoPoint> currentPosition() async => (await currentSample()).point;
+
+  @override
+  Future<LocationSample> currentSample() async {
     if (errorMessage != null) throw LocationUnavailable(errorMessage!);
-    return point;
+    return LocationSample(point: point, accuracy: accuracy, speed: speed);
+  }
+
+  @override
+  Future<LocationAccess> accessStatus() async => access;
+
+  @override
+  Future<bool> openSettings() async {
+    settingsCalls += 1;
+    return true;
   }
 }
 

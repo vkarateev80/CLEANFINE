@@ -1,5 +1,7 @@
 import 'package:cleaning_ops_app/app.dart';
+import 'package:cleaning_ops_app/database/app_database.dart';
 import 'package:cleaning_ops_app/database/database_provider.dart';
+import 'package:cleaning_ops_app/services/gps_tracking_service.dart';
 import 'package:cleaning_ops_app/services/secure_storage_service.dart';
 import 'package:cleaning_ops_app/services/service_providers.dart';
 import 'package:cleaning_ops_app/shared/data/data_providers.dart';
@@ -10,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'helpers/gps_fakes.dart';
 import 'helpers/operator_fakes.dart';
 
 /// Тесты каркаса М6.0: роутер, guard авторизации, таб-бар и кнопка SOS.
@@ -18,10 +21,24 @@ void main() {
   // Даты на экранах форматируются по-русски (`main.dart` делает это при старте).
   setUpAll(() async => initializeDateFormatting('ru'));
 
+  // Каркас приложения запускает GPS-трекинг: без подмены он пошёл бы в базу
+  // (платформенный `path_provider`) и геолокацию. Одна база на файл — drift
+  // предупреждает, если открыть несколько экземпляров сразу.
+  late AppDatabase database;
+  setUpAll(() => database = AppDatabase.memory());
+  tearDownAll(() => database.close());
+
+  List<Override> shellOverrides(SecureStorageService storage) => <Override>[
+        secureStorageProvider.overrideWithValue(storage),
+        gpsTrackingServiceProvider.overrideWithValue(
+          StubGpsTrackingService(const GpsTrackingState(), database),
+        ),
+      ];
+
   testWidgets('без сессии приложение уводит со splash на экран входа', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [secureStorageProvider.overrideWithValue(_InMemoryStorage())],
+        overrides: shellOverrides(_InMemoryStorage()),
         child: const CleaningOpsApp(),
       ),
     );
@@ -45,7 +62,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [secureStorageProvider.overrideWithValue(storage)],
+        overrides: shellOverrides(storage),
         child: const CleaningOpsApp(),
       ),
     );
@@ -69,10 +86,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          secureStorageProvider.overrideWithValue(storage),
+        overrides: <Override>[
+          ...shellOverrides(storage),
           // Экран SOS читает смену, координаты и очередь действий: без подмены тест
-          // упирался бы в реальную сеть, платформенный канал геолокации и файл БД.
+          // упирался бы в реальную сеть и платформенный канал геолокации.
           scheduleRepositoryProvider.overrideWithValue(FakeScheduleRepository()),
           locationServiceProvider.overrideWithValue(FakeLocationService()),
           pendingActionQueueProvider.overrideWithValue(InMemoryPendingActionQueue()),

@@ -19,17 +19,53 @@ class LocationUnavailable implements Exception {
   String toString() => message;
 }
 
+/// Состояние доступа к геолокации — для индикатора в профиле (М6.6).
+enum LocationAccess {
+  granted('Разрешено'),
+  grantedWhileInUse('Разрешено при использовании'),
+  denied('Отклонено'),
+  deniedForever('Отклонено навсегда'),
+  serviceDisabled('Служба геолокации выключена');
+
+  const LocationAccess(this.label);
+
+  final String label;
+
+  bool get isGranted => this == granted || this == grantedWhileInUse;
+}
+
+/// Точка трека вместе с дополнительными полями (М6.6).
+class LocationSample {
+  const LocationSample({required this.point, this.accuracy, this.speed});
+
+  final GeoPoint point;
+  final double? accuracy;
+  final double? speed;
+}
+
 /// Интерфейс геолокации: экраны не обращаются к `geolocator` напрямую,
 /// иначе widget-тесты упирались бы в платформенные каналы.
 abstract class LocationService {
   Future<GeoPoint> currentPosition();
+
+  /// Точка с точностью и скоростью — их пишет трекер в буфер (`gps_points`).
+  Future<LocationSample> currentSample();
+
+  /// Статус разрешения (без запроса): «Разрешено», «Отклонено» и т. п.
+  Future<LocationAccess> accessStatus();
+
+  /// Системный экран разрешений приложения.
+  Future<bool> openSettings();
 }
 
 class GeolocatorLocationService implements LocationService {
   const GeolocatorLocationService();
 
   @override
-  Future<GeoPoint> currentPosition() async {
+  Future<GeoPoint> currentPosition() async => (await currentSample()).point;
+
+  @override
+  Future<LocationSample> currentSample() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
         throw const LocationUnavailable('Включите геолокацию на устройстве');
@@ -44,7 +80,11 @@ class GeolocatorLocationService implements LocationService {
       final Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      return GeoPoint(position.latitude, position.longitude);
+      return LocationSample(
+        point: GeoPoint(position.latitude, position.longitude),
+        accuracy: position.accuracy,
+        speed: position.speed,
+      );
     } on LocationUnavailable {
       rethrow;
     } on Exception {
@@ -52,6 +92,26 @@ class GeolocatorLocationService implements LocationService {
       throw const LocationUnavailable('Не удалось определить местоположение');
     }
   }
+
+  @override
+  Future<LocationAccess> accessStatus() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return LocationAccess.serviceDisabled;
+      final LocationPermission permission = await Geolocator.checkPermission();
+      return switch (permission) {
+        LocationPermission.always => LocationAccess.granted,
+        LocationPermission.whileInUse => LocationAccess.grantedWhileInUse,
+        LocationPermission.deniedForever => LocationAccess.deniedForever,
+        LocationPermission.denied => LocationAccess.denied,
+        _ => LocationAccess.denied,
+      };
+    } on Exception {
+      return LocationAccess.denied;
+    }
+  }
+
+  @override
+  Future<bool> openSettings() => Geolocator.openAppSettings();
 }
 
 final locationServiceProvider = Provider<LocationService>((ref) {

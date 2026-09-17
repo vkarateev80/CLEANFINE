@@ -1,17 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../router/app_router.dart';
+import '../../services/gps_tracking_service.dart';
 
 /// Каркас авторизованной части приложения.
 ///
 /// По DS-002 (`overview.md`, `README.md`) это нижний таб-бар из **трёх** пунктов
 /// («Сегодня», «Чаты», «Профиль») и постоянная кнопка SOS поверх него.
 /// Маршрут смены, чек-лист, SOS и оффлайн-экран — полноэкранные маршруты вне shell.
-class AppShell extends StatelessWidget {
+///
+/// Каркас также владеет GPS-трекингом (М6.6): пока оператор в приложении, точки
+/// копятся в буфере и уходят батчами; вне смены трекер ставит себя на паузу.
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, required this.child});
 
   final Widget child;
+
+  @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  /// Ссылка на трекер: в `dispose` читать провайдер уже нельзя (контейнер гаснет).
+  GpsTrackerController? _tracker;
+
+  @override
+  void initState() {
+    super.initState();
+    _tracker = ref.read(gpsTrackerProvider.notifier);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _tracker?.start();
+    });
+  }
+
+  @override
+  void dispose() {
+    // Провайдер останавливает трекер и через `ref.onDispose`; здесь — на случай
+    // выхода из аккаунта, когда каркас снимается, а контейнер ещё жив.
+    _tracker?.stop();
+    super.dispose();
+  }
 
   static const List<_ShellTab> _tabs = <_ShellTab>[
     _ShellTab(AppRoutes.today, Icons.today_outlined, Icons.today, 'Сегодня', Key('shell_tab_today')),
@@ -49,7 +79,7 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final index = _indexFor(context);
     return Scaffold(
-      body: child,
+      body: widget.child,
       floatingActionButton: FloatingActionButton.extended(
         key: Key(_sosKey(context)),
         onPressed: () => context.push(AppRoutes.sos),
