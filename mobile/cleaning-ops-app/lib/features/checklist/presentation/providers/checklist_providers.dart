@@ -478,6 +478,9 @@ class ChecklistController extends FamilyAsyncNotifier<ChecklistState, ChecklistA
           payload: <String, dynamic>{
             'eventId': current.event.id,
             'roomId': current.room.id,
+            // Названия нужны экрану очереди `/offline` (DS-002 `offline.md` §9).
+            'roomName': current.room.name,
+            'operationName': op.operation.name,
             'ticketId': current.ticketId,
             'operationId': op.operation.id,
             'completedAt': now.toUtc().toIso8601String(),

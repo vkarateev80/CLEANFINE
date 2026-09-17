@@ -70,6 +70,28 @@ void main() {
     expect((await queue.byId(first.id))!.type, PendingActionTypes.sos);
   });
 
+  test('временная ошибка возвращает запись в pending с временем повтора', () async {
+    final PendingAction action = await queue.add(
+      type: PendingActionTypes.operationCompleted,
+      payload: <String, dynamic>{'operationId': 'op-1'},
+      createdAt: base,
+    );
+    final DateTime retryAt = base.add(const Duration(seconds: 5));
+
+    await queue.scheduleRetry(action.id, error: 'Нет соединения', attempts: 1, nextAttemptAt: retryAt);
+    PendingAction stored = (await queue.byId(action.id))!;
+    expect(stored.status, PendingActionStatus.pending);
+    expect(stored.attempts, 1);
+    expect(stored.lastError, 'Нет соединения');
+    expect(stored.nextAttemptAt, retryAt);
+    expect(await queue.ready(base), isEmpty);
+
+    await queue.markFailed(action.id, error: 'Нет прав', attempts: 2);
+    stored = (await queue.byId(action.id))!;
+    expect(stored.status, PendingActionStatus.failed);
+    expect(stored.nextAttemptAt, isNull);
+  });
+
   test('готовые к отправке идут по приоритету вида и FIFO внутри вида', () async {
     // Операции созданы раньше SOS — порядок задаёт приоритет, а не время.
     final PendingAction operation = await queue.add(
@@ -102,7 +124,7 @@ void main() {
       payload: <String, dynamic>{'operationId': 'op-1'},
       createdAt: base,
     );
-    await queue.markFailed(
+    await queue.scheduleRetry(
       action.id,
       error: 'Нет соединения',
       attempts: 1,
@@ -110,6 +132,7 @@ void main() {
     );
 
     expect(await queue.ready(base), isEmpty, reason: 'ещё не время следующей попытки');
+    expect(await queue.ready(base.add(const Duration(seconds: 30))), hasLength(1));
 
     await queue.retryNow(action.id);
     final List<PendingAction> ready = await queue.ready(base);

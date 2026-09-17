@@ -151,13 +151,18 @@ abstract class PendingActionQueue {
 
   Future<void> markSynced(String id, {DateTime? at});
 
-  /// Ошибка отправки: попытка засчитана, назначено время следующего повтора.
-  Future<void> markFailed(
+  /// Временная ошибка: запись возвращается в `pending`, повтор — в [nextAttemptAt]
+  /// (DS-002 `offline.md` §5.2.4).
+  Future<void> scheduleRetry(
     String id, {
     required String error,
     required int attempts,
-    DateTime? nextAttemptAt,
+    required DateTime nextAttemptAt,
   });
+
+  /// Постоянная ошибка (4xx) или исчерпан лимит попыток: авто-повторов больше нет,
+  /// запись ждёт кнопки «Повторить» (DS-002 §5.2.7).
+  Future<void> markFailed(String id, {required String error, required int attempts});
 
   /// Ручной повтор: отправлять немедленно, счётчик попыток не сбрасываем.
   Future<void> retryNow(String id);
@@ -254,12 +259,26 @@ class InMemoryPendingActionQueue implements PendingActionQueue {  InMemoryPendin
   }
 
   @override
-  Future<void> markFailed(
+  Future<void> scheduleRetry(
     String id, {
     required String error,
     required int attempts,
-    DateTime? nextAttemptAt,
+    required DateTime nextAttemptAt,
   }) async {
+    final PendingAction? action = _find(id);
+    if (action == null) return;
+    _replace(
+      action.copyWith(
+        status: PendingActionStatus.pending,
+        attempts: attempts,
+        lastError: error,
+        nextAttemptAt: nextAttemptAt,
+      ),
+    );
+  }
+
+  @override
+  Future<void> markFailed(String id, {required String error, required int attempts}) async {
     final PendingAction? action = _find(id);
     if (action == null) return;
     _replace(
@@ -267,7 +286,6 @@ class InMemoryPendingActionQueue implements PendingActionQueue {  InMemoryPendin
         status: PendingActionStatus.failed,
         attempts: attempts,
         lastError: error,
-        nextAttemptAt: nextAttemptAt,
       ),
     );
   }

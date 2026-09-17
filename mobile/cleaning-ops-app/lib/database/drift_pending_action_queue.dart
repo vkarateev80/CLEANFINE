@@ -78,19 +78,32 @@ class DriftPendingActionQueue implements PendingActionQueue {
   }
 
   @override
-  Future<void> markFailed(
+  Future<void> scheduleRetry(
     String id, {
     required String error,
     required int attempts,
-    DateTime? nextAttemptAt,
+    required DateTime nextAttemptAt,
   }) {
+    return _db.updateAction(
+      id,
+      PendingActionsCompanion(
+        status: const Value<String>('pending'),
+        attempts: Value<int>(attempts),
+        lastError: Value<String?>(error),
+        nextAttemptAt: Value<DateTime?>(nextAttemptAt),
+      ),
+    );
+  }
+
+  @override
+  Future<void> markFailed(String id, {required String error, required int attempts}) {
     return _db.updateAction(
       id,
       PendingActionsCompanion(
         status: const Value<String>('failed'),
         attempts: Value<int>(attempts),
         lastError: Value<String?>(error),
-        nextAttemptAt: Value<DateTime?>(nextAttemptAt),
+        nextAttemptAt: const Value<DateTime?>(null),
       ),
     );
   }

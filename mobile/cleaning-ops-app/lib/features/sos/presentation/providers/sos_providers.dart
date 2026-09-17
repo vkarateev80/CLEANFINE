@@ -323,6 +323,7 @@ class SosController extends FamilyAsyncNotifier<SosState, String?> {
             'lat': point.lat,
             'lng': point.lng,
             if (current.objectName != null) 'objectName': current.objectName,
+            if (current.roomLabel != null) 'roomName': current.roomLabel,
             if (current.roomLabel != null) 'floor': current.roomLabel,
             'radiusM': SosConstants.nearbyRadiusM,
             if (current.photo != null) 'localPhotoPath': current.photo!.path,

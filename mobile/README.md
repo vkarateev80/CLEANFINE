@@ -77,21 +77,25 @@ lib/
 │   ├── theme/             # app_theme.dart, app_colors.dart (поверх design/tokens/generated/app_tokens.dart)
 │   ├── utils/             # validators.dart, formatters.dart, clock.dart
 │   └── errors/            # exceptions.dart, failures.dart
+├── database/              # drift: app_database.dart (+ .g.dart), очередь действий
 ├── features/              # feature-first: auth, home, route_map, checklist, sos, chat, profile, offline
 │   └── <фича>/            # data / presentation (страницы, виджеты, провайдеры)
 ├── shared/
-│   ├── data/              # модели, репозитории, Result/Failure, pending_actions.dart (очередь)
+│   ├── data/              # модели, репозитории, Result/Failure, pending_actions.dart (контракт очереди)
 │   ├── services/          # location_service.dart, photo_service.dart
 │   └── widgets/           # переиспользуемые виджеты (каркас с табами и SOS)
 ├── router/app_router.dart # go_router + guard авторизации
-└── services/              # api_client.dart, secure_storage_service.dart, service_providers.dart
+└── services/              # api_client.dart, connectivity_service.dart, sync_service.dart, service_providers.dart
 ```
 
 Сделано по фазам М6: каркас и авторизация (М6.0–М6.2), «Сегодня» и маршрут дня (М6.3), чек-лист
-помещения (М6.4), аварийная заявка SOS (М6.5). Состояние приёмки: `flutter analyze` — 0 замечаний,
-`flutter test` — 84 теста.
-Каталог `lib/database/` (drift) появится в М6.7 — сейчас очередь действий живёт в памяти процесса
-(`lib/shared/data/pending_actions.dart`).
+помещения (М6.4), аварийная заявка SOS (М6.5), оффлайн-очередь и синхронизация (М6.7, часть 1).
+Состояние приёмки: `flutter analyze` — 0 замечаний, `flutter test` — 117 тестов.
+
+Drift-код (`lib/database/app_database.g.dart`) сгенерирован и лежит в репозитории — CI не запускает
+`build_runner`. После правки таблиц: `flutter pub run build_runner build --delete-conflicting-outputs`.
+Хост-тесты drift берут нативную sqlite3 через `test/flutter_test_config.dart` (Windows —
+`winsqlite3.dll`, Linux — `libsqlite3.so`/`libsqlite3.so.0`).
 
 Правила кода — «Правила написания кода в Dash» (`УСТАВ.md`): PascalCase для классов и виджетов,
 camelCase для полей и методов, snake_case для файлов, суффиксы виджетов (`Page`, `Screen`,
@@ -100,13 +104,15 @@ camelCase для полей и методов, snake_case для файлов, �
 ## Оффлайн-модель (кратко)
 
 1. Действия оператора (SOS, завершение операции, сообщение в чат) сначала пишутся в локальную
-   очередь (`pending_actions`) со статусом `pending`. До М6.7 очередь держится в памяти
-   (`InMemoryPendingActionQueue`), дальше её заменяет таблица drift — интерфейс `PendingActionQueue`
-   уже тот, которым будет пользоваться синхронизатор.
-2. Синхронизатор при появлении сети отправляет действия по порядку, с экспоненциальной задержкой
-   и идемпотентными ключами (у операций — `operationId`, у SOS — локальный `clientRequestId`).
+   очередь drift (`pending_actions`) со статусом `pending` — она переживает перезапуск приложения
+   (`DriftPendingActionQueue`, `lib/database`). В тестах используется `InMemoryPendingActionQueue`.
+2. Синхронизатор (`SyncService`) отправляет действия по приоритету вида и FIFO внутри вида, с
+   экспоненциальной задержкой (1→2→5→10→30→60→300 с, джиттер ±20 %) и ключами идемпотентности
+   (`op:<ticketId>:<operationId>`, `sos:<clientRequestId>`). Временная ошибка возвращает запись в
+   очередь, 4xx и лимит 10 попыток — в `failed` и ждут кнопки «Повторить».
 3. UI показывает индикатор «оффлайн» и число неотправленных действий; после синка статус меняется
    на `synced`.
-4. План этажа и данные смены кэшируются, чтобы маршрут открывался без сети.
+4. План этажа и данные смены кэшируются, чтобы маршрут открывался без сети — таблицы кэша чтения
+   (`shift_events`, `cached_rooms`, `cached_tech_cards`) ещё не сделаны, это вторая часть М6.7.
 5. Завершение операции без сети сохраняет снимок на устройстве, а в очереди лежит `localPhotoPath`:
    фото уходит в file-service, когда соединение вернётся.
