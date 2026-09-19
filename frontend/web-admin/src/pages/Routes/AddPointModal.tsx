@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, ErrorBanner, Field, Input, Modal, Select } from '../../components/ui';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import type { RoomEntity } from '../../types/core';
@@ -57,9 +57,27 @@ export function AddPointModal({
   const defaultAfterIdRef = useRef(defaultAfterId);
   defaultAfterIdRef.current = defaultAfterId;
 
-  // Каждое открытие — новая попытка: остатки прошлого выбора сбивали бы с толку.
-  useEffect(() => {
-    if (!open) return;
+  /**
+   * Каждое открытие — новая попытка: остатки прошлого выбора сбивали бы с толку.
+   *
+   * Сброс сделан `useLayoutEffect` и привязан к фронту `open` (`false → true`), а не
+   * к маунту и не к «открытому» значению флага. Причина — гонка М2.7: при
+   * `useEffect` сброс ложился в отдельный commit уже после того, как браузер открыл
+   * форму. Между показом формы и этим commit'ом поле ещё держало значение прошлой
+   * точки, ввод пользователя попадал ровно в этот зазор и терялся: React видел, что
+   * значение поля не изменилось (в DOM уже стояло то же число), не вызывал
+   * `onChange`, а следом commit сброса возвращал поле к пустому состоянию. Сброс в
+   * layout-фазе применяется тем же commit'ом, что и открытие, поэтому «в поле уже
+   * что-то стоит» наружу не видно и ввод не теряется.
+   *
+   * `defaultAfterIdRef` читается именно на фронте открытия: он меняется на каждый
+   * клик по точке и не должен трогать уже открытую форму.
+   */
+  const prevOpenRef = useRef(false);
+  useLayoutEffect(() => {
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (!open || wasOpen) return;
     setSearch('');
     setRoomId('');
     setTime('');
