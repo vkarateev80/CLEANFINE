@@ -415,7 +415,7 @@ class _Banner extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
         child: Row(
           children: <Widget>[

@@ -1,1 +1,8 @@
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
 #include "Generated.xcconfig"
+
+// Xcode собирает explicit-модули настройками того таргета, который их импортирует.
+// firebase_messaging (use_frameworks!) включает <Firebase/Firebase.h> — заголовок
+// статического пода без модуля, и clang роняет сборку на -Werror=non-modular-include.
+// Флаг стоит и у подов (post_install в Podfile), и здесь — у Runner.
+CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES

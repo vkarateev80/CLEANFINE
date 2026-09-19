@@ -60,7 +60,7 @@ class _SosPageState extends ConsumerState<SosPage> {
     return PopScope(
       // Заполненную форму не теряем молча: «назад» спрашивает подтверждение.
       canPop: !filled || sent,
-      onPopInvoked: (bool didPop) async {
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
         if (didPop || sent) return;
         final bool leave = await _confirmCancel();
         if (!leave || !context.mounted) return;
@@ -112,7 +112,7 @@ class _SosPageState extends ConsumerState<SosPage> {
             children: <Widget>[
               DropdownButtonFormField<EmergencyCategory>(
                 key: const Key('sos_type_dropdown'),
-                value: state.category,
+                initialValue: state.category,
                 decoration: InputDecoration(
                   labelText: SosTexts.typeLabel,
                   border: OutlineInputBorder(
@@ -562,7 +562,7 @@ class _Banner extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
         child: Row(
           children: <Widget>[

@@ -126,7 +126,7 @@ class _RoomOutline extends StatelessWidget {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: isActive ? AppPalette.primaryLight.withOpacity(0.45) : null,
+          color: isActive ? AppPalette.primaryLight.withValues(alpha: 0.45) : null,
           border: Border.all(color: AppPalette.primary, width: 1),
         ),
       ),
@@ -152,7 +152,7 @@ class _PointMarker extends StatelessWidget {
         color: point.status.color,
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: <BoxShadow>[
-          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 2)),
         ],
       ),
       alignment: Alignment.center,

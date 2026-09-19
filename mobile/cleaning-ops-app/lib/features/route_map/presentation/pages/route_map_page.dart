@@ -226,7 +226,7 @@ class _PlanControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     void zoom(double factor) {
-      final Matrix4 matrix = transformation.value.clone()..scale(factor, factor);
+      final Matrix4 matrix = transformation.value.clone()..scaleByDouble(factor, factor, factor, 1.0);
       transformation.value = matrix;
     }
 
@@ -270,7 +270,7 @@ class _PlanControls extends StatelessWidget {
     final Size size = MediaQuery.of(context).size;
     final double dx = size.width / 2 - (active.point.coordsX ?? 0);
     final double dy = size.height / 3 - (active.point.coordsY ?? 0);
-    transformation.value = Matrix4.identity()..translate(dx, dy);
+    transformation.value = Matrix4.identity()..translateByDouble(dx, dy, 0.0, 1.0);
   }
 
   void _showLegend(BuildContext context) {

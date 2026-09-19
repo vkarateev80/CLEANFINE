@@ -145,7 +145,7 @@ class _StatusBanner extends StatelessWidget {
     return Container(
       key: const Key('offline_status_banner'),
       width: double.infinity,
-      color: color.withOpacity(0.08),
+      color: color.withValues(alpha: 0.08),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
       child: Row(
         children: <Widget>[

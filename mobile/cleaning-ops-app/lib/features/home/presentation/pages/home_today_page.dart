@@ -407,7 +407,7 @@ class _StatusBadge extends StatelessWidget {
       key: Key('today_status_${status.toLowerCase()}'),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
       decoration: BoxDecoration(
-        color: style.color.withOpacity(0.14),
+        color: style.color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(AppRadius.full),
       ),
       child: Text(

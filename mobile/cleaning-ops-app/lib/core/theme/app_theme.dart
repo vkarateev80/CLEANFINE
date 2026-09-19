@@ -41,7 +41,7 @@ class AppTheme {
           color: AppPalette.textPrimary,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppPalette.surface,
         elevation: 1,
         margin: const EdgeInsets.symmetric(
@@ -122,7 +122,7 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppPalette.surface,
         indicatorColor: AppPalette.primaryLight,
-        labelTextStyle: MaterialStateProperty.all(
+        labelTextStyle: WidgetStateProperty.all(
           const TextStyle(
             fontFamily: AppTypography.fontSans,
             fontSize: AppTypography.sizeXS,
