@@ -62,6 +62,18 @@ describe('ObjectsController', () => {
     expect(objectsMock.list).toHaveBeenCalledWith(query);
   });
 
+  it('list проксирует фильтр ownerClientId (портал ищет свой объект по id)', async () => {
+    const query = { ownerClientId: 'client-1' } as never;
+    objectsMock.list.mockResolvedValue({ items: [], total: 0 });
+
+    await controller.list(query);
+
+    expect(objectsMock.list).toHaveBeenCalledWith(query);
+    expect((objectsMock.list.mock.calls[0][0] as { ownerClientId: string }).ownerClientId).toBe(
+      'client-1',
+    );
+  });
+
   it('getById проксирует @Param id', async () => {
     objectsMock.getById.mockResolvedValue('object');
 

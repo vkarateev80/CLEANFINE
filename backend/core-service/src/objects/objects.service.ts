@@ -3,13 +3,51 @@ import type { Object as CoreObject, Prisma } from '@prisma/client';
 import type { ObjectStatus } from '@cleaning-ops/shared/types/core';
 import { canTransitionObject } from '@cleaning-ops/shared/types/core';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthServiceClient } from './auth-service.client';
 import type { CreateObjectDto, ListObjectsQueryDto, UpdateObjectDto } from './dto/object.dto';
+
+/**
+ * Разбор `ownerClientId` из DTO на три состояния.
+ *
+ * Различать «поля нет» и «null» можно ТОЛЬКО через `'ownerClientId' in dto`:
+ * при `ValidationPipe({ transform: true })` отсутствующее поле не становится
+ * собственным свойством экземпляра, а явный `null` — становится. Проверка по
+ * значению (`dto.ownerClientId === undefined`) не различила бы эти случаи и
+ * затирала бы привязку при обычном редактировании названия объекта.
+ */
+type OwnerClientIdInput =
+  | { present: false }
+  | { present: true; value: string | null };
+
+function readOwnerClientId(dto: CreateObjectDto | UpdateObjectDto): OwnerClientIdInput {
+  if (!('ownerClientId' in dto)) {
+    return { present: false };
+  }
+  const raw = dto.ownerClientId;
+  // Пустая строка защитно нормализуется в null («снять привязку»): такой
+  // «id-пустышка» в базу попасть не должен.
+  if (raw === undefined || raw === null || raw === '') {
+    return { present: true, value: null };
+  }
+  return { present: true, value: raw };
+}
 
 @Injectable()
 export class ObjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authClient: AuthServiceClient,
+  ) {}
 
   async create(dto: CreateObjectDto): Promise<CoreObject> {
+    const owner = readOwnerClientId(dto);
+
+    // Для create различие «поля нет» и null несущественно (оба = «привязки нет»):
+    // валидируем и записываем только непустую строку.
+    if (owner.present && owner.value !== null) {
+      await this.authClient.assertClientAccount(owner.value);
+    }
+
     return this.prisma.object.create({
       data: {
         name: dto.name,
@@ -22,6 +60,9 @@ export class ObjectsService {
         clientName: dto.clientName,
         clientContact: dto.clientContact,
         status: dto.status ?? 'ACTIVE',
+        // Поле кладём только при непустой строке: при отсутствии/null колонка
+        // остаётся NULL (дефолт схемы), пустая строка в базу не попадает.
+        ...(owner.present && owner.value !== null ? { ownerClientId: owner.value } : {}),
       },
     });
   }
@@ -30,6 +71,8 @@ export class ObjectsService {
     const where: Prisma.ObjectWhereInput = {
       status: query.status,
       type: query.type,
+      // Фильтр списка (не авторизация): undefined Prisma игнорирует.
+      ownerClientId: query.ownerClientId,
       ...(query.search
         ? {
             OR: [
@@ -93,6 +136,21 @@ export class ObjectsService {
       }
     }
 
+    // Привязка обрабатывается ДО записи: при 400/503 от auth-service объект
+    // не должен измениться вообще (fail-closed, ADR-05).
+    const owner = readOwnerClientId(dto);
+    const ownerPatch: { ownerClientId?: string | null } = {};
+    if (owner.present) {
+      if (owner.value !== null) {
+        await this.authClient.assertClientAccount(owner.value);
+        ownerPatch.ownerClientId = owner.value;
+      } else {
+        // Снятие привязки валидации не требует.
+        ownerPatch.ownerClientId = null;
+      }
+    }
+    // owner.present === false → ключа в data НЕТ, Prisma оставит колонку как есть.
+
     return this.prisma.object.update({
       where: { id },
       data: {
@@ -106,6 +164,7 @@ export class ObjectsService {
         clientName: dto.clientName,
         clientContact: dto.clientContact,
         status: dto.status,
+        ...ownerPatch,
       },
     });
   }

@@ -72,6 +72,19 @@ export class CreateObjectDto {
   @IsOptional()
   @IsIn(OBJECT_STATUSES, { message: 'Недопустимый статус объекта' })
   status?: ObjectStatus;
+
+  /**
+   * Id аккаунта заказчика (CLIENT) в auth-service — явная привязка объекта.
+   * Пустая строка в create означает «привязки нет» (сервис её не записывает).
+   */
+  @ApiPropertyOptional({
+    description: 'Id аккаунта заказчика (CLIENT) в auth-service',
+    example: '6e76b3cf-63c4-4186-95f8-c1a1cd36bb2c',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  ownerClientId?: string | null;
 }
 
 /** Частичное обновление: все поля необязательны. */
@@ -90,6 +103,18 @@ export class UpdateObjectDto {
   @IsOptional()
   @IsIn(OBJECT_STATUSES, { message: 'Недопустимый статус объекта' })
   status?: ObjectStatus;
+
+  /**
+   * Привязка к аккаунту заказчика. Семантика трёх состояний — см. ObjectsService:
+   * поля нет → привязка НЕ меняется; `null` → снять привязку; строка → проверить в
+   * auth-service и записать. `@IsOptional()` (class-validator) пропускает `null`,
+   * поэтому снятие привязки не отклоняется `@IsString()`.
+   */
+  @ApiPropertyOptional({
+    description: 'Id аккаунта заказчика (CLIENT); null — снять привязку',
+    nullable: true,
+  })
+  @IsOptional() @IsString() ownerClientId?: string | null;
 }
 
 export class ListObjectsQueryDto {
@@ -107,4 +132,12 @@ export class ListObjectsQueryDto {
 
   @ApiPropertyOptional({ description: 'Поиск по названию, адресу и заказчику' })
   @IsOptional() @IsString() search?: string;
+
+  /**
+   * Фильтр списка по владельцу (точное совпадение id аккаунта).
+   * ВАЖНО: это фильтр списка, а не авторизация — серверный scope не вводится,
+   * эндпоинт по-прежнему отдаёт объекты любому аутентифицированному пользователю.
+   */
+  @ApiPropertyOptional({ description: 'Фильтр по владельцу (точное совпадение id аккаунта)' })
+  @IsOptional() @IsString() ownerClientId?: string;
 }

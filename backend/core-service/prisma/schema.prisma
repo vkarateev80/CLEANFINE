@@ -37,6 +37,11 @@ model Object {
   floorsCount   Int
   clientName    String
   clientContact String
+  /// id аккаунта заказчика (CLIENT) в auth-service (БД cleaning_ops.users).
+  /// null = «привязки нет». FK между сервисами не ставится: разные БД
+  /// (тот же принцип, что у materialId/planImageUrl). Целостность — прикладным
+  /// контролем: core проверяет аккаунт в auth-service при записи поля.
+  ownerClientId String?
   status        ObjectStatus @default(ACTIVE)
   floors        Floor[]
   createdAt     DateTime     @default(now())
@@ -45,6 +50,8 @@ model Object {
   @@map("objects")
   @@index([status])
   @@index([name])
+  /// Фильтр списка портала: GET /api/objects?ownerClientId=<id>.
+  @@index([ownerClientId])
 }
 
 model Floor {

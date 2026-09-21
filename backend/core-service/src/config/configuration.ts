@@ -23,4 +23,17 @@ export default () => ({
     baseUrl: process.env.FILE_SERVICE_URL ?? 'http://localhost:3002',
     timeoutMs: positiveInt(process.env.FILE_SERVICE_TIMEOUT_MS, 15_000),
   },
+  /**
+   * auth-service — нужен для проверки аккаунта заказчика при записи `ownerClientId`
+   * (ADR-01: существующий API под служебной учёткой; auth-service не меняется).
+   * Переменные уже доставляет compose-якорь x-app-env — отдельной настройки не нужно.
+   */
+  authService: {
+    baseUrl: process.env.AUTH_SERVICE_URL ?? 'http://localhost:3001',
+    // Таймаут короткий и явный: недоступность auth не должна подвешивать создание
+    // объекта (fail-closed → 503), см. ADR-05.
+    timeoutMs: positiveInt(process.env.AUTH_SERVICE_TIMEOUT_MS, 5_000),
+    email: process.env.SERVICE_AUTH_EMAIL ?? '',
+    password: process.env.SERVICE_AUTH_PASSWORD ?? '',
+  },
 });
