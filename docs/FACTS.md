@@ -134,7 +134,7 @@ push проверяется без реальных ключей. Заводит
    | `exports` без `require`/`default` | Объявлены были только `types` и `import`; `require()` отказывал даже при корректно положенном пакете | `shared/package.json`; воспроизведено на `node:20-alpine` |
 
    Масштаб: **23 рантайм-импорта** (не `import type`) в семи сервисах — chat 1, core 4, gps 2,
-   materials 5, notification 3, schedule 4, ticket 5; `auth` и `files` импортируют только типы.
+   materials 5, notification 3, schedule 3, ticket 5; `auth` и `files` импортируют только типы.
    Дополнительно chat и material падали на сборке: шаг `cd shared && npm run build` давал
    `tsc: not found` (exit 127). Исправление: `require`/`default` + `"./package.json"` в `exports`
    и единый паттерн всех девяти `backend/*/Dockerfile` — реальная копия пакета (`package.json` +
