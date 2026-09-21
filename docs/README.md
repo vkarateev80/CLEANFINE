@@ -258,7 +258,7 @@ DevOps	🟡 Docker + CI (не прогнан на GitHub)	~40%
 QA	🟢 Unit: core 100 %, сервисы М3–М5 97–100 %; e2e: вход + ядро + оперативка + планирование + чат	~70%
 
 > **Обновление: пуш в GitHub и первый зелёный CI (2026-09-16, см. КОНТЕКСТ.md, раздел 0.11):**
-> - Репозиторий запушен: `origin` = `vkarateev80/DOMKLIR` (private), ветка по умолчанию — `develop`.
+> - Репозиторий запушен: `origin` = `vkarateev80/CLEANFINE` (private, до 21.09.2026 назывался `DOMKLIR`), ветка по умолчанию — `develop`.
 > - Первые живые прогоны CI вскрыли три дефекта, каждый закрыт: дедупликация Prisma-клиента в pnpm
 >   (auth-service собирался с моделями ticket-service) → `scripts/ci/prisma-clients.mjs`;
 >   необъявленные зависимости `@types/passport`, `jsonwebtoken`, `socket.io-client`; жёсткое имя
