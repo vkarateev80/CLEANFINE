@@ -20,6 +20,12 @@ export interface ObjectEntity {
   floorsCount: number;
   clientName: string;
   clientContact: string;
+  /**
+   * Привязка объекта к аккаунту заказчика (id пользователя auth-service).
+   * `null` — «привязки нет»: портал такой объект не открывает никому, пока
+   * админ не привяжет его явно (эвристика по совпадению имён удалена).
+   */
+  ownerClientId: string | null;
   status: ObjectStatus;
   createdAt: string;
   updatedAt: string;
@@ -189,6 +195,12 @@ export interface CreateObjectPayload {
   floorsCount: number;
   clientName: string;
   clientContact: string;
+  /**
+   * Привязка к аккаунту заказчика. Три состояния (см. ObjectsService core-service):
+   * поля нет → привязка не меняется; `null` → снять привязку; строка → проверить
+   * аккаунт в auth-service и записать.
+   */
+  ownerClientId?: string | null;
   status?: ObjectStatus;
 }
 

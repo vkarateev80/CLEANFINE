@@ -10,6 +10,7 @@ import {
   updateObject,
   uploadFloorPlan,
 } from '../../api/core';
+import { listUsers } from '../../api/users';
 import {
   Badge,
   Breadcrumbs,
@@ -35,6 +36,7 @@ import {
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
 import { ChatPanel } from '../Messages/ChatPanel';
 import { ROUTES } from '../../router/routes';
+import type { SessionUser } from '../../types';
 import type {
   CreateFloorPayload,
   CreateObjectPayload,
@@ -55,7 +57,11 @@ import {
   formatNumber,
   formatScale,
   mapboxToken,
+  ownerClientCell,
 } from './utils';
+
+/** Лимит API на выдачу списка пользователей (`take <= 100`). */
+const CLIENT_ACCOUNTS_TAKE = 100;
 
 type DetailTab = 'floors' | 'rooms' | 'routes';
 
@@ -81,6 +87,27 @@ function floorRooms(floor: FloorEntity): unknown[] {
 function floorRoutes(floor: FloorEntity): unknown[] {
   const value = (floor as FloorEntity & { routes?: unknown[] }).routes;
   return Array.isArray(value) ? value : [];
+}
+
+/**
+ * Строка «Аккаунт заказчика»: привязка (`ownerClientId`) — единственный признак
+ * доступа заказчика к объекту, поэтому показываем её отдельно от legacy-текста
+ * `clientName`/`clientContact`. Деактивированный/нерезолвящийся аккаунт помечается.
+ */
+function OwnerClientRow({
+  detail,
+  clientsById,
+}: {
+  detail: ObjectDetail;
+  clientsById: Map<string, SessionUser>;
+}) {
+  const cell = ownerClientCell(detail, clientsById);
+  return (
+    <DetailRow label="Аккаунт заказчика">
+      {cell.state === 'bound' || cell.state === 'deactivated' ? cell.primary : 'не привязан'}
+      {cell.hint ? <span className="ml-2 text-xs text-warning-600">{cell.hint}</span> : null}
+    </DetailRow>
+  );
 }
 
 export function ObjectDetailPage() {
@@ -109,6 +136,21 @@ export function ObjectDetailPage() {
   });
 
   const detail: ObjectDetail | undefined = detailQuery.data;
+
+  /**
+   * Справочник CLIENT-аккаунтов для строки «Клиент»: по `ownerClientId` показываем
+   * `fullName (email)`, включая деактивированных (метка FR-13). Без привязки —
+   * ручной `clientName` + метка «Без привязки».
+   */
+  const clientsQuery = useQuery({
+    queryKey: ['users', 'clients'],
+    queryFn: async () => (await listUsers({ role: 'CLIENT', take: CLIENT_ACCOUNTS_TAKE })).items,
+    staleTime: 30_000,
+  });
+  const clientsById = useMemo(
+    () => new Map((clientsQuery.data ?? []).map((user) => [user.id, user])),
+    [clientsQuery.data],
+  );
   const floors = useMemo(
     () => [...(floorsQuery.data ?? [])].sort((left, right) => left.number - right.number),
     [floorsQuery.data],
@@ -386,6 +428,7 @@ export function ObjectDetailPage() {
             )}
           </DetailRow>
           <DetailRow label="Адрес">{detail.address}</DetailRow>
+          <OwnerClientRow detail={detail} clientsById={clientsById} />
           <DetailRow label="Клиент">{detail.clientName}</DetailRow>
           <DetailRow label="Контакт клиента">
             {contact ? <a className="text-primary-600 hover:underline" href={contact.href}>{contact.label}</a> : detail.clientContact}

@@ -23,9 +23,11 @@ import {
   THead,
   Tr,
 } from '../../components/ui';
+import { listUsers } from '../../api/users';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
 import { ROUTES } from '../../router/routes';
+import type { SessionUser } from '../../types';
 import type { CreateObjectPayload, ObjectEntity } from '../../types/core';
 import {
   OBJECT_ALLOWED_TRANSITIONS,
@@ -35,7 +37,32 @@ import {
 } from '../../types/status';
 import { ActionMenu, type ActionMenuItem } from './ActionMenu';
 import { ObjectForm } from './ObjectForm';
-import { apiStatus, formatInteger, formatNumber } from './utils';
+import { apiStatus, formatInteger, formatNumber, ownerClientCell } from './utils';
+
+/** Лимит API на выдачу списка пользователей (`take <= 100`). */
+const CLIENT_ACCOUNTS_TAKE = 100;
+
+/**
+ * Ячейка «Клиент» в списке объектов: подпись берётся из привязанного аккаунта,
+ * если он резолвится, иначе — из ручных `clientName`/`clientContact` с меткой
+ * состояния (см. `ownerClientCell`).
+ */
+function ClientCell({
+  object,
+  clientsById,
+}: {
+  object: ObjectEntity;
+  clientsById: Map<string, SessionUser>;
+}) {
+  const cell = ownerClientCell(object, clientsById);
+  return (
+    <>
+      <div className="text-sm text-neutral-800">{cell.primary}</div>
+      {cell.secondary ? <div className="text-xs text-neutral-400">{cell.secondary}</div> : null}
+      {cell.hint ? <div className="text-xs text-warning-600">{cell.hint}</div> : null}
+    </>
+  );
+}
 
 type SortKey = 'name' | 'totalArea';
 type SortOrder = 'asc' | 'desc';
@@ -135,6 +162,22 @@ export function ObjectsListPage() {
   const objects = useMemo(() => query.data?.items ?? [], [query.data]);
   const total = query.data?.total ?? 0;
   const forbidden = apiStatus(query.error) === 403;
+
+  /**
+   * Справочник CLIENT-аккаунтов для колонки «Клиент». Загружаем один раз на
+   * страницу (включая деактивированных): нужно отличать «аккаунт деактивирован»
+   * от «аккаунт недоступен» (FR-13). Ошибка справочника не ломает список — в этом
+   * случае резолв просто не сработает и колонка покажет `clientName`.
+   */
+  const clientsQuery = useQuery({
+    queryKey: ['users', 'clients'],
+    queryFn: async () => (await listUsers({ role: 'CLIENT', take: CLIENT_ACCOUNTS_TAKE })).items,
+    staleTime: 30_000,
+  });
+  const clientsById = useMemo(
+    () => new Map((clientsQuery.data ?? []).map((user) => [user.id, user])),
+    [clientsQuery.data],
+  );
 
   // Сортировка на клиенте: core-service отдаёт список фиксированным порядком
   // `createdAt desc`, параметров `sort`/`order` в API нет.
@@ -479,8 +522,7 @@ export function ObjectsListPage() {
                           {formatInteger(object.floorsCount)}
                         </Td>
                         <Td>
-                          <div className="text-sm text-neutral-800">{object.clientName}</div>
-                          <div className="text-xs text-neutral-400">{object.clientContact}</div>
+                          <ClientCell object={object} clientsById={clientsById} />
                         </Td>
                         <Td>
                           <ObjectStatusBadge status={object.status} />

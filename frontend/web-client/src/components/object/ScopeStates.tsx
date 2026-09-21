@@ -30,27 +30,24 @@ export function AccessDeniedScreen() {
   );
 }
 
-/** Объект не привязан к учётной записи: `Object.clientName` не совпал с пользователем. */
+/**
+ * Объект не привязан к учётной записи: у аккаунта нет ни одного объекта с
+ * `ownerClientId`, равным id пользователя. Привязка — явная и выполняется
+ * менеджером в админке; сопоставления по названию организации в портале нет.
+ */
 export function ObjectNotAssignedScreen() {
   return (
     <div className="flex flex-col gap-3" data-testid="portal-forbidden">
       <EmptyState
         title="Объект не подключён"
-        hint="Обратитесь к менеджеру: объект ещё не привязан к вашей учётной записи."
+        hint="Ваша учётная запись ещё не связана с объектом обслуживания. Обратитесь к менеджеру — он привяжет объект к вашей учётной записи."
         action={
           <Button variant="secondary" className="min-h-[44px]" onClick={() => void logout()}>
             Выйти
           </Button>
         }
       />
-      {/*
-        Причина описана явно: у пользователя в auth-service нет поля «объект», и
-        без объяснения экран выглядит как поломка портала (DS-004, `overview.md` п. 2.1).
-      */}
-      <SoftWarning>
-        В учётной записи не указан объект, а привязка по названию организации
-        (<span className="font-mono text-xs">Object.clientName</span>) не нашлась.
-      </SoftWarning>
+      <SoftWarning>Данные доступны только по вашему объекту.</SoftWarning>
     </div>
   );
 }

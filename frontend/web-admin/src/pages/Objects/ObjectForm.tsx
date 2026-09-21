@@ -1,5 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { listUsers } from '../../api/users';
 import { Button, ErrorBanner, Field, Input, Select } from '../../components/ui';
+import type { SessionUser } from '../../types';
 import type { CreateObjectPayload, ObjectEntity } from '../../types/core';
 import {
   OBJECT_STATUSES,
@@ -7,6 +10,9 @@ import {
   type ObjectStatus,
 } from '../../types/status';
 import { COMMON_OBJECT_TYPES, apiMessages, parseRequiredNumber } from './utils';
+
+/** Сколько CLIENT-аккаунтов подтягиваем для селекта (лимит API — 100). */
+const CLIENT_ACCOUNTS_TAKE = 100;
 
 export interface ObjectFormValues {
   name: string;
@@ -16,6 +22,11 @@ export interface ObjectFormValues {
   lng: string;
   totalArea: string;
   floorsCount: string;
+  /**
+   * Привязка к аккаунту заказчика. `''` — «Без привязки» (значение селекта);
+   * в API уходит как отсутствие поля (создание) или `null` (снятие привязки).
+   */
+  ownerClientId: string;
   clientName: string;
   clientContact: string;
   status: ObjectStatus;
@@ -33,6 +44,7 @@ function toFormValues(object?: ObjectEntity): ObjectFormValues {
       lng: '',
       totalArea: '',
       floorsCount: '1',
+      ownerClientId: '',
       clientName: '',
       clientContact: '',
       status: 'ACTIVE',
@@ -46,6 +58,7 @@ function toFormValues(object?: ObjectEntity): ObjectFormValues {
     lng: String(object.lng),
     totalArea: String(object.totalArea),
     floorsCount: String(object.floorsCount),
+    ownerClientId: object.ownerClientId ?? '',
     clientName: object.clientName,
     clientContact: object.clientContact,
     status: object.status,
@@ -109,6 +122,7 @@ const SERVER_FIELD_KEYS: Array<keyof ObjectFormValues> = [
   'lng',
   'totalArea',
   'floorsCount',
+  'ownerClientId',
   'clientName',
   'clientContact',
   'status',
@@ -150,6 +164,24 @@ export function ObjectForm({
   const [values, setValues] = useState<ObjectFormValues>(initial);
   const [errors, setErrors] = useState<ObjectFormErrors>({});
 
+  /**
+   * Справочник CLIENT-аккаунтов для привязки. Загружаем БЕЗ фильтра `isActive`:
+   * полный список нужен, чтобы отличить «аккаунт деактивирован» от «аккаунт
+   * недоступен» и не потерять уже выбранное значение. В самом селекте для выбора
+   * показываются только активные (см. `selectableClients`).
+   * Эндпоинт доступен только ADMIN/SUPERVISOR — ровно те роли, что правят объекты.
+   */
+  const clientsQuery = useQuery({
+    queryKey: ['users', 'clients'],
+    queryFn: async () => (await listUsers({ role: 'CLIENT', take: CLIENT_ACCOUNTS_TAKE })).items,
+    staleTime: 30_000,
+  });
+  const clients: SessionUser[] = clientsQuery.data ?? [];
+  const selectableClients = clients.filter((user) => user.isActive);
+  const boundClient = values.ownerClientId
+    ? clients.find((user) => user.id === values.ownerClientId)
+    : undefined;
+
   const dirty = JSON.stringify(values) !== JSON.stringify(initial);
 
   useEffect(() => {
@@ -161,12 +193,51 @@ export function ObjectForm({
     setErrors((current) => ({ ...current, [key]: undefined }));
   }
 
+  /**
+   * Выбор аккаунта: привязываем id и (для удобства) подставляем ФИО и контакт —
+   * поля остаются редактируемыми. «Без привязки» привязку снимает, а `clientName`/
+   * `clientContact` не трогает: это legacy-отображение, его ведёт админ.
+   */
+  function selectOwnerClient(clientId: string) {
+    if (clientId === '') {
+      update('ownerClientId', '');
+      return;
+    }
+    const client = clients.find((user) => user.id === clientId);
+    setValues((current) => ({
+      ...current,
+      ownerClientId: clientId,
+      ...(client ? { clientName: client.fullName, clientContact: client.email } : {}),
+    }));
+    setErrors((current) => ({ ...current, ownerClientId: undefined }));
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const validation = validateObject(values);
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
       return;
+    }
+
+    /*
+     * Семантика `ownerClientId` (совпадает с ObjectsService core-service):
+     *  - создание: `''` → поле НЕ отправляем («привязки нет»), иначе — id;
+     *  - правка: `''` при отсутствии привязки → поле не отправляем (не трогаем);
+     *            `''` при существующей привязке → `null` (снять);
+     *            непустое значение → id.
+     * Ключ добавляем условно: `undefined` в JSON.stringify не попадает.
+     */
+    const ownerClientId = values.ownerClientId.trim();
+    let ownerClientPatch: { ownerClientId?: string | null } = {};
+    if (object) {
+      if (ownerClientId !== '') {
+        ownerClientPatch = { ownerClientId };
+      } else if (object.ownerClientId !== null) {
+        ownerClientPatch = { ownerClientId: null };
+      }
+    } else if (ownerClientId !== '') {
+      ownerClientPatch = { ownerClientId };
     }
 
     onSubmit({
@@ -180,6 +251,7 @@ export function ObjectForm({
       clientName: values.clientName.trim(),
       clientContact: values.clientContact.trim(),
       status: values.status,
+      ...ownerClientPatch,
     });
   }
 
@@ -316,6 +388,36 @@ export function ObjectForm({
             invalid={Boolean(fieldErrors.floorsCount)}
             onChange={(event) => update('floorsCount', event.target.value)}
           />
+        </Field>
+
+        <Field
+          label="Аккаунт заказчика"
+          htmlFor="object-owner-client"
+          hint="Привязка даёт заказчику доступ к объекту в портале. Без привязки объект не виден никому."
+          error={fieldErrors.ownerClientId}
+        >
+          <Select
+            id="object-owner-client"
+            data-testid="object-owner-client"
+            value={values.ownerClientId}
+            invalid={Boolean(fieldErrors.ownerClientId)}
+            disabled={clientsQuery.isLoading}
+            onChange={(event) => selectOwnerClient(event.target.value)}
+          >
+            <option value="">— Без привязки —</option>
+            {selectableClients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.fullName} ({client.email})
+              </option>
+            ))}
+            {/* Уже привязанный неактивный аккаунт: сохраняем в списке, чтобы
+                открытие формы не сбрасывало привязку молча. */}
+            {boundClient && !boundClient.isActive ? (
+              <option value={boundClient.id}>
+                {boundClient.fullName} ({boundClient.email}) — аккаунт деактивирован
+              </option>
+            ) : null}
+          </Select>
         </Field>
 
         <Field label="Клиент" htmlFor="object-client-name" required error={fieldErrors.clientName}>

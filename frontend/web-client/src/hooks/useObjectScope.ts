@@ -6,33 +6,32 @@ import type { ObjectEntity } from '../types/core';
 import type { SessionUser } from '../types';
 
 /**
- * Определение «своего объекта» клиента — узкое место М5.4.
+ * Определение «своего объекта» клиента.
  *
- * В `backend/auth-service/prisma/schema.prisma` у `model User` НЕТ ссылки на
- * объект (`objectId`/`clientId`), а `GET /api/objects` не фильтрует объекты по
- * роли. Поэтому «свой объект» портал выводит из данных core-service: у `Object`
- * есть строковое поле `clientName`, и объект считается своим, если это имя
- * совпадает с идентификатором пользователя — ФИО или email из `GET /api/auth/me`.
+ * Привязка объекта к аккаунту — ЯВНАЯ: у `Object` есть `ownerClientId` (id
+ * пользователя auth-service), и объект считается своим ровно тогда, когда
+ * `ownerClientId === sessionUser.id`. Портал запрашивает свои объекты фильтром
+ * `GET /api/objects?ownerClientId=<id>`.
  *
- * Правила сопоставления (детерминированные, чтобы результат не «плавал» от
- * порядка ответа API):
- *   1. точное совпадение нормализованных строк (регистр, лишние пробелы);
- *   2. иначе — вхождение одной строки в другую (`clientName` «ООО Ромашка» и
- *      ФИО «Ромашка» — частый случай, когда заказчик заведён контактом);
- *   3. если кандидатов несколько — берётся первый по возрастанию `id` (сортировка
- *      по `id`, а не по порядку выдачи: иначе выбор менялся бы между запросами).
+ * Здесь сознательно НЕТ сопоставления по имени (`clientName` ↔ `fullName`/`email`):
+ * такая эвристика выдавала доступ по совпадению строк (тёзки, разное написание),
+ * не отзывалась при переименовании и приводила к дефекту «Объект не подключён».
+ * Возвращать её запасным путём нельзя — доступ обязан определяться только id.
  *
- * Честное ограничение: сопоставление по имени — эвристика, а не привязка в БД.
- * Оно не различает тёзок и не работает, если в `clientName` записано не название
- * организации клиента. Это **не** замена серверному scope: если бэкенд отдаёт
- * данные чужого объекта, дефект на стороне бэкенда (см. README и отчёт М5.4).
+ * Ограничения, принятые осознанно:
+ *  - серверного scope нет: `GET /api/objects` отдаёт объекты любому
+ *    аутентифицированному пользователю, фильтр `ownerClientId` — фильтр списка,
+ *    а не авторизация. Портал — UI-механика поверх существующего API;
+ *  - если у клиента несколько объектов, открывается первый по возрастанию `id`
+ *    (детерминированно, без многообъектного UX);
+ *  - `take <= 100`, поэтому при >100 объектах выбор идёт по первой сотне.
  */
 
 /** Состояние определения объекта. */
 export type ScopeState =
   /** Объект найден и подтверждён запросом `GET /api/objects/:id`. */
   | 'ready'
-  /** Ни один объект не сопоставлен клиенту → «Объект не подключён». */
+  /** У аккаунта нет ни одного привязанного объекта → «Объект не подключён». */
   | 'unassigned'
   /** В URL передан чужой `objectId` → экран «Нет доступа к объекту». */
   | 'forbidden'
@@ -57,48 +56,8 @@ export interface ObjectScope {
 
 const QUERY_KEY = ['object-scope', 'objects'] as const;
 
-/** Нормализация имени: регистр, крайние пробелы, повторные пробелы, кавычки-ёлочки. */
-export function normalizeName(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[«»"']/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/** Идентификаторы пользователя, которыми можно сопоставить `Object.clientName`. */
-export function identityCandidates(user: SessionUser): string[] {
-  // email тоже участвует: заказчик мог быть заведён по адресу почты.
-  return [user.fullName, user.email].map(normalizeName).filter((value) => value !== '');
-}
-
-/**
- * Совпадение имени объекта с одним из идентификаторов пользователя.
- * Возвращает текст-объяснение либо `null` — чтобы причина попадала в UI отладки,
- * а не оставалась «магией» внутри условия.
- */
-export function matchObject(
-  object: ObjectEntity,
-  identities: string[],
-): string | null {
-  const client = normalizeName(object.clientName);
-  if (client === '') return null;
-  if (identities.includes(client)) {
-    return `точное совпадение «${object.clientName}»`;
-  }
-  const partial = identities.find(
-    (identity) => client.includes(identity) || identity.includes(client),
-  );
-  return partial ? `частичное совпадение «${object.clientName}»` : null;
-}
-
-/** Кандидаты «своего объекта»: отсортированы по `id` — выбор не зависит от порядка API. */
-export function findOwnObjects(objects: ObjectEntity[], identities: string[]): ObjectEntity[] {
-  return objects
-    .filter((object) => matchObject(object, identities) !== null)
-    .slice()
-    .sort((left, right) => left.id.localeCompare(right.id));
-}
+/** Сколько объектов запрашиваем (лимит API — 100). */
+const OBJECTS_TAKE = 100;
 
 /**
  * Определение объекта сессии и проверка scope.
@@ -119,18 +78,21 @@ export function useObjectScope(user: SessionUser | null): ObjectScope {
   // параметр для него — обычный query-шум, который не даёт ничего.
   const debug = isAdmin && Boolean(debugObjectId);
 
+  const userId = user?.id ?? '';
+
+  // Свои объекты — только по явной привязке к аккаунту.
   const listQuery = useQuery({
-    queryKey: QUERY_KEY,
-    queryFn: () => listObjects({ take: 100 }),
-    enabled: Boolean(user) && !debug,
+    queryKey: [...QUERY_KEY, userId],
+    queryFn: () => listObjects({ ownerClientId: userId, take: OBJECTS_TAKE }),
+    enabled: Boolean(user) && userId !== '' && !debug,
     // Список объектов для привязки: тот же приём, что у списков админки
     // (staleTime 30 с), но с refetch при возврате в браузер телефона.
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
 
-  // Отладочный объект грузится напрямую по id: админ не проходит сопоставление
-  // по `clientName` (у него нет названия организации) и без этого не увидел бы
+  // Отладочный объект грузится напрямую по id: админ не проходит фильтр по
+  // `ownerClientId` (у него нет привязанных объектов) и без этого не увидел бы
   // портал вообще.
   const debugQuery = useQuery({
     queryKey: ['object-scope', 'debug', debugObjectId],
@@ -138,8 +100,6 @@ export function useObjectScope(user: SessionUser | null): ObjectScope {
     enabled: debug,
     staleTime: 30_000,
   });
-
-  const identities = useMemo(() => (user ? identityCandidates(user) : []), [user]);
 
   const resolved = useMemo<{ object: ObjectEntity | null; reason: string | null }>(() => {
     if (debug) {
@@ -151,13 +111,14 @@ export function useObjectScope(user: SessionUser | null): ObjectScope {
     if (!user || !listQuery.data) {
       return { object: null, reason: null };
     }
-    const candidates = findOwnObjects(listQuery.data.items, identities);
-    if (candidates.length === 0) {
+    // Сортировка по `id`, а не по порядку ответа API: выбор не должен «плавать»
+    // между запросами, если объектов у аккаунта несколько.
+    const own = [...listQuery.data.items].sort((left, right) => left.id.localeCompare(right.id));
+    if (own.length === 0) {
       return { object: null, reason: null };
     }
-    const object = candidates[0];
-    return { object, reason: matchObject(object, identities) };
-  }, [debug, debugQuery.data, identities, listQuery.data, user]);
+    return { object: own[0], reason: `ownerClientId = ${user.id}` };
+  }, [debug, debugQuery.data, listQuery.data, user]);
 
   const mismatch = Boolean(
     requestedId && resolved.object && requestedId !== resolved.object.id,

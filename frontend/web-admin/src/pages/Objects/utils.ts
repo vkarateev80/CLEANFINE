@@ -119,6 +119,60 @@ export const COMMON_OBJECT_TYPES = [
   'Бизнес-парк',
 ] as const;
 
+/**
+ * Как показывать заказчика объекта (карточка и список).
+ *
+ * Привязка — единственный авторитетный признак доступа заказчика к объекту
+ * (портал открывает объект по `ownerClientId === id сессии`), поэтому в UI важно
+ * различать четыре состояния, а не просто печатать `clientName`:
+ *  - привязки нет → ручной `clientName` + метка «Без привязки»;
+ *  - аккаунт найден и активен → `fullName (email)`;
+ *  - аккаунт найден, но деактивирован → `fullName (email)` + «аккаунт деактивирован»;
+ *  - аккаунт не резолвится (удалён/уже не CLIENT) → `clientName` + «аккаунт недоступен».
+ */
+export type OwnerClientState = 'bound' | 'unbound' | 'deactivated' | 'unresolved';
+
+export interface OwnerClientCell {
+  state: OwnerClientState;
+  /** Основная строка: аккаунт либо ручное значение `clientName`. */
+  primary: string;
+  /** Вторая строка (контакт) — есть только у непривязанного объекта. */
+  secondary: string | null;
+  /** Метка состояния; `null` — показывать нечего (обычная привязка). */
+  hint: string | null;
+}
+
+export function ownerClientCell(
+  object: { clientName: string; clientContact: string; ownerClientId: string | null },
+  clientsById: Map<string, { fullName: string; email: string; isActive: boolean }>,
+): OwnerClientCell {
+  if (object.ownerClientId === null) {
+    return {
+      state: 'unbound',
+      primary: object.clientName,
+      secondary: object.clientContact,
+      hint: 'Без привязки',
+    };
+  }
+
+  const account = clientsById.get(object.ownerClientId);
+  if (!account) {
+    return {
+      state: 'unresolved',
+      primary: object.clientName,
+      secondary: object.clientContact,
+      hint: 'аккаунт недоступен',
+    };
+  }
+
+  return {
+    state: account.isActive ? 'bound' : 'deactivated',
+    primary: `${account.fullName} (${account.email})`,
+    secondary: null,
+    hint: account.isActive ? null : 'аккаунт деактивирован',
+  };
+}
+
 /** Название этажа по умолчанию (спецификация: «{number} этаж»). */
 export function defaultFloorName(number: number): string {
   return `${number} этаж`;

@@ -20,6 +20,12 @@ export interface ObjectEntity {
   floorsCount: number;
   clientName: string;
   clientContact: string;
+  /**
+   * Явная привязка объекта к аккаунту заказчика (id пользователя auth-service).
+   * Портал считает объект своим ровно при `ownerClientId === id сессии`;
+   * `null` — привязки нет (объект не открывается никому).
+   */
+  ownerClientId: string | null;
   status: ObjectStatus;
   createdAt: string;
   updatedAt: string;
