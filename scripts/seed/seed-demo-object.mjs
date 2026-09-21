@@ -7,16 +7,13 @@
 //     SEED_TIMEOUT_MS — таймаут одного HTTP-запроса (по умолчанию 15000)
 //
 // Зачем это нужно:
-//   Портал (`frontend/web-client`, `src/hooks/useObjectScope.ts`) НЕ имеет привязки
-//   «пользователь → объект» в БД: у `User` нет `objectId`, а `GET /api/objects` не
-//   фильтрует по роли. «Свой объект» выводится сопоставлением `Object.clientName`
-//   с идентификаторами сессии (`fullName` и `email` из `GET /api/auth/me`):
-//     1) точное совпадение нормализованных строк, иначе
-//     2) вхождение одной строки в другую, при нескольких кандидатах — первый по `id`.
-//   Нормализация (`normalizeName`): нижний регистр, кавычки « » " ' → пробел,
-//   схлопывание повторных пробелов, обрезка краёв.
-//   Поэтому `fullName` пользователя и `clientName` объекта должны совпадать
-//   ПОСЛЕ нормализации — здесь это ровно `ООО «Ромашка»` в обоих местах.
+//   Портал (`frontend/web-client`, `src/hooks/useObjectScope.ts`) считает объект
+//   «своим» ТОЛЬКО по явной привязке: `Object.ownerClientId === id` вошедшего
+//   пользователя. Никакого сопоставления по названию организации в портале нет
+//   (сопоставление по имени выдавало доступ по совпадению строк и было удалено).
+//   Поэтому объект создаётся/обновляется с `ownerClientId = id` владельца.
+//   `clientName`/`clientContact` заполняются для отображения (заголовок каркаса,
+//   карточка объекта в админке) и на доступ не влияют.
 //
 // ВАЖНО: скрипт работает только через API стенда (никаких прямых INSERT/Prisma),
 // чтобы данные проходили валидацию DTO и создавались штатными ручками:
@@ -36,8 +33,9 @@ const ADMIN_PASSWORD = 'admin123';
 const OWNER = {
   email: 'owner@cleanfine.ru',
   password: 'owner123',
-  // Пишем кавычки-ёлочки ЯВНО и ровно так: портал нормализует их, но строка
-  // должна совпасть с clientName объекта после нормализации.
+  // Название организации — только для отображения: доступ определяется
+  // `ownerClientId`, а не совпадением имён.
+  // Кавычки-ёлочки пишем как есть — так строка выглядит в UI.
   fullName: 'ООО «Ромашка»',
   role: 'CLIENT',
 };
@@ -62,15 +60,6 @@ const OBJECT = {
 // Отдельная ручка POST /api/auth/change-pin: в RegisterDto поля PIN нет, PIN
 // задаётся только самим пользователем под своим токеном.
 const OWNER_PIN = '5678';
-
-/** Нормализация имени — точная копия normalizeName() из портала. */
-function normalizeName(value) {
-  return String(value)
-    .toLowerCase()
-    .replace(/[«»"']/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 async function request(method, path, { token, body } = {}) {
   const headers = { Accept: 'application/json' };
@@ -125,40 +114,23 @@ async function login(email, password) {
 async function findUser(token, email) {
   const { data } = await request('GET', `/api/users?search=${encodeURIComponent(email)}&take=100`, { token });
   const items = Array.isArray(data?.items) ? data.items : [];
-  const wanted = normalizeName(email);
-  return items.find((user) => normalizeName(user?.email ?? '') === wanted) ?? null;
+  const wanted = email.trim().toLowerCase();
+  return items.find((user) => String(user?.email ?? '').trim().toLowerCase() === wanted) ?? null;
 }
 
-/** Поиск объекта владельца: полный список + сопоставление по нормализованному clientName. */
-async function findObject(token, clientName) {
+/**
+ * Поиск демо-объекта по названию (для идемпотентности). Привязка проверяется
+ * отдельно: если объект уже есть, но `ownerClientId` не тот, скрипт его поправит.
+ */
+async function findObjectByName(token, name) {
   // take ≤ 100 (валидатор ListObjectsQueryDto).
-  const { data } = await request('GET', '/api/objects?take=100', { token });
+  const { data } = await request('GET', `/api/objects?search=${encodeURIComponent(name)}&take=100`, { token });
   const items = Array.isArray(data?.items) ? data.items : [];
-  const wanted = normalizeName(clientName);
-  return items.find((object) => normalizeName(object?.clientName ?? '') === wanted) ?? null;
-}
-
-/** Тот же подбор «своего объекта», что делает портал: кандидаты по полному имени и email. */
-function portalPick(objects, user) {
-  const identities = [user.fullName, user.email]
-    .map(normalizeName)
-    .filter((value) => value !== '');
-  const matches = objects
-    .map((object) => ({ object, client: normalizeName(object?.clientName ?? '') }))
-    .filter(({ client }) => client !== '')
-    .map(({ object, client }) => {
-      if (identities.includes(client)) return { object, reason: `точное совпадение «${object.clientName}»` };
-      const partial = identities.find((id) => client.includes(id) || id.includes(client));
-      return partial ? { object, reason: `частичное совпадение «${object.clientName}»` } : null;
-    })
-    .filter(Boolean)
-    .sort((left, right) => String(left.object.id).localeCompare(String(right.object.id)));
-  return matches[0] ?? null;
+  return items.find((object) => object?.name === name) ?? null;
 }
 
 async function main() {
   console.log(`Стенд: ${API_BASE_URL}`);
-  console.log(`Нормализованное имя владельца и объекта: «${normalizeName(OWNER.fullName)}»`);
 
   const adminToken = await login(ADMIN_EMAIL, ADMIN_PASSWORD);
   console.log(`Вход администратора: ok (${ADMIN_EMAIL})`);
@@ -190,14 +162,35 @@ async function main() {
     console.log(`создан пользователь: ${owner.email} (${owner.role}) — id=${owner.id}, fullName=«${owner.fullName}»`);
   }
 
-  // --- 2) Объект владельца ------------------------------------------------------
-  let object = await findObject(adminToken, OBJECT.clientName);
+  // --- 2) Объект владельца, привязанный к аккаунту (ownerClientId) ---------------
+  let object = await findObjectByName(adminToken, OBJECT.name);
   if (object) {
-    console.log(`объект уже есть: «${object.name}» — id=${object.id}, clientName=«${object.clientName}», не создаю`);
+    if (object.ownerClientId === owner.id) {
+      console.log(`объект уже есть и привязан: «${object.name}» — id=${object.id}, ownerClientId=${owner.id}, не трогаю`);
+    } else {
+      // Объект есть, но привязка не та (или её нет) — приводим к документированному
+      // состоянию. Именно `ownerClientId` даёт владельцу доступ в портале.
+      const { data } = await request('PATCH', `/api/objects/${object.id}`, {
+        token: adminToken,
+        body: { ownerClientId: owner.id },
+      });
+      object = data;
+      console.log(`объект уже есть, привязка обновлена: «${object.name}» — id=${object.id}, ownerClientId=${owner.id}`);
+    }
   } else {
-    const { data } = await request('POST', '/api/objects', { token: adminToken, body: OBJECT });
+    const { data } = await request('POST', '/api/objects', {
+      token: adminToken,
+      body: { ...OBJECT, ownerClientId: owner.id },
+    });
     object = data;
-    console.log(`создан объект: «${object.name}» — id=${object.id}, clientName=«${object.clientName}», type=${object.type}`);
+    console.log(
+      `создан объект: «${object.name}» — id=${object.id}, ownerClientId=${object.ownerClientId}, type=${object.type}`,
+    );
+  }
+
+  if (object.ownerClientId !== owner.id) {
+    console.error(`ОШИБКА: у объекта ownerClientId=${object.ownerClientId}, ожидался ${owner.id}`);
+    process.exit(1);
   }
 
   // --- 3) Доказательство: портал увидит объект ----------------------------------
@@ -214,27 +207,42 @@ async function main() {
   console.log(`PIN владельца: установлен (${OWNER_PIN})`);
 
   const me = (await request('GET', '/api/auth/me', { token: ownerToken })).data;
-  // Ровно тот запрос, которым портал ищет свой объект: listObjects({ take: 100 }).
-  const list = (await request('GET', '/api/objects?take=100', { token: ownerToken })).data;
-  const items = Array.isArray(list?.items) ? list.items : [];
-  const picked = portalPick(items, me);
-
-  console.log(`GET /api/auth/me → role=${me?.role} fullName=«${me?.fullName}» email=${me?.email}`);
-  console.log(`GET /api/objects?take=100 → total=${list?.total} items=${items.length}`);
-
-  if (!picked) {
-    console.error('ОШИБКА: портал НЕ сопоставил владельцу ни одного объекта (состояние «Объект не подключён»)');
+  if (String(me?.id) !== String(owner.id)) {
+    console.error(`ОШИБКА: /api/auth/me вернул id=${me?.id}, ожидался id владельца ${owner.id}`);
     process.exit(1);
   }
-  const matched = picked.object;
-  console.log(`портал выбрал объект: «${matched.name}» (id=${matched.id}), причина: ${picked.reason}`);
-  if (String(matched.id) !== String(object.id)) {
-    console.error(`ОШИБКА: портал выбрал объект id=${matched.id}, а ожидался id=${object.id}`);
+
+  // Ровно тот запрос, которым портал определяет свой объект:
+  // listObjects({ ownerClientId: sessionUser.id, take: 100 }).
+  const filtered = (
+    await request('GET', `/api/objects?ownerClientId=${encodeURIComponent(me.id)}&take=100`, {
+      token: ownerToken,
+    })
+  ).data;
+  const items = Array.isArray(filtered?.items) ? filtered.items : [];
+
+  console.log(`GET /api/auth/me → role=${me?.role} fullName=«${me?.fullName}» email=${me?.email} id=${me.id}`);
+  console.log(`GET /api/objects?ownerClientId=${me.id} → total=${filtered?.total} items=${items.length}`);
+
+  // Портал открывает первый объект по возрастанию id.
+  const picked = [...items].sort((left, right) => String(left.id).localeCompare(String(right.id)))[0];
+  if (!picked) {
+    console.error('ОШИБКА: у владельца нет объектов с его ownerClientId (портал покажет «Объект не подключён»)');
+    process.exit(1);
+  }
+  console.log(`портал откроет объект: «${picked.name}» (id=${picked.id}), ownerClientId=${picked.ownerClientId}`);
+
+  if (!items.every((item) => item.ownerClientId === me.id)) {
+    console.error('ОШИБКА: фильтр ownerClientId вернул чужой объект');
     process.exit(1);
   }
   // Портал после выбора подтверждает объект запросом GET /api/objects/:id.
-  await request('GET', `/api/objects/${matched.id}`, { token: ownerToken });
-  console.log(`GET /api/objects/${matched.id} → ok (объект подтверждён для владельца)`);
+  const confirmed = (await request('GET', `/api/objects/${picked.id}`, { token: ownerToken })).data;
+  if (String(confirmed?.ownerClientId) !== String(me.id)) {
+    console.error(`ОШИБКА: GET /api/objects/${picked.id} вернул ownerClientId=${confirmed?.ownerClientId}`);
+    process.exit(1);
+  }
+  console.log(`GET /api/objects/${picked.id} → ok (объект подтверждён для владельца)`);
 
   console.log(`\nГотово. Портал: ${API_BASE_URL.replace(/:\d+$/, ':8091')}/ — вход ${OWNER.email} / ${OWNER.password}`);
 }

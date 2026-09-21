@@ -1,5 +1,14 @@
 import { devices, expect, test, type APIRequestContext, type Page } from '@playwright/test';
-import { core, createObject, deleteObject, runTag, type Role } from '../../helpers/core';
+import {
+  AUTH_URL,
+  authHeader,
+  core,
+  createObject,
+  deleteObject,
+  loginAs,
+  runTag,
+  type Role,
+} from '../../helpers/core';
 import {
   createTicket,
   flushOperationsData,
@@ -45,14 +54,16 @@ import { userByRole } from '../../helpers/users';
  * iPhone `defaultBrowserType` = webkit, а в наборе установлен только chromium, поэтому
  * переносим только параметры контекста (viewport/screen/DPR/isMobile/hasTouch/UA).
  *
- * ОБЛАСТЬ ВИДИМОСТИ ОБЪЕКТА (задача 4 набора). В auth-service у пользователя нет
- * `objectId`, поэтому портал определяет «свой объект» сопоставлением `Object.clientName`
- * с ФИО/email пользователя (`useObjectScope`). Тесты создают объект клиента с
- * `clientName = fullName` клиента из `fixtures/users.json` («Заказчик»), а «чужой» объект
- * назван так, чтобы сопоставление заведомо не срабатывало (без подстроки «заказчик»).
- * Тест на чужой объект различает ДВЕ разные ветки отказа: `forbidden` («Нет доступа к
- * объекту», чужой `objectId` в URL) и `unassigned` («Объект не подключён», свой объект не
- * найден) — иначе тест «проходил» бы просто потому, что портал вообще ничего не показывает.
+ * ОБЛАСТЬ ВИДИМОСТИ ОБЪЕКТА. Портал считает объект «своим» ТОЛЬКО по явной привязке:
+ * `Object.ownerClientId === id` вошедшего (`useObjectScope`). Тесты создают объект
+ * клиента с `ownerClientId = id` клиента из `fixtures/users.json` («Заказчик»);
+ * `clientName` заполняется для отображения и на доступ НЕ влияет.
+ *
+ * Регресс, который здесь закрыт навсегда (AC-05): объект с `clientName`, совпадающим
+ * с ФИО клиента, но БЕЗ привязки, доступа не даёт — раньше совпадение имени выдавало
+ * доступ. Тест на чужой `objectId` в URL различает ДВЕ ветки отказа: `forbidden`
+ * («Нет доступа к объекту») и `unassigned` («Объект не подключён») — иначе тест
+ * «проходил» бы просто потому, что портал вообще ничего не показывает.
  *
  * УБОРКА. Данные помечены префиксом `E2E-M56-` и снимаются в `afterEach`: объекты core —
  * через API, заявки/чаты/материалы — существующими трекерами (`operationsTracker`,
@@ -118,17 +129,32 @@ async function loginClient(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/dashboard$/, { timeout: 20_000 });
 }
 
+/** Вход в портал конкретным аккаунтом (не фикстурным) — для тестов тёзок и AC-04. */
+async function loginViaPortal(page: Page, email: string, password: string): Promise<void> {
+  await page.goto(`${PORTAL_URL}/login`);
+  await page.getByTestId('portal-login-email').fill(email);
+  await page.getByTestId('portal-login-password').fill(password);
+  await page.getByTestId('portal-login-submit').click();
+  await expect(page).toHaveURL(/\/dashboard$/, { timeout: 20_000 });
+}
+
 /**
- * Объект клиента с уникальным именем прогона. `clientName` обязан совпасть с ФИО
- * клиента: портал сопоставляет объект именно по этому полю (другой привязки в модели нет).
+ * Объект клиента с уникальным именем прогона.
+ *
+ * Доступ в портале даёт ЯВНАЯ привязка `ownerClientId = id` клиента (портал
+ * сравнивает это поле с id сессии), а НЕ совпадение `clientName` с ФИО. Поэтому
+ * `clientName` здесь оставлен для отображения (заголовок каркаса), а привязка —
+ * по id: объект без привязки клиент в портале не увидит, даже если имя совпадает.
  */
 async function createClientObject(
   request: APIRequestContext,
   label: string,
 ): Promise<{ id: string; name: string }> {
+  const clientId = await loginIdAs(request, 'CLIENT');
   const object = await createObject(request, {
     name: `E2E-M56-${label}-${runTag()}`,
     clientName: client.fullName,
+    ownerClientId: clientId,
   });
   createdObjectIds.add(object.id);
   // Область уборки «по объекту»: снимает заявки на нём, даже если тест упал до их поиска.
@@ -190,8 +216,8 @@ test('М5.4: чужой objectId в URL даёт «Нет доступа к об
 }) => {
   const own = await createClientObject(request, 'scope');
   const foreignTag = runTag();
-  // «Чужой» объект: имя и clientName намеренно НЕ содержат подстроки «заказчик», иначе
-  // частичное сопоставление (см. useObjectScope) сделало бы его кандидатом в «свои».
+  // «Чужой» объект — просто объект БЕЗ привязки к нашему клиенту: доступ теперь
+  // определяется только `ownerClientId`, и имя тут ни при чём.
   const foreign = await createObject(request, {
     name: `E2E-M56-ЧУЖОЙ-${foreignTag}`,
     clientName: `E2E-M56-ЧУЖОЙ-${foreignTag}`,
@@ -224,6 +250,152 @@ test('М5.4: чужой objectId в URL даёт «Нет доступа к об
   await expect(page.getByTestId('portal-dashboard')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('portal-header-object')).toContainText(own.name);
   await expect(page.getByTestId('portal-forbidden')).toHaveCount(0);
+});
+
+// ---------------------------------------------------------------------------
+// 2a. AC-05: имя не даёт доступ — только ownerClientId
+// ---------------------------------------------------------------------------
+
+test('AC-05: объект с clientName = ФИО клиента, но БЕЗ привязки, доступа не даёт', async ({
+  page,
+  request,
+}) => {
+  /*
+   * Это защита от возврата удалённой эвристики. Раньше портал сопоставлял
+   * `Object.clientName` с `fullName`/`email` пользователя, и этот объект был бы
+   * открыт клиенту. Теперь доступ определяется только `ownerClientId`, поэтому
+   * объект с совпадающим именем и без привязки обязан дать «Объект не подключён».
+   */
+  const lookalike = await createObject(request, {
+    name: `E2E-M56-ДВОЙНИК-ИМЕНИ-${runTag()}`,
+    // Имя намеренно совпадает с ФИО клиента из фикстур — это и есть ловушка.
+    clientName: client.fullName,
+    address: 'г. Москва, ул. Одноимённая, 1',
+  });
+  createdObjectIds.add(lookalike.id);
+
+  // Клиент не должен видеть этот объект: у него нет ownerClientId.
+  await loginClient(page);
+
+  const unassigned = page.getByTestId('portal-forbidden');
+  await expect(unassigned).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('Объект не подключён')).toBeVisible();
+  await expect(page.getByText('Нет доступа к объекту')).toHaveCount(0);
+
+  // Ни имени, ни адреса «двойника» на экране нет.
+  const body = await page.locator('body').innerText();
+  expect(body).not.toContain(lookalike.name);
+  expect(body).not.toContain('ул. Одноимённая');
+
+  // КОНТРОЛЬ: тот же клиент видит свой объект, когда привязка есть.
+  const own = await createClientObject(request, 'ac05-control');
+  await page.goto(`${PORTAL_URL}/dashboard`);
+  await expect(page.getByTestId('portal-dashboard')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('portal-header-object')).toContainText(own.name);
+});
+
+// ---------------------------------------------------------------------------
+// 2b. AC-04: непривязанный аккаунт видит пользовательский текст экрана
+// ---------------------------------------------------------------------------
+
+test('AC-04: у аккаунта без привязанных объектов — текст «ещё не связана с объектом обслуживания»', async ({
+  page,
+  request,
+}) => {
+  /*
+   * Аккаунт, заведённый тестом на лету: у него гарантированно нет ни одного
+   * объекта с его `ownerClientId`, поэтому портал обязан показать именно
+   * `unassigned` (а не `forbidden` и не ошибку загрузки).
+   */
+  const email = `e2e-unbound-${runTag()}@example.com`;
+  const password = 'unbound123';
+  const created = await request.post(`${AUTH_URL}/api/users`, {
+    headers: authHeader(await loginAs(request, 'ADMIN')),
+    data: { email, fullName: `E2E Без объекта ${runTag()}`, password, role: 'CLIENT' },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+
+  await loginViaPortal(page, email, password);
+
+  const unassigned = page.getByTestId('portal-forbidden');
+  await expect(unassigned).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('Объект не подключён')).toBeVisible();
+  await expect(
+    page.getByText(
+      'Ваша учётная запись ещё не связана с объектом обслуживания. Обратитесь к менеджеру — он привяжет объект к вашей учётной записи.',
+    ),
+  ).toBeVisible();
+
+  // Старого текста про схему привязки быть не должно: он вводил в заблуждение.
+  const body = await page.locator('body').innerText();
+  expect(body).not.toContain('Object.clientName');
+  expect(body).not.toContain('по названию организации');
+});
+
+// ---------------------------------------------------------------------------
+// 2c. AC-06: тёзки не мешают друг другу
+// ---------------------------------------------------------------------------
+
+test('AC-06: два CLIENT с одинаковым fullName видят каждый только свой объект', async ({
+  page,
+  request,
+}) => {
+  /*
+   * Классический случай, ради которого привязка и вводилась: одинаковые названия
+   * организаций. Доступ определяется id, поэтому тёзки не влияют друг на друга.
+   */
+  const adminToken = await loginAs(request, 'ADMIN');
+  const twinName = `ООО «Тёзка» ${runTag()}`;
+  const password = 'twin12345';
+
+  const makeTwin = async (suffix: string) => {
+    const res = await request.post(`${AUTH_URL}/api/users`, {
+      headers: authHeader(adminToken),
+      data: {
+        email: `e2e-twin-${suffix}-${runTag()}@example.com`,
+        fullName: twinName,
+        password,
+        role: 'CLIENT',
+      },
+    });
+    expect(res.status(), await res.text()).toBe(201);
+    return (await res.json()) as { id: string; email: string };
+  };
+
+  const first = await makeTwin('a');
+  const second = await makeTwin('b');
+  expect(first.id).not.toBe(second.id);
+
+  const firstObject = await createObject(request, {
+    name: `E2E-M56-ТЁЗКА-A-${runTag()}`,
+    clientName: twinName,
+    ownerClientId: first.id,
+  });
+  const secondObject = await createObject(request, {
+    name: `E2E-M56-ТЁЗКА-B-${runTag()}`,
+    clientName: twinName,
+    ownerClientId: second.id,
+  });
+  createdObjectIds.add(firstObject.id);
+  createdObjectIds.add(secondObject.id);
+
+  // API-контроль: фильтр по ownerClientId отдаёт каждому ровно свой объект.
+  const firstList = await core(
+    request,
+    'get',
+    `/api/objects?ownerClientId=${first.id}&take=100`,
+  );
+  const firstIds = ((await firstList.json()) as { items: Array<{ id: string }> }).items.map(
+    (item) => item.id,
+  );
+  expect(firstIds).toContain(firstObject.id);
+  expect(firstIds).not.toContain(secondObject.id);
+
+  // UI-контроль: портал первого тёзки открывает именно его объект.
+  await loginViaPortal(page, first.email, password);
+  await expect(page.getByTestId('portal-dashboard')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('portal-header-object')).toContainText(firstObject.name);
+  await expect(page.getByTestId('portal-header-object')).not.toContainText(secondObject.name);
 });
 
 // ---------------------------------------------------------------------------

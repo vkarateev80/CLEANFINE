@@ -127,6 +127,12 @@ export interface CreateObjectInput {
   floorsCount?: number;
   clientName?: string;
   clientContact?: string;
+  /**
+   * Привязка объекта к аккаунту заказчика (id пользователя auth-service) —
+   * именно она даёт клиенту доступ в портале. `null` — «привязки нет»;
+   * отсутствие поля при PATCH означает «не менять привязку».
+   */
+  ownerClientId?: string | null;
 }
 
 /** Уникальный суффикс прогона: имена не должны сталкиваться между запусками. */
@@ -138,6 +144,10 @@ export interface CoreObject {
   id: string;
   name: string;
   status: string;
+  /** Привязка к аккаунту заказчика (см. CreateObjectInput.ownerClientId). */
+  ownerClientId?: string | null;
+  clientName?: string;
+  clientContact?: string;
 }
 
 export interface Floor {
@@ -220,6 +230,64 @@ export async function createObject(
   });
   expect(res.status(), `создание объекта: ${await res.text()}`).toBe(201);
   return (await res.json()) as CoreObject;
+}
+
+// ---------------------------------------------------------------------------
+// Аккаунты заказчиков (auth-service) — нужны для проверок ownerClientId
+// ---------------------------------------------------------------------------
+
+/** Публичные поля аккаунта, которые отдаёт auth-service (`SafeUser`). */
+export interface AccountUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: Role;
+  isActive: boolean;
+}
+
+export interface CreateClientInput {
+  email: string;
+  fullName: string;
+  password?: string;
+}
+
+/**
+ * POST /api/users — создание CLIENT-аккаунта (только ADMIN).
+ * Возвращает id: он и есть значение `ownerClientId` для привязки объекта.
+ */
+export async function createClientAccount(
+  request: APIRequestContext,
+  input: CreateClientInput,
+  options: { role?: Role; token?: string } = {},
+): Promise<AccountUser> {
+  const res = await request.post(`${AUTH_URL}/api/users`, {
+    headers: authHeader(options.token ?? (await loginAs(request, options.role ?? 'ADMIN'))),
+    data: {
+      email: input.email,
+      fullName: input.fullName,
+      password: input.password ?? 'client123',
+      role: 'CLIENT',
+    },
+  });
+  expect(res.status(), `создание CLIENT-аккаунта: ${await res.text()}`).toBe(201);
+  return (await res.json()) as AccountUser;
+}
+
+/** DELETE /api/users/:id — мягкая деактивация (`isActive=false`), жёсткого удаления нет. */
+export async function deactivateAccount(
+  request: APIRequestContext,
+  userId: string,
+  options: { role?: Role; token?: string } = {},
+): Promise<void> {
+  const res = await request.delete(`${AUTH_URL}/api/users/${userId}`, {
+    headers: authHeader(options.token ?? (await loginAs(request, options.role ?? 'ADMIN'))),
+  });
+  expect([200, 204], `деактивация аккаунта ${userId}: ${await res.text()}`).toContain(res.status());
+}
+
+/** Уникальный email прогона: тесты не должны сталкиваться между запусками. */
+export function uniqueEmail(prefix: string): string {
+  return `${prefix}-${runTag()}@example.com`;
 }
 
 /** POST /api/objects/:objectId/floors */

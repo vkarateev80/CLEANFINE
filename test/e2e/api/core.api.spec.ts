@@ -4,13 +4,17 @@ import {
   addRoutePoint,
   attachFile,
   attachPlanUrl,
+  AUTH_URL,
+  authHeader,
   bodyText,
   core,
+  createClientAccount,
   createFloor,
   createObject,
   createRoom,
   createRoute,
   createTechCard,
+  deactivateAccount,
   deleteFile,
   deleteObject,
   deleteTechCard,
@@ -21,6 +25,7 @@ import {
   loginAs,
   PNG_1x1,
   runTag,
+  uniqueEmail,
   uploadFile,
   uploadPlanViaCore,
   type Room,
@@ -36,7 +41,13 @@ import {
  *  - core-service :3003 (E2E_CORE_URL)  — объекты, этажи, помещения, техкарты, маршруты.
  *
  * Покрытие: сквозной цикл «объект → 2 этажа → план → помещения → техкарта → маршрут»,
- * негативные кейсы (401/403/404/400/409), RBAC по четырём ролям.
+ * негативные кейсы (401/403/404/400/409), RBAC по четырём ролям, а также привязка
+ * объекта к аккаунту заказчика (`ownerClientId`): поле в ответах, фильтр списка и
+ * коды валидации 400 на несуществующий/не-CLIENT/деактивированный аккаунт.
+ *
+ * Про `ownerClientId`: это единственный авторитетный признак доступа заказчика к
+ * объекту (портал сравнивает его с id сессии). Серверного scope нет — фильтр
+ * `?ownerClientId=` это фильтр СПИСКА, а не авторизация (см. System Design §1/§14).
  *
  * Идемпотентность: набор не создаёт долгоживущих сущностей. Объекты удаляются
  * (каскадом уходят этажи, помещения, маршруты и точки), техкарты и файлы — тоже.
@@ -937,6 +948,253 @@ test.describe('Core: плоский список маршрутов', () => {
     expect((await core(request, 'get', `/api/routes?objectId=${object.id}&take=0`)).status()).toBe(
       400,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ownerClientId: привязка объекта к аккаунту заказчика
+// ---------------------------------------------------------------------------
+
+test.describe('Core: привязка объекта к аккаунту заказчика (ownerClientId)', () => {
+  /**
+   * Каждый тест создаёт свой CLIENT-аккаунт: набор идемпотентен и не зависит от
+   * того, какие аккаунты остались от прошлых прогонов. Аккаунты не удаляются
+   * (auth-service умеет только мягкую деактивацию) — как и фикстурные.
+   */
+  const createdClients = new Set<string>();
+
+  async function makeClient(request: APIRequestContext, label: string) {
+    const account = await createClientAccount(request, {
+      email: uniqueEmail(`e2e-owner-${label}`),
+      fullName: `E2E Заказчик ${label} ${runTag()}`,
+    });
+    createdClients.add(account.id);
+    return account;
+  }
+
+  test('AC-поле: создание с ownerClientId возвращает его в ответе и в getById/list', async ({
+    request,
+  }) => {
+    const client = await makeClient(request, 'create');
+    const name = `E2E ownerClientId ${runTag()}`;
+
+    const object = await createObject(request, { name, ownerClientId: client.id });
+    trackObject(object.id);
+
+    // POST отдаёт поле сразу: админка не должна перезапрашивать объект.
+    expect(object.ownerClientId).toBe(client.id);
+
+    const fetched = await core(request, 'get', `/api/objects/${object.id}`);
+    expect(fetched.status(), await fetched.text()).toBe(200);
+    expect(((await fetched.json()) as { ownerClientId: string | null }).ownerClientId).toBe(
+      client.id,
+    );
+
+    const list = await core(request, 'get', `/api/objects?ownerClientId=${client.id}&take=100`);
+    expect(list.status()).toBe(200);
+    const page = (await list.json()) as { items: Array<{ id: string; ownerClientId: string | null }>; total: number };
+    expect(page.items.map((item) => item.id)).toContain(object.id);
+    // Фильтр точный: чужой ownerClientId в выдачу не попадает.
+    for (const item of page.items) {
+      expect(item.ownerClientId).toBe(client.id);
+    }
+  });
+
+  test('AC-фильтр: список по ownerClientId не отдаёт объекты других владельцев', async ({
+    request,
+  }) => {
+    const first = await makeClient(request, 'filter-a');
+    const second = await makeClient(request, 'filter-b');
+    const own = await createObject(request, {
+      name: `E2E фильтр свой ${runTag()}`,
+      ownerClientId: first.id,
+    });
+    const foreign = await createObject(request, {
+      name: `E2E фильтр чужой ${runTag()}`,
+      ownerClientId: second.id,
+    });
+    const unbound = await createObject(request, { name: `E2E фильтр без привязки ${runTag()}` });
+    trackObject(own.id);
+    trackObject(foreign.id);
+    trackObject(unbound.id);
+
+    const res = await core(request, 'get', `/api/objects?ownerClientId=${first.id}&take=100`);
+    const page = (await res.json()) as { items: Array<{ id: string }>; total: number };
+    const ids = page.items.map((item) => item.id);
+
+    expect(ids).toContain(own.id);
+    expect(ids).not.toContain(foreign.id);
+    expect(ids).not.toContain(unbound.id);
+  });
+
+  test('AC-фильтр: ownerClientId комбинируется с search и status через AND', async ({ request }) => {
+    const client = await makeClient(request, 'and');
+    const marker = runTag();
+    const target = await createObject(request, {
+      name: `E2E AND цель ${marker}`,
+      ownerClientId: client.id,
+    });
+    const otherName = await createObject(request, {
+      name: `E2E AND другое ${marker}`,
+      ownerClientId: client.id,
+    });
+    trackObject(target.id);
+    trackObject(otherName.id);
+
+    const res = await core(
+      request,
+      'get',
+      `/api/objects?ownerClientId=${client.id}&search=${encodeURIComponent(`AND цель ${marker}`)}&take=100`,
+    );
+    const page = (await res.json()) as { items: Array<{ id: string; name: string }>; total: number };
+
+    expect(page.items.map((item) => item.id)).toEqual([target.id]);
+  });
+
+  test('AC-07: несуществующий аккаунт → 400 «Аккаунт заказчика не найден»', async ({ request }) => {
+    const res = await core(request, 'post', '/api/objects', {
+      data: {
+        name: `E2E несуществующий ${runTag()}`,
+        address: 'г. Москва, ул. Тестовая, 1',
+        lat: 55.7558,
+        lng: 37.6173,
+        type: 'business-center',
+        totalArea: 100,
+        floorsCount: 1,
+        clientName: 'ООО «E2E»',
+        clientContact: '+7 495 000-00-00',
+        // Валидный по форме uuid, которого точно нет в auth-БД.
+        ownerClientId: '00000000-0000-4000-8000-000000000000',
+      },
+    });
+
+    expect(res.status(), await res.text()).toBe(400);
+    expect(await res.text()).toContain('Аккаунт заказчика не найден');
+  });
+
+  test('AC-07: аккаунт с ролью не CLIENT → 400 «Аккаунт не является клиентом»', async ({
+    request,
+  }) => {
+    // id администратора берём из его же токена через /api/auth/me.
+    const token = await loginAs(request, 'ADMIN');
+    const me = await request.get(`${AUTH_URL}/api/auth/me`, { headers: authHeader(token) });
+    const adminId = ((await me.json()) as { id: string }).id;
+
+    const res = await core(request, 'post', '/api/objects', {
+      data: {
+        name: `E2E не клиент ${runTag()}`,
+        address: 'г. Москва, ул. Тестовая, 1',
+        lat: 55.7558,
+        lng: 37.6173,
+        type: 'business-center',
+        totalArea: 100,
+        floorsCount: 1,
+        clientName: 'ООО «E2E»',
+        clientContact: '+7 495 000-00-00',
+        ownerClientId: adminId,
+      },
+    });
+
+    expect(res.status(), await res.text()).toBe(400);
+    expect(await res.text()).toContain('Аккаунт не является клиентом');
+  });
+
+  test('AC-07: деактивированный CLIENT → 400 «Аккаунт клиента деактивирован»', async ({
+    request,
+  }) => {
+    const client = await makeClient(request, 'deactivated');
+    await deactivateAccount(request, client.id);
+
+    const res = await core(request, 'post', '/api/objects', {
+      data: {
+        name: `E2E деактивирован ${runTag()}`,
+        address: 'г. Москва, ул. Тестовая, 1',
+        lat: 55.7558,
+        lng: 37.6173,
+        type: 'business-center',
+        totalArea: 100,
+        floorsCount: 1,
+        clientName: 'ООО «E2E»',
+        clientContact: '+7 495 000-00-00',
+        ownerClientId: client.id,
+      },
+    });
+
+    expect(res.status(), await res.text()).toBe(400);
+    expect(await res.text()).toContain('Аккаунт клиента деактивирован');
+  });
+
+  test('AC-07: PATCH ownerClientId=null снимает привязку, PATCH без поля её не меняет', async ({
+    request,
+  }) => {
+    const client = await makeClient(request, 'patch');
+    const object = await createObject(request, {
+      name: `E2E PATCH привязки ${runTag()}`,
+      ownerClientId: client.id,
+    });
+    trackObject(object.id);
+
+    // 1) PATCH без поля ownerClientId — привязка обязана сохраниться. Это главный
+    //    регресс: обычное редактирование названия не должно отбирать доступ.
+    const renamed = await core(request, 'patch', `/api/objects/${object.id}`, {
+      data: { name: `E2E PATCH переименован ${runTag()}` },
+    });
+    expect(renamed.status(), await renamed.text()).toBe(200);
+    expect(((await renamed.json()) as { ownerClientId: string | null }).ownerClientId).toBe(
+      client.id,
+    );
+
+    const afterRename = await core(request, 'get', `/api/objects/${object.id}`);
+    expect(((await afterRename.json()) as { ownerClientId: string | null }).ownerClientId).toBe(
+      client.id,
+    );
+
+    // 2) PATCH ownerClientId=null — привязка снимается.
+    const cleared = await core(request, 'patch', `/api/objects/${object.id}`, {
+      data: { ownerClientId: null },
+    });
+    expect(cleared.status(), await cleared.text()).toBe(200);
+    expect(((await cleared.json()) as { ownerClientId: string | null }).ownerClientId).toBeNull();
+
+    const afterClear = await core(request, 'get', `/api/objects/${object.id}`);
+    expect(((await afterClear.json()) as { ownerClientId: string | null }).ownerClientId).toBeNull();
+  });
+
+  test('AC-07: PATCH несуществующим аккаунтом → 400 и привязка не меняется', async ({ request }) => {
+    const client = await makeClient(request, 'patch-bad');
+    const object = await createObject(request, {
+      name: `E2E PATCH чужой id ${runTag()}`,
+      ownerClientId: client.id,
+    });
+    trackObject(object.id);
+
+    const res = await core(request, 'patch', `/api/objects/${object.id}`, {
+      data: { ownerClientId: '00000000-0000-4000-8000-000000000000' },
+    });
+    expect(res.status(), await res.text()).toBe(400);
+
+    const after = await core(request, 'get', `/api/objects/${object.id}`);
+    expect(((await after.json()) as { ownerClientId: string | null }).ownerClientId).toBe(
+      client.id,
+    );
+  });
+
+  test('валидация DTO: ownerClientId не строка → 400', async ({ request }) => {
+    const res = await core(request, 'post', '/api/objects', {
+      data: {
+        name: `E2E тип поля ${runTag()}`,
+        address: 'г. Москва, ул. Тестовая, 1',
+        lat: 55.7558,
+        lng: 37.6173,
+        type: 'business-center',
+        totalArea: 100,
+        floorsCount: 1,
+        clientName: 'ООО «E2E»',
+        clientContact: '+7 495 000-00-00',
+        ownerClientId: 123,
+      },
+    });
+    expect(res.status(), await res.text()).toBe(400);
   });
 });
 
