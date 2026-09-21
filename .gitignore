@@ -11,6 +11,16 @@ coverage/
 .env.local
 .env.*.local
 !.env.example
+# Секреты стенда prj-cleanfine: генерируются deploy/vps/gen-env.sh на VPS.
+# В git попадает только шаблон deploy/vps/.env.vps.example (FR-8, AC-7).
+.env.vps
+deploy/vps/.env.vps
+
+# --- Кэши инструментов внутри рабочей копии ---
+# npm по умолчанию пишет в ~/.npm, BuildKit — в ~/.docker/buildx. В средах с
+# файловой песочницей эти пути могут быть недоступны, поэтому кэш направляется
+# в .cache/ репозитория (см. deploy/vps/README.md).
+.cache/
 
 # --- Логи ---
 # logs/ — вывод локального стенда: сервисы и dev-сервер запускаются из корня и

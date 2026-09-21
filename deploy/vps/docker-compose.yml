@@ -1,0 +1,484 @@
+# ============================================================
+# Cleaning Ops — изолированный VPS-стенд (compose-проект prj-cleanfine).
+#
+# Источник истины: System Design v2 (разделы 3, 5, 8, ADR-1…ADR-8) и PRD
+# (FR-2…FR-9, FR-21…FR-25). Каталог deploy/vps/ — единственное место стенда.
+#
+# Запуск (из КОРНЯ репозитория):
+#   bash deploy/vps/gen-env.sh                              # один раз, создаёт .env.vps
+#   docker compose --env-file deploy/vps/.env.vps -f deploy/vps/docker-compose.yml config
+#   bash deploy/vps/bootstrap.sh                            # полный прогон
+#
+# ИЗОЛЯЦИЯ ОТ ДЕМО-СТЕНДА cleaning-ops-vps (NFR-1):
+#   * своё имя проекта (`name: prj-cleanfine`) ⇒ контейнеры prj-cleanfine-*, свои
+#     сеть и тома с явными именами; пересечений с cleaning-ops-vps_default и
+#     томами cleaning-ops-vps_* нет;
+#   * публикация ТОЛЬКО на tailnet-адресе 100.109.185.14; ни одного `0.0.0.0`
+#     или `*` (NFR-2). Демо-стенд продолжает держать :80, :8080, :3001–3009;
+#   * лимиты mem_limit/cpus/pids_limit и ротация логов — у ВСЕХ 15 сервисов
+#     (FR-23, FR-24, суммарный потолок ≈ 4.5 ГиБ, раздел 8);
+#   * этот файл НЕ трогает /opt/cleaning-ops: у проекта отдельный compose.
+#
+# Контекст сборки backend-образов = КОРЕНЬ репозитория (deploy/vps/../../), так
+# как tsconfig сервисов маппит @cleaning-ops/shared/* в ../../shared/dist/*.
+# Перед `docker compose build` обязателен `pnpm build:shared` (FR-14, ADR-8):
+# shared/dist — артефакт сборки, в git его нет.
+#
+# ЗАВИСИМОСТИ: depends_on с condition: service_healthy выставлен ТОЛЬКО для
+# инфраструктуры (у неё есть healthcheck). Приложения зависят от приложений по
+# умолчанию (service_started) — у части сервисов своего healthcheck в образе нет
+# (auth, chat, material), и ожидание healthy подвесило бы стенд (раздел 3).
+# ============================================================
+name: prj-cleanfine
+
+# --- Общие якоря -------------------------------------------------------------
+# Ротация логов (FR-24): json-file 10 МБ × 3 файла на каждый контейнер.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Общий набор переменных для всех девяти backend-сервисов (раздел 5).
+# Сервис читает только свои, остальные для него инертны — так набор задаётся
+# один раз и не расходится между сервисами.
+x-app-env: &app-env
+  NODE_ENV: production
+  TZ: UTC
+  # Внутренние адреса сервис-к-сервису (имена сервисов = DNS-имена compose).
+  # FILE_SERVICE_URL — ЕДИНСТВЕННОЕ число: именно это имя читает core-service
+  # (backend/core-service/src/config/configuration.ts:23).
+  AUTH_SERVICE_URL: http://auth:3001
+  FILE_SERVICE_URL: http://files:3002
+  CORE_SERVICE_URL: http://core:3003
+  GPS_SERVICE_URL: http://gps:3004
+  TICKET_SERVICE_URL: http://tickets:3005
+  NOTIFICATION_SERVICE_URL: http://notifications:3006
+  # Сервисная учётка внутренних вызовов (chat/material/schedule).
+  # Пароль обязан совпадать с паролем seed-администратора (решение O4).
+  SERVICE_AUTH_EMAIL: ${SERVICE_AUTH_EMAIL:-admin@cleaning-ops.com}
+  SERVICE_AUTH_PASSWORD: ${SERVICE_AUTH_PASSWORD:-admin123}
+  # JWT: auth валидирует секреты (NODE_ENV=production ⇒ ≥32 символа, разные).
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET не задан в .env.vps — запустите deploy/vps/gen-env.sh}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET не задан в .env.vps — запустите deploy/vps/gen-env.sh}
+  JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+  JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-30d}
+  # Redis сейчас не читает ни один сервис (проверено grep'ом по backend/) —
+  # переменная оставлена для паритета с эталоном инфраструктуры.
+  REDIS_URL: redis://redis:6379
+
+# Лимиты (раздел 8). Порядок: mem_limit, cpus, pids_limit, logging.
+x-backend-limits: &backend-limits
+  mem_limit: 320m
+  cpus: 0.25
+  pids_limit: 200
+  logging: *default-logging
+
+x-web-limits: &web-limits
+  mem_limit: 96m
+  cpus: 0.25
+  pids_limit: 100
+  logging: *default-logging
+
+services:
+  # ==========================================================================
+  # Инфраструктура (4 сервиса, наружу публикуется только MinIO — ADR-3, O2)
+  # ==========================================================================
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cleaning_ops}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD не задан в .env.vps — запустите deploy/vps/gen-env.sh}
+      # max_connections НЕ задаём: у образа postgis/postgis:16-3.4 дефолт 100, и
+      # именно на него рассчитан connection_limit=8 в каждом *_DATABASE_URL
+      # (9 × 8 = 72 соединения + запас на psql/обслуживание).
+    volumes:
+      - prj-cleanfine-pg-data:/var/lib/postgresql/data
+      # Создание 8 БД + PostGIS/pg_trgm — только при первом создании тома.
+      - ../../infra/docker/initdb:/docker-entrypoint-initdb.d:ro
+    # `jit=off` из infra/docker/docker-compose.yml НЕ переносим: это обходной путь
+    # для Apple Silicon/qemu, на x86 JIT полезен (раздел 8).
+    networks: [prj-cleanfine-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-cleaning_ops}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 200
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - prj-cleanfine-redis-data:/data
+    networks: [prj-cleanfine-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 96m
+    cpus: 0.25
+    pids_limit: 50
+    logging: *default-logging
+
+  # Инициализация тома rabbitmq: каталог данных + уже существующий cookie.
+  # ПОЧЕМУ ОТДЕЛЬНЫЙ СЕРВИС (воспроизведено при развёртывании): на СВЕЖЕМ томе,
+  # где .erlang.cookie ещё НЕ существует, rabbitmq:3-management-alpine падает
+  # на старте с
+  #   Error when reading /var/lib/rabbitmq/.erlang.cookie: eacces
+  # (3 из 3 прогонов, по 9 повторов в логе; State=exited, ExitCode=1).
+  # Механика: docker-entrypoint.sh образа делает
+  #   find /var/lib/rabbitmq ! -user rabbitmq -exec chown rabbitmq +
+  # один раз, в ветке «мы root», и только потом запускает сервер. Файл cookie,
+  # который Erlang создаёт уже под пользователем rabbitmq, в этот проход не
+  # попадает и остаётся недоступным. Если же .erlang.cookie существует ДО старта,
+  # entrypoint успевает его забрать и старт проходит — проверено на томах
+  # с предсозданным cookie (root:root 0400 и rabbitmq:rabbitmq 0400).
+  # Значение cookie не секрет: это идентификатор кластера Erlang для связи
+  # узлов, здесь узел один; для кластера значение задаётся общим секретом.
+  rabbitmq-init:
+    # busybox есть в alpine — отдельный образ под одну команду не нужен.
+    image: alpine:3.20
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        cd /var/lib/rabbitmq
+        # 1) cookie должен существовать ДО старта rabbitmq (см. комментарий выше)
+        [ -f .erlang.cookie ] || head -c 20 /dev/urandom | od -An -tx1 | tr -d ' \n' > .erlang.cookie
+        # 2) владелец — пользователь rabbitmq в образе (uid/gid 100/101)
+        chown 100:101 .erlang.cookie
+        chmod 400 .erlang.cookie
+        # 3) каталог данных принадлежит тому же пользователю
+        chown -R 100:101 .
+        chmod 700 .
+        ls -la
+    volumes:
+      - prj-cleanfine-rabbit-data:/var/lib/rabbitmq
+    networks: [prj-cleanfine-net]
+    restart: "no"
+    mem_limit: 32m
+    cpus: 0.1
+    pids_limit: 50
+    logging: *default-logging
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    depends_on:
+      # Ждём успешного ЗАВЕРШЕНИЯ инициализации (restart: "no" + нулевой код
+      # выхода ⇒ условие сходится, а не ждёт вечно).
+      rabbitmq-init: { condition: service_completed_successfully }
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD не задан в .env.vps — запустите deploy/vps/gen-env.sh}
+    volumes:
+      - prj-cleanfine-rabbit-data:/var/lib/rabbitmq
+    networks: [prj-cleanfine-net]
+    healthcheck:
+      # Отклонение от §3/§8 (зафиксировано в runbook): readiness проверяется
+      # TCP-пробой AMQP-порта через `nc -z`, а не `rabbitmq-diagnostics -q ping`.
+      # Причина измерена на этом стенде: любой вызов `rabbitmq-diagnostics`
+      # поднимает ОТДЕЛЬНУЮ Erlang VM и занимает 7–15 с (замеры: 7.3/7.3/8.0/9.5/
+      # 10.2/11.5/11.5/14.3/14.7/14.9 с), а Docker жёстко ограничивает
+      # healthcheck `timeout` 30 секундами. При 10 с из System Design проверка не
+      # сходилась НИКОГДА («Health check exceeded timeout (10s)» на живом сервере).
+      # `nc` есть в образе (/usr/bin/nc, busybox) и проверяет ровно то, что нужно
+      # потребителям: AMQP-порт принимает соединения. Глубина проверки брокера —
+      # дальше по потоку: сами сервисы и их логи (DC-3).
+      test: ["CMD", "nc", "-z", "127.0.0.1", "5672"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    mem_limit: 320m
+    cpus: 0.5
+    pids_limit: 300
+    logging: *default-logging
+
+  minio:
+    # Docker Hub-репозиторий minio/minio больше не публикуется — quay.io (FR-2).
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      # Root-креды сервера и S3-креды file-service обязаны совпадать (раздел 5.1).
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD не задан в .env.vps — запустите deploy/vps/gen-env.sh}
+    ports:
+      # ADR-3 / решение O2: MinIO публикуется, иначе URL файлов вида
+      # http://minio:9000/... не открываются из браузера (планы этажей, фото).
+      - "100.109.185.14:8120:9000"   # S3 API
+      - "100.109.185.14:8121:9001"   # console
+    volumes:
+      - prj-cleanfine-minio-data:/data
+    networks: [prj-cleanfine-net]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: 320m
+    cpus: 0.5
+    pids_limit: 100
+    logging: *default-logging
+
+  # ==========================================================================
+  # Backend (9 сервисов). Внутренние порты 3001…3009, публикация 8111…8119.
+  # Сборка из СВОИХ backend/*/Dockerfile (ADR-8) — образа Dockerfile.app нет.
+  # ==========================================================================
+  auth:                       # :3001 → tailnet 8111
+    build:
+      context: ../..
+      dockerfile: backend/auth-service/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3001"
+      AUTH_SERVICE_PORT: "3001"
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL не задан в .env.vps — запустите deploy/vps/gen-env.sh}
+    ports:
+      - "100.109.185.14:8111:3001"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [prj-cleanfine-net]
+    <<: *backend-limits
+
+  files:                      # :3002 → tailnet 8112
+    build:
+      context: ../..
+      dockerfile: backend/file-service/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3002"
+      FILE_SERVICE_PORT: "3002"
+      FILE_DATABASE_URL: ${FILE_DATABASE_URL:?FILE_DATABASE_URL не задан в .env.vps}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY не задан в .env.vps}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY не задан в .env.vps}
+      # Публичный адрес файлов в ответах API (см. ADR-3).
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://100.109.185.14:8120}
+    ports:
+      - "100.109.185.14:8112:3002"
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    networks: [prj-cleanfine-net]
+    <<: *backend-limits
+
+  core:                       # :3003 → tailnet 8113
+    build:
+      context: ../..
+      dockerfile: backend/core-service/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3003"
+      CORE_SERVICE_PORT: "3003"
+      CORE_DATABASE_URL: ${CORE_DATABASE_URL:?CORE_DATABASE_URL не задан в .env.vps}
+    ports:
+      - "100.109.185.14:8113:3003"
+    depends_on:
+      postgres: { condition: service_healthy }
+      files: { condition: service_started }
+    networks: [prj-cleanfine-net]
+    <<: *backend-limits
+
+  gps:                        # :3004 → tailnet 8114
+    build:
+      context: ../..
+      dockerfile: backend/gps-service/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3004"
+      GPS_SERVICE_PORT: "3004"
+      GPS_DATABASE_URL: ${GPS_DATABASE_URL:?GPS_DATABASE_URL не задан в .env.vps}
+      RABBITMQ_URL: ${RABBITMQ_URL:?RABBITMQ_URL не задан в .env.vps}
+      RABBITMQ_ENABLED: ${RABBITMQ_ENABLED:-true}
+    ports:
+      - "100.109.185.14:8114:3004"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    networks: [prj-cleanfine-net]
+    <<: *backend-limits
+
+  tickets:                    # :3005 → tailnet 8115
+    build:
+      context: ../..
+      dockerfile: backend/ticket-service/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3005"
+      TICKET_SERVICE_PORT: "3005"
+      TICKET_DATABASE_URL: ${TICKET_DATABASE_URL:?TICKET_DATABASE_URL не задан в .env.vps}
+      RABBITMQ_URL: ${RABBITMQ_URL:?RABBITMQ_URL не задан в .env.vps}
+      ESCALATION_NEW_TO_ACCEPT_MIN: ${ESCALATION_NEW_TO_ACCEPT_MIN:-5}
+      ESCALATION_ACCEPT_TO_ARRIVE_MIN: ${ESCALATION_ACCEPT_TO_ARRIVE_MIN:-15}
+      ESCALATION_ARRIVE_TO_DONE_MIN: ${ESCALATION_ARRIVE_TO_DONE_MIN:-60}
+    ports:
+      - "100.109.185.14:8115:3005"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      gps: { condition: service_started }
+    networks: [prj-cleanfine-net]
+    <<: *backend-limits
+
+  notifications:              # :3006 → tailnet 8116
+    build:
+      context: ../..
+      dockerfile: backend/notification-service/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3006"
+      NOTIFICATION_SERVICE_PORT: "3006"
+      NOTIFICATION_DATABASE_URL: ${NOTIFICATION_DATABASE_URL:?NOTIFICATION_DATABASE_URL не задан в .env.vps}
+      RABBITMQ_URL: ${RABBITMQ_URL:?RABBITMQ_URL не задан в .env.vps}
+      NOTIFICATION_RABBITMQ_ENABLED: ${NOTIFICATION_RABBITMQ_ENABLED:-true}
+      # Пустые ⇒ мок-адаптер push (решение O7, раздел 5.5).
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
+    ports:
+      - "100.109.185.14:8116:3006"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    networks: [prj-cleanfine-net]
+    <<: *backend-limits
+
+  materials:                  # :3007 → tailnet 8117
+    build:
+      context: ../..
+      dockerfile: backend/material-service/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3007"
+      MATERIAL_SERVICE_PORT: "3007"
+      MATERIAL_DATABASE_URL: ${MATERIAL_DATABASE_URL:?MATERIAL_DATABASE_URL не задан в .env.vps}
+      RABBITMQ_URL: ${RABBITMQ_URL:?RABBITMQ_URL не задан в .env.vps}
+    ports:
+      - "100.109.185.14:8117:3007"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    networks: [prj-cleanfine-net]
+    <<: *backend-limits
+
+  schedule:                   # :3008 → tailnet 8118
+    build:
+      context: ../..
+      dockerfile: backend/schedule-service/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3008"
+      SCHEDULE_SERVICE_PORT: "3008"
+      SCHEDULE_DATABASE_URL: ${SCHEDULE_DATABASE_URL:?SCHEDULE_DATABASE_URL не задан в .env.vps}
+      RABBITMQ_URL: ${RABBITMQ_URL:?RABBITMQ_URL не задан в .env.vps}
+      # O5: стенд прод-подобный, фоновые проходы включены. Для прогонов e2e
+      # флаг переключается на false в .env.vps + redeploy.sh.
+      SCHEDULE_CRON_ENABLED: ${SCHEDULE_CRON_ENABLED:-true}
+      SCHEDULE_MISSED_CHECKIN_INTERVAL_MS: ${SCHEDULE_MISSED_CHECKIN_INTERVAL_MS:-300000}
+      SCHEDULE_AUTO_CHECKOUT_MINUTES: ${SCHEDULE_AUTO_CHECKOUT_MINUTES:-15}
+    ports:
+      - "100.109.185.14:8118:3008"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    networks: [prj-cleanfine-net]
+    <<: *backend-limits
+
+  chat:                       # :3009 → tailnet 8119
+    build:
+      context: ../..
+      dockerfile: backend/chat-service/Dockerfile
+    environment:
+      <<: *app-env
+      PORT: "3009"
+      CHAT_SERVICE_PORT: "3009"
+      CHAT_DATABASE_URL: ${CHAT_DATABASE_URL:?CHAT_DATABASE_URL не задан в .env.vps}
+    ports:
+      - "100.109.185.14:8119:3009"
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [prj-cleanfine-net]
+    <<: *backend-limits
+
+  # ==========================================================================
+  # Фронтенды (2 сервиса): сборка deploy/vps/Dockerfile.web, nginx + SPA,
+  # reverse-proxy с маршрутизацией из frontend/*/vite.config.ts (раздел 4).
+  # ==========================================================================
+  web-admin:                  # nginx :80 → tailnet 8090
+    build:
+      context: ../..
+      dockerfile: deploy/vps/Dockerfile.web
+      args:
+        APP: web-admin
+        # VITE_API_URL — относительный: запросы идут через nginx того же origin.
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        # VITE_WS_URL НЕ задаётся: WebSocket-upgrade делает nginx (/socket.io/).
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
+    ports:
+      - "100.109.185.14:8090:80"
+    volumes:
+      - ./nginx-web-admin.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx-proxy_params:/etc/nginx/proxy_params:ro
+    depends_on:
+      auth: { condition: service_started }
+      files: { condition: service_started }
+      core: { condition: service_started }
+      gps: { condition: service_started }
+      tickets: { condition: service_started }
+      notifications: { condition: service_started }
+      materials: { condition: service_started }
+      schedule: { condition: service_started }
+      chat: { condition: service_started }
+    networks: [prj-cleanfine-net]
+    <<: *web-limits
+
+  web-client:                 # nginx :80 → tailnet 8091
+    build:
+      context: ../..
+      dockerfile: deploy/vps/Dockerfile.web
+      args:
+        APP: web-client
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN:-}
+    ports:
+      - "100.109.185.14:8091:80"
+    volumes:
+      - ./nginx-web-client.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx-proxy_params:/etc/nginx/proxy_params:ro
+    depends_on:
+      auth: { condition: service_started }
+      core: { condition: service_started }
+      tickets: { condition: service_started }
+      notifications: { condition: service_started }
+      materials: { condition: service_started }
+      schedule: { condition: service_started }
+      chat: { condition: service_started }
+    networks: [prj-cleanfine-net]
+    <<: *web-limits
+
+# --- Сеть и тома с явными именами (доказательство изоляции, FR-21) ----------
+networks:
+  prj-cleanfine-net:
+    name: prj-cleanfine-net
+    driver: bridge
+
+volumes:
+  prj-cleanfine-pg-data:
+    name: prj-cleanfine-pg-data
+  prj-cleanfine-redis-data:
+    name: prj-cleanfine-redis-data
+  prj-cleanfine-rabbit-data:
+    name: prj-cleanfine-rabbit-data
+  prj-cleanfine-minio-data:
+    name: prj-cleanfine-minio-data

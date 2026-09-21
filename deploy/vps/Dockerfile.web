@@ -1,0 +1,86 @@
+# ============================================================
+# Сборка SPA (web-admin | web-client) — один Dockerfile на оба фронтенда.
+#
+# System Design v2, §2 и PRD FR-4. Контекст сборки — КОРЕНЬ репозитория:
+#   docker build -f deploy/vps/Dockerfile.web --build-arg APP=web-admin -t prj-cleanfine-web-admin .
+# (в compose это делается автоматически, см. deploy/vps/docker-compose.yml).
+#
+# Раскладка внутри образа повторяет монорепо относительно /build, потому что:
+#   * frontend/<APP>/vite.config.ts алиасит @cleaning-ops/shared → ../../shared/dist;
+#   * frontend/<APP>/src/main.tsx импортирует ../../../design/tokens/generated/tokens.css;
+#   * frontend/<APP>/tsconfig.json маппит @cleaning-ops/shared/* → ../../shared/dist/*.
+# Итог: /build/{design,shared,frontend/<APP>} — и все три относительных пути верны.
+#
+# ВАЖНО: shared/dist — артефакт сборки (в git его нет). Перед docker build на
+# хосте обязан быть выполнен `pnpm build:shared`, иначе Vite/tsc не найдут
+# контракты и сборка упадёт (FR-14, ADR-8).
+#
+# Переменные сборки:
+#   VITE_API_URL=/api  — относительный: фронт ходит в nginx того же origin,
+#                        а nginx раскидывает /api/* по сервисам (§4).
+#   VITE_WS_URL        — НЕ задаётся: в проде WebSocket-upgrade делает nginx
+#                        (location /socket.io/ → chat:3009), см. комментарий в
+#                        frontend/web-client/vite.config.ts.
+#   VITE_MAPBOX_TOKEN  — пусто ⇒ карта показывает заглушку (решение O7).
+# ============================================================
+
+FROM node:20-alpine AS builder
+# ARG объявляется ДО первого использования: подстановка ${APP} в COPY/RUN
+# работает только ниже строки ARG, иначе имя каталога становится пустым
+# (проверено: «COPY frontend//src ... "/frontend/src": not found»).
+ARG APP=web-admin
+ARG VITE_API_URL=/api
+ARG VITE_MAPBOX_TOKEN=
+WORKDIR /build
+
+# 1) Зависимости фронтенда. Ставим ДО COPY исходников, чтобы слой кэшировался.
+COPY frontend/${APP}/package.json ./frontend/${APP}/package.json
+RUN cd frontend/${APP} && npm install --no-package-lock --no-audit --no-fund
+
+# 2) Контракты (алиас @cleaning-ops/shared → ../../shared/dist в vite.config.ts)
+#    и дизайн-токены (import '../../../design/tokens/generated/tokens.css').
+COPY shared ./shared
+COPY design ./design
+
+# 3) Исходники приложения и конфиги сборки.
+COPY frontend/${APP}/tsconfig.json ./frontend/${APP}/tsconfig.json
+COPY frontend/${APP}/vite.config.ts ./frontend/${APP}/vite.config.ts
+COPY frontend/${APP}/tailwind.config.js ./frontend/${APP}/tailwind.config.js
+COPY frontend/${APP}/postcss.config.js ./frontend/${APP}/postcss.config.js
+COPY frontend/${APP}/index.html ./frontend/${APP}/index.html
+COPY frontend/${APP}/src ./frontend/${APP}/src
+
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
+# `npm run build` = `tsc --noEmit && vite build`; APP нужен в том числе для
+# сообщения о начале сборки.
+RUN echo "==> сборка ${APP} (VITE_API_URL=${VITE_API_URL})" \
+ && cd frontend/${APP} && npm run build
+
+# --- Runtime: статика под nginx; конфиг маршрутизации монтируется из kit -----
+FROM nginx:1.27-alpine
+# ARG объявляется в КАЖДОЙ стадии, где используется: build-arg не наследуется.
+ARG APP=web-admin
+# Каталог статики закрываем для записи: nginx нужны только чтение статики,
+# свой pid-файл в /var/run и кэш в /var/cache/nginx (образ уже даёт их).
+# Конфиг маршрутизации приходит bind-mount'ом из deploy/vps/ (см. compose),
+# поэтому в образ кладём оба варианта в /etc/nginx/kit/ — это делает один
+# Dockerfile пригодным для web-admin и web-client.
+# Имена в kit — БЕЗ префикса `nginx-web-`: значение APP его уже содержит
+# (web-admin), иначе получается несуществующий nginx-web-web-admin.conf
+# (ошибка воспроизведена при сборке).
+COPY deploy/vps/nginx-web-admin.conf /etc/nginx/kit/admin.conf
+COPY deploy/vps/nginx-web-client.conf /etc/nginx/kit/client.conf
+COPY deploy/vps/nginx-proxy_params /etc/nginx/proxy_params
+# Рабочий дефолт: маршрутизация выбранного приложения.
+RUN case "$APP" in \
+      web-admin) cp /etc/nginx/kit/admin.conf  /etc/nginx/conf.d/default.conf ;; \
+      web-client) cp /etc/nginx/kit/client.conf /etc/nginx/conf.d/default.conf ;; \
+      *) echo "APP должен быть web-admin или web-client, получено: '$APP'" >&2; exit 1 ;; \
+    esac
+
+COPY --from=builder /build/frontend/${APP}/dist /usr/share/nginx/html
+
+EXPOSE 80
+# Foreground-режим: без `daemon off` контейнер сразу завершится.
+CMD ["nginx", "-g", "daemon off;"]
