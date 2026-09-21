@@ -1,24 +1,63 @@
-# chat-service (М5.1–М5.2). Сборка из корня монорепозитория:
-# docker build -f backend/chat-service/Dockerfile .
-FROM node:20-alpine AS build
-WORKDIR /app
+# chat-service (М5.1–М5.2).
+#
+# ВНИМАНИЕ: контекст сборки — КОРЕНЬ РЕПОЗИТОРИЯ (не backend/chat-service).
+# Причина: tsconfig маппит @cleaning-ops/shared/* в ../../shared/dist/*, поэтому
+# образ обязан сохранять раскладку монорепо (backend/chat-service + shared/dist).
+#
+#   docker build -f backend/chat-service/Dockerfile -t cleaning-ops/chat-service .
+#
+# ЕДИНЫЙ ПАТТЕРН для всех девяти backend-сервисов (System Design v2,
+# ADR-8 / D-3). Ключевое отличие от прежнего варианта: контракты
+# @cleaning-ops/shared кладутся РЕАЛЬНОЙ КОПИЕЙ пакета в
+# node_modules/@cleaning-ops/shared, а не только в /repo/shared/dist.
+#
+#   tsc НЕ переписывает paths: эмит commonjs сохраняет bare-спецификатор
+#   require("@cleaning-ops/shared/types/core"), а Node резолвит
+#   bare-спецификаторы только через node_modules. Поэтому:
+#     * shared/dist в /repo/shared/dist нужен ТОЛЬКО на этапе компиляции
+#       (его требует paths из tsconfig);
+#     * для рантайма пакет копируется в node_modules/@cleaning-ops/shared
+#       (package.json + dist) и уезжает в финальный образ внутри node_modules.
+#   Вместе с условиями require/default в shared/package.json (D-2) это даёт
+#   рабочий require("@cleaning-ops/shared/constants/events") без
+#   ERR_PACKAGE_PATH_NOT_EXPORTED.
+#
+# Перед docker build контракты обязаны быть собраны на хосте: pnpm build:shared
+# (shared/dist — артефакт сборки, в git его нет).
+#
+# Примечание: пока нет pnpm-lock.yaml в сервисе — npm; при появлении lock перейти
+# на pnpm (устав).
 
-COPY backend/chat-service/package.json ./backend/chat-service/package.json
-COPY shared/package.json ./shared/package.json
-RUN cd backend/chat-service && npm install --no-package-lock --no-audit --no-fund
+FROM node:20-alpine AS builder
+RUN apk add --no-cache openssl
+WORKDIR /repo/backend/chat-service
+COPY backend/chat-service/package.json ./
+RUN npm install --no-package-lock --no-audit --no-fund
+COPY backend/chat-service/tsconfig.json backend/chat-service/nest-cli.json ./
+COPY backend/chat-service/prisma ./prisma
+RUN npx prisma generate
+COPY backend/chat-service/src ./src
+# Контракты для КОМПИЛЯЦИИ — ровно туда, куда указывает paths в tsconfig.
+COPY shared/dist /repo/shared/dist
+COPY shared/package.json /repo/shared/package.json
+# Контракты для РАНТАЙМА: реальная копия пакета в node_modules/@cleaning-ops/shared.
+# Без неё `node dist/main.js` падает на require("@cleaning-ops/shared/...").
+RUN mkdir -p node_modules/@cleaning-ops/shared \
+ && cp /repo/shared/package.json node_modules/@cleaning-ops/shared/package.json \
+ && cp -a /repo/shared/dist node_modules/@cleaning-ops/shared/dist
+RUN npm run build
 
-COPY shared ./shared
-COPY backend/chat-service ./backend/chat-service
-RUN cd shared && npm run build --if-present
-RUN cd backend/chat-service && \
-    node node_modules/prisma/build/index.js generate && \
-    node node_modules/@nestjs/cli/bin/nest.js build
-
+# Runtime-стадия. Раскладка монорепо (/repo/...) сохранена для читаемости путей,
+# но рантайм-резолв контрактов идёт из node_modules/@cleaning-ops/shared —
+# копия /repo/shared/dist в финальный образ БОЛЬШЕ НЕ НУЖНА (ADR-8).
 FROM node:20-alpine
-WORKDIR /app/backend/chat-service
+RUN apk add --no-cache openssl tzdata
+WORKDIR /repo/backend/chat-service
 ENV NODE_ENV=production
-COPY --from=build /app/backend/chat-service/node_modules ./node_modules
-COPY --from=build /app/backend/chat-service/dist ./dist
-COPY --from=build /app/backend/chat-service/prisma ./prisma
+# node_modules уже содержит @cleaning-ops/shared (package.json + dist) — см. builder.
+COPY --from=builder /repo/backend/chat-service/node_modules ./node_modules
+COPY --from=builder /repo/backend/chat-service/dist ./dist
+COPY --from=builder /repo/backend/chat-service/prisma ./prisma
 EXPOSE 3009
+# Миграции применяются отдельно: npx prisma migrate deploy (инфра/скрипты).
 CMD ["node", "dist/main.js"]

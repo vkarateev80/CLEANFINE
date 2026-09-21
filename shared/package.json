@@ -9,12 +9,17 @@
   "exports": {
     "./types/*": {
       "types": "./dist/types/*.d.ts",
-      "import": "./dist/types/*.js"
+      "import": "./dist/types/*.js",
+      "require": "./dist/types/*.js",
+      "default": "./dist/types/*.js"
     },
     "./constants/*": {
       "types": "./dist/constants/*.d.ts",
-      "import": "./dist/constants/*.js"
-    }
+      "import": "./dist/constants/*.js",
+      "require": "./dist/constants/*.js",
+      "default": "./dist/constants/*.js"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "tsc -b --force",
