@@ -172,6 +172,37 @@ export BUILDX_CONFIG=$PWD/.cache/buildx
 bash deploy/vps/redeploy.sh     # build:shared → build → migrate (9) → up -d
 ```
 
+### Изменения схемы применяются шагом миграций (и ловушка `P3005`)
+
+Схему БД меняет **не сборка и не `up -d`**, а шаг «Миграции» — `prisma migrate deploy` по девяти
+сервисам (`bootstrap.sh`, шаг 4; `redeploy.sh`, шаг 3). Пересборка (`build-vps.sh`) и выкат
+(`redeploy.sh` / `bootstrap.sh`) новых миграций сами не применяют: после правки `schema.prisma`
+и добавления каталога миграции нужно прогнать `redeploy.sh` и убедиться, что шаг миграций прошёл.
+
+> **`P3005`: база без `_prisma_migrations`.** Если схема сервиса создана в обход Prisma
+> (ручной SQL, восстановление из дампа, когда-то потерянная история миграций), `migrate deploy`
+> падает с «The database schema is not empty» и **останавливает выкат** (`redeploy.sh` идёт с
+> `set -euo pipefail`). Лечится вручную — **baseline**: пометить уже применённые миграции как
+> применённые и только затем накатить новые:
+>
+> ```bash
+> COMPOSE="docker compose --env-file deploy/vps/.env.vps -f deploy/vps/docker-compose.yml"
+> $COMPOSE run --rm --no-deps core npx prisma migrate status          # что видит Prisma
+> $COMPOSE run --rm --no-deps core npx prisma migrate resolve --applied <миграция_1>
+> $COMPOSE run --rm --no-deps core npx prisma migrate resolve --applied <миграция_2>
+> $COMPOSE run --rm --no-deps core npx prisma migrate deploy          # накатит только новые
+> ```
+>
+> **Автоматизации нет:** в `redeploy.sh` baseline не встроен, его делают руками — на описанной
+> базе это уже потребовалось (2026-09-21, `cleaning_ops_core`; подробности — `docs/FACTS.md`,
+> раздел 5 «Prisma и миграции»). Не путайте с аддитивными миграциями проекта привязки
+> `ownerClientId`: они применяются штатно, если история миграций на месте.
+
+> **Живую базу нельзя передавать в `--shadow-database-url`.** Shadow-цикл Prisma пересоздаёт
+> схему в указанной базе и удаляет там `_prisma_migrations`. Опыты с миграциями — только
+> одноразовый контейнер postgres или база `cf_*`, с проверкой `select current_database()`
+> перед каждой командой; базу стенда руками не трогать.
+
 ---
 
 ## 4. Ежедневные операции
@@ -251,14 +282,19 @@ docker compose ... run --rm --no-deps \
 
 ## 5.1. Демо-наполнение портала: владелец и его объект
 
-**Зачем.** Портал (`:8091`) не имеет привязки «пользователь → объект» в БД: у
-`User` нет `objectId`, а `GET /api/objects` не фильтрует по роли. «Свой объект»
-портал выводит сопоставлением `Object.clientName` с идентификаторами сессии
-(`fullName` и `email` из `GET /api/auth/me`) — код:
-`frontend/web-client/src/hooks/useObjectScope.ts`. Без совпадения портал
-показывает «Объект не подключён», даже если вход прошёл успешно. Поэтому на
-стенде заводится владелец с `fullName`, **посимвольно равным** `clientName`
-объекта.
+**Зачем.** До 21.09.2026 привязки «аккаунт → объект» в БД не было: у `User` нет `objectId`,
+а `GET /api/objects` не фильтрует по роли. Портал выводил «свой объект» сопоставлением
+`Object.clientName` с идентификаторами сессии (`fullName` и `email` из `GET /api/auth/me`) —
+код `frontend/web-client/src/hooks/useObjectScope.ts`. Без совпадения портал показывал
+«Объект не подключён», даже если вход прошёл успешно. Поэтому на стенде заводился владелец
+с `fullName`, **посимвольно равным** `clientName` объекта.
+
+**Как теперь (с 21.09.2026, проект `prj-cleanfine-yavnaya-privyazka-obekta-k-akkauntu-za`).**
+Привязка **явная**: у объекта есть `ownerClientId` (id аккаунта в auth-service), портал
+определяет свой объект **только** по `ownerClientId === sessionUser.id` (фильтр
+`GET /api/objects?ownerClientId=<id>`), эвристика по имени удалена начисто. Скрипт заводит
+владельца и объект и проставляет `ownerClientId` — совпадение `fullName` с `clientName`
+больше не является условием доступа (совпадать они могут, но уже как legacy-отображение).
 
 **Запуск** (скрипт идемпотентен, работает через API поднятого стенда):
 
@@ -274,7 +310,7 @@ node scripts/seed/seed-demo-object.mjs
 | Сущность | Значения |
 |---|---|
 | Пользователь-владелец | `owner@cleanfine.ru` / `owner123`, роль `CLIENT`, `fullName` = `ООО «Ромашка»`, PIN `5678` |
-| Объект | `БЦ «Ромашка»`, `clientName` = `ООО «Ромашка»`, `clientContact` = `owner@cleanfine.ru`, `type` = `Бизнес-центр`, `address` = `г. Москва, ул. Ленинградская, 15`, `lat`/`lng` = `55.7851`/`37.5582`, `totalArea` = `12500.5`, `floorsCount` = `9` |
+| Объект | `БЦ «Ромашка»`, `clientName` = `ООО «Ромашка»`, `clientContact` = `owner@cleanfine.ru`, **`ownerClientId` = id владельца**, `type` = `Бизнес-центр`, `address` = `г. Москва, ул. Ленинградская, 15`, `lat`/`lng` = `55.7851`/`37.5582`, `totalArea` = `12500.5`, `floorsCount` = `9` |
 
 Пароль `owner123` — демо-уровня, как `admin123` в фикстурах. PIN `5678`
 устанавливается отдельной ручкой `POST /api/auth/change-pin` под токеном самого
@@ -282,26 +318,93 @@ node scripts/seed/seed-demo-object.mjs
 портал авторизуется парой email + пароль. Проверено: `POST /api/auth/pin` с
 `{"email":"owner@cleanfine.ru","pinCode":"5678"}` → 201 и access-токен.
 
-**Квитанция «портал видит объект»** (это же печатает скрипт):
+**Квитанция «портал видит объект»** (это же печатает скрипт; запрос повторяет
+поведение `useObjectScope` — фильтр по `ownerClientId`):
 
 ```bash
 TOKEN=$(curl -s -X POST http://100.109.185.14:8091/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"owner@cleanfine.ru","password":"owner123"}' \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["accessToken"])')
-curl -s -H "Authorization: Bearer $TOKEN" 'http://100.109.185.14:8091/api/objects?take=100'
-# → { "items": [ { "name": "БЦ «Ромашка»", "clientName": "ООО «Ромашка»", ... } ], "total": 1 }
+ME_ID=$(curl -s -H "Authorization: Bearer $TOKEN" http://100.109.185.14:8091/api/auth/me \
+  | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://100.109.185.14:8091/api/objects?ownerClientId=$ME_ID&take=100"
+# → { "items": [ { "name": "БЦ «Ромашка»", "ownerClientId": "<id владельца>", ... } ], "total": 1 }
 ```
 
-Сопоставление — **эвристика по имени**, а не серверный scope: оно не различает
-тёзок. Если в `clientName` записано не название организации клиента, портал
-объект не найдёт (ограничение зафиксировано в самом хуке).
+**Граница доступа — читать буквально.** Серверного scope в этом объёме **нет**:
+`GET /api/objects` отдаёт объекты **любому аутентифицированному** пользователю,
+`?ownerClientId=` — **фильтр списка, а не авторизация**, а `GET /api/objects/:id`
+открыт по id. Клиент может запросить чужой объект напрямую (`?ownerClientId=<чужой id>`
+или `/api/objects/<чужой id>`) и увидеть его. Портал — это **UI-механика поверх
+существующего API, а не граница доступа**: не принимайте его за разграничение прав.
+Прочие ограничения: у клиента с несколькими объектами портал открывает первый по
+возрастанию `id` (многообъектный UX — вне объёма), `take ≤ 100`, поэтому выбор идёт по
+первой сотне.
 
 Про `type` объекта: в core-service это **свободная строка** (валидатор —
 только `@IsString()` + `@IsNotEmpty()`, см. `backend/core-service/src/objects/dto/object.dto.ts`).
 Админская форма предлагает справочник подсказок `COMMON_OBJECT_TYPES`
 (`frontend/web-admin/src/pages/Objects/utils.ts`) через `<datalist>`, но список не
 закрытый; в скрипте взято значение оттуда — `Бизнес-центр`.
+
+---
+
+## 5.2. Привязка объекта к аккаунту: эксплуатация и её зависимость от служебной учётки
+
+**Как привязать.** В админке (`:8090`) → «Объекты» → форма объекта → селект **«Аккаунт заказчика»**
+(источник — `GET /api/users?role=CLIENT`, предлагаются только активные аккаунты) → выбрать
+`fullName (email)`; выбор подставит `clientName`/`clientContact`, но это лишь legacy-отображение.
+Через API: `POST /api/objects` или `PATCH /api/objects/:id` с `ownerClientId: "<id аккаунта>"` —
+под ролью ADMIN/SUPERVISOR. Ответ `201`/`200` содержит `ownerClientId`.
+
+**Три состояния поля в `PATCH`** (проверено запуском):
+
+| Тело `PATCH` | Что происходит |
+|---|---|
+| поля `ownerClientId` нет | привязка **не меняется** (обычная правка названия её не затирает) |
+| `"ownerClientId": null` | привязка **снимается** (валидация аккаунта не выполняется) |
+| `"ownerClientId": "<id>"` | аккаунт проверяется в auth-service, затем записывается |
+
+**Как снять.** В админке — опция «— Без привязки —» (шлёт `null`); через API — `PATCH` с
+`{"ownerClientId": null}`. Объект остаётся в админке с ручным `clientName` и меткой «Без привязки»,
+но в портале больше никому не виден, пока его не привяжут снова.
+
+**Массовый backfill объектов-наследия** (объектов без привязки):
+
+```bash
+node scripts/seed/backfill-owner-client.mjs            # dry-run: печатает план, ничего не меняет
+node scripts/seed/backfill-owner-client.mjs --commit   # применить
+# другая база: API_BASE_URL=http://100.109.185.14:8091 node scripts/seed/backfill-owner-client.mjs
+```
+
+Скрипт идемпотентен и консервативен: трогает только объекты с `ownerClientId = null`, привязывает
+только при **единственном точном** совпадении нормализованного `clientName` с `fullName` или
+`email` активного CLIENT-аккаунта, при неоднозначности ничего не меняет и печатает кандидатов,
+`clientName`/`clientContact` не переписывает, работает только через API стенда (не INSERT).
+
+**Что делать при `503` «Не удалось проверить аккаунт заказчика».** Это fail-closed: запись не
+выполнена, привязка не сохранена (объекты без привязки при этом создаются штатно). Причина всегда
+одна из трёх: auth-service недоступен/таймаутит (`AUTH_SERVICE_TIMEOUT_MS`, по умолчанию 5 с);
+`SERVICE_AUTH_EMAIL`/`SERVICE_AUTH_PASSWORD` не заданы в окружении core; **служебная учётка
+потеряла права или пароль разошёлся**. Порядок проверки:
+
+```bash
+COMPOSE="docker compose --env-file deploy/vps/.env.vps -f deploy/vps/docker-compose.yml"
+$COMPOSE logs --tail=50 core | grep -i 'аккаунт\|auth-service\|SERVICE_AUTH'   # причина в логе core
+$COMPOSE exec -T core printenv | grep -E 'AUTH_SERVICE_URL|SERVICE_AUTH'       # переменные доехали
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://100.109.185.14:8111/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$SERVICE_AUTH_EMAIL\",\"password\":\"$SERVICE_AUTH_PASSWORD\"}"   # учётка жива?
+```
+
+**Зависимость эксплуатации (важно).** Служебная учётка — это `admin@cleaning-ops.com` с ролью
+**ADMIN** и паролем seed-администратора (`admin123`), решение O4. Привязка объектов работает
+только пока эта учётка активна, имеет роль **ADMIN или SUPERVISOR** и её пароль совпадает с
+`SERVICE_AUTH_PASSWORD` в `deploy/vps/.env.vps`. **Понижение роли** → `GET /api/users/:id`
+вернёт 403 → привязка отказывает с 503; **смена пароля без правки `.env.vps`** (и пересоздания
+core) — то же самое. Для прод-эксплуатации нужна отдельная сервисная роль, а не seed-админ.
 
 ---
 
@@ -416,7 +519,8 @@ $COMPOSE down -v     # полный снос: удаляются и тома (Б
 |---|---|---|
 | Публикация | только `100.109.185.14` | NFR-2: ничего в публичный интернет |
 | MinIO | опубликован на 8120 (S3) и 8121 (console), `MINIO_PUBLIC_URL=http://100.109.185.14:8120` | **отклонение D-1** (решение владельца O2): иначе `file-service` отдаёт URL `http://minio:9000/...`, который из браузера не открывается и планы этажей/фото сломаны. Внутри сети S3-клиент по-прежнему ходит на `minio:9000` |
-| `SERVICE_AUTH_PASSWORD` | `admin123` — равен паролю seed-админа | O4: иначе межсервисные вызовы (chat/material/schedule) получают 401/502 |
+| `SERVICE_AUTH_PASSWORD` | `admin123` — равен паролю seed-админа | O4: иначе межсервисные вызовы (chat/material/schedule) получают 401/502. С 21.09.2026 тем же паролем пользуется проверка аккаунта заказчика при записи `ownerClientId` (§5.2) — смена пароля без правки `.env.vps` вернёт привязке 503 |
+| `AUTH_SERVICE_URL` / `AUTH_SERVICE_TIMEOUT_MS` | из compose-якоря `x-app-env` / дефолт **5 000 мс** | core ходит в auth за фактами об аккаунте (`id`/`role`/`isActive`); короткий таймаут, чтобы недоступность auth не подвешивала создание объекта (fail-closed → 503) |
 | `SCHEDULE_CRON_ENABLED` | `true` (прод-подобно) | O5: для прогона e2e поставьте `false` и выполните `redeploy.sh` |
 | `VITE_MAPBOX_TOKEN` | пустой | O7: карта показывает заглушку «ключ не настроен» |
 | `FIREBASE_*` | пустые | O7: push идёт через мок-адаптер |
@@ -475,3 +579,21 @@ $COMPOSE down -v     # полный снос: удаляются и тома (Б
 - Стенд использует демо-пароли seed (`admin123`) как пароль сервисной учётки —
   это осознанное решение O4 для работоспособности внутренних вызовов. Для
   прод-эксплуатации нужна отдельная сервисная роль.
+- **Серверного scope в API объектов нет** (2026-09-21): `GET /api/objects` и
+  `GET /api/objects/:id` доступны любому аутентифицированному пользователю, а фильтр
+  `?ownerClientId=` — фильтр списка, а не авторизация. Портал скрывает чужие объекты
+  на уровне UI, но **не является границей доступа**; клиент может запросить чужой объект
+  напрямую. Подробно — §5.1 и §5.2.
+- **Привязка объекта к аккаунту зависит от служебной учётки.** Она идёт под
+  `SERVICE_AUTH_EMAIL`/`SERVICE_AUTH_PASSWORD` (seed-админ, роль ADMIN): понижение роли
+  или смена пароля без правки `.env.vps` превращают привязку/перепривязку объектов в
+  **503** (fail-closed). Диагностика — §5.2.
+- **`P3005` и baseline в `redeploy.sh` не автоматизированы** (§4): на базе без
+  `_prisma_migrations` шаг миграций падает и останавливает выкат; лечение — вручную
+  `prisma migrate resolve --applied`.
+- **UI-e2e портала не исполняются в этой среде**: chromium не стартует (нет
+  `libatk`/`libXcomposite`/`libgbm`/`libxkbcommon`), установка через apt блокируется
+  песочницей. Кейсы закрыты на уровне API и проверкой текста в собранном бандле.
+- **Прогон e2e против стенда требует поднять лимиты входа** (`THROTTLE_LOGIN_LIMIT`,
+  `THROTTLE_GLOBAL_LIMIT`): разово переменные добавлялись в `.env.vps` и compose и затем
+  возвращались побайтово; регулярный прогон нужно решать в `deploy/vps` осознанно.
