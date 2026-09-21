@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -316,7 +317,12 @@ export class ChatsService {
         data: {
           type: 'ticket',
           ticketId: dto.ticketId,
-          objectId: participants?.objectId ?? dto.objectId ?? null,
+          // `objectId` НЕ заполняется: это поле закреплено за object-чатами и
+          // имеет ГЛОБАЛЬНЫЙ уникальный индекс `Chat_objectId_key`. Раньше сюда
+          // писался объект заявки, и вторая заявка того же объекта получала
+          // P2002 на этом индексе (а обработка гонки искала чат по ticketId,
+          // не находила и отдавала 500 «No Chat found»). Объект заявки всегда
+          // доступен через ticket-service по `ticketId`.
           title: dto.title ?? null,
           members: { create: memberIds.map((userId) => ({ userId, role: 'member' })) },
         },
@@ -327,12 +333,22 @@ export class ChatsService {
     } catch (error) {
       // Гонка двух одновременных create: уникальный ticketId отдаёт P2002 —
       // вместо 500 возвращаем уже созданный чат (идемпотентность сохраняется).
+      //
+      // `findUniqueOrThrow` здесь нельзя: P2002 мог прийти от ЛЮБОГО индекса
+      // (например, от ChatMember), и тогда отсутствие чата по ticketId — не
+      // ошибка API, а признак того, что гонки по ticketId не было. Отдаём
+      // исходную ошибку, а не подменяем её на «No Chat found».
       if (isUniqueViolation(error)) {
-        const raced = await this.prisma.chat.findUniqueOrThrow({
+        const raced = await this.prisma.chat.findUnique({
           where: { ticketId: dto.ticketId },
           include: { members: true },
         });
-        return this.toDetail(raced, raced.members);
+        if (raced) {
+          return this.toDetail(raced, raced.members);
+        }
+        this.logger.warn(
+          `ticket-чат по ${dto.ticketId}: P2002 не по ticketId — конфликт другого ограничения`,
+        );
       }
       throw error;
     }
@@ -345,8 +361,12 @@ export class ChatsService {
     }
     this.assertStaff(dto.type, user);
 
-    const existing = await this.prisma.chat.findUnique({
-      where: { objectId: dto.objectId },
+    // Ищем именно OBJECT-чат этого объекта: `objectId` уникален в пределах
+    // таблицы, но запрос по типу делает намерение явным и не склеивает
+    // object-чат с legacy-строкой другого типа (миграция
+    // `m73_chat_objectid_only_object` такие строки уже вычищает).
+    const existing = await this.prisma.chat.findFirst({
+      where: { type: 'object', objectId: dto.objectId },
       include: { members: true },
     });
     if (existing) {
@@ -376,11 +396,18 @@ export class ChatsService {
       return this.toDetail(chat, chat.members);
     } catch (error) {
       if (isUniqueViolation(error)) {
-        const raced = await this.prisma.chat.findUniqueOrThrow({
-          where: { objectId: dto.objectId },
+        const raced = await this.prisma.chat.findFirst({
+          where: { type: 'object', objectId: dto.objectId },
           include: { members: true },
         });
-        return this.toDetail(raced, raced.members);
+        if (raced) {
+          return this.toDetail(raced, raced.members);
+        }
+        // P2002 без object-чата на месте — данные противоречат инварианту
+        // «objectId только у object-чата». Это 409 с понятным текстом, а не 500.
+        throw new ConflictException(
+          'Объектный чат не создан: objectId занят чатом другого типа',
+        );
       }
       throw error;
     }

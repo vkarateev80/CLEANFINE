@@ -29,6 +29,13 @@ model Chat {
   // Идемпотентность создания: один чат на объект и один чат на заявку.
   // Поля nullable, но в PostgreSQL NULL-и не конфликтуют, поэтому direct/system
   // (где эти поля пусты) можно создавать сколько угодно.
+  //
+  // ВАЖНО: `objectId` уникален ГЛОБАЛЬНО, поэтому заполняется только у
+  // object-чатов. ticket-чат ссылается на заявку через `ticketId`, а объект
+  // заявки доступен через ticket-service: раньше сюда писался объект заявки, и
+  // вторая заявка того же объекта падала с 500 (P2002 на Chat_objectId_key).
+  // Нарушение запрещено и на уровне БД — CHECK-ограничением
+  // `Chat_objectId_only_object_check` (миграция `m73_chat_objectid_only_object`).
   @@unique([objectId])
   @@unique([ticketId])
   @@index([type, createdAt])

@@ -36,6 +36,12 @@ import {
   type EscalationDurations,
 } from './ticket-timings';
 
+/**
+ * Счётчики связей для листинга. Значение по умолчанию — для заявок без связей:
+ * его же читает админка (`TicketsPage.tsx`), поэтому форма ответа неизменна.
+ */
+const EMPTY_RELATION_COUNTS = { assignments: 0, comments: 0, operations: 0 } as const;
+
 /** Вход создания заявки: DTO API и внутренние вызовы (SOS) сведены к одной форме. */
 export interface CreateTicketInput {
   type: TicketType;
@@ -241,14 +247,82 @@ export class TicketsService {
         orderBy: { createdAt: 'desc' },
         skip: query.skip ?? 0,
         take: Math.min(query.take ?? 50, 100),
-        include: {
-          _count: { select: { assignments: true, comments: true, operations: true } },
-        },
       }),
       this.prisma.ticket.count({ where }),
     ]);
 
-    return { items, total };
+    /*
+     * Счётчики связей (М7.2). Раньше здесь стоял `include: { _count: … }`, и Prisma
+     * разворачивала его в три LEFT JOIN с `GROUP BY` по ВСЕЙ дочерней таблице:
+     *     LEFT JOIN (SELECT "ticketId", COUNT(*) FROM ticket_comments GROUP BY "ticketId") …
+     * То есть стоимость листинга росла не с размером страницы, а с общим числом
+     * комментариев/назначений/операций. Замер на 200 000 заявок и 700 000 дочерних строк
+     * (`EXPLAIN (ANALYZE, BUFFERS)` — test/performance/results/explain/tickets-listing-before.txt):
+     * 9,9 с на один запрос листинга, план — Parallel Seq Scan + три Merge Left Join
+     * с `Sort Method: external merge Disk: 3440kB`.
+     *
+     * Замена даёт тот же контракт (`item._count.{assignments,comments,operations}`,
+     * его читает `TicketsPage.tsx`), но агрегирует только по id текущей страницы
+     * (≤100 значений) через индексы `*_ticketId_idx`. Тот же запрос после правки —
+     * test/performance/results/explain/tickets-listing-after.txt: страница 3,2 мс,
+     * счётчики 9,0 мс (`Index Only Scan … loops=50`).
+     */
+    const counts = await this.relationCounts(items.map((ticket) => ticket.id));
+
+    return {
+      items: items.map((ticket) => ({ ...ticket, _count: counts.get(ticket.id) ?? EMPTY_RELATION_COUNTS })),
+      total,
+    };
+  }
+
+  /**
+   * Число назначений, комментариев и завершённых операций — только для переданных id.
+   * Три запроса вместо одного `include._count`: каждый идёт по индексу `ticketId` и
+   * агрегирует строки страницы, а не таблицу целиком.
+   */
+  private async relationCounts(
+    ticketIds: string[],
+  ): Promise<Map<string, { assignments: number; comments: number; operations: number }>> {
+    const counts = new Map<string, { assignments: number; comments: number; operations: number }>();
+    if (ticketIds.length === 0) {
+      return counts;
+    }
+
+    const [assignments, comments, operations] = await Promise.all([
+      this.prisma.ticketAssignment.groupBy({
+        by: ['ticketId'],
+        where: { ticketId: { in: ticketIds } },
+        _count: { _all: true },
+      }),
+      this.prisma.ticketComment.groupBy({
+        by: ['ticketId'],
+        where: { ticketId: { in: ticketIds } },
+        _count: { _all: true },
+      }),
+      this.prisma.ticketOperationCompletion.groupBy({
+        by: ['ticketId'],
+        where: { ticketId: { in: ticketIds } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    for (const ticketId of ticketIds) {
+      counts.set(ticketId, { ...EMPTY_RELATION_COUNTS });
+    }
+    for (const row of assignments) {
+      const entry = counts.get(row.ticketId);
+      if (entry) entry.assignments = row._count._all;
+    }
+    for (const row of comments) {
+      const entry = counts.get(row.ticketId);
+      if (entry) entry.comments = row._count._all;
+    }
+    for (const row of operations) {
+      const entry = counts.get(row.ticketId);
+      if (entry) entry.operations = row._count._all;
+    }
+
+    return counts;
   }
 
   /** Карточка заявки: история назначений, комментарии, завершённые операции. */

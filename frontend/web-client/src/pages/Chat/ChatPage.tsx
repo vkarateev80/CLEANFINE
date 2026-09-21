@@ -312,15 +312,16 @@ export function ChatPage() {
       </div>
 
       {hasNewBelow && (
-        <div className="sticky bottom-2 flex justify-center">
+        <div className="portal-chat-new-pill sticky flex justify-center">
           <Button variant="primary" size="sm" onClick={() => scrollToBottom('smooth')}>
             ↓ Новое сообщение
           </Button>
         </div>
       )}
 
-      {/* Composer */}
-      <div className="sticky bottom-0 border-t border-neutral-200 bg-white px-3 py-2">
+      {/* Composer. `portal-chat-composer` держит его НАД таб-баром: иначе кнопка
+          отправки уходит под фиксированную навигацию и не принимает тапы. */}
+      <div className="portal-chat-composer sticky border-t border-neutral-200 bg-white px-3 py-2">
         {sendError && <p className="mb-1 text-xs text-danger-600">{sendError}</p>}
         <div className="flex items-end gap-2">
           <textarea

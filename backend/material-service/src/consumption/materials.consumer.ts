@@ -55,7 +55,26 @@ export class MaterialsConsumer implements OnModuleInit, OnModuleDestroy {
       this.logger.warn('Консьюмер автосписания отключён (MATERIAL_CONSUMER_ENABLED=false)');
       return;
     }
+    // Потеря УЖЕ установленного соединения (рестарт брокера, разрыв сети) рвёт
+    // подписку на очередь: `channel.consume` сам по себе не возобновляется, и
+    // автосписание встаёт МОЛЧА. В М7.3 так и случилось: в очереди
+    // material.ticket.operation.completed накопилось 18 необработанных событий,
+    // при этом сервис отвечал 200 и в логе не было ни одной ошибки.
+    this.amqp.onChannelLost(() => this.handleChannelLost());
     void this.start();
+  }
+
+  /** Реакция на потерю соединения: консьюмер регистрируется на очереди заново. */
+  private handleChannelLost(): void {
+    if (this.stopped) {
+      return;
+    }
+    this.channel = null;
+    this.consumerTag = null;
+    this.logger.warn(
+      `Потеря соединения с RabbitMQ — консьюмер ${CONSUMPTION_QUEUE} будет зарегистрирован заново`,
+    );
+    this.scheduleRetry();
   }
 
   onModuleDestroy(): void {
@@ -82,15 +101,23 @@ export class MaterialsConsumer implements OnModuleInit, OnModuleDestroy {
       await channel.assertQueue(CONSUMPTION_DLQ, { durable: true });
       await channel.bindQueue(CONSUMPTION_DLQ, EVENTS_EXCHANGE_DLQ, ROUTING_KEYS.TICKET_OPERATION_COMPLETED);
 
+      // Канал запоминаем ДО подписки: доставка может начаться в том же кадре
+      // сокета, что и consume-ok (так приходит накопленная очередь после
+      // переподключения), и обработчик обязан видеть живой канал.
+      this.channel = channel;
+
       const handle = await channel.consume(
         CONSUMPTION_QUEUE,
         (message) => {
-          void this.process(message);
+          // Канал передаём из замыкания, а не берём из поля: сообщение должно
+          // подтверждаться на ТОМ канале, который его доставил, — иначе часть
+          // накопленной очереди остаётся unacked навсегда (дефект М7.3: 9 событий
+          // висели неподтверждёнными, автосписание по ним не выполнялось).
+          void this.process(message, channel);
         },
         { noAck: false },
       );
 
-      this.channel = channel;
       this.consumerTag = handle.consumerTag;
       this.logger.log(
         `Консьюмер автосписания слушает ${CONSUMPTION_QUEUE} ` +
@@ -120,12 +147,21 @@ export class MaterialsConsumer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Обработка одного сообщения: ack/nack + DLQ после исчерпания попыток. */
-  async process(message: import('amqplib').ConsumeMessage | null): Promise<void> {
+  /**
+   * Обработка одного сообщения: ack/nack + DLQ после исчерпания попыток.
+   *
+   * `deliveredOn` — канал, на котором сообщение пришло (из замыкания подписки).
+   * Без него сообщения, доставленные раньше присвоения `this.channel`, молча
+   * оставались бы неподтверждёнными.
+   */
+  async process(
+    message: import('amqplib').ConsumeMessage | null,
+    deliveredOn: AmqpChannel | null = this.channel,
+  ): Promise<void> {
     if (!message) {
       return;
     }
-    const channel = this.channel;
+    const channel = deliveredOn;
     if (!channel) {
       return;
     }
@@ -145,7 +181,7 @@ export class MaterialsConsumer implements OnModuleInit, OnModuleDestroy {
         `Обработана операция ${event.operationId}: ${result.status} ` +
           `(списано ${result.consumed.length}, повтор ${result.duplicates.length}, ошибок ${result.failed.length})`,
       );
-      channel.ack(message);
+      this.ackSafely(channel, message);
     } catch (error) {
       if (attemptsOf(message) >= this.maxAttempts) {
         this.logger.error(
@@ -158,13 +194,33 @@ export class MaterialsConsumer implements OnModuleInit, OnModuleDestroy {
           message.content,
           { contentType: 'application/json', persistent: true },
         );
-        channel.ack(message);
+        this.ackSafely(channel, message);
         return;
       }
       this.logger.warn(
         `Операция ${event.operationId}: ошибка обработки — повторная доставка: ${describeError(error)}`,
       );
-      channel.nack(message, false, true);
+      try {
+        channel.nack(message, false, true);
+      } catch (nackError) {
+        // Канал успел закрыться: сообщение останется неподтверждённым и вернётся
+        // брокером после переподключения — терять его нельзя, но и падать некуда.
+        this.logger.warn(
+          `Операция ${event.operationId}: nack не доставлен (${describeError(nackError)}) — ` +
+            'сообщение вернётся после переподключения',
+        );
+      }
+    }
+  }
+
+  /** ack, который не роняет обработчик при уже закрытом канале. */
+  private ackSafely(channel: AmqpChannel, message: import('amqplib').ConsumeMessage): void {
+    try {
+      channel.ack(message);
+    } catch (error) {
+      this.logger.warn(
+        `ack не доставлен (${describeError(error)}) — счётчик доставок учтёт брокер`,
+      );
     }
   }
 

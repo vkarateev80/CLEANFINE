@@ -7,6 +7,16 @@ services:
   postgres:
     image: postgis/postgis:16-3.4
     container_name: cleaning-ops-postgres
+    # JIT выключен НАМЕРЕННО. На этом стенде amd64-образ postgres работает под
+    # qemu-user (Apple Silicon), и JIT-компиляция читающих запросов отчётов (SQL-view
+    # М7.1) идёт в разы медленнее и съедает память процесса:
+    #   staff_geofence_totals — jit=off: 9 мс; jit=on: 14,7 с (193 функции LLVM).
+    # ВМ colima профиля default — 2 ГиБ без swap, поэтому всплеск заканчивался
+    # OOM-kill backend'а: «Server has closed the connection» → 500 у сервисов и
+    # падения e2e-наборов (наблюдалось дважды на `--project=web` в М7.3).
+    # На настоящем x86 (CI, прод) JIT полезен и правки не требует: CI поднимает
+    # postgres сервис-контейнером со своей конфигурацией, а не этим файлом.
+    command: ["postgres", "-c", "jit=off"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-cleaning_ops}
       POSTGRES_USER: ${POSTGRES_USER:-admin}

@@ -54,4 +54,31 @@
   .portal-viewport {
     min-height: 100dvh;
   }
+
+  /*
+   * Композер чата и плашка «новое сообщение» — `sticky`, то есть липнут к низу
+   * ВЬЮПОРТА. Таб-бар портала `fixed` и лежит поверх всего (z-20), поэтому без
+   * этого отступа кнопка отправки оказывалась ПОД ним и не принимала тапы
+   * (найдено набором М7.3: `portal-nav-chat … subtree intercepts pointer events`).
+   * Клавиатура таб-бар скрывает (`useKeyboardOpen`), но полагаться на это нельзя:
+   * без фокуса в поле ввода — а значит и без клавиатуры — кнопка обязана быть
+   * доступной. Высота таб-бара — 4rem (`h-16`); на `lg` он скрыт, отступ снимается.
+   */
+  .portal-chat-composer {
+    bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .portal-chat-new-pill {
+    bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 1024px) {
+    .portal-chat-composer {
+      bottom: 0;
+    }
+
+    .portal-chat-new-pill {
+      bottom: 0.5rem;
+    }
+  }
 }

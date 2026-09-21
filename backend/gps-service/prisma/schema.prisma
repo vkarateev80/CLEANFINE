@@ -28,6 +28,10 @@ model GpsTrack {
 
   @@index([userId, timestamp(sort: Desc)], map: "idx_gps_tracks_user_time")
   @@index([location(ops: raw("gist_geometry_ops_2d"))], type: Gist, map: "idx_gps_tracks_location")
+  // М7.2: `findNearbyEmployees` сравнивает `location::geography`, и GIST по geometry выше
+  // такой предикат не обслуживает. Рабочий индекс — по ВЫРАЖЕНИЮ `(location::geography)`:
+  // Prisma его выразить не умеет (колонка Unsupported), поэтому объявлен только SQL-ом
+  // в миграции m72_gist_geography_indexes (тот же приём, что и у gist_geometry_ops_2d).
   @@map("gps_tracks")
 }
 
@@ -40,5 +44,8 @@ model Geofence {
   radiusMeters Int?                                  @map("radius_meters")
 
   @@index([boundary(ops: raw("gist_geometry_ops_2d"))], type: Gist, map: "idx_geofences_boundary")
+  // М7.2: аналог для `check`/`ST_DWithin(boundary::geography, …)` — индекс по выражению,
+  // объявлен SQL-ом в миграции m72_gist_geography_indexes. Geometry-индекс выше остаётся:
+  // его использует ST_Contains в том же сервисе.
   @@map("geofences")
 }

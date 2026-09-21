@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ChatsService, isUniqueViolation } from './chats.service';
 import { CoreClient } from '../integration/core.client';
@@ -295,7 +300,7 @@ describe('ChatsService', () => {
       expect(prisma.chatMember.upsert).toHaveBeenCalled();
     });
 
-    it('создаёт чат с участниками заявки (исполнитель + автор)', async () => {
+    it('создаёт чат с участниками заявки (исполнитель + автор) и БЕЗ objectId', async () => {
       prisma.chat.findUnique.mockResolvedValueOnce(null);
       tickets.getParticipants.mockResolvedValue({
         id: 't-1',
@@ -305,7 +310,7 @@ describe('ChatsService', () => {
         createdBy: 'u-client',
       });
       prisma.chat.create.mockResolvedValue({
-        ...chatRow({ id: 'c-10', type: 'ticket', ticketId: 't-1', objectId: 'o-1' }),
+        ...chatRow({ id: 'c-10', type: 'ticket', ticketId: 't-1' }),
         members: [memberRow({ chatId: 'c-10' })],
       });
 
@@ -315,7 +320,11 @@ describe('ChatsService', () => {
       const createArg = prisma.chat.create.mock.calls[0][0];
       const createdIds = createArg.data.members.create.map((m: { userId: string }) => m.userId);
       expect(createdIds).toEqual(expect.arrayContaining(['u-admin', 'u-oper', 'u-client']));
-      expect(createArg.data.objectId).toBe('o-1');
+      expect(createArg.data.ticketId).toBe('t-1');
+      // Регрессия дефекта М7.3: objectId — глобально уникальное поле object-чатов,
+      // и запись сюда объекта заявки делала вторую заявку того же объекта
+      // невыполнимой (P2002 на Chat_objectId_key → 500 «No Chat found»).
+      expect(createArg.data.objectId).toBeUndefined();
     });
 
     it('создаёт чат даже при недоступном ticket-service', async () => {
@@ -334,16 +343,31 @@ describe('ChatsService', () => {
     });
 
     it('гонка create (P2002) возвращает уже созданный чат', async () => {
-      prisma.chat.findUnique.mockResolvedValueOnce(null);
+      // Первый findUnique — проверка «чат уже есть» (null), второй — разбор гонки.
+      prisma.chat.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          ...chatRow({ id: 'c-12', type: 'ticket', ticketId: 't-3' }),
+          members: [memberRow({ chatId: 'c-12' })],
+        });
       tickets.getParticipants.mockResolvedValue(null);
       prisma.chat.create.mockRejectedValue({ code: 'P2002' });
-      prisma.chat.findUniqueOrThrow.mockResolvedValue({
-        ...chatRow({ id: 'c-12', type: 'ticket', ticketId: 't-3' }),
-        members: [memberRow({ chatId: 'c-12' })],
-      });
 
       const chat = await service.createChat({ type: 'ticket', ticketId: 't-3' }, admin);
       expect(chat.id).toBe('c-12');
+    });
+
+    it('P2002 не по ticketId не подменяется на 500 «No Chat found»', async () => {
+      // Именно этот сценарий ломал POST /api/chat/chats: конфликт приходил от
+      // другого индекса, а findUniqueOrThrow по ticketId отдавал NotFoundError → 500.
+      prisma.chat.findUnique.mockResolvedValue(null);
+      tickets.getParticipants.mockResolvedValue(null);
+      const conflict = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+      prisma.chat.create.mockRejectedValue(conflict);
+
+      await expect(service.createChat({ type: 'ticket', ticketId: 't-4' }, admin)).rejects.toBe(
+        conflict,
+      );
     });
   });
 
@@ -361,7 +385,7 @@ describe('ChatsService', () => {
     });
 
     it('создаёт чат объекта и закрепляет создателя', async () => {
-      prisma.chat.findUnique.mockResolvedValueOnce(null);
+      prisma.chat.findFirst.mockResolvedValueOnce(null);
       core.objectExists.mockResolvedValue(true);
       prisma.chat.create.mockResolvedValue({
         ...chatRow({ id: 'c-20', type: 'object', objectId: 'o-1' }),
@@ -374,10 +398,15 @@ describe('ChatsService', () => {
       );
       expect(chat.id).toBe('c-20');
       expect(core.objectExists).toHaveBeenCalledWith('o-1');
+      // Ищем именно OBJECT-чат объекта, а не любую строку с этим objectId.
+      expect(prisma.chat.findFirst).toHaveBeenCalledWith({
+        where: { type: 'object', objectId: 'o-1' },
+        include: { members: true },
+      });
     });
 
     it('несуществующий объект → 400', async () => {
-      prisma.chat.findUnique.mockResolvedValueOnce(null);
+      prisma.chat.findFirst.mockResolvedValueOnce(null);
       core.objectExists.mockResolvedValue(false);
       await expect(
         service.createChat({ type: 'object', objectId: 'ghost' }, admin),
@@ -385,7 +414,7 @@ describe('ChatsService', () => {
     });
 
     it('недоступный core-service не блокирует создание чата', async () => {
-      prisma.chat.findUnique.mockResolvedValueOnce(null);
+      prisma.chat.findFirst.mockResolvedValueOnce(null);
       core.objectExists.mockResolvedValue(null);
       prisma.chat.create.mockResolvedValue({
         ...chatRow({ id: 'c-21', type: 'object', objectId: 'o-2' }),
@@ -398,7 +427,7 @@ describe('ChatsService', () => {
     });
 
     it('существующий чат объекта: возвращает его и добавляет вызывающего', async () => {
-      prisma.chat.findUnique.mockResolvedValueOnce(chatRow({ id: 'c-22', type: 'object', objectId: 'o-1' }));
+      prisma.chat.findFirst.mockResolvedValueOnce(chatRow({ id: 'c-22', type: 'object', objectId: 'o-1' }));
       prisma.chatMember.upsert.mockResolvedValue({});
       prisma.chat.findUniqueOrThrow.mockResolvedValue({
         ...chatRow({ id: 'c-22', type: 'object', objectId: 'o-1' }),
@@ -415,17 +444,30 @@ describe('ChatsService', () => {
     });
 
     it('гонка create объекта (P2002) → существующий чат', async () => {
-      prisma.chat.findUnique.mockResolvedValueOnce(null);
+      prisma.chat.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          ...chatRow({ id: 'c-23', type: 'object', objectId: 'o-3' }),
+          members: [memberRow({ chatId: 'c-23' })],
+        });
       core.objectExists.mockResolvedValue(true);
       prisma.chat.create.mockRejectedValue({ code: 'P2002' });
-      prisma.chat.findUniqueOrThrow.mockResolvedValue({
-        ...chatRow({ id: 'c-23', type: 'object', objectId: 'o-3' }),
-        members: [memberRow({ chatId: 'c-23' })],
-      });
 
       await expect(
         service.createChat({ type: 'object', objectId: 'o-3' }, admin),
       ).resolves.toMatchObject({ id: 'c-23' });
+    });
+
+    it('P2002 без object-чата на месте → 409, а не 500', async () => {
+      // Так выглядел бы legacy-стек: objectId занят чатом другого типа.
+      // Понятный конфликт вместо «No Chat found» из findUniqueOrThrow.
+      prisma.chat.findFirst.mockResolvedValue(null);
+      core.objectExists.mockResolvedValue(true);
+      prisma.chat.create.mockRejectedValue({ code: 'P2002' });
+
+      await expect(
+        service.createChat({ type: 'object', objectId: 'o-4' }, admin),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 

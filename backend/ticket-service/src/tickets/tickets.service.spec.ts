@@ -27,9 +27,9 @@ interface PrismaMock {
     count: jest.Mock;
     update: jest.Mock;
   };
-  ticketAssignment: { create: jest.Mock };
-  ticketComment: { create: jest.Mock };
-  ticketOperationCompletion: { create: jest.Mock; findUnique: jest.Mock; count: jest.Mock };
+  ticketAssignment: { create: jest.Mock; groupBy: jest.Mock };
+  ticketComment: { create: jest.Mock; groupBy: jest.Mock };
+  ticketOperationCompletion: { create: jest.Mock; findUnique: jest.Mock; count: jest.Mock; groupBy: jest.Mock };
   $transaction: jest.Mock;
 }
 
@@ -42,9 +42,14 @@ function createPrismaMock(): PrismaMock {
       count: jest.fn(),
       update: jest.fn(),
     },
-    ticketAssignment: { create: jest.fn() },
-    ticketComment: { create: jest.fn() },
-    ticketOperationCompletion: { create: jest.fn(), findUnique: jest.fn(), count: jest.fn() },
+    ticketAssignment: { create: jest.fn(), groupBy: jest.fn().mockResolvedValue([]) },
+    ticketComment: { create: jest.fn(), groupBy: jest.fn().mockResolvedValue([]) },
+    ticketOperationCompletion: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      count: jest.fn(),
+      groupBy: jest.fn().mockResolvedValue([]),
+    },
     $transaction: jest.fn(),
   };
   // Сервис использует и массив промисов ($transaction([...])), и интерактивную транзакцию.
@@ -373,6 +378,39 @@ describe('TicketsService (М3.4–М3.6)', () => {
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ take: 100 }),
+      );
+    });
+
+    /*
+     * М7.2: счётчики связей считаются только по id страницы. Раньше в findMany стоял
+     * `include._count`, и Prisma разворачивала его в три LEFT JOIN с GROUP BY по всей
+     * дочерней таблице — на 200 000 заявок листинг занимал 9,9 с (см.
+     * docs/PERFORMANCE_REPORT.md и test/performance/results/explain/).
+     */
+    it('счётчики связей считаются только для заявок страницы и попадают в _count', async () => {
+      prisma.ticket.findMany.mockResolvedValue([ticketFixture()]);
+      prisma.ticket.count.mockResolvedValue(1);
+      prisma.ticketAssignment.groupBy.mockResolvedValue([{ ticketId: 't-1', _count: { _all: 2 } }]);
+      prisma.ticketComment.groupBy.mockResolvedValue([{ ticketId: 't-1', _count: { _all: 3 } }]);
+      prisma.ticketOperationCompletion.groupBy.mockResolvedValue([]);
+
+      const result = await service.list({});
+
+      // Контракт ответа не изменился: _count на месте и заполнен.
+      expect(result.items[0]._count).toEqual({ assignments: 2, comments: 3, operations: 0 });
+      // Агрегаты ограничены id страницы, а не всей таблицей.
+      for (const groupBy of [
+        prisma.ticketAssignment.groupBy,
+        prisma.ticketComment.groupBy,
+        prisma.ticketOperationCompletion.groupBy,
+      ]) {
+        expect(groupBy).toHaveBeenCalledWith(
+          expect.objectContaining({ by: ['ticketId'], where: { ticketId: { in: ['t-1'] } } }),
+        );
+      }
+      // И самого include в запросе страницы больше нет.
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.not.objectContaining({ include: expect.anything() }),
       );
     });
 

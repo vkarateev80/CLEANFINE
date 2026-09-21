@@ -30,10 +30,16 @@ function createConfig(overrides: Record<string, unknown> = {}): ConfigService {
 
 function createConnection() {
   const listeners: Record<string, ((arg?: unknown) => void)[]> = {};
+  const channelListeners: Record<string, ((arg?: unknown) => void)[]> = {};
   const channel = {
     assertExchange: jest.fn().mockResolvedValue(undefined),
     publish: jest.fn().mockReturnValue(true),
     close: jest.fn().mockResolvedValue(undefined),
+    // Настоящий канал amqplib — EventEmitter, и сервис слушает его `close`.
+    on: jest.fn((event: string, callback: (arg?: unknown) => void): void => {
+      channelListeners[event] = channelListeners[event] ?? [];
+      channelListeners[event].push(callback);
+    }),
   };
   const connection = {
     createChannel: jest.fn().mockResolvedValue(channel),
@@ -43,7 +49,7 @@ function createConnection() {
       listeners[event].push(callback);
     }),
   };
-  return { connection, channel, listeners };
+  return { connection, channel, listeners, channelListeners };
 }
 
 describe('AmqpConnectionService (М4.2)', () => {
@@ -125,6 +131,32 @@ describe('AmqpConnectionService (М4.2)', () => {
     await service.getChannel();
     await expect(service.reset()).resolves.toBeUndefined();
     await expect(service.onModuleDestroy()).resolves.toBeUndefined();
+  });
+
+  it('закрытие соединения и канала оповещает подписчиков (М7.3)', async () => {
+    const connection1 = createConnection();
+    connectMock.mockResolvedValue(connection1.connection);
+    const service = new AmqpConnectionService(createConfig());
+    const onLost = jest.fn();
+    service.onChannelLost(onLost);
+
+    await service.getChannel();
+    connection1.listeners.close?.[0]?.();
+    expect(onLost).toHaveBeenCalledTimes(1);
+
+    // Канал может закрыться и сам, без закрытия соединения.
+    const connection2 = createConnection();
+    connectMock.mockResolvedValue(connection2.connection);
+    await service.getChannel();
+    connection2.channelListeners.close?.[0]?.();
+    expect(onLost).toHaveBeenCalledTimes(2);
+
+    // Собственный reset() потерей не считается — иначе консьюмер устраивал бы
+    // лишний цикл перерегистрации на каждом сбросе.
+    await service.reset();
+    expect(onLost).toHaveBeenCalledTimes(2);
+
+    await service.onModuleDestroy();
   });
 });
 

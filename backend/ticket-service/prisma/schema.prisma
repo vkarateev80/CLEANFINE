@@ -96,6 +96,9 @@ model Ticket {
   @@index([status, createdAt])
   @@index([status, arrivalDeadline])
   @@index([status, completionDeadline])
+  /// М7.2: под сортировку листинга (`ORDER BY createdAt DESC LIMIT n`) без фильтра
+  /// по статусу — иначе Seq Scan + Sort всей таблицы (см. миграцию m72_tickets_createdat_index).
+  @@index([createdAt(sort: Desc)], map: "tickets_createdAt_idx")
 }
 
 /// История назначений: кто, кем и когда назначен (М3.4).

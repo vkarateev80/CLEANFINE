@@ -28,6 +28,11 @@ export function safeHost(url: string): string {
  * Недоступность брокера НЕ роняет приложение и не тормозит HTTP: после неудачной
  * попытки включена пауза `reconnectCooldownMs`, поэтому следующая попытка не ждёт
  * таймаут сокета.
+ *
+ * Потеря УЖЕ установленного соединения — отдельный случай, и он опаснее первого:
+ * канал становится мёртвым, а подписчик очереди (консьюмер) остаётся «зарегистрированным»
+ * только в своей памяти. Поэтому сервис оповещает подписчиков через
+ * `onChannelLost` — консьюмер обязан зарегистрироваться заново (см. `MaterialsConsumer`).
  */
 @Injectable()
 export class AmqpConnectionService implements OnModuleDestroy {
@@ -37,6 +42,10 @@ export class AmqpConnectionService implements OnModuleDestroy {
   private channel: AmqpChannel | null = null;
   private connecting: Promise<AmqpChannel | null> | null = null;
   private nextAttemptAt = 0;
+  /** Подписчики на потерю соединения/канала (консьюмеры обязаны перерегистрироваться). */
+  private readonly channelLostListeners = new Set<() => void>();
+  /** `reset()` закрывает канал сам — это не потеря соединения и не повод для повтора. */
+  private closing = false;
 
   constructor(private readonly config: ConfigService) {}
 
@@ -73,6 +82,31 @@ export class AmqpConnectionService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Подписка на потерю соединения или канала. Возвращает функцию отписки.
+   * Консьюмеры обязаны на это событие перерегистрироваться: иначе доставка
+   * событий встаёт молча (в М7.3 так «зависла» очередь автосписания).
+   */
+  onChannelLost(listener: () => void): () => void {
+    this.channelLostListeners.add(listener);
+    return () => this.channelLostListeners.delete(listener);
+  }
+
+  /** Оповещает подписчиков; ошибка слушателя не должна ломать остальные. */
+  private notifyChannelLost(reason: string): void {
+    if (this.closing || this.channelLostListeners.size === 0) {
+      return;
+    }
+    this.logger.warn(`RabbitMQ: ${reason} — оповещаю консьюмеров (${this.channelLostListeners.size})`);
+    for (const listener of this.channelLostListeners) {
+      try {
+        listener();
+      } catch (error) {
+        this.logger.warn(`RabbitMQ: слушатель потери соединения упал — ${describeError(error)}`);
+      }
+    }
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.reset();
   }
@@ -88,9 +122,16 @@ export class AmqpConnectionService implements OnModuleDestroy {
         this.logger.warn('Соединение с RabbitMQ закрыто — переподключение при следующей попытке');
         this.channel = null;
         this.connection = null;
+        this.notifyChannelLost('соединение закрыто');
       });
 
       const channel = await connection.createChannel();
+      channel.on('close', () => {
+        if (this.channel === channel) {
+          this.channel = null;
+        }
+        this.notifyChannelLost('канал закрыт');
+      });
       await channel.assertExchange(EVENTS_EXCHANGE, 'topic', { durable: true });
 
       this.connection = connection;
@@ -114,6 +155,8 @@ export class AmqpConnectionService implements OnModuleDestroy {
     this.channel = null;
     this.connection = null;
     this.connecting = null;
+    // Собственное закрытие не считается потерей: слушателей не тревожим.
+    this.closing = true;
     try {
       await channel?.close();
     } catch {
@@ -123,6 +166,8 @@ export class AmqpConnectionService implements OnModuleDestroy {
       await connection?.close();
     } catch {
       /* соединение уже закрыто */
+    } finally {
+      this.closing = false;
     }
   }
 }

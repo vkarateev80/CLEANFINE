@@ -1,0 +1,14 @@
+-- М7.2: индекс под сортировку листинга заявок.
+--
+-- `GET /api/tickets` сортирует `ORDER BY "createdAt" DESC LIMIT n`, а индекса по одной
+-- `createdAt` не было: существующий `tickets_status_createdAt_idx` начинается со `status`,
+-- поэтому при листинге БЕЗ фильтра по статусу (штатный экран админки) планировщик его не
+-- применяет и делает Seq Scan + Sort всей таблицы.
+--
+-- Замер на 200 000 заявок (test/performance/results/explain/tickets-listing-after.txt):
+--   до  — Parallel Seq Scan + Sort (external merge Disk: 3440kB), 9,9 с на запрос листинга;
+--   после — Index Scan using "tickets_createdAt_idx", 3,2 мс на страницу.
+--
+-- Индекс DESC (а не ASC) — потому что именно так читает листинг: `ORDER BY createdAt DESC`
+-- без обратного прохода по индексу.
+CREATE INDEX "tickets_createdAt_idx" ON "tickets"("createdAt" DESC);
