@@ -18,6 +18,7 @@
 | Ветка по умолчанию | `develop`; `main` — bootstrap |
 | `origin` | `https://github.com/vkarateev80/CLEANFINE.git` (HTTPS) |
 | Локальный путь | `/Users/mac/Documents/DSH/DOMCLEAR` (папка названа иначе, чем репозиторий) |
+| Вершина `develop` на момент записи | `5443a80` (`feat(deploy)`, 21.09.2026), запушена в `origin/develop` |
 
 Стек: монорепо — девять NestJS-сервисов (`auth` 3001, `file` 3002, `core` 3003, `gps` 3004,
 `ticket` 3005, `notification` 3006, `material` 3007, `schedule` 3008, `chat` 3009),
@@ -32,6 +33,20 @@ Android SDK (`~/Android/sdk`, AVD `co-test`, Android 36 arm64), Flutter 3.47.5
 веб-контур), `serve` (только сервисы, в форграунде), `env-status`, `web` (Vite :5173/:5174),
 `migrate`, `stop`, `down`. Единая точка входа — nginx на `:8080` (админка и API под общим
 префиксом `/api/…`), портал — `:8081`.
+
+**Второй стенд — VPS `185.227.144.229` (с 21.09.2026, проверено запуском):** изолированный
+compose-проект `prj-cleanfine` из актуального кода `develop`, рядом с работающим демо-стендом
+`cleaning-ops-vps` (тот занимает `0.0.0.0:{80,8080,3001–3009}` и **не изменялся** ни одним шагом).
+15 контейнеров (4 инфраструктуры + 9 backend + 2 фронтенда), публикация **только** на tailnet
+`100.109.185.14`: web-admin `8090`, портал `8091`, сервисы `8111–8119` (auth 8111 … chat 8119),
+MinIO `8120` (S3 API) / `8121` (console). Своя сеть `prj-cleanfine-net` и свои тома
+`prj-cleanfine-{pg,redis,rabbit,minio}-data` — пересечений с демо-стендом нет. Expose-локально
+(`.env.example`, `3001…3009`) и публикация на VPS — **разные вещи**: второе задаётся только
+в `deploy/vps/docker-compose.yml`. Миграции 9/9, seed 4 пользователя, потребление 731 МиБ при
+потолке лимитов ≈ 6 ГиБ; лимиты (`mem_limit`/`cpus`/`pids_limit`) и ротация логов заданы у всех
+контейнеров. Демо-креды сверх фикстур: владелец `owner@cleanfine.ru`/`owner123` (CLIENT,
+`fullName` ровно `ООО «Ромашка»`). Эксплуатация и откат — `deploy/vps/README.md`; контекст —
+`КОНТЕКСТ.md`, раздел 0.13.
 
 ---
 
@@ -108,6 +123,26 @@ push проверяется без реальных ключей. Заводит
    новое TCP-соединение на каждый запрос; при 100 rps он переставал принимать новые. Исключено
    измерениями: сервис напрямую давал p95 6,7 мс и 0 ошибок. **Урок: убедись, что меряешь
    систему, а не транспорт перед ней.**
+9. **Контракты `@cleaning-ops/shared` не резолвились в рантайме образов** (найдено и исправлено
+   21.09.2026 при сборке VPS-стенда, коммит `d746ee0`). Симптом: `Cannot find module
+   '@cleaning-ops/shared/…'`, а после правки `exports` — `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+   **Две независимые причины**, обе проверены запуском:
+
+   | Причина | Механизм | Где видно |
+   |---|---|---|
+   | `tsc` не переписывает `paths` | Эмит commonjs оставляет bare-спецификатор `require("@cleaning-ops/shared/types/core")`; Node резолвит bare-спецификаторы **только через `node_modules`**, а `backend/*/Dockerfile` клали контракты лишь в `/repo/shared/dist` | комментарий в `backend/core-service/Dockerfile` («tsc резолвит в относительный путь»), grep по эмиту |
+   | `exports` без `require`/`default` | Объявлены были только `types` и `import`; `require()` отказывал даже при корректно положенном пакете | `shared/package.json`; воспроизведено на `node:20-alpine` |
+
+   Масштаб: **23 рантайм-импорта** (не `import type`) в семи сервисах — chat 1, core 4, gps 2,
+   materials 5, notification 3, schedule 4, ticket 5; `auth` и `files` импортируют только типы.
+   Дополнительно chat и material падали на сборке: шаг `cd shared && npm run build` давал
+   `tsc: not found` (exit 127). Исправление: `require`/`default` + `"./package.json"` в `exports`
+   и единый паттерн всех девяти `backend/*/Dockerfile` — реальная копия пакета (`package.json` +
+   `dist`) в `node_modules/@cleaning-ops/shared` уезжает в финальный образ. **Доказательство:**
+   11 образов собраны, `deploy/vps/verify-images.sh` — 14/14, старт без обеих ошибок,
+   негативный контроль `require('@cleaning-ops/shared/nope/nope')` → `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+   **Урок:** «работает в dev» здесь ничего не значит — в dev алиас держит `tsconfig paths`, а в
+   собранном commonjs остаётся голый спецификатор.
 
 ---
 
@@ -130,6 +165,30 @@ push проверяется без реальных ключей. Заводит
   строго в порядке: аккаунты (`POST /api/users`) → объект (`POST /api/objects`) → `seed.mjs`.
   Сам сид объекта не создаёт и падает, если его нет.
 - **В macOS нет `timeout`.** Для ограничения времени команды: `perl -e 'alarm shift; exec @ARGV' N <команда>`.
+
+### Сборка образов и контракты
+
+- **`tsc` не переписывает алиасы `paths` в эмите** (проверено запуском, 21.09.2026). Собранный
+  commonjs содержит литерал `require("@cleaning-ops/shared/types/core")`, и Node резолвит его
+  **только через `node_modules`**. Копия контрактов в `/repo/shared/dist` помогает лишь
+  компиляции. Значит, любой образ, чей код значимо импортирует `shared`, обязан положить
+  **реальную копию пакета** в `node_modules/@cleaning-ops/shared` — см. раздел 4, дефект 9.
+  Следствие: оговорка «tsc компилирует shared в относительный `require`» верна только для
+  **type-only** импортов (их эмит стирается или превращается в относительный путь), для значимых
+  — нет.
+- **`pnpm build:shared` не работает, когда песочница находится вне воркспейса** — pnpm требует
+  каталог вне воркспейса и падает с permission denied. Обход, встроенный в `bootstrap.sh` и
+  `redeploy.sh`: собрать контракты напрямую —
+  `( unset NODE_ENV; ./shared/node_modules/.bin/tsc -b shared/tsconfig.json --force )`.
+  На macOS-стенде (раздел 5.2 `КОНТЕКСТ.md`) `pnpm build:shared` работает, поэтому обход нужен
+  только там, где песочница ограничивает запись вне репозитория.
+- **`NODE_ENV=production` в сессии ломает host-сборку `shared`**: npm/pnpm пропускают
+  devDependencies, а `shared` собирается `typescript` из devDeps. Перед host-шагами — `unset NODE_ENV`.
+- **Сборка 11 образов на хосте, разделённом с демо-стендом, роняет его healthcheck'и.** Замер:
+  одна команда `docker compose build` поднимает load average до ~16, и `rabbitmq` демо-стенда
+  уходит в транзиентный `unhealthy` (сам возвращается). Лечится сборкой группами по 1–2 сервиса
+  с ожиданием снижения load — `deploy/vps/build-vps.sh`. `COMPOSE_PARALLEL_LIMIT` ограничивает
+  только сервисы compose, но **не** параллельные `npm install` внутри BuildKit.
 
 ### Мобильное приложение
 

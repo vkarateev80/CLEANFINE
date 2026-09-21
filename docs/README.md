@@ -253,9 +253,16 @@ Design System	🟡 Токены DS-001 + экраны DS-003, DS-004	~55%
 Backend Services	🟢 auth, files, core, gps, tickets, notifications, materials, schedule, chat	~85% (9 из 9 сервисов)
 Web Admin	🟢 Вход, ядро, заявки, карта, in-app, материалы, графики, сообщения	~85%
 Web Client (портал)	🟡 Вход, объект, заявки, отчёт, чат (М5.4)	~50%
-Mobile App	🔴 Не начат (М6)	0%
-DevOps	🟡 Docker + CI (не прогнан на GitHub)	~40%
-QA	🟢 Unit: core 100 %, сервисы М3–М5 97–100 %; e2e: вход + ядро + оперативка + планирование + чат	~70%
+Mobile App	🟡 М6 реализуется частично (М6.0–М6.7, часть 1)	—
+DevOps	🟢 Docker + зелёный CI на GitHub + изолированный VPS-стенд `prj-cleanfine`	—
+QA	🟢 Unit: core 100 %, сервисы М3–М5 97–100 %; e2e: вход + ядро + оперативка + планирование + чат; UAT М7.4, k6	—
+
+> **Обновление: изолированный VPS-стенд `prj-cleanfine` и deploy-kit в репозитории (2026-09-21, см. КОНТЕКСТ.md, раздел 0.13):**
+> - **Deploy-kit вернулся в git** — `deploy/vps/` (прод-compose `name: prj-cleanfine`, `Dockerfile.web` для фронтендов, nginx-конфиги, `.env.vps.example`, `gen-env.sh`, `bootstrap.sh`, `redeploy.sh`, `seed.sh`, `build-vps.sh`, `verify-images.sh`, `pack.sh`, `README.md`). Полный runbook — `deploy/vps/README.md`.
+> - **Стенд поднят из актуального `develop`** (вершина `5443a80`): 15 контейнеров, публикация только в tailnet `100.109.185.14` (web-admin `8090`, портал `8091`, сервисы `8111–8119`, MinIO `8120`/`8121`), миграции 9/9, seed 4 пользователя, 731 МиБ при потолке ≈ 6 ГиБ. Демо-стенд `cleaning-ops-vps` (`:80`/`:8080`/`:3001–3009`) не изменён, AC-1…AC-8 пройдены.
+> - **Найден и исправлен дефект сборки:** контракты `@cleaning-ops/shared` не резолвились в рантайме образов (`tsc` не переписывает `paths`; в `exports` не было `require`/`default`) — 23 рантайм-импорта в семи сервисах. Коммит `d746ee0` (`shared/package.json` + 9 `backend/*/Dockerfile`), коммит `5443a80` — kit и демо-наполнение (`scripts/seed/seed-demo-object.mjs`).
+> - **М7.5 (Terraform/K8s/ingress/API-gateway, домен и TLS) и М7.6 (релиз v1.0.0, merge `develop` → `main`) — не начаты**; мобильное приложение, мониторинг и бэкапы в стенд не входят.
+> - Таблица выше отражает проверенные компоненты; проценты прогресса оставлены как историческая оценка, потому что автор раздела их не подтверждал.
 
 > **Обновление: пуш в GitHub и первый зелёный CI (2026-09-16, см. КОНТЕКСТ.md, раздел 0.11):**
 > - Репозиторий запушен: `origin` = `vkarateev80/CLEANFINE` (private, до 21.09.2026 назывался `DOMKLIR`), ветка по умолчанию — `develop`.
