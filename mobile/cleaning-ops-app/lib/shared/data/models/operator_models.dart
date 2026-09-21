@@ -1,12 +1,29 @@
 // Краткие модели core-service и ticket-service для экранов оператора.
 
+import '../../../core/constants/api_constants.dart';
+
 /// `GET /api/objects/:id` — объект смены.
 class ObjectSummary {
-  const ObjectSummary({required this.id, required this.name, this.address});
+  const ObjectSummary({
+    required this.id,
+    required this.name,
+    this.address,
+    this.lat,
+    this.lng,
+    this.status,
+  });
 
   final String id;
   final String name;
   final String? address;
+
+  /// Координаты объекта: кэшируются для аварийной заявки без сети
+  /// (DS-002 `offline.md` §3, таблица `cached_objects`).
+  final double? lat;
+  final double? lng;
+
+  /// Статус объекта (`Object.status`).
+  final String? status;
 
   static ObjectSummary? tryParse(dynamic body) {
     if (body is! Map) return null;
@@ -16,7 +33,15 @@ class ObjectSummary {
       id: id,
       name: body['name']?.toString() ?? 'Объект',
       address: _text(body['address']),
+      lat: _double(body['lat']),
+      lng: _double(body['lng']),
+      status: _text(body['status']),
     );
+  }
+
+  static double? _double(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
   }
 
   static String? _text(dynamic value) {
@@ -168,7 +193,9 @@ class FloorPlan {
     return FloorPlan(
       id: id,
       number: RouteDetail._int(body['number']) ?? 1,
-      planImageUrl: _text(body['planImageUrl'] ?? body['planUrl']),
+      // Адрес плана приводится к хосту API: сервер отдаёт его со своего
+      // `localhost` (см. `ApiConstants.deviceUrl`).
+      planImageUrl: _text(ApiConstants.deviceUrl(_text(body['planImageUrl'] ?? body['planUrl']))),
       planWidth: RouteDetail._int(body['planWidth']),
       planHeight: RouteDetail._int(body['planHeight']),
     );
@@ -193,6 +220,7 @@ class TicketSummary {
     this.arrivalDeadline,
     this.completionDeadline,
     this.updatedAt,
+    this.operationsCompleted,
   });
 
   final String id;
@@ -205,6 +233,10 @@ class TicketSummary {
   final String? arrivalDeadline;
   final String? completionDeadline;
   final String? updatedAt;
+
+  /// Сколько операций заявки уже выполнено: кэшируется в `cached_tickets`
+  /// (DS-002 `offline.md` §3) и показывается в прогрессе без сети.
+  final int? operationsCompleted;
 
   bool get isClosed => status == 'closed' || status == 'verified' || status == 'rejected';
 
@@ -226,6 +258,7 @@ class TicketSummary {
       arrivalDeadline: _text(body['arrivalDeadline']),
       completionDeadline: _text(body['completionDeadline']),
       updatedAt: _text(body['updatedAt'] ?? body['createdAt']),
+      operationsCompleted: RouteDetail._int(body['operationsCompleted'] ?? body['_count']),
     );
   }
 

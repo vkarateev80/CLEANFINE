@@ -61,4 +61,36 @@ class ApiConstants {
 
   /// Сколько точек маршрута помещается в один запрос истории GPS (страница).
   static const int gpsHistoryLimit = 500;
+
+  /// Хосты, которые на устройстве означают САМО устройство, а не стенд.
+  static const Set<String> _loopbackHosts = <String>{
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    '::1',
+    '[::1]',
+  };
+
+  /// Привести адрес файла, пришедший от сервера, к адресу, доступному устройству.
+  ///
+  /// Сервер отдаёт ссылки на файлы (план этажа, фотоотчёт, аватар) в том виде, в
+  /// как их видит сам сервер: на дев-стенде это `http://localhost:9000/photos/...`
+  /// (проверено: `GET /api/floors/:id` → `planImageUrl` с хостом `localhost`).
+  /// В браузере на хост-машине такой адрес верен, но на телефоне `localhost` — это
+  /// само устройство: запрос получает `Connection refused`, `Image.network` уходит в
+  /// `errorBuilder`, и карта маршрута показывает «План этажа недоступен» вместо
+  /// плана. Это ровно тот экран, с которого оператор начинает смену (М6.3).
+  ///
+  /// Лечение: если хост ссылки — петлевой (`localhost`, `127.0.0.1`, …), он
+  /// заменяется на хост API (`API_HOST`), который по построению доступен
+  /// устройству. Адреса с настоящим хостом (`https://cdn…`) не меняются, поэтому
+  /// в проде правило не срабатывает и поведение остаётся прежним.
+  static String deviceUrl(String? url) {
+    final String text = url ?? '';
+    if (text.isEmpty) return text;
+    final Uri? parsed = Uri.tryParse(text);
+    if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) return text;
+    if (!_loopbackHosts.contains(parsed.host)) return text;
+    return parsed.replace(host: host).toString();
+  }
 }

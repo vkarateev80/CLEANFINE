@@ -1,5 +1,8 @@
 import 'package:cleaning_ops_app/core/errors/failures.dart';
+import 'package:cleaning_ops_app/database/app_database.dart';
+import 'package:cleaning_ops_app/database/database_provider.dart';
 import 'package:cleaning_ops_app/features/home/presentation/pages/home_today_page.dart';
+import 'package:cleaning_ops_app/services/connectivity_service.dart';
 import 'package:cleaning_ops_app/shared/data/data_providers.dart';
 import 'package:cleaning_ops_app/shared/data/models/operator_models.dart';
 import 'package:cleaning_ops_app/shared/data/models/schedule_event.dart';
@@ -9,21 +12,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import '../../helpers/screen_harness.dart';
+import '../../helpers/offline_fakes.dart';
 import '../../helpers/operator_fakes.dart';
 
 /// М6.3: сценарии widget-тестов из `design/screens/mobile/home_today.md` §10.
+/// Экран читает кэш первым (М6.7), поэтому база — drift в памяти, отдельная на тест.
 void main() {
   // Даты в интерфейсе — на русском, как и в приложении (`main.dart`).
   setUpAll(() async => initializeDateFormatting('ru'));
+
+  late AppDatabase database;
+
+  /// Widget-тест экрана поверх drift-базы файла: `screenTest` снимает дерево и
+  /// закрывает базу внутри тела теста (иначе `flutter test` зависает — см.
+  /// `test/helpers/screen_harness.dart`).
+  void appTest(String description, Future<void> Function(WidgetTester tester) body) {
+    screenTest(description, body, database: () => database);
+  }
+
+  setUp(() => database = AppDatabase.memory());
 
   Widget wrap({
     required FakeScheduleRepository schedule,
     FakeCoreRepository? core,
     FakeTicketsRepository? tickets,
     FakeLocationService? location,
+    bool online = true,
   }) {
     return ProviderScope(
       overrides: <Override>[
+        appDatabaseProvider.overrideWithValue(database),
+        connectivityServiceProvider.overrideWithValue(FakeConnectivityService(online: online)),
         scheduleRepositoryProvider.overrideWithValue(schedule),
         coreRepositoryProvider.overrideWithValue(core ?? FakeCoreRepository()),
         ticketsRepositoryProvider.overrideWithValue(tickets ?? FakeTicketsRepository()),
@@ -39,7 +59,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   }
 
-  testWidgets('нет смены — пустое состояние и нет кнопки отметки', (tester) async {
+  appTest('нет смены — пустое состояние и нет кнопки отметки', (tester) async {
     await tester.pumpWidget(wrap(schedule: FakeScheduleRepository()));
     await settle(tester);
 
@@ -49,7 +69,7 @@ void main() {
     expect(find.byKey(const Key('today_checkin_button')), findsNothing);
   });
 
-  testWidgets('смена PLANNED: отметка прихода переводит смену в «Открыта»', (tester) async {
+  appTest('смена PLANNED: отметка прихода переводит смену в «Открыта»', (tester) async {
     final schedule = FakeScheduleRepository(
       events: <ScheduleEvent>[plannedEvent()],
       eventsAfterCheckIn: <ScheduleEvent>[plannedEvent(status: 'CHECKED_IN')],
@@ -87,7 +107,7 @@ void main() {
     expect(find.byKey(const Key('today_checkout_button')), findsOneWidget);
   });
 
-  testWidgets('403 на отметке прихода показывает текст сервера и не меняет статус', (tester) async {
+  appTest('403 на отметке прихода показывает текст сервера и не меняет статус', (tester) async {
     final schedule = FakeScheduleRepository(
       events: <ScheduleEvent>[plannedEvent()],
       checkInFailure: const ForbiddenFailure('Вы находитесь вне зоны объекта'),
@@ -103,7 +123,7 @@ void main() {
     expect(find.byKey(const Key('today_checkin_button')), findsOneWidget);
   });
 
-  testWidgets('ошибка загрузки смен — экран ошибки с повтором', (tester) async {
+  appTest('ошибка загрузки смен — экран ошибки с повтором', (tester) async {
     final schedule = FakeScheduleRepository(eventsFailure: const NetworkFailure());
     await tester.pumpWidget(wrap(schedule: schedule));
     await settle(tester);
@@ -112,7 +132,7 @@ void main() {
     expect(find.byKey(const Key('today_error_retry')), findsOneWidget);
   });
 
-  testWidgets('смена без маршрута: кнопка маршрута не показывается у PLANNED', (tester) async {
+  appTest('смена без маршрута: кнопка маршрута не показывается у PLANNED', (tester) async {
     await tester.pumpWidget(
       wrap(schedule: FakeScheduleRepository(events: <ScheduleEvent>[plannedEvent(routeId: null)])),
     );

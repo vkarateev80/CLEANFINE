@@ -64,6 +64,14 @@ class OperationMaterial {
         .whereType<OperationMaterial>()
         .toList(growable: false);
   }
+
+  /// Обратная сторона [tryParse] — форма API для `checklist_operations` и
+  /// `cached_tech_cards.operationsJson` (DS-002 `offline.md` §3).
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'materialId': materialId,
+        'consumptionPerOperation': consumptionPerOperation,
+        'unit': unit,
+      };
 }
 
 /// Операция техкарты (`GET /api/tech-cards/:id` → `operations[]`, по `orderIndex`).
@@ -147,6 +155,22 @@ class TechOperation {
     operations.sort((TechOperation a, TechOperation b) => a.orderIndex.compareTo(b.orderIndex));
     return operations;
   }
+
+  /// Обратная сторона [tryParse] — форма API для `cached_tech_cards.operationsJson`
+  /// и `checklist_operations` (DS-002 `offline.md` §3). Читается тем же
+  /// [listFrom], поэтому кэш и сеть дают одинаковые операции.
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'name': name,
+        'orderIndex': orderIndex,
+        'estimatedTimeMin': estimatedTimeMin,
+        if (description != null) 'description': description,
+        if (equipment.isNotEmpty) 'equipment': equipment,
+        'requiresPhoto': requiresPhoto,
+        'requiresQr': requiresQr,
+        if (materials.isNotEmpty)
+          'materials': materials.map((OperationMaterial item) => item.toJson()).toList(),
+      };
 }
 
 /// `GET /api/tech-cards/:id` — техкарта с операциями и суммарным временем.

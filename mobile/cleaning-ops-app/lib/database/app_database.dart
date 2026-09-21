@@ -63,8 +63,188 @@ class GpsPoints extends Table {
   BoolColumn get synced => boolean().withDefault(const Constant(false))();
 }
 
+/// Кэш смен оператора (DS-002 `offline.md` §3): из него рисуются `/today`, `/route`
+/// и чек-лист, когда сети нет.
+///
+/// Время записи строки — `updatedAt`: по нему экран показывает «Данные от {HH:mm}».
+/// Полей `checkInAt`/`checkOutAt` в спецификации нет — см. замечание в отчёте.
+@DataClassName('ShiftEventRow')
+class ShiftEvents extends Table {
+  TextColumn get id => text()();
+  TextColumn get scheduleId => text().nullable()();
+  TextColumn get scheduleName => text()();
+  TextColumn get objectId => text().nullable()();
+  TextColumn get routeId => text().nullable()();
+  TextColumn get date => text().nullable()();
+  TextColumn get plannedStart => text().nullable()();
+  TextColumn get status => text()();
+  TextColumn get ticketId => text().nullable()();
+  TextColumn get checkOutReason => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}
+
+/// Кэш объектов: название в шапке `/today` и `objectName` для аварийной заявки.
+@DataClassName('CachedObjectRow')
+class CachedObjects extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get address => text().nullable()();
+  RealColumn get lat => real().nullable()();
+  RealColumn get lng => real().nullable()();
+  TextColumn get status => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}
+
+/// Кэш точек маршрута: прогресс (`status`) и время завершения переживают оффлайн.
+@DataClassName('RoutePointRow')
+class RoutePoints extends Table {
+  TextColumn get pointId => text()();
+  TextColumn get eventId => text()();
+  TextColumn get routeId => text()();
+  TextColumn get roomId => text()();
+  IntColumn get orderIndex => integer().withDefault(const Constant(0))();
+  IntColumn get estimatedTimeMin => integer().nullable()();
+
+  /// `pending` | `active` | `done` | `skipped`.
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  TextColumn get skippedReason => text().nullable()();
+  DateTimeColumn get completedAtLocal => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{pointId};
+}
+
+/// Кэш операций чек-листа: таймеры, фото до отправки и статус синхронизации.
+@DataClassName('ChecklistOperationRow')
+class ChecklistOperations extends Table {
+  TextColumn get operationId => text()();
+  TextColumn get roomId => text()();
+  TextColumn get ticketId => text().nullable()();
+  IntColumn get orderIndex => integer().withDefault(const Constant(0))();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get equipmentJson => text().nullable()();
+  IntColumn get estimatedTimeMin => integer().nullable()();
+  BoolColumn get requiresPhoto => boolean().withDefault(const Constant(false))();
+  BoolColumn get requiresQr => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get startedAtLocal => dateTime().nullable()();
+  DateTimeColumn get completedAtLocal => dateTime().nullable()();
+  TextColumn get photoLocalPath => text().nullable()();
+  TextColumn get photoFileId => text().nullable()();
+  TextColumn get photoUrl => text().nullable()();
+
+  /// Локальный статус операции: `pending` | `active` | `completed` | `queued`.
+  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{operationId};
+}
+
+/// Кэш помещений: координаты маркеров на плане и заголовок чек-листа.
+@DataClassName('CachedRoomRow')
+class CachedRooms extends Table {
+  TextColumn get id => text()();
+  TextColumn get floorId => text().nullable()();
+  TextColumn get name => text()();
+  RealColumn get areaM2 => real().nullable()();
+  TextColumn get floorType => text().nullable()();
+  TextColumn get zone => text().nullable()();
+  TextColumn get techCardId => text().nullable()();
+  IntColumn get coordsX => integer().nullable()();
+  IntColumn get coordsY => integer().nullable()();
+  IntColumn get coordsWidth => integer().nullable()();
+  IntColumn get coordsHeight => integer().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}
+
+/// Кэш техкарт: операции чек-листа без сети (в API-форме — `operationsJson`).
+@DataClassName('CachedTechCardRow')
+class CachedTechCards extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get operationsJson => text()();
+  IntColumn get totalEstimatedTimeMin => integer().withDefault(const Constant(0))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}
+
+/// Кэш заявок оператора: блок «Мои заявки» и прогресс операций.
+@DataClassName('CachedTicketRow')
+class CachedTickets extends Table {
+  TextColumn get id => text()();
+  TextColumn get type => text()();
+  TextColumn get priority => text()();
+  TextColumn get status => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get roomId => text().nullable()();
+  TextColumn get completionDeadline => text().nullable()();
+  IntColumn get operationsCompleted => integer().nullable()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}
+
+/// Лента чата с оффлайн-сообщениями (DS-002 `offline.md` §3, М6.8).
+///
+/// Ключ — локальный `clientId`: своего id у сообщения до ответа сервера нет, а
+/// показать пузырь «Отправляется…» нужно сразу. Когда сервер подтверждает
+/// отправку, в `serverId` ложится настоящий id, а `status` меняется на `sent`
+/// (`read` — после события `message:read`).
+@DataClassName('ChatMessageRow')
+class ChatMessages extends Table {
+  /// Локальный идентификатор клиента (он же `clientMessageId` для дедупликации).
+  TextColumn get clientId => text()();
+
+  /// `MessageView.id` сервера; `null`, пока сообщение не подтверждено.
+  TextColumn get serverId => text().nullable()();
+
+  TextColumn get chatId => text()();
+
+  /// Автор сообщения: по нему свои пузыри отличаются от входящих.
+  TextColumn get authorId => text().nullable()();
+
+  /// Текст сообщения. Геттер назван `messageText`, а колонка — `text`
+  /// (`.named('text')`): имя `text` конфликтует с билдером `text()` самого drift.
+  TextColumn get messageText => text().named('text')();
+
+  /// `attachmentIds` в JSON: список id файлов file-service.
+  TextColumn get attachmentIdsJson => text().nullable()();
+
+  DateTimeColumn get createdAtLocal => dateTime()();
+
+  /// `pending` | `sent` | `read` | `failed` (DS-002 `offline.md` §3).
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{clientId};
+}
+
 /// Локальная база приложения (drift/SQLite).
-@DriftDatabase(tables: <Type>[PendingActions, GpsPoints])
+@DriftDatabase(
+  tables: <Type>[
+    PendingActions,
+    GpsPoints,
+    ShiftEvents,
+    CachedObjects,
+    RoutePoints,
+    ChecklistOperations,
+    CachedRooms,
+    CachedTechCards,
+    CachedTickets,
+    ChatMessages,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
@@ -72,7 +252,31 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
+
+  /// Миграции: v1 → v2 (М6.7) — таблицы кэша чтения, v2 → v3 (М6.8) — лента чата.
+  ///
+  /// `pending_actions`, `gps_points` и `chat_messages` не пересоздаются: в них
+  /// лежат данные оператора (очередь действий, буфер GPS, неотправленные
+  /// сообщения) — они обязаны пережить обновление приложения.
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (Migrator m) async => m.createAll(),
+        onUpgrade: (Migrator m, int from, int to) async {
+          if (from < 2) {
+            await m.createTable(shiftEvents);
+            await m.createTable(cachedObjects);
+            await m.createTable(routePoints);
+            await m.createTable(checklistOperations);
+            await m.createTable(cachedRooms);
+            await m.createTable(cachedTechCards);
+            await m.createTable(cachedTickets);
+          }
+          if (from < 3) {
+            await m.createTable(chatMessages);
+          }
+        },
+      );
 
   // ------------------------------------------------------------- очередь
 
@@ -171,7 +375,10 @@ class AppDatabase extends _$AppDatabase {
 QueryExecutor openAppDatabaseConnection() {
   return LazyDatabase(() async {
     final Directory dir = await getApplicationDocumentsDirectory();
-    final File file = File('${dir.path}/cleaning_ops.sqlite');
+    final File file = File('${dir.path}/$appDatabaseFileName');
     return NativeDatabase.createInBackground(file);
   });
 }
+
+/// Имя файла базы: по нему считается «Размер кэша» в профиле (`profile.md` §3.5).
+const String appDatabaseFileName = 'cleaning_ops.sqlite';

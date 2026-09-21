@@ -1,4 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      Геолокация (М6.6, GPS-вертикаль). Разрешения объявляет ПРИЛОЖЕНИЕ, а не
+      плагин: `geolocator_android` намеренно их не декларирует, чтобы не навязывать
+      разрешение приложениям, которым оно не нужно. Без этих двух строк
+      `Geolocator.requestPermission()` не показывает диалог и навсегда возвращает
+      отказ, `GpsTrackingService` не может взять точку (`LocationUnavailable`),
+      `gps_tracks` остаётся пустой, а `POST /api/schedule/check-in` не проходит
+      проверку геозоны — то есть на реальном устройстве не работает вся смена
+      оператора. Найдено на эмуляторе в UAT М7.4: в списке запрошенных разрешений
+      пакета (`dumpsys package`) их не было вовсе.
+      `ACCESS_BACKGROUND_LOCATION` и `FOREGROUND_SERVICE` не добавляются: фонового
+      сервиса в приложении нет (зафиксированное ограничение М6.6).
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <application
         android:label="cleaning_ops_app"
         android:name="${applicationName}"

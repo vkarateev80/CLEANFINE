@@ -67,12 +67,18 @@ class SyncService {
   static double _defaultJitter() => Random().nextDouble() * 0.4 - 0.2;
 
   /// Один проход очереди. Возвращает итог: сколько ушло и сколько осталось.
-  Future<SyncProgress> runOnce() async {
+  ///
+  /// [onProgress] вызывается после каждой записи — по нему экраны показывают
+  /// «Синхронизация: {done} из {total}» (DS-002 `offline.md` §2).
+  Future<SyncProgress> runOnce({void Function(SyncProgress progress)? onProgress}) async {
     final List<PendingAction> ready = await _queue.ready(_now());
     if (ready.isEmpty) return const SyncProgress.idle();
 
     int done = 0;
     int failed = 0;
+    onProgress?.call(
+      SyncProgress(done: done, failed: failed, total: ready.length, running: true),
+    );
     for (final PendingAction action in ready) {
       await _queue.markSending(action.id);
       final QueueSendResult result = await _sender.send(action);
@@ -80,6 +86,9 @@ class SyncService {
       if (result.isSuccess) {
         await _queue.markSynced(action.id, at: _now());
         done++;
+        onProgress?.call(
+          SyncProgress(done: done, failed: failed, total: ready.length, running: true),
+        );
         continue;
       }
 
@@ -99,6 +108,9 @@ class SyncService {
         );
       }
       failed++;
+      onProgress?.call(
+        SyncProgress(done: done, failed: failed, total: ready.length, running: true),
+      );
     }
 
     return SyncProgress(done: done, failed: failed, total: ready.length);

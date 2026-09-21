@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/clock.dart';
 import '../../../../database/database_provider.dart';
+import '../../../../services/floor_plan_cache.dart';
+import '../../../../shared/data/cache/cache_providers.dart';
+import '../../../../shared/data/cache/cache_store.dart';
 import '../../../../shared/data/data_providers.dart';
 import '../../../../shared/data/models/file_models.dart';
 import '../../../../shared/data/models/operation_completion.dart';
@@ -22,7 +25,9 @@ import '../checklist_texts.dart';
 /// Статус операции в чек-листе.
 ///
 /// Сервер помнит только факт завершения (`TicketOperationCompletion`), поэтому
-/// «Ожидает / В работе / Выполнено / Отправляется…» считает приложение.
+/// «Ожидает / В работе / Выполнено / Отправляется…» считает приложение. Те же
+/// значения уходят в `checklist_operations.syncStatus`, поэтому имя значения
+/// (`name`) — часть формата кэша: переименование сломает восстановление статусов.
 enum OperationStatus {
   pending(ChecklistTexts.waiting),
   active(ChecklistTexts.inProgress),
@@ -34,6 +39,14 @@ enum OperationStatus {
   const OperationStatus(this.label);
 
   final String label;
+
+  /// Код для кэша: `pending` | `active` | `completed` | `queued`.
+  String get code => name;
+
+  static OperationStatus of(String value) => OperationStatus.values.firstWhere(
+        (OperationStatus status) => status.code == value,
+        orElse: () => OperationStatus.pending,
+      );
 }
 
 /// Операция техкарты вместе с локальным прогрессом.
@@ -139,6 +152,8 @@ class ChecklistState {
     this.errorBanner,
     this.failedOperationId,
     this.pendingCount = 0,
+    this.cachedAt,
+    this.fromCache = false,
   });
 
   final ScheduleEvent event;
@@ -157,6 +172,12 @@ class ChecklistState {
 
   /// Сколько действий лежит в очереди «отправить при появлении сети».
   final int pendingCount;
+
+  /// Время записи кэша: «Данные от {HH:mm}» в оффлайн-баннере.
+  final DateTime? cachedAt;
+
+  /// Чек-лист нарисован из кэша: сеть ещё не ответила (DS-002 §1).
+  final bool fromCache;
 
   bool get hasTechCard => techCard != null;
   bool get shiftOpen => event.isCheckedIn;
@@ -201,6 +222,8 @@ class ChecklistState {
       errorBanner: clearError ? null : errorBanner ?? this.errorBanner,
       failedOperationId: clearError ? null : failedOperationId ?? this.failedOperationId,
       pendingCount: pendingCount ?? this.pendingCount,
+      cachedAt: cachedAt,
+      fromCache: fromCache,
     );
   }
 }
@@ -259,49 +282,201 @@ final routeOperationsTotalProvider = FutureProvider.family<int?, String>((Ref re
 });
 
 /// Чек-лист помещения (М6.4): порядок операций, таймер, фото, завершение помещения.
+///
+/// Данные берутся по правилу «сначала кэш, потом сеть» (DS-002 `offline.md` §1):
+/// смена, помещение, техкарта и операции читаются из drift, поэтому чек-лист и
+/// таймеры работают без сети, а сеть лишь обновляет кэш.
 class ChecklistController extends FamilyAsyncNotifier<ChecklistState, ChecklistArgs> {
   @override
   Future<ChecklistState> build(ChecklistArgs arg) async {
-    final Now now = ref.watch(nowProvider);
+    final CacheStore cache = ref.watch(cacheStoreProvider);
+    final ScheduleEvent? event = await cache.event(arg.eventId);
+    final RoomDetail? room = await cache.room(arg.roomId);
+    if (event != null && room != null) {
+      final ChecklistState? cached = await _fromCache(arg, event, room, cache);
+      if (cached != null) {
+        unawaited(_refreshInBackground(arg));
+        return cached;
+      }
+    }
+    return _loadFromNetwork(arg);
+  }
+
+  /// Чек-лист из кэша: `null`, если операций в кэше нет — тогда ждём сеть.
+  Future<ChecklistState?> _fromCache(
+    ChecklistArgs arg,
+    ScheduleEvent event,
+    RoomDetail room,
+    CacheStore cache,
+  ) async {
+    final List<CachedOperation> cachedOperations = await cache.operations(arg.roomId);
+    if (cachedOperations.isEmpty) return null;
+
+    final TechCardDetail? techCard =
+        room.techCardId == null ? null : await cache.techCard(room.techCardId!);
+    return ChecklistState(
+      event: event,
+      room: room,
+      // План этажа — файловый кэш: `plans_dir/{floorId}.img` (DS-002 §3).
+      floor: room.floorId == null ? null : await _cachedFloor(room.floorId!),
+      techCard: techCard,
+      operations: cachedOperations.map(_fromCached).toList(growable: false),
+      totalOperations: techCard?.operations.length,
+      pendingCount: await ref.read(pendingActionQueueProvider).pendingCount(),
+      cachedAt: await cache.eventsUpdatedAt(),
+      fromCache: true,
+    );
+  }
+
+  /// Сеть: смена, помещение, этаж и техкарта; всё успешное пишется в кэш.
+  Future<ChecklistState> _loadFromNetwork(ChecklistArgs arg) async {
+    final Now now = ref.read(nowProvider);
+    final CacheStore cache = ref.read(cacheStoreProvider);
 
     final Result<ScheduleEvent> eventResult =
-        await ref.watch(scheduleRepositoryProvider).eventById(arg.eventId);
+        await ref.read(scheduleRepositoryProvider).eventById(arg.eventId);
     final Failure? eventFailure = eventResult.failureOrNull;
     if (eventFailure != null) throw eventFailure;
     final ScheduleEvent event = eventResult.dataOrNull!;
+    await cache.saveEvents(<ScheduleEvent>[event]);
 
     final Result<RoomDetail> roomResult =
-        await ref.watch(coreRepositoryProvider).room(arg.roomId);
+        await ref.read(coreRepositoryProvider).room(arg.roomId);
     final Failure? roomFailure = roomResult.failureOrNull;
     if (roomFailure != null) throw roomFailure;
     final RoomDetail room = roomResult.dataOrNull!;
+    await cache.saveRoom(room);
 
     FloorPlan? floor;
     if (room.floorId != null) {
-      floor = (await ref.watch(coreRepositoryProvider).floor(room.floorId!)).dataOrNull;
+      floor = (await ref.read(coreRepositoryProvider).floor(room.floorId!)).dataOrNull;
+      // План этажа кладём в `plans_dir` **в фоне**: файловый кэш (`path_provider`
+      // и скачивание картинки) не задерживает отрисовку — заголовку нужен только
+      // номер этажа из ответа сети (DS-002 `offline.md` §1, §3).
+      if (floor != null) unawaited(_warmFloorPlan(floor));
     }
 
     TechCardDetail? techCard;
     if (room.techCardId != null) {
-      techCard = (await ref.watch(coreRepositoryProvider).techCard(room.techCardId!)).dataOrNull;
+      techCard = (await ref.read(coreRepositoryProvider).techCard(room.techCardId!)).dataOrNull;
+      if (techCard != null) await cache.saveTechCard(techCard);
     }
 
+    final bool canSubmit = event.isCheckedIn && event.ticketId != null;
     final ChecklistState initial = ChecklistState(
       event: event,
       room: room,
       floor: floor,
       techCard: techCard,
-      operations: _initialOperations(
-        techCard,
-        canSubmit: event.isCheckedIn && event.ticketId != null,
-        now: now(),
-      ),
+      operations: _initialOperations(techCard, canSubmit: canSubmit, now: now()),
       pendingCount: await ref.read(pendingActionQueueProvider).pendingCount(),
     );
+    await _save(initial);
 
     // Общее число операций маршрута догружаем в фоне: экран не должен ждать N+1 запросов.
     unawaited(_warmTotalOperations(event.id));
     return initial;
+  }
+
+  /// План этажа из файлового кэша (`plans_dir/{floorId}.img`).
+  ///
+  /// Best-effort: сбой `path_provider` или диска не должен ронять чек-лист —
+  /// операции покажутся без номера этажа в заголовке (DS-002 §1, §7).
+  Future<FloorPlan?> _cachedFloor(String floorId) async {
+    try {
+      return (await ref.read(floorPlanCacheProvider).read(floorId))?.floor;
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Прогрев файлового кэша плана (`plans_dir/{floorId}.img`).
+  ///
+  /// Best-effort и в фоне: сбой диска или недоступный `path_provider` не должны
+  /// оставлять чек-лист в состоянии загрузки — операции рисуются из сети/кэша.
+  Future<void> _warmFloorPlan(FloorPlan floor) async {
+    try {
+      await ref.read(floorPlanCacheProvider).ensure(floor);
+    } on Object {
+      // Плана в кэше не будет: без сети экран покажет чек-лист без номера этажа.
+    }
+  }
+
+  /// Фоновое обновление: ошибка сети не стирает показанный кэш.
+  Future<void> _refreshInBackground(ChecklistArgs arg) async {
+    final ChecklistState fresh;
+    try {
+      fresh = await _loadFromNetwork(arg);
+    } on Object {
+      // Оставляем кэш и оффлайн-баннер.
+      return;
+    }
+    final ChecklistState? current = state.valueOrNull;
+    _setState(
+      current == null
+          ? fresh
+          // Локальный прогресс (таймеры, фото) важнее серверного состояния.
+          : current.copyWith(totalOperations: fresh.totalOperations),
+    );
+  }
+
+  /// Присваивание состояния с защитой от закрытого провайдера: фоновое
+  /// обновление может завершиться уже после `dispose` контейнера.
+  void _setState(ChecklistState value) {
+    try {
+      state = AsyncData<ChecklistState>(value);
+    } on StateError {
+      // Провайдер закрыт — обновлять нечего.
+    }
+  }
+
+  /// Операция из кэша: статус, таймер и фото восстанавливаются как были.
+  ChecklistOperationState _fromCached(CachedOperation cached) {
+    final String? path = cached.photoLocalPath;
+    return ChecklistOperationState(
+      operation: cached.operation,
+      status: OperationStatus.of(cached.status),
+      startedAtLocal: cached.startedAtLocal,
+      completedAtLocal: cached.completedAtLocal,
+      photo: path == null
+          ? null
+          : CapturedPhoto(
+              path: path,
+              // Размеры снимка в кэше не хранятся: проверка «не меньше 1280×720»
+              // идёт в момент съёмки, а не при отправке из очереди.
+              width: 0,
+              height: 0,
+              takenAt: cached.startedAtLocal ?? DateTime.now(),
+            ),
+      photoUrl: cached.photoUrl,
+    );
+  }
+
+  /// Запись операций в кэш: таймер и фото переживают перезапуск (DS-002 §5.4).
+  Future<void> _save(ChecklistState value) {
+    return ref.read(cacheStoreProvider).saveOperations(
+          roomId: value.room.id,
+          ticketId: value.ticketId,
+          operations: value.operations
+              .map(
+                (ChecklistOperationState op) => CachedOperation(
+                  operation: op.operation,
+                  status: op.status.code,
+                  startedAtLocal: op.startedAtLocal,
+                  completedAtLocal: op.completedAtLocal,
+                  photoLocalPath: op.photo?.path,
+                  photoUrl: op.photoUrl,
+                ),
+              )
+              .toList(growable: false),
+        );
+  }
+
+  /// Кэш обновляется после каждого изменения состояния операций.
+  void _persist() {
+    final ChecklistState? current = state.valueOrNull;
+    if (current == null) return;
+    unawaited(_save(current));
   }
 
   /// Первая незавершённая операция «В работе» с запущенным таймером, остальные «Ожидает».
@@ -541,6 +716,8 @@ class ChecklistController extends FamilyAsyncNotifier<ChecklistState, ChecklistA
         List<ChecklistOperationState>.of(current.operations);
     operations[index] = value;
     state = AsyncData<ChecklistState>(current.copyWith(operations: operations));
+    // Прогресс операции (таймер, фото, статус) сразу уходит в кэш.
+    _persist();
   }
 
   void _update(String operationId, ChecklistOperationState Function(ChecklistOperationState) change) {

@@ -1,6 +1,9 @@
 import 'package:cleaning_ops_app/core/theme/app_colors.dart';
+import 'package:cleaning_ops_app/database/app_database.dart';
+import 'package:cleaning_ops_app/database/database_provider.dart';
 import 'package:cleaning_ops_app/features/route_map/presentation/pages/route_map_page.dart';
 import 'package:cleaning_ops_app/features/route_map/presentation/providers/route_providers.dart';
+import 'package:cleaning_ops_app/services/connectivity_service.dart';
 import 'package:cleaning_ops_app/shared/data/data_providers.dart';
 import 'package:cleaning_ops_app/shared/data/models/operator_models.dart';
 import 'package:cleaning_ops_app/shared/data/models/schedule_event.dart';
@@ -10,14 +13,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import '../../helpers/screen_harness.dart';
+import '../../helpers/offline_fakes.dart';
 import '../../helpers/operator_fakes.dart';
 
 /// М6.3: сценарии из `design/screens/mobile/route_map.md` §10 — отрисовка точек,
 /// статусы, «Следующая точка» и список без плана.
+/// Экран читает кэш первым (М6.7), поэтому база — drift в памяти, отдельная на тест.
 void main() {
   setUpAll(() async => initializeDateFormatting('ru'));
 
   const String eventId = 'ev1';
+
+  late AppDatabase database;
+
+  /// Widget-тест экрана поверх drift-базы файла: `screenTest` снимает дерево и
+  /// закрывает базу внутри тела теста (иначе `flutter test` зависает — см.
+  /// `test/helpers/screen_harness.dart`).
+  void appTest(String description, Future<void> Function(WidgetTester tester) body) {
+    screenTest(description, body, database: () => database);
+  }
+
+  setUp(() => database = AppDatabase.memory());
 
   RouteDetail routeWithPoints({List<RoutePointView>? points}) {
     return RouteDetail(
@@ -54,9 +71,12 @@ void main() {
   Widget wrap({
     required FakeScheduleRepository schedule,
     required FakeCoreRepository core,
+    bool online = true,
   }) {
     return ProviderScope(
       overrides: <Override>[
+        appDatabaseProvider.overrideWithValue(database),
+        connectivityServiceProvider.overrideWithValue(FakeConnectivityService(online: online)),
         scheduleRepositoryProvider.overrideWithValue(schedule),
         coreRepositoryProvider.overrideWithValue(core),
         ticketsRepositoryProvider.overrideWithValue(FakeTicketsRepository()),
@@ -75,7 +95,7 @@ void main() {
         events: <ScheduleEvent>[plannedEvent(id: eventId, status: 'CHECKED_IN', routeId: 'r1')],
       );
 
-  testWidgets('план: точки отрисованы по координатам и пронумерованы', (tester) async {
+  appTest('план: точки отрисованы по координатам и пронумерованы', (tester) async {
     await tester.pumpWidget(
       wrap(
         schedule: scheduleWithEvent(),
@@ -108,7 +128,7 @@ void main() {
     expect(find.text('Маршрут: 0 из 2 помещений'), findsOneWidget);
   });
 
-  testWidgets('статусы на плане видны скринридеру: первая «В работе», вторая «Ожидает»', (tester) async {
+  appTest('статусы на плане видны скринридеру: первая «В работе», вторая «Ожидает»', (tester) async {
     final SemanticsHandle handle = tester.ensureSemantics();
     await tester.pumpWidget(
       wrap(
@@ -133,7 +153,7 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('без плана — режим списка с теми же статусами', (tester) async {
+  appTest('без плана — режим списка с теми же статусами', (tester) async {
     await tester.pumpWidget(
       wrap(
         schedule: scheduleWithEvent(),
@@ -148,7 +168,7 @@ void main() {
     expect(find.byKey(const Key('route_point_tile_p2')), findsOneWidget);
   });
 
-  testWidgets('пропуск точки: короткая причина отклоняется, верная — сохраняется', (tester) async {
+  appTest('пропуск точки: короткая причина отклоняется, верная — сохраняется', (tester) async {
     await tester.pumpWidget(
       wrap(
         schedule: scheduleWithEvent(),
@@ -173,7 +193,7 @@ void main() {
     expect(find.text('Маршрут: 0 из 2 помещений'), findsOneWidget);
   });
 
-  testWidgets('смена без маршрута показывает «Маршрут не назначен»', (tester) async {
+  appTest('смена без маршрута показывает «Маршрут не назначен»', (tester) async {
     await tester.pumpWidget(
       wrap(
         schedule: FakeScheduleRepository(
@@ -189,9 +209,18 @@ void main() {
   });
 
   group('RouteDayController', () {
+    // Кэш пишется фоновыми задачами (`_persist` → batch drift), поэтому перед
+    // закрытием базы ждём опустошения очереди событий: иначе drift падает с
+    // «This database has already been closed» уже после завершения теста.
+    tearDown(() async {
+      await pumpEventQueue();
+      await database.close();
+    });
+
     ProviderContainer container({required RouteDetail route}) {
       final container = ProviderContainer(
         overrides: <Override>[
+          appDatabaseProvider.overrideWithValue(database),
           scheduleRepositoryProvider.overrideWithValue(scheduleWithEvent()),
           coreRepositoryProvider.overrideWithValue(
             FakeCoreRepository(

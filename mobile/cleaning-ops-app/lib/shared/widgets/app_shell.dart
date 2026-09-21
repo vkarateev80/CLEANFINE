@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_colors.dart';
+import '../../features/chat/presentation/providers/chat_providers.dart';
 import '../../router/app_router.dart';
 import '../../services/gps_tracking_service.dart';
 
@@ -78,6 +80,10 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final index = _indexFor(context);
+    // Индикатор непрочитанных на табе «Чаты» (`chat.md` §1.1). Счётчик не
+    // запускает загрузку списка сам: он обновляется контроллером списка, иначе
+    // запрос уходил бы с любого экрана каркаса.
+    final int unread = ref.watch(chatUnreadBadgeProvider);
     return Scaffold(
       body: widget.child,
       floatingActionButton: FloatingActionButton.extended(
@@ -96,8 +102,8 @@ class _AppShellState extends ConsumerState<AppShell> {
             .map(
               (tab) => NavigationDestination(
                 key: tab.key,
-                icon: Icon(tab.icon),
-                selectedIcon: Icon(tab.selectedIcon),
+                icon: _tabIcon(tab.icon, tab.path == AppRoutes.chats ? unread : 0),
+                selectedIcon: _tabIcon(tab.selectedIcon, tab.path == AppRoutes.chats ? unread : 0),
                 label: tab.label,
               ),
             )
@@ -105,6 +111,18 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
     );
   }
+}
+
+/// Иконка таба со счётчиком непрочитанных: `Badge` с числом (`chat.md` §6).
+Widget _tabIcon(IconData icon, int count) {
+  if (count <= 0) return Icon(icon);
+  return Badge(
+    key: const Key('shell_tab_chats_badge'),
+    backgroundColor: AppPalette.primary,
+    textColor: Colors.white,
+    label: Text('$count'),
+    child: Icon(icon),
+  );
 }
 
 class _ShellTab {

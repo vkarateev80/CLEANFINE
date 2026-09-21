@@ -1,0 +1,437 @@
+import 'package:cleaning_ops_app/core/errors/failures.dart';
+import 'package:cleaning_ops_app/database/app_database.dart';
+import 'package:cleaning_ops_app/database/database_provider.dart';
+import 'package:cleaning_ops_app/features/auth/presentation/providers/session_provider.dart';
+import 'package:cleaning_ops_app/features/chat/data/chat_message_store.dart';
+import 'package:cleaning_ops_app/features/chat/data/models/chat_models.dart';
+import 'package:cleaning_ops_app/features/chat/presentation/pages/chat_thread_page.dart';
+import 'package:cleaning_ops_app/features/chat/presentation/providers/chat_providers.dart';
+import 'package:cleaning_ops_app/services/chat_socket_service.dart';
+import 'package:cleaning_ops_app/services/connectivity_service.dart';
+import 'package:cleaning_ops_app/services/secure_storage_service.dart';
+import 'package:cleaning_ops_app/services/service_providers.dart';
+import 'package:cleaning_ops_app/shared/data/pending_actions.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../../helpers/auth_fakes.dart';
+import '../../helpers/chat_fakes.dart';
+import '../../helpers/offline_fakes.dart';
+import '../../helpers/screen_harness.dart';
+
+/// М6.8: переписка `/chats/:chatId` — DS-002 `chat.md` §3.2–§3.5, §10.
+///
+/// База — настоящий drift в памяти: проверяется и запись в `pending_actions`, и
+/// локальная лента `chat_messages`. Сеть и сокет подменены.
+///
+/// Уборка (снять дерево, закрыть базу) выполняется **внутри тела теста** — иначе
+/// `close()` в `tearDown` не завершается никогда (грабли М6.7, см.
+/// `test/helpers/screen_harness.dart`).
+void chatScreenTest(
+  String description,
+  FakeChatRepository repository, {
+  bool online = true,
+  bool socketConnected = false,
+  List<Override> extraOverrides = const <Override>[],
+  required Future<void> Function(WidgetTester tester, ProviderContainer container) body,
+}) {
+  testWidgets(description, (WidgetTester tester) async {
+    final AppDatabase database = AppDatabase.memory();
+    final FakeChatSocket socket = FakeChatSocket(connected: socketConnected);
+    final InMemorySecureStorage storage = InMemorySecureStorage()
+      ..values[StorageKeys.accessToken] = 'access-token';
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        appDatabaseProvider.overrideWithValue(database),
+        chatRepositoryProvider.overrideWithValue(repository),
+        chatSocketProvider.overrideWithValue(socket),
+        secureStorageProvider.overrideWithValue(storage),
+        connectivityServiceProvider.overrideWithValue(FakeConnectivityService(online: online)),
+        ...extraOverrides,
+      ],
+    );
+    // Мой id: «свои» пузыри, «Вы: {текст}» и отметка прочтения зависят от него.
+    container.read(sessionProvider.notifier).state = const SessionState(
+      status: SessionStatus.authenticated,
+      userId: 'me',
+      role: 'OPERATOR',
+    );
+
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: const ChatThreadPage(chatId: 'chat-1'),
+            // Сокет и хранилище нужны тесту напрямую.
+            builder: (BuildContext context, Widget? child) => child ?? const SizedBox.shrink(),
+          ),
+        ),
+      );
+      await settle(tester);
+      await body(tester, container);
+    } finally {
+      await disposeScreen(tester);
+      container.dispose();
+      await closeDatabase(database);
+    }
+  });
+}
+
+Future<void> settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+  await tester.pump(const Duration(milliseconds: 50));
+}
+
+void main() {
+  testWidgets('лента: входящее, моё сообщение, разделитель дня, «Начало переписки»', (
+    WidgetTester tester,
+  ) async {
+    final AppDatabase database = AppDatabase.memory();
+    final FakeChatSocket socket = FakeChatSocket();
+    final FakeChatRepository repository = FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(
+        // Даты — относительно «сейчас»: разделитель дня считается по локальной
+        // дате устройства (`chat.md` §3.2).
+        items: <ChatMessage>[
+          chatMessage(
+            id: 'm1',
+            authorId: 'peer',
+            text: 'Прорыв трубы в санузле 101',
+            createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
+          ),
+          chatMessage(
+            id: 'm2',
+            authorId: 'me',
+            text: 'Принял, иду',
+            createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
+          ),
+        ],
+      ),
+    );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        appDatabaseProvider.overrideWithValue(database),
+        chatRepositoryProvider.overrideWithValue(repository),
+        chatSocketProvider.overrideWithValue(socket),
+        secureStorageProvider.overrideWithValue(
+          InMemorySecureStorage()..values[StorageKeys.accessToken] = 'access-token',
+        ),
+        connectivityServiceProvider.overrideWithValue(FakeConnectivityService()),
+      ],
+    );
+    container.read(sessionProvider.notifier).state = const SessionState(
+      status: SessionStatus.authenticated,
+      userId: 'me',
+      role: 'OPERATOR',
+    );
+
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: ChatThreadPage(chatId: 'chat-1')),
+        ),
+      );
+      await settle(tester);
+
+      expect(find.byKey(const Key('chat_message_list')), findsOneWidget);
+      expect(find.byKey(const Key('chat_message_bubble_m1')), findsOneWidget);
+      expect(find.byKey(const Key('chat_message_bubble_m2')), findsOneWidget);
+      expect(find.text('Сегодня'), findsOneWidget);
+      expect(find.byKey(const Key('chat_history_start_text')), findsOneWidget);
+      expect(find.text('Начало переписки'), findsOneWidget);
+      // Сокет поднят с access-токеном из хранилища (`chat.md` §3.4).
+      expect(socket.connectCalls, 1);
+      expect(socket.lastToken, 'access-token');
+    } finally {
+      await disposeScreen(tester);
+      container.dispose();
+      await socket.dispose();
+      await closeDatabase(database);
+    }
+  });
+
+  chatScreenTest(
+    '§10.3: чужой чат (403) — «Чат недоступен» без composer',
+    FakeChatRepository(detailFailure: const ForbiddenFailure('Вы не участник этого чата')),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      expect(find.byKey(const Key('chat_forbidden_text')), findsOneWidget);
+      // Текст виден и в шапке, и в пустом состоянии — проверяем наличие текста.
+      expect(find.text('Чат недоступен'), findsWidgets);
+      // Composer отсутствует: писать в чужой чат нечем.
+      expect(find.byKey(const Key('chat_input_field')), findsNothing);
+      expect(find.byKey(const Key('chat_send_button')), findsNothing);
+      expect(find.byKey(const Key('chat_back_to_list_button')), findsOneWidget);
+    },
+  );
+
+  chatScreenTest(
+    '§10.1: отправка без сети — «Отправляется…» и запись в pending_actions',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: const ChatMessagesPage(items: <ChatMessage>[]),
+    ),
+    online: false,
+    body: (WidgetTester tester, ProviderContainer container) async {
+      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      final AppDatabase database = container.read(appDatabaseProvider);
+
+      // Соединения нет: баннер оффлайна виден, composer активен (`chat.md` §5).
+      expect(socket.isConnected, isFalse);
+      expect(find.byKey(const Key('chat_offline_banner')), findsOneWidget);
+      expect(find.text('Нет соединения — сообщения уйдут при подключении'), findsOneWidget);
+
+      await tester.enterText(find.byKey(const Key('chat_input_field')), 'Принял');
+      await settle(tester);
+      await tester.tap(find.byKey(const Key('chat_send_button')));
+      await settle(tester);
+
+      // 1. Оптимистичный пузырь со статусом «Отправляется…».
+      expect(find.text('Принял'), findsOneWidget);
+      expect(find.text('Отправляется…'), findsOneWidget);
+
+      // 2. Запись очереди: `kind = chat_message`, `status = pending`, есть clientMessageId.
+      final List<PendingAction> queued = await container.read(pendingActionQueueProvider).all();
+      expect(queued, hasLength(1));
+      final PendingAction action = queued.single;
+      expect(action.type, PendingActionTypes.chatMessage);
+      expect(action.status, PendingActionStatus.pending);
+      expect(action.payload['chatId'], 'chat-1');
+      expect(action.payload['text'], 'Принял');
+      expect(action.payload['clientMessageId'], isNotEmpty);
+      expect(action.idempotencyKey, 'chat:${action.payload['clientMessageId']}');
+
+      // 3. Локальная лента тоже помнит сообщение (`chat_messages`, `offline.md` §3).
+      final List<LocalChatMessage> local = await ChatMessageStore(database).forChat('chat-1');
+      expect(local, hasLength(1));
+      expect(local.single.status, ChatMessageStatus.pending);
+      expect(local.single.text, 'Принял');
+
+      // 4. Мок `onConnect`: очередь уходит сокетом, статус становится «Отправлено».
+      socket.emitConnected();
+      await settle(tester);
+
+      expect(socket.sends, hasLength(1));
+      expect(socket.sends.single['text'], 'Принял');
+      expect(find.text('Отправляется…'), findsNothing);
+      expect(find.byKey(const Key('chat_message_status_server-1')), findsOneWidget);
+
+      final List<PendingAction> after = await container.read(pendingActionQueueProvider).all();
+      expect(after.single.status, PendingActionStatus.synced);
+      expect(after.single.syncedAt, isNotNull);
+
+      final LocalChatMessage sent = (await ChatMessageStore(database).forChat('chat-1')).single;
+      expect(sent.status, ChatMessageStatus.sent);
+      expect(sent.serverId, 'server-1');
+    },
+  );
+
+  chatScreenTest(
+    '§10.2: событие message:read ставит своему сообщению «Прочитано»',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(items: <ChatMessage>[chatMessage(id: 'm2', authorId: 'me', text: 'Принял, иду')]),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      socket.emitConnected();
+      socket.emitRead(chatId: 'chat-1', messageId: 'm2', readBy: 'peer');
+      await settle(tester);
+
+      // `Semantics(label: 'Прочитано')` у статуса своего сообщения.
+      expect(
+        tester.getSemantics(find.byKey(const Key('chat_message_status_m2'))).label,
+        contains('Прочитано'),
+      );
+    },
+  );
+
+  chatScreenTest(
+    'отметка прочтения входящего уходит в сокет один раз',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(items: <ChatMessage>[chatMessage(id: 'm1', authorId: 'peer')]),
+    ),
+    // Соединение уже поднято: отметка прочтения идёт основным путём — сокетом.
+    socketConnected: true,
+    body: (WidgetTester tester, ProviderContainer container) async {
+      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      await settle(tester);
+
+      expect(socket.reads, hasLength(1));
+      expect(socket.reads.single['lastMessageId'], 'm1');
+
+      // Повторно за то же сообщение не отправляем (`chat.md` §3.5).
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(socket.reads, hasLength(1));
+    },
+  );
+
+  chatScreenTest(
+    'без сокета отметка прочтения уходит HTTP-путём (`chat.md` §8)',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(items: <ChatMessage>[chatMessage(id: 'm1', authorId: 'peer')]),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      final FakeChatRepository repository =
+          container.read(chatRepositoryProvider) as FakeChatRepository;
+      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      await settle(tester);
+
+      expect(socket.reads, isEmpty);
+      expect(repository.readCalls, hasLength(1));
+      expect(repository.readCalls.single['lastMessageId'], 'm1');
+    },
+  );
+
+  chatScreenTest(
+    'новое входящее по сокету появляется в ленте',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(items: <ChatMessage>[chatMessage(id: 'm1', authorId: 'peer')]),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      socket.emitConnected();
+      socket.emitMessage(
+        chatMessage(id: 'm3', authorId: 'peer', text: 'Санузел 101 закрыт на ремонт'),
+      );
+      await settle(tester);
+
+      expect(find.text('Санузел 101 закрыт на ремонт'), findsOneWidget);
+      expect(find.byKey(const Key('chat_message_bubble_m3')), findsOneWidget);
+    },
+  );
+
+  chatScreenTest(
+    'ошибка истории: баннер и активный composer',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      messagesFailure: const ServerFailure('Чат временно недоступен'),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      expect(find.byKey(const Key('chat_history_error_text')), findsOneWidget);
+      expect(find.text('Не удалось загрузить переписку'), findsOneWidget);
+      expect(find.byKey(const Key('chat_input_field')), findsOneWidget);
+      expect(find.byKey(const Key('chat_send_button')), findsOneWidget);
+    },
+  );
+
+  chatScreenTest(
+    'пустая переписка: «Напишите первое сообщение»',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: const ChatMessagesPage(items: <ChatMessage>[]),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      expect(find.byKey(const Key('chat_empty_text')), findsOneWidget);
+      expect(find.text('Напишите первое сообщение'), findsOneWidget);
+      expect(find.text('Опишите вопрос — ответ придёт в это окно'), findsOneWidget);
+    },
+  );
+
+  chatScreenTest(
+    'кнопка отправки неактивна при пустом поле и на пробелах',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: const ChatMessagesPage(items: <ChatMessage>[]),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      socket.emitConnected();
+      await settle(tester);
+
+      expect(
+        tester.widget<IconButton>(find.byKey(const Key('chat_send_button'))).onPressed,
+        isNull,
+      );
+
+      await tester.enterText(find.byKey(const Key('chat_input_field')), '   ');
+      await settle(tester);
+      expect(
+        tester.widget<IconButton>(find.byKey(const Key('chat_send_button'))).onPressed,
+        isNull,
+      );
+    },
+  );
+
+  chatScreenTest(
+    'черновик чата сохраняется локально (`chat.md` §3.2)',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: const ChatMessagesPage(items: <ChatMessage>[]),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      await tester.enterText(find.byKey(const Key('chat_input_field')), 'Нужен доступ в 305');
+      await settle(tester);
+      expect(container.read(chatDraftsProvider)['chat-1'], 'Нужен доступ в 305');
+    },
+  );
+
+  chatScreenTest(
+    'ошибка отправки от сервера: «Не отправлено · Повторить»',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: const ChatMessagesPage(items: <ChatMessage>[]),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      socket.emitConnected();
+      await settle(tester);
+
+      socket.sendFailure = 'Вы не участник этого чата';
+      await tester.enterText(find.byKey(const Key('chat_input_field')), 'Нужен доступ в 305');
+      await settle(tester);
+      await tester.tap(find.byKey(const Key('chat_send_button')));
+      await settle(tester);
+
+      expect(find.text('Не отправлено · Повторить'), findsOneWidget);
+      expect(find.byKey(const Key('chat_send_error_text')), findsOneWidget);
+    },
+  );
+
+  chatScreenTest(
+    'вложение: подпись и имя файла приходят из резолвера вложений',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(
+        items: <ChatMessage>[
+          chatMessage(id: 'm1', authorId: 'peer', text: 'Фото', attachmentIds: <String>['file-1']),
+        ],
+      ),
+    ),
+    extraOverrides: <Override>[
+      chatAttachmentResolverProvider.overrideWithValue(FakeAttachmentResolver()),
+    ],
+    body: (WidgetTester tester, ProviderContainer container) async {
+      expect(find.byKey(const Key('chat_attachment_m1')), findsOneWidget);
+      expect(find.text('📷 Фото фото_2026-09-17.jpg'), findsOneWidget);
+    },
+  );
+}
+
+/// Резолвер вложений без file-service: имя файла задано заранее.
+class FakeAttachmentResolver extends ChatAttachmentResolver {
+  FakeAttachmentResolver()
+      : super(
+          fakeApiClient(
+            FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{})),
+          ),
+        );
+
+  @override
+  Future<ChatAttachment?> resolve(String fileId) async {
+    return ChatAttachment(
+      fileId: fileId,
+      url: 'http://files.test/photo.jpg',
+      originalName: 'фото_2026-09-17.jpg',
+      isImage: true,
+    );
+  }
+}

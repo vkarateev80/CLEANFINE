@@ -1,3 +1,5 @@
+import '../../../core/constants/api_constants.dart';
+
 /// Ответ file-service `POST /api/files/upload` (`UploadedFileView`).
 ///
 /// Для фотоотчёта операции (М6.4) нужны `url` (в него сервер уже положил
@@ -26,8 +28,10 @@ class UploadedFile {
     if (id == null || id.isEmpty || url == null) return null;
     return UploadedFile(
       id: id,
-      url: url,
-      thumbnailUrl: _text(body['thumbnailUrl']),
+      // Ссылки file-service приходят с хоста сервера; на телефоне `localhost` —
+      // это само устройство (см. `ApiConstants.deviceUrl`).
+      url: ApiConstants.deviceUrl(url),
+      thumbnailUrl: _text(ApiConstants.deviceUrl(_text(body['thumbnailUrl']))),
       width: _int(body['width']),
       height: _int(body['height']),
       watermarked: body['watermarked'] == true,

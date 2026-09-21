@@ -91,6 +91,24 @@ void main() {
     expect(tickets.emergencyCalls, isEmpty);
   });
 
+  /// М7.4: на телефоне ширины 393 логических пикселя строка «Сделать фото» +
+  /// «обязательно» в `Row` переполнялась на 39 px (`A RenderFlex overflowed`), а
+  /// в live-рендере на устройстве та же строка приводила к жёсткой ошибке
+  /// `BoxConstraints forces an infinite width` на Material кнопки. Проверка держит
+  /// регрессию: на узком экране форма SOS верстается без исключений.
+  testWidgets('узкий экран (393×698): фото-блок верстается без переполнения', (tester) async {
+    tester.view.physicalSize = const Size(393 * 3, 698 * 3);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(overrides()));
+    await settle(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('sos_photo_button')), findsOneWidget);
+    expect(find.text(SosTexts.required), findsOneWidget);
+  });
+
   testWidgets('успешная отправка: тип в описании, координаты и число оповещённых', (tester) async {
     final FakeTicketsRepository tickets = FakeTicketsRepository(
       nearbyOperators: const <NearbyOperator>[

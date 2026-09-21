@@ -6,12 +6,17 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../router/app_router.dart';
+import '../../../../shared/widgets/offline_banner.dart';
+import '../../../../shared/widgets/sync_status_widgets.dart';
 import '../providers/route_providers.dart';
 import '../widgets/route_plan_view.dart';
 
 /// Маршрут дня `/route/:eventId` (М6.3): план этажа с точками по помещениям,
 /// статусы, «Следующая точка» и «Пропустить».
 /// Элементы и тексты — по `design/screens/mobile/route_map.md`.
+///
+/// Данные берутся по правилу «сначала кэш, потом сеть»: смена и точки — из drift,
+/// план этажа — из `plans_dir` (DS-002 `offline.md` §1, §3).
 class RouteMapPage extends ConsumerStatefulWidget {
   const RouteMapPage({super.key, required this.eventId});
 
@@ -35,36 +40,49 @@ class _RouteMapPageState extends ConsumerState<RouteMapPage> {
   @override
   Widget build(BuildContext context) {
     final AsyncValue<RouteDay> dayAsync = ref.watch(routeDayProvider(widget.eventId));
+    final RouteDay? day = dayAsync.valueOrNull;
 
     return Scaffold(
       key: const Key('route_map_page'),
       appBar: AppBar(
-        title: Text(_title(dayAsync.valueOrNull)),
+        title: Text(_title(day)),
+        bottom: const SyncProgressBar(statusKey: Key('route_sync_status')),
         actions: <Widget>[
           IconButton(
             key: const Key('route_sos_button'),
             tooltip: 'Аварийная заявка',
             icon: const Icon(Icons.warning_amber),
             onPressed: () => context.push(
-              AppRoutes.sosFor(roomId: dayAsync.valueOrNull?.active?.point.roomId),
+              AppRoutes.sosFor(roomId: day?.active?.point.roomId),
             ),
           ),
         ],
       ),
-      body: dayAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (Object error, StackTrace stack) => _RouteError(
-          failure: error is Failure ? error : const ServerFailure(),
-          onRetry: () => ref.invalidate(routeDayProvider(widget.eventId)),
-        ),
-        data: (RouteDay day) => _RouteBody(
-          day: day,
-          transformation: _transformation,
-          onPointTap: (RoutePointState point) => _openPointSheet(point),
-          onSkip: (RoutePointState point) => _openSkipSheet(point),
-          onNext: () => _openChecklist(day.nextPending),
-          onReset: _controller.reset,
-        ),
+      body: Column(
+        children: <Widget>[
+          OfflineBanner(
+            bannerKey: const Key('route_offline_banner'),
+            message: OfflineIndicatorTexts.route,
+            lastUpdatedAt: day?.fromCache == true ? day?.cachedAt : null,
+          ),
+          Expanded(
+            child: dayAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (Object error, StackTrace stack) => _RouteError(
+                failure: error is Failure ? error : const ServerFailure(),
+                onRetry: () => ref.invalidate(routeDayProvider(widget.eventId)),
+              ),
+              data: (RouteDay value) => _RouteBody(
+                day: value,
+                transformation: _transformation,
+                onPointTap: (RoutePointState point) => _openPointSheet(point),
+                onSkip: (RoutePointState point) => _openSkipSheet(point),
+                onNext: () => _openChecklist(value.nextPending),
+                onReset: _controller.reset,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -185,8 +203,7 @@ class _RouteBody extends StatelessWidget {
                       day: day,
                       transformationController: transformation,
                       onPointTap: onPointTap,
-                    ),
-                    Positioned(
+                    ),                    Positioned(
                       right: AppSpacing.md,
                       bottom: AppSpacing.md,
                       child: _PlanControls(

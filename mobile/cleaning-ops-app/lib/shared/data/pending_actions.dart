@@ -22,11 +22,19 @@ class PendingActionTypes {
   /// Завершение операции техкарты (`POST /api/tickets/:id/operations/:operationId/complete`).
   static const String operationCompleted = 'operation_completed';
 
+  /// Сообщение в чат (М6.8, DS-002 `offline.md` §4.1): основной путь — WS
+  /// `message:send`, фолбэк — `POST /api/chat/chats/:id/messages`.
+  ///
+  /// Приоритет 4 — после операций и пропусков точек: сообщение подождёт, а
+  /// завершение операции устареет.
+  static const String chatMessage = 'chat_message';
+
   /// Приоритет отправки: меньше — раньше (DS-002 `offline.md` §4.1).
   static int priorityOf(String kind) => switch (kind) {
         sos => 1,
         operationCompleted => 2,
         sosAttachPhoto => 3,
+        chatMessage => 4,
         _ => 9,
       };
 }

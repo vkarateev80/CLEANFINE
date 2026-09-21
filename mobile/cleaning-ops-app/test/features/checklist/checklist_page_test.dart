@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cleaning_ops_app/core/errors/failures.dart';
 import 'package:cleaning_ops_app/core/utils/clock.dart';
+import 'package:cleaning_ops_app/database/app_database.dart';
 import 'package:cleaning_ops_app/database/database_provider.dart';
 import 'package:cleaning_ops_app/features/checklist/presentation/checklist_texts.dart';
 import 'package:cleaning_ops_app/features/checklist/presentation/pages/checklist_page.dart';
@@ -18,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../helpers/screen_harness.dart';
 import '../../helpers/checklist_fakes.dart';
 import '../../helpers/operator_fakes.dart';
 
@@ -31,27 +33,42 @@ void main() {
 
   setUp(() => now = DateTime(2026, 9, 16, 10, 0));
 
+  // Экран читает кэш первым (М6.7): база — drift в памяти, отдельная на тест.
+  late AppDatabase database;
+
+  /// Widget-тест экрана поверх drift-базы файла: `screenTest` снимает дерево и
+  /// закрывает базу внутри тела теста (иначе `flutter test` зависает — см.
+  /// `test/helpers/screen_harness.dart`).
+  void appTest(String description, Future<void> Function(WidgetTester tester) body) {
+    screenTest(description, body, database: () => database);
+  }
+
+  setUp(() => database = AppDatabase.memory());
+
   List<Override> overrides({
     required List<TechOperation> operations,
     ScheduleEvent? event,
     RoomDetail? room,
     RouteDetail? route,
+    FakeCoreRepository? core,
     FakeTicketsRepository? tickets,
     FakeFilesRepository? files,
     FakePhotoCaptureService? photos,
     PendingActionQueue? queue,
   }) {
     return <Override>[
+      appDatabaseProvider.overrideWithValue(database),
       scheduleRepositoryProvider.overrideWithValue(
         FakeScheduleRepository(events: <ScheduleEvent>[event ?? checkedInEvent(id: eventId)]),
       ),
       coreRepositoryProvider.overrideWithValue(
-        FakeCoreRepository(
-          roomDetail: room ?? roomWithTechCard(),
-          floorPlan: const FloorPlan(id: 'f1', number: 3),
-          techCardDetail: techCardOf(operations),
-          routeDetail: route ?? routeWithTwoRooms(),
-        ),
+        core ??
+            FakeCoreRepository(
+              roomDetail: room ?? roomWithTechCard(),
+              floorPlan: const FloorPlan(id: 'f1', number: 3),
+              techCardDetail: techCardOf(operations),
+              routeDetail: route ?? routeWithTwoRooms(),
+            ),
       ),
       ticketsRepositoryProvider.overrideWithValue(tickets ?? FakeTicketsRepository()),
       filesRepositoryProvider.overrideWithValue(files ?? FakeFilesRepository()),
@@ -86,7 +103,7 @@ void main() {
         ),
       ];
 
-  testWidgets('шаг 2 заблокирован, пока не завершён шаг 1', (tester) async {
+  appTest('шаг 2 заблокирован, пока не завершён шаг 1', (tester) async {
     final FakeTicketsRepository tickets = FakeTicketsRepository();
     await tester.pumpWidget(wrap(overrides(operations: twoOperations(), tickets: tickets)));
     await settle(tester);
@@ -111,7 +128,7 @@ void main() {
     expect(find.text(ChecklistTexts.completed), findsOneWidget);
   });
 
-  testWidgets('обязательное фото: без снимка завершение не уходит, со снимком — с photoUrl', (tester) async {
+  appTest('обязательное фото: без снимка завершение не уходит, со снимком — с photoUrl', (tester) async {
     final FakeTicketsRepository tickets = FakeTicketsRepository();
     final FakeFilesRepository files = FakeFilesRepository();
     final FakePhotoCaptureService photos = FakePhotoCaptureService();
@@ -149,7 +166,7 @@ void main() {
     expect(find.text(ChecklistTexts.completed), findsOneWidget);
   });
 
-  testWidgets('маленький снимок отклоняется на клиенте', (tester) async {
+  appTest('маленький снимок отклоняется на клиенте', (tester) async {
     final FakePhotoCaptureService photos = FakePhotoCaptureService(width: 640, height: 480);
     final FakeFilesRepository files = FakeFilesRepository();
     await tester.pumpWidget(
@@ -171,7 +188,7 @@ void main() {
     expect(photos.deleted, isNotEmpty, reason: 'негодный снимок удаляется с устройства');
   });
 
-  testWidgets('«Завершить помещение» заблокировано неполным чек-листом', (tester) async {
+  appTest('«Завершить помещение» заблокировано неполным чек-листом', (tester) async {
     final FakeTicketsRepository tickets = FakeTicketsRepository();
     await tester.pumpWidget(wrap(overrides(operations: twoOperations(), tickets: tickets)));
     await settle(tester);
@@ -209,7 +226,7 @@ void main() {
     expect(find.text(ChecklistTexts.roomCompleted), findsOneWidget);
   });
 
-  testWidgets('без сети завершение уходит в очередь, а не падает ошибкой', (tester) async {
+  appTest('без сети завершение уходит в очередь, а не падает ошибкой', (tester) async {
     final InMemoryPendingActionQueue queue = InMemoryPendingActionQueue();
     final FakeTicketsRepository tickets = FakeTicketsRepository(
       completeFailure: const NetworkFailure(),
@@ -235,7 +252,7 @@ void main() {
     expect(tickets.completeCalls.length, 1, reason: 'попытка отправки была ровно одна');
   });
 
-  testWidgets('шапка: помещение с этажом, сводка техкарты и прогресс маршрута', (tester) async {
+  appTest('шапка: помещение с этажом, сводка техкарты и прогресс маршрута', (tester) async {
     await tester.pumpWidget(wrap(overrides(operations: twoOperations())));
     await settle(tester);
 
@@ -245,7 +262,7 @@ void main() {
     expect(find.text('Прогресс маршрута: 0 из 2 помещений'), findsOneWidget);
   });
 
-  testWidgets('таймер операции идёт по wall-clock и предупреждает о превышении нормы', (tester) async {
+  appTest('таймер операции идёт по wall-clock и предупреждает о превышении нормы', (tester) async {
     await tester.pumpWidget(
       wrap(overrides(operations: <TechOperation>[techOperation(id: 'op1', estimatedTimeMin: 2)])),
     );
@@ -261,7 +278,7 @@ void main() {
     expect(find.text(ChecklistTexts.overNorm('00:14')), findsOneWidget);
   });
 
-  testWidgets('смена не открыта: баннер и недоступные отметки', (tester) async {
+  appTest('смена не открыта: баннер и недоступные отметки', (tester) async {
     await tester.pumpWidget(
       wrap(
         overrides(
@@ -280,7 +297,7 @@ void main() {
     expect(find.text('⏱ 00:00'), findsNothing, reason: 'таймеры не идут');
   });
 
-  testWidgets('у смены нет заявки: отметки недоступны с текстом для бригадира', (tester) async {
+  appTest('у смены нет заявки: отметки недоступны с текстом для бригадира', (tester) async {
     await tester.pumpWidget(
       wrap(
         overrides(
@@ -298,7 +315,7 @@ void main() {
     );
   });
 
-  testWidgets('техкарта не назначена: пустое состояние с кнопкой «Считаю помещение выполненным»', (tester) async {
+  appTest('техкарта не назначена: пустое состояние с кнопкой «Считаю помещение выполненным»', (tester) async {
     await tester.pumpWidget(
       wrap(
         overrides(
@@ -314,7 +331,7 @@ void main() {
     expect(find.byKey(const Key('checklist_room_complete_button')), findsNothing);
   });
 
-  testWidgets('пустая техкарта: помещение можно завершить', (tester) async {
+  appTest('пустая техкарта: помещение можно завершить', (tester) async {
     await tester.pumpWidget(wrap(overrides(operations: <TechOperation>[])));
     await settle(tester);
 
@@ -326,18 +343,20 @@ void main() {
     );
   });
 
-  testWidgets('ошибка загрузки: «Не удалось загрузить чек-лист» и «Повторить»', (tester) async {
-    final List<Override> list = overrides(operations: twoOperations());
+  appTest('ошибка загрузки: «Не удалось загрузить чек-лист» и «Повторить»', (tester) async {
     // Помещение не отдаётся сервером — экран показывает ошибку с повтором.
-    list[1] = coreRepositoryProvider.overrideWithValue(FakeCoreRepository());
-    await tester.pumpWidget(wrap(list));
+    // Подмена по имени провайдера, а не по индексу списка: порядок overrides
+    // менялся при добавлении drift-базы (М6.7), и индекс ломал тест.
+    await tester.pumpWidget(
+      wrap(overrides(operations: twoOperations(), core: FakeCoreRepository())),
+    );
     await settle(tester);
 
     expect(find.text(ChecklistTexts.loadFailed), findsOneWidget);
     expect(find.byKey(const Key('checklist_error_retry')), findsOneWidget);
   });
 
-  testWidgets('серверная ошибка завершения: баннер с повтором, операция не закрыта', (tester) async {
+  appTest('серверная ошибка завершения: баннер с повтором, операция не закрыта', (tester) async {
     final FakeTicketsRepository tickets = FakeTicketsRepository(
       completeFailure: const ServerFailure('Сервис недоступен'),
     );
@@ -357,6 +376,14 @@ void main() {
   });
 
   group('ChecklistController', () {
+    // Кэш пишется фоновыми задачами (`_persist` → batch drift), поэтому перед
+    // закрытием базы ждём опустошения очереди событий: иначе drift падает с
+    // «This database has already been closed» уже после завершения теста.
+    tearDown(() async {
+      await pumpEventQueue();
+      await database.close();
+    });
+
     ProviderContainer container({
       required List<TechOperation> operations,
       FakeTicketsRepository? tickets,

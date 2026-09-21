@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/providers/session_provider.dart';
 import 'router/app_router.dart';
 import 'services/service_providers.dart';
+import 'shared/widgets/push_listener.dart';
 
 /// Корневой виджет: тема, роутер и подключение сессии к HTTP-клиенту.
 class CleaningOpsApp extends ConsumerStatefulWidget {
@@ -36,6 +37,11 @@ class _CleaningOpsAppState extends ConsumerState<CleaningOpsApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: ref.watch(appRouterProvider),
+      // Push: регистрация токена устройства и переход по `data.type`
+      // (DS-002 `profile.md` §3.4). Слушатель стоит над навигатором, поэтому
+      // видит роутер и не зависит от открытого экрана.
+      builder: (BuildContext context, Widget? child) =>
+          PushListener(child: child ?? const SizedBox.shrink()),
     );
   }
 }

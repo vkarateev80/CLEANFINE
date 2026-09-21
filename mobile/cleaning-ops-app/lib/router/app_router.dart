@@ -12,6 +12,7 @@ import '../features/chat/presentation/pages/chats_page.dart';
 import '../features/checklist/presentation/pages/checklist_page.dart';
 import '../features/home/presentation/pages/home_today_page.dart';
 import '../features/offline/presentation/pages/offline_page.dart';
+import '../features/profile/presentation/pages/change_password_page.dart';
 import '../features/profile/presentation/pages/profile_page.dart';
 import '../features/route_map/presentation/pages/route_map_page.dart';
 import '../features/sos/presentation/pages/sos_page.dart';
@@ -31,6 +32,10 @@ class AppRoutes {
   static const String sos = '/sos';
   static const String chats = '/chats';
   static const String profile = '/profile';
+
+  /// Подмаршруты профиля (DS-002 `profile.md` §1.1).
+  static const String profilePassword = '$profile/password';
+  static const String profilePin = '$profile/pin';
   static const String offline = '/offline';
 
   /// Маршрут смены: `/route/<eventId>`.
@@ -142,6 +147,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.profile,
             builder: (context, state) => const ProfilePage(),
+            routes: <RouteBase>[
+              // Смена пароля: `/profile/password` (`profile.md` §3.2).
+              GoRoute(
+                path: 'password',
+                builder: (context, state) => const ChangePasswordPage(),
+              ),
+              // Смена PIN: `/profile/pin` — тот же экран, что `/pin/setup`
+              // (`profile.md` §1.1: `PinPage(mode: setup)` из `auth.md`).
+              GoRoute(
+                path: 'pin',
+                builder: (context, state) => const PinSetupPage(),
+              ),
+            ],
           ),
         ],
       ),

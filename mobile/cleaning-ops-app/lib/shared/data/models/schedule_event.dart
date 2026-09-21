@@ -6,6 +6,7 @@ class ScheduleEvent {
     required this.date,
     required this.plannedStart,
     required this.status,
+    this.scheduleId,
     this.objectId,
     this.routeId,
     this.checkInAt,
@@ -15,6 +16,11 @@ class ScheduleEvent {
   });
 
   final String id;
+
+  /// `scheduleId` графика, по которому создана смена: его ждёт
+  /// `POST /api/schedule/check-in` (`findTodayEvent` ищет смену по `scheduleId`).
+  final String? scheduleId;
+
   final String scheduleName;
   final String date;
   final String plannedStart;
@@ -42,6 +48,7 @@ class ScheduleEvent {
     if (id == null || id.isEmpty) return null;
     return ScheduleEvent(
       id: id,
+      scheduleId: _text(body['scheduleId']),
       scheduleName: body['scheduleName']?.toString() ?? 'Смена',
       date: body['date']?.toString() ?? '',
       plannedStart: body['plannedStart']?.toString() ?? '',

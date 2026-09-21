@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cleaning_ops_tokens/app_tokens.dart';
 import 'package:flutter/material.dart';
 
@@ -6,6 +8,10 @@ import '../providers/route_providers.dart';
 
 /// План этажа с точками маршрута: `InteractiveViewer` + `Stack` по координатам
 /// помещений (пиксели изображения плана) — как задано в `route_map.md` §3.
+///
+/// Картинка берётся из файлового кэша (`plans_dir/{floorId}.img`), если он есть:
+/// так план открывается без сети. Сети нет и кэша нет — остаётся [Image.network],
+/// который покажет заглушку «План этажа недоступен».
 class RoutePlanView extends StatefulWidget {
   const RoutePlanView({
     super.key,
@@ -41,28 +47,7 @@ class _RoutePlanViewState extends State<RoutePlanView> {
         height: height,
         child: Stack(
           children: <Widget>[
-            if (!_planFailed)
-              Image.network(
-                widget.day.floor!.planImageUrl!,
-                key: const Key('route_floor_plan_image'),
-                width: width,
-                height: height,
-                // `fill`, а не `contain`: иначе маркеры «уедут» относительно стен.
-                fit: BoxFit.fill,
-                loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? progress) {
-                  if (progress == null) return child;
-                  return const Center(child: CircularProgressIndicator());
-                },
-                errorBuilder: (BuildContext context, Object error, StackTrace? stack) {
-                  // План не скачался: показываем подложку и список точек под ней.
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted && !_planFailed) setState(() => _planFailed = true);
-                  });
-                  return _PlanPlaceholder(width: width, height: height);
-                },
-              )
-            else
-              _PlanPlaceholder(width: width, height: height),
+            if (!_planFailed) _plan(width, height) else _PlanPlaceholder(width: width, height: height),
             for (final RoutePointState point in widget.day.points)
               if (point.point.hasCoords)
                 Positioned(
@@ -83,6 +68,42 @@ class _RoutePlanViewState extends State<RoutePlanView> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Картинка плана: файл из кэша — приоритетно, иначе сеть.
+  Widget _plan(double width, double height) {
+    final String? cachedPath = widget.day.planFilePath;
+    if (cachedPath != null && cachedPath.isNotEmpty) {
+      return Image.file(
+        File(cachedPath),
+        key: const Key('route_floor_plan_image'),
+        width: width,
+        height: height,
+        // `fill`, а не `contain`: иначе маркеры «уедут» относительно стен.
+        fit: BoxFit.fill,
+        errorBuilder: (BuildContext context, Object error, StackTrace? stack) =>
+            _PlanPlaceholder(width: width, height: height),
+      );
+    }
+
+    return Image.network(
+      widget.day.floor!.planImageUrl!,
+      key: const Key('route_floor_plan_image'),
+      width: width,
+      height: height,
+      fit: BoxFit.fill,
+      loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? progress) {
+        if (progress == null) return child;
+        return const Center(child: CircularProgressIndicator());
+      },
+      errorBuilder: (BuildContext context, Object error, StackTrace? stack) {
+        // План не скачался: показываем подложку и список точек под ней.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_planFailed) setState(() => _planFailed = true);
+        });
+        return _PlanPlaceholder(width: width, height: height);
+      },
     );
   }
 }

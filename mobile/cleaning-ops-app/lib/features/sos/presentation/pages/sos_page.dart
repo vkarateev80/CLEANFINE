@@ -113,6 +113,12 @@ class _SosPageState extends ConsumerState<SosPage> {
               DropdownButtonFormField<EmergencyCategory>(
                 key: const Key('sos_type_dropdown'),
                 initialValue: state.category,
+                // `isExpanded` обязателен: без него внутренний `Row` дропдауна
+                // отдаёт списку пунктов неограниченную ширину, тот берёт ширину
+                // самого длинного пункта («Прорыв трубы / затопление» — 403,8 px)
+                // и на телефоне (логическая ширина 393) строка переполняется на
+                // 99 px. Найдено UAT на устройстве (М7.4).
+                isExpanded: true,
                 decoration: InputDecoration(
                   labelText: SosTexts.typeLabel,
                   border: OutlineInputBorder(
@@ -123,7 +129,7 @@ class _SosPageState extends ConsumerState<SosPage> {
                   for (final EmergencyCategory category in EmergencyCategory.values)
                     DropdownMenuItem<EmergencyCategory>(
                       value: category,
-                      child: Text(category.label),
+                      child: Text(category.label, overflow: TextOverflow.ellipsis),
                     ),
                 ],
                 onChanged: locked ? null : _controller.selectCategory,
@@ -225,7 +231,17 @@ class _SosPageState extends ConsumerState<SosPage> {
             style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Row(
+          // `Wrap`, а не `Row`: на телефоне кнопка «Сделать фото» и подпись
+          // «обязательно» в `Row` не помещаются (на логической ширине 393 —
+          // переполнение на 39 px, `A RenderFlex overflowed`), а в live-рендере
+          // `Row` отдаёт нерастяжимым детям неограниченную ширину, из-за чего
+          // Material кнопки падает на `BoxConstraints forces an infinite width`.
+          // `Wrap` даёт детям ограниченную ширину и переносит подпись на новую
+          // строку, если места мало. Найдено UAT на устройстве (М7.4).
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.xs,
             children: <Widget>[
               OutlinedButton.icon(
                 key: const Key('sos_photo_button'),
@@ -233,7 +249,6 @@ class _SosPageState extends ConsumerState<SosPage> {
                 icon: const Icon(Icons.camera_alt),
                 label: const Text(SosTexts.takePhoto),
               ),
-              const SizedBox(width: AppSpacing.md),
               const Text(
                 SosTexts.required,
                 style: TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.dangerText),
@@ -277,6 +292,10 @@ class _SosPageState extends ConsumerState<SosPage> {
   /// Локация: ожидание, ошибка с повтором или координаты с местом из маршрута.
   Widget _locationBlock(SosState state) {
     if (state.locating) {
+      // `Expanded` вокруг подписи: в `Row` текст получает неограниченную ширину и
+      // не переносится — на телефоне (логическая ширина 393) строка
+      // «Определяем местоположение…» переполняла экран на 99 px. Найдено UAT на
+      // устройстве (М7.4).
       return const Row(
         key: Key('sos_location_pending'),
         children: <Widget>[
@@ -286,9 +305,11 @@ class _SosPageState extends ConsumerState<SosPage> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           SizedBox(width: AppSpacing.sm),
-          Text(
-            SosTexts.locating,
-            style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
+          Expanded(
+            child: Text(
+              SosTexts.locating,
+              style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
+            ),
           ),
         ],
       );

@@ -8,12 +8,18 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../router/app_router.dart';
+import '../../../../services/connectivity_service.dart';
 import '../../../../shared/data/models/operator_models.dart';
 import '../../../../shared/data/models/schedule_event.dart';
+import '../../../../shared/widgets/offline_banner.dart';
+import '../../../../shared/widgets/sync_status_widgets.dart';
 import '../providers/today_providers.dart';
 
 /// Главный экран `/today` (М6.3): смена на сегодня, отметки прихода/ухода,
 /// маршрут и мои заявки. Элементы и тексты — по `design/screens/mobile/home_today.md`.
+///
+/// Работает по правилу «сначала кэш, потом сеть» (DS-002 `offline.md` §1):
+/// закэшированные смены видны сразу, оффлайн-баннер и счётчик очереди — из §2.
 class HomeTodayPage extends ConsumerWidget {
   const HomeTodayPage({super.key});
 
@@ -21,20 +27,35 @@ class HomeTodayPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<TodayOverview> overview = ref.watch(todayOverviewProvider);
     final TodayOverview? data = overview.valueOrNull;
+    final bool offline = !(ref.watch(onlineProvider).valueOrNull ?? true);
 
     return Scaffold(
       key: const Key('today_page'),
-      appBar: AppBar(title: Text(_title(data))),
-      body: RefreshIndicator(
-        onRefresh: () async => ref.refresh(todayOverviewProvider.future),
-        child: overview.when(
-          loading: () => const _TodaySkeleton(),
-          error: (Object error, StackTrace stack) => _TodayError(
-            failure: error is Failure ? error : const ServerFailure(),
-            onRetry: () => ref.invalidate(todayOverviewProvider),
+      appBar: AppBar(
+        title: Text(_title(data)),
+        actions: const <Widget>[SyncStatusCounter(statusKey: Key('today_sync_status'))],
+      ),
+      body: Column(
+        children: <Widget>[
+          OfflineBanner(
+            bannerKey: const Key('today_offline_banner'),
+            lastUpdatedAt: data?.fromCache == true ? data?.cachedAt : null,
           ),
-          data: (TodayOverview value) => _TodayContent(overview: value),
-        ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async => ref.refresh(todayOverviewProvider.future),
+              child: overview.when(
+                loading: () => const _TodaySkeleton(),
+                error: (Object error, StackTrace stack) => _TodayError(
+                  failure: error is Failure ? error : const ServerFailure(),
+                  offline: offline,
+                  onRetry: () => ref.invalidate(todayOverviewProvider),
+                ),
+                data: (TodayOverview value) => _TodayContent(overview: value),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -130,11 +151,15 @@ class _EmptyShifts extends StatelessWidget {
 }
 
 /// Ошибка загрузки смен: текст и кнопка повтора.
+///
+/// Без сети и без кэша текст другой (DS-002 `offline.md` §7): «Нет соединения.
+/// Данные появятся после подключения» вместо «Не удалось загрузить смены».
 class _TodayError extends StatelessWidget {
-  const _TodayError({required this.failure, required this.onRetry});
+  const _TodayError({required this.failure, required this.onRetry, this.offline = false});
 
   final Failure failure;
   final VoidCallback onRetry;
+  final bool offline;
 
   @override
   Widget build(BuildContext context) {
@@ -145,10 +170,11 @@ class _TodayError extends StatelessWidget {
         const SizedBox(height: AppSpacing.space3xl),
         const Icon(Icons.cloud_off_outlined, size: 56, color: AppPalette.danger),
         const SizedBox(height: AppSpacing.md),
-        const Text(
-          'Не удалось загрузить смены',
+        Text(
+          offline ? 'Нет соединения. Данные появятся после подключения' : 'Не удалось загрузить смены',
+          key: const Key('today_error_text'),
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+          style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
@@ -251,9 +277,7 @@ class _ShiftCard extends ConsumerWidget {
             ],
             const SizedBox(height: AppSpacing.sm),
             Text(
-              route == null
-                  ? 'Маршрут не назначен'
-                  : 'Маршрут: ${route.name} · ${route.pointsCount} помещений · ~${route.estimatedMinutes} мин',
+              route == null ? 'Маршрут не назначен' : _routeLine(route),
               style: const TextStyle(fontSize: AppTypography.sizeSM),
             ),
             if (event.checkOutReason != null) ...<Widget>[
@@ -310,6 +334,15 @@ class _ShiftCard extends ConsumerWidget {
       return 'Вы не отметились на смене. Обратитесь к бригадиру.';
     }
     return '';
+  }
+
+  /// «Маршрут: {name} · {N} помещений · ~{M} мин».
+  ///
+  /// Имя маршрута в кэше не хранится (в DS-002 §3 таблицы маршрутов нет), поэтому
+  /// при показе из кэша строка остаётся без имени — замечание в отчёте.
+  String _routeLine(RouteDetail route) {
+    final String prefix = route.name.isEmpty ? 'Маршрут' : 'Маршрут: ${route.name}';
+    return '$prefix · ${route.pointsCount} помещений · ~${route.estimatedMinutes} мин';
   }
 }
 

@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/errors/failures.dart';
 import '../shared/data/data_providers.dart';
 import '../shared/data/models/emergency_ticket.dart';
+import '../features/chat/data/models/chat_models.dart';
+import '../features/chat/presentation/providers/chat_providers.dart';
 import '../shared/data/models/file_models.dart';
 import '../shared/data/models/operation_completion.dart';
+import '../features/chat/data/chat_message_store.dart';
+import '../features/chat/data/repositories/chat_repository.dart';
 import '../shared/data/pending_actions.dart';
 import '../shared/data/repositories/files_repository.dart';
 import '../shared/data/repositories/operator_repositories.dart';
@@ -37,13 +41,22 @@ class QueueActionSender {
     required FilesRepository files,
     required TicketsRepository tickets,
     required PhotoCaptureService photos,
+    ChatRepository? chat,
+    ChatMessageStore? chatStore,
   })  : _files = files,
         _tickets = tickets,
-        _photos = photos;
+        _photos = photos,
+        _chat = chat,
+        _chatStore = chatStore;
 
   final FilesRepository _files;
   final TicketsRepository _tickets;
   final PhotoCaptureService _photos;
+
+  /// Чат (М6.8): `kind: 'chat_message'` уходит REST-фолбэком, потому что сокет
+  /// живёт только на открытом экране переписки (`chat.md` §3.4).
+  final ChatRepository? _chat;
+  final ChatMessageStore? _chatStore;
 
   Future<QueueSendResult> send(PendingAction action) {
     switch (action.type) {
@@ -53,6 +66,8 @@ class QueueActionSender {
         return _sendAttach(action);
       case PendingActionTypes.operationCompleted:
         return _sendOperation(action);
+      case PendingActionTypes.chatMessage:
+        return _sendChatMessage(action);
       default:
         return Future<QueueSendResult>.value(
           QueueSendResult.permanent('Неизвестный тип действия: ${action.type}'),
@@ -143,6 +158,42 @@ class QueueActionSender {
     return failure == null ? const QueueSendResult.success() : _failure(failure);
   }
 
+  /// Сообщение в чат из очереди: REST-фолбэк `POST /api/chat/chats/:id/messages`
+  /// (DS-002 `offline.md` §8). Локальная строка `chat_messages` переводится в
+  /// `sent`, чтобы пузырь в ленте перестал показывать «Отправляется…».
+  Future<QueueSendResult> _sendChatMessage(PendingAction action) async {
+    final ChatRepository? chat = _chat;
+    final String? chatId = _text(action.payload['chatId']);
+    final String? text = _text(action.payload['text']);
+    final String? clientMessageId = _text(action.payload['clientMessageId']);
+    if (chat == null) {
+      return const QueueSendResult.permanent('Отправка сообщений чата не настроена');
+    }
+    if (chatId == null || text == null) {
+      return const QueueSendResult.permanent('В записи нет chatId или текста сообщения');
+    }
+
+    final Result<ChatMessage> sent = await chat.sendMessage(
+      chatId,
+      text: text,
+      attachmentIds: _ids(action.payload['attachmentIds']),
+    );
+    final Failure? failure = sent.failureOrNull;
+    if (failure != null) return _failure(failure);
+
+    final ChatMessage? message = sent.dataOrNull;
+    if (clientMessageId != null && message != null) {
+      // Best-effort: сообщение уже ушло, ошибка локальной записи не должна
+      // возвращать его в очередь и создавать дубль (идемпотентности нет).
+      try {
+        await _chatStore?.markSent(clientMessageId, serverId: message.id);
+      } on Object {
+        // Локальный статус обновится при следующем чтении ленты.
+      }
+    }
+    return const QueueSendResult.success();
+  }
+
   /// Временная ошибка — сеть и 5xx/429; всё остальное оператор должен увидеть сам.
   QueueSendResult _failure(Failure failure) {
     if (failure is NetworkFailure ||
@@ -174,6 +225,11 @@ class QueueActionSender {
     final String? text = _text(value);
     return text == null ? null : DateTime.tryParse(text);
   }
+
+  static List<String> _ids(dynamic value) {
+    if (value is List) return value.map((dynamic item) => item.toString()).toList(growable: false);
+    return const <String>[];
+  }
 }
 
 final queueActionSenderProvider = Provider<QueueActionSender>((Ref ref) {
@@ -181,5 +237,7 @@ final queueActionSenderProvider = Provider<QueueActionSender>((Ref ref) {
     files: ref.watch(filesRepositoryProvider),
     tickets: ref.watch(ticketsRepositoryProvider),
     photos: ref.watch(photoCaptureServiceProvider),
+    chat: ref.watch(chatRepositoryProvider),
+    chatStore: ref.watch(chatMessageStoreProvider),
   );
 });

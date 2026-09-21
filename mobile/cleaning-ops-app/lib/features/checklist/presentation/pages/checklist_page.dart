@@ -9,7 +9,9 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/clock.dart';
 import '../../../../router/app_router.dart';
+import '../../../../services/connectivity_service.dart';
 import '../../../../shared/services/photo_service.dart';
+import '../../../../shared/widgets/sync_status_widgets.dart';
 import '../../../route_map/presentation/providers/route_providers.dart';
 import '../checklist_texts.dart';
 import '../providers/checklist_providers.dart';
@@ -89,8 +91,11 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
       key: const Key('checklist_page'),
       appBar: AppBar(
         title: Text(_title(state)),
+        // «Синхронизация: {done} из {total}» — DS-002 `offline.md` §2.
+        bottom: const SyncProgressBar(statusKey: Key('checklist_sync_status')),
         actions: <Widget>[
-          _SyncStatusButton(count: state?.pendingCount ?? 0),
+          // Счётчик неотправленного — тот же виджет, что в shell-экранах (§2).
+          const SyncStatusCounter(statusKey: Key('checklist_queue_counter')),
           IconButton(
             key: const Key('checklist_sos_button'),
             tooltip: 'Аварийная заявка',
@@ -118,6 +123,7 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
 
   Widget _body(ChecklistState state) {
     final bool noTechCard = state.room.techCardId == null;
+    final bool offline = !(ref.watch(onlineProvider).valueOrNull ?? true);
     return Column(
       children: <Widget>[
         _ProgressHeader(args: _args, state: state),
@@ -135,7 +141,8 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
             color: AppPalette.dangerText,
             icon: Icons.report_gmailerrorred_outlined,
           ),
-        if (state.pendingCount > 0)
+        // Оффлайн-баннер (`checklist.md` §5, §6): нет сети или есть очередь.
+        if (offline || state.pendingCount > 0)
           _Banner(
             bannerKey: const Key('checklist_offline_banner'),
             text: ChecklistTexts.offline,
@@ -376,22 +383,6 @@ class _ProgressHeader extends ConsumerWidget {
 }
 
 /// Счётчик очереди в шапке: сколько действий ждёт отправки.
-class _SyncStatusButton extends StatelessWidget {
-  const _SyncStatusButton({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton.icon(
-      key: const Key('checklist_sync_status'),
-      onPressed: () => context.push(AppRoutes.offline),
-      icon: Icon(count > 0 ? Icons.bolt : Icons.bolt_outlined, size: 18),
-      label: Text('$count'),
-    );
-  }
-}
-
 /// Цветной баннер состояния экрана.
 class _Banner extends StatelessWidget {
   const _Banner({
