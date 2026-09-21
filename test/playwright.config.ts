@@ -46,9 +46,20 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI
-    ? [['list'], ['html', { outputFolder: 'reports/playwright', open: 'never' }]]
-    : [['list']],
+  /**
+   * Отчёты (М7.3) пишутся ВСЕГДА и одинаково локально и в CI:
+   *  - `list` — прогресс в консоль (по нему снимаются счётчики «до/после»);
+   *  - `html` → `reports/playwright` — разбор глазами (`pnpm test:e2e:report`);
+   *    этот же путь выгружает шаг `upload-artifact` джобы `e2e` в ci.yml;
+   *  - `json` → `reports/results.json` — машинный результат для скриптов и отчёта.
+   * Разное поведение локально и в CI означало бы, что «отчёты в test/reports/»
+   * появляются только на раннере (см. test/reports/README.md).
+   */
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: 'reports/playwright', open: 'never' }],
+    ['json', { outputFile: 'reports/results.json' }],
+  ],
 
   use: {
     trace: 'on-first-retry',

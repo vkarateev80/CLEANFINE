@@ -242,6 +242,16 @@ test('М5.4: заявка, созданная в портале, появляе�
   await page.goto(`${PORTAL_URL}/tickets`);
   await expect(page.getByTestId('portal-ticket-list')).toBeVisible({ timeout: 20_000 });
 
+  // Проверка «портал видит ИМЕННО наш объект» стоит до создания заявки: скоуп
+  // определяется сопоставлением clientName (см. useObjectScope), и чужой объект с
+  // подстрокой «заказчик» (например, не убранный предыдущим набором) увёл бы заявку
+  // на себя. Без этой проверки падение выглядело бы как «заявка не найдена в
+  // tickets-service» и уводило бы от настоящей причины.
+  await expect(
+    page.getByTestId('portal-header-object'),
+    'портал обязан показывать объект ЭТОГО теста (иначе scope перехватил чужой объект)',
+  ).toContainText(object.name);
+
   await page.getByTestId('portal-ticket-create').click();
   const sheet = page.getByTestId('portal-ticket-create-sheet');
   await expect(sheet).toBeVisible({ timeout: 20_000 });

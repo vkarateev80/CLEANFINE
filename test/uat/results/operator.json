@@ -1,0 +1,120 @@
+{
+  "role": "operator",
+  "scenario": "PIN-вход, смена и маршрут, чек-лист с фото, автосписание, SOS, оффлайн-очередь, чат, профиль",
+  "startedAt": "2026-09-21T11:22:13.819Z",
+  "finishedAt": "2026-09-21T11:22:19.483Z",
+  "total": 12,
+  "passed": 5,
+  "failed": 7,
+  "defects": [],
+  "steps": [
+    {
+      "id": "O1",
+      "title": "PIN-вход: телефон + PIN (путь мобильного приложения, POST /api/auth/pin)",
+      "expected": "201, выдан access-токен роли OPERATOR; неверный PIN отклоняется 401",
+      "actual": "PIN-вход HTTP 201; /auth/me → role=OPERATOR, Оператор; неверный PIN → HTTP 401; токен: iat=1789989735, exp=1789990635 (срок 15 мин)",
+      "ok": true,
+      "evidence": "POST /api/auth/pin {\"phone\":\"+79990000003\",\"pinCode\":\"****\"} → 201",
+      "ms": 181
+    },
+    {
+      "id": "O2",
+      "title": "Смена дня: GET /api/schedule/my, отметка прихода по геозоне",
+      "expected": "смена на сегодня есть; check-in внутри зоны 201 и статус меняется; вне зоны 403",
+      "actual": "смен на сегодня у оператора: 21 (2026-09-21, 2026-09-21, 2026-09-21, 2026-09-21, 2026-09-22, 2026-09-22, 2026-09-23, 2026-09-23, 2026-09-24, 2026-09-24, 2026-09-25, 2026-09-25, 2026-09-26, 2026-09-26, 2026-10-02, 2026-10-02, 2026-10-02, 2026-11-05, 2026-11-05, 2026-11-05, 2026-11-05); check-in вне зоны → HTTP 403 «Вы находитесь вне зоны объекта»; внутри зоны → HTTP 201; статус смены=CHECKED_IN, checkInAt=2026-09-21T11:22:16.227Z",
+      "ok": true,
+      "evidence": "POST /api/schedule/check-in ×2 (вне/внутри геозоны «UAT-M74-O зона»); GET /api/schedule/events/4e286a71-941e-4465-b452-dabc010be1c1; состояние смен приведено к PLANNED до прогона (UPDATE 0); предуборка: чаты: нечего снимать; заявки: DELETE 0; геозоны: DELETE 0; устройства: DELETE 0",
+      "ms": 507
+    },
+    {
+      "id": "O3",
+      "title": "Маршрут дня: точки маршрута смены и план этажа",
+      "expected": "маршрут содержит ≥1 точку с помещением и оценкой времени; план этажа отдаётся по URL (не заглушка)",
+      "actual": "в маршруте нет точек",
+      "ok": false,
+      "evidence": "",
+      "ms": 10
+    },
+    {
+      "id": "O4",
+      "title": "Чек-лист: техкарта помещения и порядок операций",
+      "expected": "техкарта содержит операции строго по порядку, у каждой нормативное время, часть требует фото",
+      "actual": "исключение: Cannot read properties of undefined (reading 'techCardId')",
+      "ok": false,
+      "evidence": "at file:///Users/mac/Documents/DSH/DOMCLEAR/test/uat/uat-operator.mjs:210:49",
+      "ms": 0
+    },
+    {
+      "id": "O5",
+      "title": "Фотоотчёт: загрузка снимка в file-service (multipart, kind=photo) и привязка к заявке",
+      "expected": "201, ответ содержит url и размеры; снимок меньше 1280×720 отклоняется 400",
+      "actual": "фото 1600×900 → HTTP 201, id=21b6fa62-d2af-418c-8210-e103095a4953, url=http://localhost:9000/photos/2026/09/d12acdac-77b4-42b7-b75b-6362c833a625.png; водяной знак/подпись: true; неподходящий файл → HTTP 400",
+      "ok": true,
+      "evidence": "POST /api/files/upload (multipart, kind=photo) → 201",
+      "ms": 69
+    },
+    {
+      "id": "O6",
+      "title": "Завершение операций: POST /api/tickets/:id/operations/:opId/complete",
+      "expected": "операция с фото без photoUrl → 400; с photoUrl → 201; повтор идемпотентен (alreadyCompleted)",
+      "actual": "исключение: Cannot read properties of undefined (reading 'find')",
+      "ok": false,
+      "evidence": "at file:///Users/mac/Documents/DSH/DOMCLEAR/test/uat/uat-operator.mjs:283:34",
+      "ms": 21
+    },
+    {
+      "id": "O7",
+      "title": "Списание материалов на сервере: завершение операции техкарты уменьшает остаток автоматически",
+      "expected": "после завершения операции с материалом остаток падает на норму расхода БЕЗ отдельного вызова, появляется запись ConsumedOperation; состояние техкарты и остатка восстановлено",
+      "actual": "исключение: Cannot read properties of undefined (reading 'length')",
+      "ok": false,
+      "evidence": "at file:///Users/mac/Documents/DSH/DOMCLEAR/test/uat/uat-operator.mjs:335:44",
+      "ms": 0
+    },
+    {
+      "id": "O8",
+      "title": "SOS: аварийная заявка одной операцией, уведомление и состав участников",
+      "expected": "201, тип emergency и CRITICAL, в ответе ближние операторы; руководителю приходит in-app EMERGENCY",
+      "actual": "исключение: Cannot read properties of undefined (reading 'id')",
+      "ok": false,
+      "evidence": "at file:///Users/mac/Documents/DSH/DOMCLEAR/test/uat/uat-operator.mjs:483:29",
+      "ms": 111
+    },
+    {
+      "id": "O9",
+      "title": "Оффлайн-очередь: повтор отправки после восстановления связи не дублирует результат",
+      "expected": "повторное завершение операции и повторный check-in идемпотентны; GPS-точки принимаются батчем",
+      "actual": "исключение: Cannot read properties of undefined (reading 'find')",
+      "ok": false,
+      "evidence": "at file:///Users/mac/Documents/DSH/DOMCLEAR/test/uat/uat-operator.mjs:533:34",
+      "ms": 7
+    },
+    {
+      "id": "O10",
+      "title": "Чат: список чатов оператора, отправка сообщения по заявке",
+      "expected": "чат заявки виден оператору, сообщение сохраняется и читается вторым участником",
+      "actual": "исключение: Cannot read properties of undefined (reading '0')",
+      "ok": false,
+      "evidence": "at file:///Users/mac/Documents/DSH/DOMCLEAR/test/uat/uat-operator.mjs:589:50",
+      "ms": 25
+    },
+    {
+      "id": "O11",
+      "title": "Профиль: данные пользователя и смена PIN (с возвратом исходного)",
+      "expected": "GET /auth/me отдаёт карточку оператора; смена PIN принимается, старый PIN перестаёт работать, новый работает; PIN возвращён к исходному",
+      "actual": "карточка: «Оператор», operator@cleaning-ops.com, тел. +79990000003, роль OPERATOR, создан 2026-09-20T22:46:22.034Z; смена PIN → HTTP 201; старый PIN → HTTP 401; новый PIN → HTTP 201; возврат PIN → HTTP 201, исходный PIN → HTTP 201",
+      "ok": true,
+      "evidence": "POST /api/auth/change-pin ×2 + POST /api/auth/pin ×3",
+      "ms": 607
+    },
+    {
+      "id": "O12",
+      "title": "Закрытие смены и уборка данных прогона",
+      "expected": "check-out переводит смену в завершённое состояние; заявки, чат, геозона и точки трека прогона сняты",
+      "actual": "check-out → HTTP 201; статус смены=CHECKED_OUT, checkOutAt=2026-09-21T11:22:17.265Z; SQL-уборка: заявки («DELETE 0»), точки трека («DELETE 0»), геозона («DELETE 1»), чат («DELETE 1»), устройства («DELETE 2»); смена возвращена в PLANNED («UPDATE 1»); этажей у демо-объекта 3",
+      "ok": true,
+      "evidence": "POST /api/schedule/check-out; SQL по cleaning_ops_tickets/_gps/_chat/_schedule",
+      "ms": 2219
+    }
+  ]
+}

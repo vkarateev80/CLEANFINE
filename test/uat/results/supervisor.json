@@ -1,0 +1,111 @@
+{
+  "role": "supervisor",
+  "scenario": "назначение и контроль заявок, смены и треки",
+  "startedAt": "2026-09-21T11:21:53.505Z",
+  "finishedAt": "2026-09-21T11:21:59.883Z",
+  "total": 11,
+  "passed": 11,
+  "failed": 0,
+  "defects": [],
+  "steps": [
+    {
+      "id": "S1",
+      "title": "Вход бригадира и доступ к рабочему контуру",
+      "expected": "роль SUPERVISOR, доступны заявки, смены, треки, объекты; справочник сотрудников читается",
+      "actual": "role=SUPERVISOR (Бригадир); GET /tickets → 200 (total=31); GET /schedule → 200 (4); GET /objects → 200",
+      "ok": true,
+      "evidence": "GET /api/auth/me под supervisor@cleaning-ops.com → role=SUPERVISOR",
+      "ms": 265
+    },
+    {
+      "id": "S2",
+      "title": "Назначение заявки: создание внеплановой заявки и назначение оператору",
+      "expected": "assign → 201, статус assigned, assigneeId и assignedAt заполнены, исполнителю приходит уведомление",
+      "actual": "заявка 201 id=77de0ffa-67f2-42f7-b2d6-a2e6420186f5 (createdBy=48f72c68-70cf-4dca-a526-5abbaccd1837); assign → HTTP 201; статус=assigned, assigneeId=e759588a-d789-499b-a120-a51273c09a5f, assignedAt=2026-09-21T11:21:55.634Z; уведомление исполнителю: «Новая задача»",
+      "ok": true,
+      "evidence": "POST /api/tickets/77de0ffa-67f2-42f7-b2d6-a2e6420186f5/assign → 201; GET /api/notifications?unreadOnly=true под оператором",
+      "ms": 387
+    },
+    {
+      "id": "S3",
+      "title": "Контроль заявки: комментарий, переходы assigned → in_progress → completed → verified",
+      "expected": "каждый переход принимается, недопустимый переход отклоняется 400, комментарий виден в детали",
+      "actual": "комментарий HTTP 201; переходы in_progress:200, completed:200, verified:200; повторный in_progress → HTTP 400 «Invalid status transition»; итоговый статус=verified, комментариев 1",
+      "ok": true,
+      "evidence": "PATCH /api/tickets/77de0ffa-67f2-42f7-b2d6-a2e6420186f5/status ×4; GET /api/tickets/77de0ffa-67f2-42f7-b2d6-a2e6420186f5",
+      "ms": 53
+    },
+    {
+      "id": "S4",
+      "title": "Список заявок: фильтры по статусу, типу, объекту и поиск по описанию",
+      "expected": "каждый фильтр сужает выдачу, `total` согласован с фильтром, `take` вне 1..100 → 400",
+      "actual": "по объекту: total=30 (все с этим objectId: true); status=verified: total=2 (все verified: true); поиск «UAT-M74-S»: найдено 1, своя заявка в выдаче: true; чужой объект: total=0; take=101 → HTTP 400",
+      "ok": true,
+      "evidence": "GET /api/tickets?objectId=…, ?status=verified, ?search=UAT-M74-S, ?objectId=<чужой>",
+      "ms": 94
+    },
+    {
+      "id": "S5",
+      "title": "Просмотр смен: смены на сегодня по объекту и по исполнителю",
+      "expected": "смены оператора на сегодня видны, фильтр по исполнителю не отдаёт чужих смен",
+      "actual": "смен на 2026-09-21: всего 4; у оператора 4 (все его: true); у несуществующего сотрудника 0; статусы: MISSED, PLANNED",
+      "ok": true,
+      "evidence": "GET /api/schedule/events?date=2026-09-21&userId=e759588a-d789-499b-a120-a51273c09a5f",
+      "ms": 30
+    },
+    {
+      "id": "S6",
+      "title": "Контроль треков: геозона объекта, check-in внутри зоны, приём точек и история",
+      "expected": "check-in внутри геозоны 201, снаружи 403; точки приняты (accepted), история отдаёт их бригадиру",
+      "actual": "геозона 201 id=5d740db8-5fdc-40e2-ac16-4ed142fcddbc (radius 150 м); check внутри → inside=true (0 м), снаружи → inside=false; batch → HTTP 201, accepted=3; история треков: 3 точек; «ближние сотрудники»: 1; своя точка за другого → HTTP 403",
+      "ok": true,
+      "evidence": "GET /api/gps/tracks?userId=e759588a-d789-499b-a120-a51273c09a5f → 3 точек; GET /api/gps/employees/nearby → 1",
+      "ms": 61
+    },
+    {
+      "id": "S7",
+      "title": "Выход из геозоны: последняя точка вне зоны публикует geofence.exit и даёт in-app GEOFENCE_EXIT",
+      "expected": "приходит in-app уведомление типа GEOFENCE_EXIT по оператору",
+      "actual": "точка вне зоны принята (HTTP 201); geofenceExits=1, published=true; уведомление «⚠️ Внимание» адресовано оператору (true); геозонный отчёт видит точек 4",
+      "ok": true,
+      "evidence": "POST /api/gps/track → geofence.exit → RabbitMQ → notification-service (GET /api/notifications под оператором)",
+      "ms": 552
+    },
+    {
+      "id": "S8",
+      "title": "Отчёты контроля: персонал (смены) и геозоны (посещения) доступны бригадиру",
+      "expected": "обе read-модели отвечают 200 и содержат фактическую активность оператора",
+      "actual": "персонал: rows=1, у оператора смен 24; геозоны: rows=1, точек=4, посещений=0",
+      "ok": true,
+      "evidence": "GET /api/schedule/reports/staff-control, GET /api/gps/reports/geofence-control под SUPERVISOR",
+      "ms": 62
+    },
+    {
+      "id": "S9",
+      "title": "RBAC: бригадир пишет объекты и заявки, но удалять объект может только администратор",
+      "expected": "POST/PATCH объектов 201/200, DELETE объекта → 403, действие оператора (назначение) → 403",
+      "actual": "объект создан (201); PATCH → 200; DELETE бригадиром → 403; назначение оператором → 403; DELETE администратором → 204",
+      "ok": true,
+      "evidence": "DELETE /api/objects/:id под SUPERVISOR → 403, под ADMIN → 204",
+      "ms": 169
+    },
+    {
+      "id": "S10",
+      "title": "Интерфейс бригадира: раздел «Заявки» показывает назначенную заявку и её статус",
+      "expected": "после входа заявка находится поиском, карточка открывается, статус соответствует серверу",
+      "actual": "в разделе «Заявки» под бригадиром строк 25; описание заявки найдено в выдаче: true; серверный статус=verified",
+      "ok": true,
+      "evidence": "UI /tickets под supervisor@cleaning-ops.com; GET /api/tickets/77de0ffa-67f2-42f7-b2d6-a2e6420186f5 → verified",
+      "ms": 1091
+    },
+    {
+      "id": "S11",
+      "title": "Уборка: заявки, точки трека и геозона прогона сняты, демо-данные целы",
+      "expected": "заявок с описанием UAT-M74-S не осталось; у демо-объекта по-прежнему 3 этажа",
+      "actual": "заявок прогона осталось 0; этажей у демо-объекта 3; SQL: геозона «UAT-M74-S зона» — («DELETE 1»), точки трека — («DELETE 4»), заявки — («DELETE 1»), предуборка — («чаты: нечего снимать; заявки: DELETE 0; геозоны: DELETE 0; устройства: DELETE 0»)",
+      "ok": true,
+      "evidence": "DELETE /api/tickets/:id; SQL cleaning_ops_gps (geofences, gps_tracks)",
+      "ms": 1268
+    }
+  ]
+}

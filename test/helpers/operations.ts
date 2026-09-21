@@ -1468,3 +1468,39 @@ export async function sendTracks(
   operationsTracker.notificationSince(result.userId, startedAt);
   return result;
 }
+
+/**
+ * Точка «вне всех площадок набора» — для сброса состояния треков.
+ *
+ * Почему именно эти координаты. gps-service отличает выход из геозоны по
+ * ПОСЛЕДНЕЙ точке сотрудника ДО batch (`findContainingBefore`), то есть состояние
+ * живёт на стенде, а не в тесте: если предыдущий прогон (или соседний набор)
+ * оставил точку внутри своей геозоны, первый же «вход» нового теста вернёт выход
+ * из ЧУЖОЙ геозоны, и проверка «внутри — выходов нет» упадёт.
+ *
+ * `uniqueGeofenceCell` строит площадки в прямоугольнике lat [55.80; 56.22],
+ * lng [37.70; 38.12] (база 55.8/37.7 плюс индекс теста), «общая» геозона стенда —
+ * 55.7558/37.6173. Точка 55.79/37.66 отстоит от любого из этих квадратов (сторона
+ * ~66 м) минимум на километр, поэтому ни одна геозона набора её не содержит.
+ */
+export const TRACK_STATE_RESET = { lat: 55.79, lng: 37.66 };
+
+/**
+ * Сбрасывает «состояние до batch» сотрудника: пишет одну точку далеко от всех
+ * площадок набора. Возвращает timestamp точки, чтобы тест выстроил последующие
+ * точки строго позже неё — иначе сброс не попадёт в окно
+ * `timestamp < points[0].timestamp` и не подействует.
+ */
+export async function resetTrackState(
+  request: APIRequestContext,
+  options: { at?: Date; role?: Role; token?: string; userId?: string } = {},
+): Promise<string> {
+  const timestamp = (options.at ?? new Date()).toISOString();
+  await sendTracks(request, {
+    tracks: [{ ...TRACK_STATE_RESET, timestamp }],
+    ...(options.userId !== undefined ? { userId: options.userId } : {}),
+    ...(options.role !== undefined ? { role: options.role } : {}),
+    ...(options.token !== undefined ? { token: options.token } : {}),
+  });
+  return timestamp;
+}

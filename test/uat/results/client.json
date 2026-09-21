@@ -1,0 +1,93 @@
+{
+  "role": "client",
+  "scenario": "портал: свой объект, заявка, чат",
+  "startedAt": "2026-09-21T11:22:00.164Z",
+  "finishedAt": "2026-09-21T11:22:13.763Z",
+  "total": 9,
+  "passed": 9,
+  "failed": 0,
+  "defects": [],
+  "steps": [
+    {
+      "id": "C1",
+      "title": "Вход клиента в портал и показ своего объекта",
+      "expected": "после входа открыт /dashboard, в шапке — «БЦ «Ромашка»», своего объекта достаточно для работы",
+      "actual": "URL=/dashboard; объект в шапке: «ООО «Ромашка» · БЦ «Ромашка»»; ФИО пользователя «ООО «Ромашка»» совпало с clientName демо-объекта",
+      "ok": true,
+      "evidence": "UI http://127.0.0.1:8081/login → /dashboard, data-testid=\"portal-header-object\"",
+      "ms": 329
+    },
+    {
+      "id": "C2",
+      "title": "Изоляция: чужой объект по ?objectId= недоступен, данных чужого объекта нет в разметке",
+      "expected": "страница показывает «Нет доступа к объекту», ни имени, ни данных чужого объекта в DOM нет",
+      "actual": "чужой objectId → блоков «Нет доступа» 1 («Нет доступа к объекту\nПортал показывает данные только по вашему объекту. Обратитесь к менеджеру.\nВыйти\nДанные доступны только по вашему объекту.»); утечки данных чужого объекта в разметке: false; без параметра виден свой объект «ООО «Ромашка» · БЦ «Ромашка»»; API по чужому объекту: расход=0, операций=0",
+      "ok": true,
+      "evidence": "UI /dashboard?objectId=<чужой> → portal-forbidden; GET /api/materials/reports/consumption?objectId=<чужой> под CLIENT",
+      "ms": 1791
+    },
+    {
+      "id": "C3",
+      "title": "Создание заявки из портала",
+      "expected": "заявка появляется в списке портала и в ticket-service под тем же клиентом (createdBy = клиент)",
+      "actual": "заявка видна в портале: true; в ticket-service id=98220d3f-49ad-4178-817c-2a9c07bd38a9, objectId=f9bd905f-924a-4df8-a517-5fb4a760bf01, createdBy=6c4912e1-e8ad-41cc-9394-5c6ab8cc21dc (= id клиента 6c4912e1-e8ad-41cc-9394-5c6ab8cc21dc: true), статус=new",
+      "ok": true,
+      "evidence": "UI portal-ticket-create → portal-ticket-list; GET /api/tickets?search=UAT-M74-C-mub5nyez под owner@cleanfine.ru",
+      "ms": 1916
+    },
+    {
+      "id": "C4",
+      "title": "Отчёт по расходу материалов в портале показывает расход именно своего объекта",
+      "expected": "строка созданного материала есть в отчёте портала, итог совпадает с агрегатом material-service",
+      "actual": "материал прогона в отчёте портала: true; итог портала = 2,50 против агрегата material-service 2.5 (строк 1)",
+      "ok": true,
+      "evidence": "GET /api/materials/reports/consumption?objectId=<демо>&from=2026-09-21&to=2026-09-21 под CLIENT",
+      "ms": 2263
+    },
+    {
+      "id": "C5",
+      "title": "Чат: клиент пишет менеджеру из портала, сообщение сохраняется на сервере",
+      "expected": "сообщение видно в ленте портала и находится поиском chat-service у второго участника",
+      "actual": "чат 8165a769-dd63-493e-bed0-7ac666d9dec0; затравка менеджера видна клиенту: true; ответ клиента отрисован: true; найден поиском chat-service у менеджера: true; автор ответа = клиент: true",
+      "ok": true,
+      "evidence": "UI http://127.0.0.1:8081/chat → portal-chat-input/send; GET /api/chat/messages/search?q=UAT-M74-C-ответ-клиента-UAT-M74-C-mub5nyez под ADMIN",
+      "ms": 4562
+    },
+    {
+      "id": "C6",
+      "title": "Сквозной цикл: менеджер отвечает по заявке клиента, ответ доступен клиенту",
+      "expected": "чат заявки создаётся менеджером, ответ менеджера читается клиентом через REST chat-service",
+      "actual": "чат заявки 0f8aa919-865f-4032-af04-a4bf60168f3d; назначение клиенту → HTTP 201; ответ менеджера отправлен (HTTP 201); клиент видит его через поиск chat-service: true; деталь заявки доступна клиенту: HTTP 200, статус=assigned",
+      "ok": true,
+      "evidence": "POST /api/chat/chats (type=ticket) под ADMIN; GET /api/chat/messages/search под CLIENT",
+      "ms": 227
+    },
+    {
+      "id": "C7",
+      "title": "RBAC клиента: чтение своих данных, отказ на управление",
+      "expected": "PATCH статуса заявки, создание/удаление объекта и справочник сотрудников → 403",
+      "actual": "PATCH статуса → 403; POST /objects → 403; GET /users → 403; GET /tech-cards → 200; GET /tickets (свои) → 200 (total=32)",
+      "ok": true,
+      "evidence": "контрактные вызовы под CLIENT-токеном владельца портала",
+      "ms": 60
+    },
+    {
+      "id": "C8",
+      "title": "Портал не роняет консоль на своих экранах",
+      "expected": "ошибок JS нет; отдельно фиксируется поведение WebSocket чата на prod-сборке за nginx",
+      "actual": "экраны /dashboard, /tickets, /reports, /chat пройдены; ошибок JS (кроме сокета): 0; ошибок WebSocket: 0",
+      "ok": true,
+      "evidence": "page.on(\"console\"/\"pageerror\") за весь прогон портала",
+      "ms": 0
+    },
+    {
+      "id": "C9",
+      "title": "Уборка: заявка, материал и чаты прогона сняты, демо-данные целы",
+      "expected": "заявок с маркером прогона нет; демо-объект и его структура на месте",
+      "actual": "заявок прогона осталось 0; этажей у демо-объекта 3; SQL: заявки («DELETE 1»), чаты («DELETE 2»); предуборка: чаты: нечего снимать; заявки: DELETE 0; геозоны: DELETE 0; устройства: DELETE 0",
+      "ok": true,
+      "evidence": "SQL cleaning_ops_tickets / cleaning_ops_chat; GET /api/objects/<демо>/floors",
+      "ms": 811
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "role": "admin",
+  "scenario": "объекты, графики, отчёты и дашборд",
+  "startedAt": "2026-09-21T10:35:02.783Z",
+  "finishedAt": "2026-09-21T10:35:21.951Z",
+  "total": 18,
+  "passed": 18,
+  "failed": 0,
+  "defects": [],
+  "steps": [
+    {
+      "id": "A1",
+      "title": "Объект: создание через контракт админки (POST /api/objects)",
+      "expected": "201, объект появляется в списке с заданными площадью, этажностью и заказчиком",
+      "actual": "HTTP 201, id=da7d5157-3b5a-4dd1-a8c3-1976e0924207; в списке найден (1), totalArea=1500, floorsCount=2, clientName=UAT-M74 заказчик",
+      "ok": true,
+      "evidence": "GET /api/objects?search=UAT-M74-mub3zhmm объект → 200",
+      "ms": 16
+    },
+    {
+      "id": "A2",
+      "title": "Этаж: создание и загрузка плана (multipart → file-service → core)",
+      "expected": "201 на этаж; план принят, `planImageUrl` заполнен, размеры плана сохранены (700×500)",
+      "actual": "этаж 201 id=1be4d8b1-45e6-4786-bdc8-dd5ffdcd56f5; план HTTP 201; planImageUrl=http://localhost:9000/plans/2026/09/d0a582c0-1206-45e2-a520-79c34fe94de3.svg; размеры плана 700×500; отдача файла HTTP 200 (579 Б = столько же, сколько отправлено)",
+      "ok": true,
+      "evidence": "POST /api/floors/1be4d8b1-45e6-4786-bdc8-dd5ffdcd56f5/plan → 201; GET плана → 200, 579 Б",
+      "ms": 147
+    },
+    {
+      "id": "A3",
+      "title": "Помещение: рисование рамкой по плану (координаты внутри плана) и привязка техкарты",
+      "expected": "201, координаты и техкарта сохранены; рамка за границей плана отклоняется 400",
+      "actual": "помещение 201 id=c822285c-b232-4c02-ace4-a15d31f5c409, техкарта привязана (bc3850b8-addd-451c-a505-a8e93ca0d159); рамка, выходящая за план (690+200 > 700) → HTTP 400 «Область выходит за ширину плана: x=690 + width=200 > 700»",
+      "ok": true,
+      "evidence": "POST /api/floors/1be4d8b1-45e6-4786-bdc8-dd5ffdcd56f5/rooms → 201; вне плана → 400",
+      "ms": 28
+    },
+    {
+      "id": "A4",
+      "title": "Маршрут: создание, точки, порядок (reorder) и суммарное время",
+      "expected": "точки сохраняют порядок 0..n, `totalEstimatedTimeMin` = сумма оценок, `take` вне 1..100 → 400",
+      "actual": "маршрут 201 id=d6d2a1c3-12ff-4b3d-95e6-ceaf45255f98; точки 2; порядок после reorder [вторая, первая]; totalEstimatedTimeMin=30; take=101 → HTTP 400",
+      "ok": true,
+      "evidence": "PATCH /api/routes/d6d2a1c3-12ff-4b3d-95e6-ceaf45255f98/reorder → 200; GET /api/routes?take=101 → 400",
+      "ms": 63
+    },
+    {
+      "id": "A5",
+      "title": "Техкарта: операции, сумма времени, порядок и материалы из справочника",
+      "expected": "5 операций, сумма времени совпадает, reorder меняет порядок, операция ссылается на материал справочника",
+      "actual": "техкарта 201 id=60de6e4b-af71-4cb1-b2ba-4e3f4c8a29b8; операций 3; порядок после reorder: 0,1,2; первая = «UAT-M74 вынести мусор»; материал справочника привязан: true",
+      "ok": true,
+      "evidence": "PATCH /api/tech-cards/60de6e4b-af71-4cb1-b2ba-4e3f4c8a29b8/reorder → 200",
+      "ms": 110
+    },
+    {
+      "id": "A6",
+      "title": "График: создание, генерация смен на дату, скоупинг и идемпотентность прохода (дата прогона уникальна)",
+      "expected": "смены создаются только по своему графику, повтор не дублирует, несуществующий eventId → 404",
+      "actual": "график 201 id=e6a74cd8-89df-4cfd-87ca-37635ff16ba8; смен на 2027-03-05 до прохода 0; generate → HTTP 201 (created=1, tickets=1); после прохода 1; повторный проход → 1 (дублей нет); check-missed с чужим eventId → HTTP 404",
+      "ok": true,
+      "evidence": "POST /api/schedule/generate?date=2027-03-05&scheduleId=e6a74cd8-89df-4cfd-87ca-37635ff16ba8 дважды; GET /api/schedule/events?date=2027-03-05",
+      "ms": 156
+    },
+    {
+      "id": "A7",
+      "title": "Материалы: справочник, складские движения, остаток и отчёт по расходу",
+      "expected": "IN создаёт остаток, OUT сверх остатка → 400, отчёт по расходу совпадает с движениями",
+      "actual": "материал 201; IN 10 → HTTP 201; OUT 4 → HTTP 201; OUT 999 → HTTP 400 «Недостаточно материала на объекте da7d5157-3b5a-4dd1-a8c3-1976e0924207: остаток 6, запрошено 999»; остаток=6; отчёт: расход=4 против суммы движений OUT=4",
+      "ok": true,
+      "evidence": "GET /api/materials/reports/consumption (чтение через SQL-view М7.1) сверено с GET /api/materials/:id/movements",
+      "ms": 149
+    },
+    {
+      "id": "A8",
+      "title": "Справочник: создание сотрудника, роли, блокировка входа деактивированному",
+      "expected": "POST /api/users → 201; сотрудник виден в списке; после DELETE вход невозможен",
+      "actual": "сотрудник 201 id=2f43be6c-01b6-4496-a07f-04510a0e625b; найден в справочнике: да; вход до деактивации HTTP 201, после DELETE → HTTP 401",
+      "ok": true,
+      "evidence": "POST /api/users → 201; DELETE /api/users/:id → 204; повторный вход → 401",
+      "ms": 305
+    },
+    {
+      "id": "A9.1",
+      "title": "Отчёт «материалы»: /materials/reports/consumption",
+      "expected": "200 и разборная структура (rows/series/totals) без ошибок CQRS-read слоя",
+      "actual": "HTTP 200 за 129 мс; rows=1, series=1, totals={\"consumedQuantity\":4,\"operationsCount\":1,\"cost\":1200}",
+      "ok": true,
+      "evidence": "GET /api/materials/reports/consumption → 200",
+      "ms": 130
+    },
+    {
+      "id": "A9.2",
+      "title": "Отчёт «заявки»: /tickets/reports/execution",
+      "expected": "200 и разборная структура (rows/series/totals) без ошибок CQRS-read слоя",
+      "actual": "HTTP 200 за 24 мс; rows=5, series=2, totals={\"ticketsCount\":30,\"overdueCount\":24,\"completedCount\":3,\"avgCycleMinutes\":0,\"overdueRate\":80}",
+      "ok": true,
+      "evidence": "GET /api/tickets/reports/execution → 200",
+      "ms": 24
+    },
+    {
+      "id": "A9.3",
+      "title": "Отчёт «персонал»: /schedule/reports/staff-control",
+      "expected": "200 и разборная структура (rows/series/totals) без ошибок CQRS-read слоя",
+      "actual": "HTTP 200 за 32 мс; rows=2, series=10, totals={\"shiftsCount\":24,\"checkedInCount\":1,\"checkedOutCount\":0,\"missedCount\":4,\"autoClosedCount\":0,\"lateCount\":0,\"workedMinutes\":0,\"avgWorkedMinutes\":null,\"attendanceRate\":4.2}",
+      "ok": true,
+      "evidence": "GET /api/schedule/reports/staff-control → 200",
+      "ms": 32
+    },
+    {
+      "id": "A9.4",
+      "title": "Отчёт «геозоны»: /gps/reports/geofence-control",
+      "expected": "200 и разборная структура (rows/series/totals) без ошибок CQRS-read слоя",
+      "actual": "HTTP 200 за 338 мс; rows=0, series=1, totals={\"visitsCount\":0,\"dwellMinutes\":0,\"trackedUsersCount\":1,\"pointsCount\":14,\"objectsVisitedCount\":0}",
+      "ok": true,
+      "evidence": "GET /api/gps/reports/geofence-control → 200",
+      "ms": 338
+    },
+    {
+      "id": "A10",
+      "title": "Админка: вход под администратором и дашборд с KPI (М7.1)",
+      "expected": "вход → /dashboard; KPI-карточки с числами; LCP < 2000 мс (порог М7.1)",
+      "actual": "URL=/dashboard; KPI-элементов 8; графиков 4; LCP=132 мс; ошибок консоли 0",
+      "ok": true,
+      "evidence": "PerformanceObserver largest-contentful-paint = 132 мс (порог М7.1 — 2000 мс)",
+      "ms": 407
+    },
+    {
+      "id": "A11",
+      "title": "Отчёты: четыре вкладки, фильтры в query-строке, график Recharts отрисован",
+      "expected": "вкладки переключаются и живут в URL, фильтр периода меняет query, на «материалах» есть SVG-график и строки",
+      "actual": "вкладки → materials:materials, tickets:tickets, staff:staff, geofences:geofences; query после периода 30 дней: ?tab=materials&from=2026-08-22&to=2026-09-21; SVG-график расхода: 1; строк таблицы 1; итоги: Израсходовано / 4 / Операций / 1 / Стоимость / 1 200,00 ₽ / Экспорт CSV",
+      "ok": true,
+      "evidence": "URL: http://127.0.0.1:8080/reports?tab=materials&from=2026-08-22&to=2026-09-21; строки таблицы через data-testid=\"report-row-*\"",
+      "ms": 3971
+    },
+    {
+      "id": "A12",
+      "title": "Отчёты: экспорт CSV отдаёт файл с заголовками и строками",
+      "expected": "скачивание начинается, файл непустой, первая строка — заголовки, есть строки данных",
+      "actual": "файл «rashod-materialov-2026-08-22-2026-09-21.csv», строк 3; заголовки: Объект;Материал;Единица;Расход;Операций;\"Цена за ед., ₽\";\"Стоимость, ₽\"",
+      "ok": true,
+      "evidence": "Playwright download event → rashod-materialov-2026-08-22-2026-09-21.csv (208 симв.)",
+      "ms": 610
+    },
+    {
+      "id": "A13",
+      "title": "Разделы админки открываются и рендерятся",
+      "expected": "все одиннадцать разделов отдают заголовок, ни один не уводит на /login и не показывает пустой экран",
+      "actual": "/objects=«Объекты · 2», /routes=«Конструктор маршрутов», /tech-cards=«Техкарты», /schedule=«Графики и смены», /materials=«Материалы», /employees=«Сотрудники», /tickets=«Заявки · 30», /map=«Карта», /messages=«Сообщения», /notifications=«Уведомления · 8», /reports=«Отчёты»; пустых разделов: 0; ошибок консоли за прогон: 0",
+      "ok": true,
+      "evidence": "GET /objects, GET /routes, GET /tech-cards, GET /schedule, GET /materials, GET /employees, GET /tickets, GET /map, GET /messages, GET /notifications, GET /reports",
+      "ms": 6554
+    },
+    {
+      "id": "A14",
+      "title": "RBAC интерфейса: у оператора нет разделов «Маршруты» и «Техкарды»",
+      "expected": "пункты меню отсутствуют, прямой заход на /routes возвращает на дашборд",
+      "actual": "меню оператора: Дашборд | Объекты | Заявки | Карта | Материалы | Графики и смены | Сообщения | Отчёты; прямой заход /routes → /dashboard",
+      "ok": true,
+      "evidence": "вход operator@cleaning-ops.com → /dashboard, /routes перенаправлен",
+      "ms": 2102
+    },
+    {
+      "id": "A15",
+      "title": "Демонстрационные данные не тронуты, UAT-мусор снят",
+      "expected": "объект «БЦ «Ромашка»» на месте, объектов с префиксом UAT-M74 не осталось",
+      "actual": "объектов UAT-M74 осталось 0; у демо-объекта «БЦ «Ромашка»» этажей 3 (ожидалось 3); предуборка: чаты: нечего снимать; заявки: DELETE 0; геозоны: DELETE 0; устройства: DELETE 0; уборка: чаты: DELETE 0; заявки: DELETE 1; геозоны: DELETE 0; устройства: DELETE 0",
+      "ok": true,
+      "evidence": "GET /api/objects, GET /api/objects/<демо>/floors после уборки",
+      "ms": 1931
+    }
+  ]
+}

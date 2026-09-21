@@ -3,17 +3,20 @@ import {
   AUTH_URL,
   createEmergencyTicket,
   deviceToken,
+  errorMessage,
   expectStatus,
   flushOperationsData,
   GEOFENCE_INSIDE,
   GPS_URL,
   listTickets,
+  loginIdAs,
   markNotificationRead,
   notificationsPage,
   operationsTracker,
   sweepOrphanNotifications,
   TICKETS_URL,
   trackDevice,
+  trackTicket,
   waitForNotification,
   type AppNotification,
   type TicketList,
@@ -218,5 +221,83 @@ test.describe('SOS: аварийная заявка → уведомление E
     operationsTracker.ticket(emergency.id);
     operationsTracker.object(emergency.objectId);
     expect(emergency.priority).toBe('critical');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Негативные сценарии (М7.3): RBAC и недоступность чужого объекта
+// ---------------------------------------------------------------------------
+
+/**
+ * Ключевой вопрос набора: чужая/несуществующая сущность обязана быть НЕДОСТУПНА,
+ * а не «вернуть что-нибудь». Проверяются те же эндпоинты оперативной вертикали,
+ * которыми пользуются мобильное приложение и портал.
+ */
+test.describe('Оперативная вертикаль: RBAC и чужой объект', () => {
+  test('несуществующая заявка: деталь, комментарий и завершение операции → 404', async ({
+    request,
+  }) => {
+    // UUID v4 — иначе DTO отсекает запрос как 400 и проверка 404 ничего не значит.
+    const missing = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+    const token = await loginAs(request, 'ADMIN');
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const detail = await request.get(`${TICKETS_URL}/api/tickets/${missing}`, { headers });
+    await expectStatus(detail, 404, 'деталь несуществующей заявки');
+
+    const comment = await request.post(`${TICKETS_URL}/api/tickets/${missing}/comments`, {
+      headers,
+      data: { text: `E2E-M73 комментарий в никуда ${runTag()}` },
+    });
+    await expectStatus(comment, 404, 'комментарий в несуществующую заявку');
+
+    const completion = await request.post(
+      `${TICKETS_URL}/api/tickets/${missing}/operations/${missing}/complete`,
+      { headers, data: { totalOperations: 1 } },
+    );
+    await expectStatus(completion, 404, 'завершение операции чужой/несуществующей заявки');
+  });
+
+  test('завершение операции: без токена 401, CLIENT 403, исполнительские роли — доступ', async ({
+    request,
+  }) => {
+    const operatorId = await loginIdAs(request, 'OPERATOR');
+    const ticket = await trackTicket(request, {
+      objectId,
+      assigneeId: operatorId,
+      description: `E2E-M73 права на операцию ${runTag()}`,
+    });
+    const operationId = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+    const path = `${TICKETS_URL}/api/tickets/${ticket.id}/operations/${operationId}/complete`;
+
+    // 401 — до ролей и до ресурса: охрана аутентификации стоит первой.
+    await expectStatus(
+      await request.post(path, { data: { totalOperations: 1 } }),
+      401,
+      'завершение операции без токена',
+    );
+
+    // 403 у CLIENT: роли контроллера — ADMIN/SUPERVISOR/OPERATOR. Порядок проверок
+    // важен: клиент получает именно 403 (отказ по роли), а не 404 «заявка не найдена».
+    const client = await loginAs(request, 'CLIENT');
+    const forbidden = await request.post(path, {
+      headers: { Authorization: `Bearer ${client}` },
+      data: { totalOperations: 1 },
+    });
+    await expectStatus(forbidden, 403, 'CLIENT завершает операцию');
+    expect(await errorMessage(forbidden), 'отказ по роли, а не «не найдено»').toContain(
+      'Недостаточно прав',
+    );
+
+    // Контроль: тот же путь под исполнительской ролью RBAC проходит и упирается
+    // в РЕСУРС — несуществующая заявка даёт 404, а не 403. Так «403 у CLIENT» —
+    // это отказ по роли, а не следствие несуществующего ресурса.
+    const operator = await loginAs(request, 'OPERATOR');
+    const missing = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+    const asOperator = await request.post(
+      `${TICKETS_URL}/api/tickets/${missing}/operations/${operationId}/complete`,
+      { headers: { Authorization: `Bearer ${operator}` }, data: { totalOperations: 1 } },
+    );
+    await expectStatus(asOperator, 404, 'OPERATOR проходит RBAC и упирается в отсутствие заявки');
   });
 });

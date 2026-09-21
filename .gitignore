@@ -37,6 +37,9 @@ mobile/cleaning-ops-app/ios/Pods/
 
 # --- Тесты и отчёты ---
 test/reports/
+# ...кроме описания самого каталога: план М7.3 требует отчёты в test/reports/,
+# а как их читать — часть сдачи (сами артефакты прогона остаются вне git).
+!test/reports/README.md
 test/performance/results/
 test-results/
 playwright-report/

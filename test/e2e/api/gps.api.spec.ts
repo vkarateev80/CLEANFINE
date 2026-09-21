@@ -13,6 +13,7 @@ import {
   nearbyEmployees,
   operationsTracker,
   postTrackBatch,
+  resetTrackState,
   sendTracks,
   sqlAvailable,
   sweepOrphanNotifications,
@@ -74,7 +75,14 @@ test.describe('GPS: batch приёма точек', () => {
       boundary: cell.boundary,
     });
 
-    const single = await sendTracks(request, { tracks: [cell.inside] });
+    // Состояние «до batch» задаём сами: gps-service ищет выход от ПОСЛЕДНЕЙ точки
+    // сотрудника, а она могла остаться от прошлого прогона внутри чужой геозоны.
+    // Все точки ниже идут строго позже сброса — иначе он не попал бы в окно выборки.
+    const started = Date.now();
+    const at = (offsetMs: number): string => new Date(started + offsetMs).toISOString();
+    await resetTrackState(request, { at: new Date(started) });
+
+    const single = await sendTracks(request, { tracks: [{ ...cell.inside, timestamp: at(1_000) }] });
     expect(single.accepted).toBe(1);
     expect(single.userId).toBeTruthy();
     expect(single.lastPointAt).toBeTruthy();
@@ -82,9 +90,9 @@ test.describe('GPS: batch приёма точек', () => {
 
     // Batch из трёх точек: две внутри, одна далеко вне геозоны.
     const batch: TrackPoint[] = [
-      { ...cell.inside, accuracy: 5, battery: 80 },
-      { lat: cell.inside.lat, lng: cell.inside.lng + 0.0004, speed: 1.5 },
-      { ...cell.outside },
+      { ...cell.inside, accuracy: 5, battery: 80, timestamp: at(2_000) },
+      { lat: cell.inside.lat, lng: cell.inside.lng + 0.0004, speed: 1.5, timestamp: at(3_000) },
+      { ...cell.outside, timestamp: at(4_000) },
     ];
     const result = await sendTracks(request, { tracks: batch, employeeName: 'E2E Курьер' });
 
@@ -291,26 +299,37 @@ test.describe('GPS: геозоны', () => {
       boundary: cell.boundary,
     });
 
+    // 0. Состояние «до batch» задаём сами. Первая точка теста не должна выглядеть
+    //    выходом из геозоны, оставленной прошлым прогоном: gps-service считает выход
+    //    от ПОСЛЕДНЕЙ точки сотрудника, и без сброса шаг 1 падал на чужом состоянии.
+    const started = Date.now();
+    const at = (offsetMs: number): string => new Date(started + offsetMs).toISOString();
+    await resetTrackState(request, { at: new Date(started) });
+
     // 1. Сотрудник внутри — точка сохраняется, выходов нет.
-    const entered = await sendTracks(request, { tracks: [{ ...inside }] });
+    const entered = await sendTracks(request, { tracks: [{ ...inside, timestamp: at(1_000) }] });
     expect(entered.geofenceExits).toEqual([]);
 
     // 2. Batch, последняя точка которого вне геозоны → состояние «до batch» было внутри.
-    const now = Date.now();
     const exited = await sendTracks(request, {
       employeeName: 'E2E Курьер',
       tracks: [
-        { ...inside, timestamp: new Date(now + 500).toISOString() },
-        { ...outside, timestamp: new Date(now + 1000).toISOString() },
+        { ...inside, timestamp: at(2_000) },
+        { ...outside, timestamp: at(3_000) },
       ],
     });
 
     expect(exited.accepted).toBe(2);
-    expect(exited.geofenceExits, 'выход из геозоны должен попасть в ответ').toHaveLength(1);
-    expect(exited.geofenceExits[0].geofenceId).toBe(geofence.id);
-    expect(exited.geofenceExits[0].objectId).toBe(objectId);
+    // Предмет проверки — выход из геозоны ЭТОГО теста, поэтому сверяем по её id.
+    // (На загрязнённом стенде в тех же координатах могла остаться геозона прошлого
+    // прогона — площадка задаётся последними цифрами runTag, полигон 66×66 м, — и
+    // сервис вернёт ещё и её выход. Это корректно: точка внутри обоих полигонов.
+    // Уведомление ниже тоже ищется по objectId нашей геозоны.)
+    const ours = exited.geofenceExits.filter((exit) => exit.geofenceId === geofence.id);
+    expect(ours, 'выход из геозоны должен попасть в ответ').toHaveLength(1);
+    expect(ours[0].objectId).toBe(objectId);
     // published=true — событие ушло в RabbitMQ (недоступный брокер даёт false, треки всё равно приняты).
-    expect(exited.geofenceExits[0].published).toBe(true);
+    expect(ours[0].published).toBe(true);
 
     // 3. Событие geofence.exit доходит до notification-service: ждём in-app уведомление,
     //    адресованное этому сотруднику. Ожидание нужно ещё и для уборки: без него запись

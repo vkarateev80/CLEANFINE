@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deleteFile, deleteObject, deleteTechCard, file, getRouteDetail, loginAs, core } from '../../helpers/core';
+import { flushChatData, trackObjectChatsOf } from '../../helpers/chat';
 import { userByRole } from '../../helpers/users';
 
 /**
@@ -59,6 +60,11 @@ test.afterEach(async ({ request }) => {
     }
   }
   if (createdObjectId) {
+    // Карточка объекта в админке САМА создаёт «чат объекта» (М5.3, ChatPanel), поэтому
+    // без этого шага каждый UI-прогон оставлял бы на стенде объектный чат: объект мы
+    // удаляем, а чат — нет (у chat-service нет DELETE, уборка только через тест).
+    await trackObjectChatsOf(request, [createdObjectId]);
+    flushChatData();
     await deleteObject(request, createdObjectId);
   }
   if (createdTechCardId) {

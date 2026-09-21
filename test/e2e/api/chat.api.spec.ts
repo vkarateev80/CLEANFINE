@@ -1,6 +1,14 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import { io, type Socket } from 'socket.io-client';
-import { AUTH_URL, authHeader, bodyText, loginAs, runTag } from '../../helpers/core';
+import {
+  AUTH_URL,
+  authHeader,
+  bodyText,
+  createObject,
+  deleteObject,
+  loginAs,
+  runTag,
+} from '../../helpers/core';
 import {
   CHAT_URL,
   CHAT_WS_URL,
@@ -24,6 +32,7 @@ import {
   searchMessagesRaw,
   sendMessage,
   trackDirectChat,
+  trackObjectChat,
   trackSystemChat,
   trackTicketChat,
   unreadCountOf,
@@ -83,6 +92,13 @@ test.describe.configure({ timeout: 180_000 });
 /** Нижняя граница для уборки и проверок: всё, что появилось после, — заслуга этого набора. */
 const runStartedAt = new Date();
 
+/**
+ * Объекты core, созданные набором под OBJECT-чаты. У объектов нет трекера-уборщика
+ * в `helpers/operations.ts` (там `object()` помечает лишь ОБЛАСТЬ уборки заявок),
+ * поэтому снимаются явно — как в наборах М4.7 и портала.
+ */
+const createdObjectIds = new Set<string>();
+
 test.afterEach(async ({ request }) => {
   // Сокеты закрываем до уборки: иначе пользователь остался бы «онлайн» в карте шлюза.
   await closeAllSockets();
@@ -95,6 +111,13 @@ test.afterEach(async ({ request }) => {
 
   flushChatData();
   flushOperationsData();
+
+  // Объекты — после чатов и заявок: чат по несуществующему объекту остался бы
+  // висеть строкой в БД чатов (у неё нет FK на core), а заявка мешала бы DELETE.
+  for (const objectId of createdObjectIds) {
+    await deleteObject(request, objectId);
+  }
+  createdObjectIds.clear();
 });
 
 test.afterAll(() => {
@@ -117,6 +140,18 @@ test.afterAll(() => {
 function randomUuid(): string {
   const hex = runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0');
   return `00000000-0000-4000-8000-${hex}`;
+}
+
+/**
+ * Свой объект core на тест object-чата: чат по `objectId` идемпотентен, поэтому на
+ * засеянном (чужом) объекте повторный вызов вернул бы чат предыдущего прогона, и
+ * проверки «наш чат» ничего не доказывали бы. Объект ставится на уборку трекером М3.
+ */
+async function trackOwnObject(request: APIRequestContext, name: string) {
+  const object = await createObject(request, { name });
+  createdObjectIds.add(object.id);
+  operationsTracker.object(object.id);
+  return object;
 }
 
 /**
@@ -457,6 +492,92 @@ test.describe('Чаты: TICKET', () => {
       role: 'OPERATOR',
     });
     expect(message.authorId, 'автор сообщения — исполнитель').toBe(operatorId);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2b. OBJECT-чат
+// ---------------------------------------------------------------------------
+
+test.describe('Чаты: OBJECT', () => {
+  test('чат по objectId идемпотентен, objectId заполнен, посторонний (CLIENT) — 403', async ({
+    request,
+  }) => {
+    // Свой объект на тест: чат по objectId идемпотентен, и на чужом (засеянном)
+    // объекте повторный вызов вернул бы чат предыдущего прогона.
+    const object = await trackOwnObject(request, `E2E-M56 объект чата ${runTag()}`);
+
+    const first = await trackObjectChat(request, object.id, { title: 'Чат объекта' });
+    expect(first.type).toBe('object');
+    expect(first.objectId, 'object-чат связан с объектом').toBe(object.id);
+
+    // Идемпотентность по objectId: второй POST возвращает ТОТ ЖЕ чат (в схеме
+    // `Chat.objectId` уникален; гонка закрыта обработкой P2002).
+    const second = await trackObjectChat(request, object.id);
+    expect(second.id, 'повторное создание возвращает существующий чат').toBe(first.id);
+
+    // Регрессия дефекта М7.3: objectId — поле ТОЛЬКО object-чатов, и уникальный
+    // индекс не должен мешать созданию ticket-чатов на том же объекте.
+    const adminId = await loginIdAs(request, 'ADMIN');
+    const operatorId = await loginIdAs(request, 'OPERATOR');
+    const ticket = await trackTicket(request, {
+      objectId: object.id,
+      assigneeId: operatorId,
+      description: `E2E-M56 заявка на объекте чата ${runTag()}`,
+    });
+    const ticketChat = await trackTicketChat(request, ticket.id);
+    expect(ticketChat.type).toBe('ticket');
+    expect(ticketChat.objectId, 'ticket-чат не занимает objectId').toBeNull();
+    expect(ticketChat.id, 'чат заявки — не object-чат').not.toBe(first.id);
+
+    // Участник (создатель) видит чат; staff-исключение действует для ADMIN/SUPERVISOR...
+    const creatorView = await getChatOrFail(request, first.id);
+    expect(creatorView.members.map((member) => member.userId)).toContain(adminId);
+    expect((await listMyChats(request)).map((item) => item.id)).toContain(first.id);
+
+    // ...а посторонний CLIENT не видит ни деталь, ни историю, ни в списке.
+    await expectStatus(await getChatRaw(request, first.id, { role: 'CLIENT' }), 403, 'деталь');
+    await expectStatus(
+      await listMessagesRaw(request, first.id, {}, { role: 'CLIENT' }),
+      403,
+      'история object-чата посторонним',
+    );
+    expect(
+      (await listMyChats(request, { role: 'CLIENT' })).map((item) => item.id),
+      'чужой object-чат не попадает в список',
+    ).not.toContain(first.id);
+  });
+
+  test('object-чат создаёт только staff: OPERATOR и CLIENT → 403, несуществующий объект → 400', async ({
+    request,
+  }) => {
+    const object = await trackOwnObject(request, `E2E-M56 права объекта ${runTag()}`);
+
+    await expectStatus(
+      await postChat(request, { type: 'object', objectId: object.id }, { role: 'OPERATOR' }),
+      403,
+      'object-чат от OPERATOR',
+    );
+    await expectStatus(
+      await postChat(request, { type: 'object', objectId: object.id }, { role: 'CLIENT' }),
+      403,
+      'object-чат от CLIENT',
+    );
+
+    // «Чужого объекта» в буквальном смысле у портала нет (скоуп объектов клиента
+    // ведёт UI по clientName), но недоступный объект обязан отсекаться: чат по
+    // несуществующему objectId — 400 от core-service, а не «чат в пустоту».
+    await expectStatus(
+      await postChat(request, { type: 'object', objectId: randomUuid() }),
+      400,
+      'object-чат по несуществующему объекту',
+    );
+
+    // Ни один из запрещённых вызовов не создал чат: у объекта чата нет.
+    expect(
+      (await listMyChats(request)).filter((chat) => chat.objectId === object.id),
+      'после 403 и 400 чата по объекту не появилось',
+    ).toHaveLength(0);
   });
 });
 

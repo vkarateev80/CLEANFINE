@@ -21,6 +21,7 @@ import {
   flushOperationsData,
   getTicketDetail,
   loginIdAs,
+  OPERATIONS_OBJECT_ID,
   operationsTracker,
   sqlAvailable,
   sweepOrphanNotifications,
@@ -880,6 +881,77 @@ test.describe('Materials: справочник', () => {
     await deleteMaterial(request, material.id);
     await expectStatus(await getMaterial(request, material.id), 404, 'удалённый материал');
     await expectStatus(await getMaterial(request, randomUuid()), 404, 'неизвестный материал');
+  });
+
+  test('RBAC справочника: OPERATOR/CLIENT не пишут материалы, но читают; движение по неизвестному материалу — 404', async ({
+    request,
+  }) => {
+    // Материал создаёт ADMIN — он же владелец справочника (запись только ADMIN/SUPERVISOR).
+    const material = await trackMaterial(request, { name: `E2E-M73 права материалов ${runTag()}` });
+
+    for (const role of ['OPERATOR', 'CLIENT'] as const) {
+      await expectStatus(
+        await postMaterial(request, { name: `E2E-M73 запрещено ${role} ${runTag()}`, role }),
+        403,
+        `создание материала ролью ${role}`,
+      );
+      await expectStatus(
+        await materialsApi(request, 'patch', `/api/materials/${material.id}`, {
+          role,
+          data: { minStockThreshold: 99 },
+        }),
+        403,
+        `правка материала ролью ${role}`,
+      );
+      await expectStatus(
+        await materialsApi(request, 'delete', `/api/materials/${material.id}`, { role }),
+        403,
+        `удаление материала ролью ${role}`,
+      );
+    }
+
+    // Чтение — «auth»: справочник нужен и оператору (мобильное приложение), и порталу.
+    await expectStatus(
+      await getMaterial(request, material.id, { role: 'OPERATOR' }),
+      200,
+      'чтение материала OPERATOR',
+    );
+    await expectStatus(
+      await getMaterial(request, material.id, { role: 'CLIENT' }),
+      200,
+      'чтение материала CLIENT',
+    );
+
+    // Движение: пишут ADMIN/SUPERVISOR/OPERATOR, CLIENT — нет.
+    await expectStatus(
+      await postMovement(request, {
+        materialId: material.id,
+        objectId: OPERATIONS_OBJECT_ID,
+        type: 'IN',
+        quantity: 1,
+        role: 'CLIENT',
+      }),
+      403,
+      'движение материала ролью CLIENT',
+    );
+
+    // Несуществующий (чужой) материал: OPERATOR проходит RBAC и получает предметный
+    // 404, а не 403 — иначе «отказ по роли» маскировал бы отсутствие проверки ресурса.
+    await expectStatus(
+      await postMovement(request, {
+        materialId: randomUuid(),
+        objectId: OPERATIONS_OBJECT_ID,
+        type: 'IN',
+        quantity: 1,
+        role: 'OPERATOR',
+      }),
+      404,
+      'движение по несуществующему материалу',
+    );
+
+    // Контроль: материал не изменился ни одним из запрещённых вызовов.
+    const after = await getMaterial(request, material.id);
+    expect(((await after.json()) as { minStockThreshold: number }).minStockThreshold).not.toBe(99);
   });
 });
 

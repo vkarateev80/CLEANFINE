@@ -194,6 +194,30 @@ export async function createTicketChat(
   return (await res.json()) as ChatDetail;
 }
 
+/**
+ * OBJECT-чат по объекту core: повторный вызов обязан вернуть тот же чат
+ * (идемпотентность по `objectId`). Контракт держится на уникальном поле
+ * `Chat.objectId`, поэтому чат требует СВОЕГО объекта — иначе вернётся чужой.
+ */
+export async function createObjectChat(
+  request: APIRequestContext,
+  objectId: string,
+  options: ChatApiOptions & { participantIds?: string[]; title?: string } = {},
+): Promise<ChatDetail> {
+  const res = await postChat(
+    request,
+    {
+      type: 'object',
+      objectId,
+      ...(options.participantIds ? { participantIds: options.participantIds } : {}),
+      ...(options.title ? { title: options.title } : {}),
+    },
+    options,
+  );
+  await expectStatus(res, 201, `создание object-чата для объекта ${objectId}`);
+  return (await res.json()) as ChatDetail;
+}
+
 /** SYSTEM-чат: только ADMIN, каждый вызов создаёт НОВЫЙ чат (идемпотентности нет). */
 export async function createSystemChat(
   request: APIRequestContext,
@@ -612,4 +636,50 @@ export async function trackTicketChat(
   const chat = await createTicketChat(request, ticketId, options);
   chatTracker.chat(chat.id);
   return chat;
+}
+
+/**
+ * Создаёт object-чат и ставит его на уборку. Тест обязан передать СВОЙ objectId
+ * (обычно объект, созданный `trackObject`): чат по objectId идемпотентен, поэтому
+ * повторный вызов вернёт чужой/старый чат, и уборка сняла бы не своё.
+ */
+export async function trackObjectChat(
+  request: APIRequestContext,
+  objectId: string,
+  options: ChatApiOptions & { participantIds?: string[]; title?: string } = {},
+): Promise<ChatDetail> {
+  const chat = await createObjectChat(request, objectId, options);
+  chatTracker.chat(chat.id);
+  return chat;
+}
+
+/**
+ * Ставит на уборку object-чаты, созданные ИНТЕРФЕЙСОМ для перечисленных объектов.
+ *
+ * Зачем отдельный помощник. «Чат объекта» админка создаёт САМА при открытии карточки
+ * объекта (`useChatByReference('object', …)` в `ChatPanel`, контракт М5.3), поэтому
+ * набор, который просто открыл объект в браузере, о существовании чата не знает.
+ * Без этого шага каждый UI-прогон оставлял бы на стенде объектный чат (в М7.3 таких
+ * накопилось 68) — а объекты тесты снимают, и чаты оставались сиротами.
+ *
+ * Возвращает число поставленных на уборку чатов (для проверок и логов). Уборку
+ * выполняет `flushChatData()` в `afterEach` того же набора.
+ */
+export async function trackObjectChatsOf(
+  request: APIRequestContext,
+  objectIds: string[],
+  options: ChatApiOptions = {},
+): Promise<number> {
+  if (objectIds.length === 0) {
+    return 0;
+  }
+  const scope = new Set(objectIds);
+  let tracked = 0;
+  for (const chat of await listMyChats(request, options)) {
+    if (chat.objectId && scope.has(chat.objectId)) {
+      chatTracker.chat(chat.id);
+      tracked += 1;
+    }
+  }
+  return tracked;
 }
