@@ -65,6 +65,8 @@
 | GET `/api/gps/geofences/:userId/check?lat&lng` | вхождение в геозону (ST_Distance/ST_Contains) | auth |
 | GET `/api/gps/employees/nearby?lat&lng&radius` | ближние сотрудники (последняя точка ≤5 мин) | auth |
 | GET `/api/gps/tracks?userId&from&to&limit` | история перемещений | auth |
+| GET `/api/gps/reports/geofence-control?objectId&userId&from&to` | М7.1: контроль по геозонам — посещения объектов (порог 5 мин), время на объекте, активность по маршруту | auth |
+| GET `/api/gps/reports/summary` | М7.1: KPI по геозонам — посещения, время на объектах, сотрудники с треком, точки трека | auth |
 
 ## 5. ticket-service `/api/tickets` (М3) — реализовано
 
@@ -78,6 +80,8 @@
 | POST `/api/tickets/:id/assign` | назначение исполнителя → `ticket.assigned` | ADMIN, SUPERVISOR |
 | POST `/api/tickets/:id/comments` | комментарий | auth |
 | POST `/api/tickets/:id/operations/:operationId/complete` | выполнение операции; идемпотентно (`alreadyCompleted`), эмиссия `ticket.operation.completed` | auth |
+| GET `/api/tickets/reports/execution?objectId&from&to` | выполнение заявок: количество, время цикла, просрочки; разрез «объект + тип» + ряд по дням | auth |
+| GET `/api/tickets/reports/summary` | KPI заявок: всего/новые/в работе/выполнены/просрочены/аварийные, среднее время цикла, доля в срок | auth |
 
 ## 6. material-service `/api/materials` (М4) — реализовано
 
@@ -87,17 +91,29 @@
 | GET `/api/materials/stocks?objectId&onlyLow` | остатки по объектам с признаком «ниже порога» | auth |
 | POST `/api/materials/movements` | приход/расход/перемещение/списание; транзакционный пересчёт, минус → 400; TRANSFER требует `targetObjectId` | ADMIN, SUPERVISOR, OPERATOR |
 | GET `/api/materials/:id/movements?objectId&from&to&limit` | история движений | auth |
-| GET `/api/materials/report?objectId&from&to` | отчёт по расходу (агрегаты + стоимость) | auth |
+| GET `/api/materials/report?objectId&from&to` | отчёт по расходу (агрегаты + стоимость); М7.1 — считается по read-модели `report_material_consumption_daily` | auth |
+| GET `/api/materials/reports/consumption?objectId&from&to` | расход в разрезе «объект + материал» за период + ряд по дням + итоги | auth |
+| GET `/api/materials/reports/consumption/by-object?objectId` | расход «объект + материал» за всё время | auth |
+| GET `/api/materials/reports/summary` | KPI расхода за 30 дней: стоимость, операции, объекты, позиции ниже порога, топ-5 материалов | auth |
 
 - Консьюмер `ticket.operation.completed` (очередь `material.ticket.operation.completed`):
   материалы операции через core API → автосписание `OUT` по объекту заявки → при остатке
   ниже порога эмиссия `material.low`.
+- Устойчивость консьюмера (М7.3): потеря УЖЕ установленного соединения с RabbitMQ (рестарт брокера,
+  разрыв сети) перерегистрирует подписку — `AmqpConnectionService.onChannelLost` оповещает
+  консьюмеров, `MaterialsConsumer` поднимает `consume` заново через кулдаун. До правки подписка
+  умирала молча: события копились в очереди (наблюдалось 18 необработанных), автосписание не
+  выполнялось, ошибок в логе не было. Плюс подтверждение (`ack`) идёт по каналу ДОСТАВКИ из замыкания
+  подписки, а не по полю сервиса: сообщения, пришедшие в том же кадре сокета, что и `consume-ok`
+  (накопленная очередь после переподключения), иначе оставались неподтверждёнными навсегда.
 
 ## 7. schedule-service `/api/schedule` (М4) — реализовано
 
 | Метод/путь | Назначение | Доступ |
 |---|---|---|
 | CRUD `/api/schedule` | графики с recurrence (daily/weekly/monthly) | запись — ADMIN/SUPERVISOR |
+| GET `/api/schedule/reports/staff-control?objectId&userId&from&to` | М7.1: контроль персонала — check-in/check-out, явки, опоздания, авто-закрытия, длительность смен | auth |
+| GET `/api/schedule/reports/summary` | М7.1: KPI смен — всего/отметились/пропущено/опоздания/авто-закрытия, отработанные часы, явка | auth |
 | GET `/api/schedule/events?date&objectId&userId` | смены на дату | auth |
 | GET `/api/schedule/events/:id` | смена по id | auth |
 | GET `/api/schedule/my` | смены текущего пользователя | auth |
@@ -115,7 +131,7 @@
 | Метод/путь | Назначение | Доступ |
 |---|---|---|
 | GET `/api/chat/chats` | чаты текущего пользователя (последнее сообщение, `unreadCount`) | auth (только свои) |
-| POST `/api/chat/chats` | создать чат: `direct` — любой авторизованный, `object`/`ticket` — ADMIN/SUPERVISOR, `system` — ADMIN; `ticket` идемпотентен по `ticketId` | auth |
+| POST `/api/chat/chats` | создать чат: `direct` — любой авторизованный, `object`/`ticket` — ADMIN/SUPERVISOR, `system` — ADMIN; `ticket` идемпотентен по `ticketId`, `object` — по `objectId` | auth |
 | GET `/api/chat/chats/:id` | деталь с участниками; чужой чат → 403 «Вы не участник этого чата» | auth |
 | GET `/api/chat/chats/:id/messages?before&limit` | история с курсором (`limit` ≤ 100) | auth (участник) |
 | POST `/api/chat/chats/:id/messages` | REST-фолбэк отправки (основной путь — WebSocket) | auth (участник) |
@@ -126,6 +142,9 @@
 
 - Модель доступа: `ChatMember` (участник видит всегда), TICKET-чат — дополнительно участники заявки
   (сверка через ticket-service), OBJECT — состав задаётся явно, DIRECT/SYSTEM — только участники.
+- Поля-ссылки: `ticketId` — только у `type=ticket`, `objectId` — только у `type=object` (уникальны,
+  см. DATABASE_SCHEMA §8). Ответ `POST /api/chat/chats` для ticket-чата отдаёт `objectId: null`;
+  объект заявки читается через ticket-service по `ticketId`.
 - Оффлайн-push: `POST /api/notifications/internal/chat-message` (тип `CHAT_MESSAGE`) в
   notification-service.
 
@@ -143,3 +162,20 @@
   `ticket.created`, `ticket.assigned`, `ticket.emergency`, `ticket.overdue`, `geofence.exit`,
   `material.low`. Получатели — из payload (`assigneeId`/`userIds`), иначе broadcast по активным
   устройствам. Push в dev — MockPushSender (FCM включается при заполненных `FIREBASE_*`).
+
+## Отчёты М7.1 (read-модели, CQRS-read)
+
+Реализация — решение архитектора №4 (`ПЛАН.md`): отчёты строятся read-моделями поверх
+PostgreSQL (SQL views + read-репозитории). У каждого сервиса своя БД, поэтому единого
+представления сквозь сервисы нет: view создаётся в сервисе-владельце данных, эндпоинт —
+там же, а сводный дашборд админки собирает ответы сервисов. Роли на чтение отчётов не
+ограничены (как на остальных GET этих сервисов).
+
+Карта read-моделей (миграции М7.1):
+
+| Сервис | View | Эндпоинт |
+|---|---|---|
+| material-service | `report_material_consumption`, `report_material_consumption_daily`, `report_material_consumption_totals` | `/api/materials/reports/*` |
+| ticket-service | `ticket_execution`, `ticket_execution_daily`, `ticket_execution_totals` | `/api/tickets/reports/*` |
+| schedule-service | `staff_shift_fact`, `staff_control`, `staff_control_totals` | `/api/schedule/reports/*` |
+| gps-service | `staff_geofence_sessions`, `staff_geofence_control`, `staff_route_activity`, `staff_geofence_totals` | `/api/gps/reports/*` |

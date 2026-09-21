@@ -15,6 +15,7 @@ import { SchedulePage } from '../pages/Schedule/SchedulePage';
 import { ObjectDetailPage } from '../pages/Objects/ObjectDetailPage';
 import { ObjectsListPage } from '../pages/Objects/ObjectsListPage';
 import { PlaceholderPage } from '../pages/Placeholder/PlaceholderPage';
+import { ReportsPage } from '../pages/Reports/ReportsPage';
 import { RouteBuilderPage } from '../pages/Routes/RouteBuilderPage';
 import { TechCardDetailPage } from '../pages/TechCards/TechCardDetailPage';
 import { TechCardsPage } from '../pages/TechCards/TechCardsPage';
@@ -126,7 +127,13 @@ export const router = createBrowserRouter([
        * участию в чате.
        */
       { path: 'messages', element: <MessagesPage /> },
-      { path: 'reports', element: <PlaceholderPage title="Отчёты" phase="М7" /> },
+      /*
+       * Отчёты (М7.1): read-модели четырёх сервисов в одном разделе. Чтение отчётов
+       * открыто всем авторизованным ролям (в сервисах на GET отчётов нет `@Roles`),
+       * поэтому RoleGuard здесь не нужен — он закрыл бы раздел оператору. Справочник
+       * сотрудников для фильтра подтягивается только у ADMIN/SUPERVISOR.
+       */
+      { path: 'reports', element: <ReportsPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

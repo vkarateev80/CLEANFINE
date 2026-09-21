@@ -9,6 +9,7 @@ import configuration from './config/configuration';
 import { EventsModule } from './events/events.module';
 import { GpsModule } from './gps/gps.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -22,6 +23,8 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     EventsModule,
     GpsModule,
+    // М7.1: read-модели отчётов (SQL views + read-репозиторий).
+    ReportsModule,
   ],
   providers: [
     JwtStrategy,

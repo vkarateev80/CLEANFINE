@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Material, MaterialMovement, MaterialStock, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { rangeFilter } from './date-range';
@@ -15,6 +10,7 @@ import {
 } from './dto/material.dto';
 import { isConsumingMovement, stockEffects } from './movement-effects';
 import type { MovementType } from '@cleaning-ops/shared/types/materials';
+import { ReportsService } from '../reports/reports.service';
 
 /** Позиция склада вместе с материалом: наружу отдаётся с признаком «ниже порога». */
 export interface StockView {
@@ -68,7 +64,11 @@ export interface MovementContext {
 export class MaterialsService {
   private readonly logger = new Logger(MaterialsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    /** Read-модель отчётов (М7.1): отчёт по расходу считается по SQL-представлению. */
+    private readonly reports: ReportsService,
+  ) {}
 
   // ---------------------------------------------------------------- справочник
 
@@ -160,7 +160,9 @@ export class MaterialsService {
     const stocks = await this.prisma.materialStock.findMany({
       where: query.objectId ? { objectId: query.objectId } : {},
       include: {
-        material: { select: { id: true, name: true, unit: true, costPerUnit: true, minStockThreshold: true } },
+        material: {
+          select: { id: true, name: true, unit: true, costPerUnit: true, minStockThreshold: true },
+        },
       },
       orderBy: [{ objectId: 'asc' }, { material: { name: 'asc' } }],
     });
@@ -233,64 +235,17 @@ export class MaterialsService {
   /**
    * Отчёт по расходу: агрегаты OUT/WRITE_OFF по материалам за объект и период
    * (сумма, количество операций) плюс итог по стоимости (цена справочника).
+   *
+   * М7.1: считается по read-модели (`report_material_consumption_daily`), а не вторым
+   * `groupBy` поверх таблицы движений — две реализации одного агрегата разошлись бы при
+   * первой же правке. Форма ответа не изменилась: её читает вкладка «Отчёт» (М4.3).
    */
-  async report(query: { objectId?: string; from?: string; to?: string }): Promise<ConsumptionReport> {
-    const where: Prisma.MaterialMovementWhereInput = {
-      type: { in: ['OUT', 'WRITE_OFF'] },
-      ...(query.objectId ? { objectId: query.objectId } : {}),
-    };
-    const createdAt = rangeFilter({
-      from: parseOptionalDate(query.from),
-      to: parseOptionalDate(query.to),
-    });
-    if (createdAt) {
-      where.createdAt = createdAt;
-    }
-
-    const grouped = await this.prisma.materialMovement.groupBy({
-      by: ['materialId'],
-      where,
-      _sum: { quantity: true },
-      _count: { _all: true },
-    });
-
-    const materialIds = grouped.map((row) => row.materialId);
-    const materials = materialIds.length
-      ? await this.prisma.material.findMany({
-          where: { id: { in: materialIds } },
-          select: { id: true, name: true, unit: true, costPerUnit: true },
-        })
-      : [];
-    const byId = new Map(materials.map((material) => [material.id, material]));
-
-    const rows: MaterialConsumptionRow[] = grouped
-      .map((row) => {
-        const material = byId.get(row.materialId);
-        const consumedQuantity = row._sum.quantity ?? 0;
-        const costPerUnit = material?.costPerUnit ?? 0;
-        return {
-          materialId: row.materialId,
-          name: material?.name ?? row.materialId,
-          unit: material?.unit ?? '',
-          costPerUnit,
-          consumedQuantity,
-          operationsCount: row._count._all,
-          cost: round2(consumedQuantity * costPerUnit),
-        };
-      })
-      .sort((a, b) => b.cost - a.cost || a.name.localeCompare(b.name, 'ru'));
-
-    return {
-      objectId: query.objectId ?? null,
-      from: query.from ?? null,
-      to: query.to ?? null,
-      rows,
-      totals: {
-        consumedQuantity: round2(rows.reduce((sum, row) => sum + row.consumedQuantity, 0)),
-        operationsCount: rows.reduce((sum, row) => sum + row.operationsCount, 0),
-        cost: round2(rows.reduce((sum, row) => sum + row.cost, 0)),
-      },
-    };
+  async report(query: {
+    objectId?: string;
+    from?: string;
+    to?: string;
+  }): Promise<ConsumptionReport> {
+    return this.reports.consumptionByMaterial(query);
   }
 
   // ------------------------------------------------------------------ helpers
@@ -393,7 +348,13 @@ export class MaterialsService {
 /** Строка склада → контракт API: добавляет признак «ниже порога». */
 export function toStockView(
   stock: MaterialStock & {
-    material: { id: string; name: string; unit: string; costPerUnit: number; minStockThreshold: number };
+    material: {
+      id: string;
+      name: string;
+      unit: string;
+      costPerUnit: number;
+      minStockThreshold: number;
+    };
   },
 ): StockView {
   return {

@@ -71,6 +71,14 @@
 ## 8. chat-service (М5)
 
 - `Chat` (type: OBJECT/TICKET/DIRECT/SYSTEM, участники), `Message` (автор, вложение, прочитано/кем/когда).
+- Идемпотентность создания: `@@unique([objectId])` — один чат на объект, `@@unique([ticketId])` —
+  один чат на заявку. **Инвариант (М7.3):** `objectId` заполнен ТОЛЬКО у `type=object`; `ticket`-чат
+  ссылается на заявку через `ticketId` (объект заявки доступен через ticket-service) и `objectId`
+  не пишет. Раньше ticket-чат писал туда объект заявки — вторая заявка того же объекта получала
+  `P2002` на `Chat_objectId_key`, ветка обработки гонки искала чат по `ticketId`, не находила и
+  отдавала 500 «No Chat found» (публичный `POST /api/chat/chats`, им пользуется и мобильное
+  приложение). Инвариант закреплён CHECK-ограничением `Chat_objectId_only_object_check`; миграция
+  `20261002090000_m73_chat_objectid_only_object` чистит и legacy-строки (`objectId=NULL` у не-object чатов).
 
 ## 9. notification-service (М3) — реализовано (БД `cleaning_ops_notifications`, миграция `init_notifications`)
 
@@ -80,7 +88,32 @@
   title, body, payload JSONB, readAt, createdAt (индексы userId, (userId,readAt)).
 - `notification_preferences`: userId UNIQUE, disabledTypes TEXT[] — отключённые типы уведомлений.
 
-## 10. Ограничения целостности (общие)
+## 10. Read-модели отчётов М7.1 (SQL views)
+
+Паттерн CQRS в «облегчённой» форме (решение архитектора №4): отчёты читают не таблицы, а
+SQL-представления, созданные миграцией в БД сервиса-владельца данных. Единого view сквозь
+сервисы нет — у каждого сервиса своя БД, поэтому сводный дашборд админки складывает ответы
+read-эндпоинтов.
+
+| БД | Миграция | View |
+|---|---|---|
+| `cleaning_ops_materials` | `20261001120000_m71_material_report_views`, `20261001120500_m71_report_views_int_counts` | `report_material_consumption`, `report_material_consumption_daily`, `report_material_consumption_totals` |
+| `cleaning_ops_tickets` | `20261001130000_m71_ticket_report_views` | `ticket_execution`, `ticket_execution_daily`, `ticket_execution_totals` |
+| `cleaning_ops_schedule` | `20261001140000_m71_staff_control_views` | `staff_shift_fact`, `staff_control`, `staff_control_totals` |
+| `cleaning_ops_gps` | `20261001150000_m71_staff_geofence_views` | `staff_geofence_sessions`, `staff_geofence_control`, `staff_route_activity`, `staff_geofence_totals` |
+
+Правила read-моделей:
+
+- счётчики приводятся к `int` (`COUNT(*)::int`): `bigint` доходит до JS как `BigInt` и роняет
+  `JSON.stringify` в ответе API;
+- денежные величины в view не хранятся: `cost = quantity × costPerUnit` считает сервис по
+  актуальной цене справочника (иначе правка цены задним числом меняла бы прошлые отчёты);
+- период применим только к представлениям с дневной зернистостью; агрегаты «за всё время»
+  период не принимают (см. комментарии в `reports.repository.ts` соответствующих сервисов);
+- представления не входят в Prisma-схему (Prisma их не интроспектирует) — они созданы
+  миграциями и читаются через `$queryRaw`.
+
+## 11. Ограничения целостности (общие)
 
 - UUID идентификаторы по умолчанию.
 - Геоданные — PostGIS (SRID 4326).

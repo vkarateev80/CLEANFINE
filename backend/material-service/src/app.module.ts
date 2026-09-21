@@ -11,6 +11,7 @@ import { MaterialConsumptionModule } from './consumption/material-consumption.mo
 import { IntegrationModule } from './integration/integration.module';
 import { MaterialsModule } from './materials/materials.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -26,6 +27,8 @@ import { PrismaModule } from './prisma/prisma.module';
     IntegrationModule,
     MaterialsModule,
     MaterialConsumptionModule,
+    // М7.1: read-модели отчётов (SQL views + read-репозиторий).
+    ReportsModule,
   ],
   providers: [
     JwtStrategy,

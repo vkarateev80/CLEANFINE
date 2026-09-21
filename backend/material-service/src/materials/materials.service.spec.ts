@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { MaterialsService, round2, toStockView } from './materials.service';
+import type { ReportsService } from '../reports/reports.service';
 import {
   isConsumingMovement,
   isIncomingMovement,
@@ -105,11 +106,15 @@ function movementFixture(overrides: Partial<Record<string, unknown>> = {}) {
 
 describe('MaterialsService (М4.1)', () => {
   let prisma: PrismaMock;
+  let reports: { consumptionByMaterial: jest.Mock };
   let service: MaterialsService;
 
   beforeEach(() => {
     prisma = createPrismaMock();
-    service = new MaterialsService(prisma as never);
+    // Read-модель отчёта (М7.1) — стаб: агрегаты проверяет reports.service.spec.ts,
+    // здесь важно только то, что write-сервис делегирует, а не считает сам.
+    reports = { consumptionByMaterial: jest.fn() };
+    service = new MaterialsService(prisma as never, reports as unknown as ReportsService);
     prisma.material.findUnique.mockResolvedValue({ id: 'mat-1' });
   });
 
@@ -223,14 +228,24 @@ describe('MaterialsService (М4.1)', () => {
         objectId: 'obj-1',
         quantity: 40,
         updatedAt: new Date('2026-01-02T10:00:00.000Z'),
-        material: { id: 'mat-2', name: 'Тряпки', unit: 'шт', costPerUnit: 10, minStockThreshold: 5 },
+        material: {
+          id: 'mat-2',
+          name: 'Тряпки',
+          unit: 'шт',
+          costPerUnit: 10,
+          minStockThreshold: 5,
+        },
       },
     ]);
 
     const result = await service.listStocks({ objectId: 'obj-1' });
 
     expect(result.total).toBe(2);
-    expect(result.items[0]).toMatchObject({ quantity: 3, belowThreshold: true, minStockThreshold: 5 });
+    expect(result.items[0]).toMatchObject({
+      quantity: 3,
+      belowThreshold: true,
+      minStockThreshold: 5,
+    });
     expect(result.items[1]).toMatchObject({ quantity: 40, belowThreshold: false });
   });
 
@@ -292,7 +307,9 @@ describe('MaterialsService (М4.1)', () => {
   });
 
   it('OUT уменьшает остаток и отклоняет уход в минус (400)', async () => {
-    prisma.materialMovement.create.mockResolvedValue(movementFixture({ type: 'OUT', quantity: 30 }));
+    prisma.materialMovement.create.mockResolvedValue(
+      movementFixture({ type: 'OUT', quantity: 30 }),
+    );
     prisma.materialStock.upsert.mockResolvedValue({ quantity: 100 });
     prisma.materialStock.updateMany.mockResolvedValue({ count: 1 });
 
@@ -452,47 +469,56 @@ describe('MaterialsService (М4.1)', () => {
 
   // ------------------------------------------------------------------ отчёт
 
-  it('отчёт агрегирует OUT/WRITE_OFF и считает итог по стоимости', async () => {
-    prisma.materialMovement.groupBy.mockResolvedValue([
-      { materialId: 'mat-1', _sum: { quantity: 12.5 }, _count: { _all: 3 } },
-      { materialId: 'mat-2', _sum: { quantity: 4 }, _count: { _all: 1 } },
-    ]);
-    prisma.material.findMany.mockResolvedValue([
-      { id: 'mat-1', name: 'Мыло', unit: 'л', costPerUnit: 100 },
-      { id: 'mat-2', name: 'Тряпки', unit: 'шт', costPerUnit: 50 },
-    ]);
+  it('отчёт по расходу делегируется read-модели и не считает агрегат сам', async () => {
+    const expected = {
+      objectId: 'obj-1',
+      from: '2026-01-01',
+      to: '2026-01-31',
+      rows: [
+        {
+          materialId: 'mat-1',
+          name: 'Мыло',
+          unit: 'л',
+          costPerUnit: 100,
+          consumedQuantity: 12.5,
+          operationsCount: 3,
+          cost: 1250,
+        },
+      ],
+      totals: { consumedQuantity: 12.5, operationsCount: 3, cost: 1250 },
+    };
+    reports.consumptionByMaterial.mockResolvedValue(expected);
 
-    const report = await service.report({ objectId: 'obj-1', from: '2026-01-01', to: '2026-01-31' });
+    const report = await service.report({
+      objectId: 'obj-1',
+      from: '2026-01-01',
+      to: '2026-01-31',
+    });
 
-    expect(prisma.materialMovement.groupBy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        by: ['materialId'],
-        where: expect.objectContaining({ type: { in: ['OUT', 'WRITE_OFF'] }, objectId: 'obj-1' }),
-      }),
-    );
-    expect(report.rows[0]).toMatchObject({ materialId: 'mat-1', consumedQuantity: 12.5, cost: 1250, operationsCount: 3 });
-    expect(report.rows[1]).toMatchObject({ materialId: 'mat-2', consumedQuantity: 4, cost: 200 });
-    expect(report.totals).toEqual({ consumedQuantity: 16.5, operationsCount: 4, cost: 1450 });
-  });
-
-  it('отчёт без движений возвращает пустые агрегаты', async () => {
-    prisma.materialMovement.groupBy.mockResolvedValue([]);
-
-    const report = await service.report({});
-    expect(report.rows).toEqual([]);
-    expect(report.totals).toEqual({ consumedQuantity: 0, operationsCount: 0, cost: 0 });
-    // Справочник не запрашивается, если агрегатов нет.
+    expect(report).toBe(expected);
+    expect(reports.consumptionByMaterial).toHaveBeenCalledWith({
+      objectId: 'obj-1',
+      from: '2026-01-01',
+      to: '2026-01-31',
+    });
+    // Ни `groupBy`, ни справочник не трогаются: у отчёта теперь одна реализация.
+    expect(prisma.materialMovement.groupBy).not.toHaveBeenCalled();
     expect(prisma.material.findMany).not.toHaveBeenCalled();
   });
 
-  it('отчёт подставляет id, если материал удалён из справочника', async () => {
-    prisma.materialMovement.groupBy.mockResolvedValue([
-      { materialId: 'mat-x', _sum: { quantity: 2 }, _count: { _all: 1 } },
-    ]);
-    prisma.material.findMany.mockResolvedValue([]);
+  it('отчёт без фильтров передаёт пустой запрос в read-модель', async () => {
+    reports.consumptionByMaterial.mockResolvedValue({
+      objectId: null,
+      from: null,
+      to: null,
+      rows: [],
+      totals: { consumedQuantity: 0, operationsCount: 0, cost: 0 },
+    });
 
     const report = await service.report({});
-    expect(report.rows[0]).toMatchObject({ name: 'mat-x', costPerUnit: 0, cost: 0 });
+
+    expect(reports.consumptionByMaterial).toHaveBeenCalledWith({});
+    expect(report.totals).toEqual({ consumedQuantity: 0, operationsCount: 0, cost: 0 });
   });
 });
 

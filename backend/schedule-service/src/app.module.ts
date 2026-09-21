@@ -11,6 +11,7 @@ import { CoreModule } from './core/core.module';
 import { EventsModule } from './events/events.module';
 import { GpsModule } from './gps/gps.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ReportsModule } from './reports/reports.module';
 import { ScheduleModule } from './schedule/schedule.module';
 import { TicketClientModule } from './tickets/ticket-client.module';
 
@@ -30,6 +31,8 @@ import { TicketClientModule } from './tickets/ticket-client.module';
     TicketClientModule,
     CoreModule,
     ScheduleModule,
+    // М7.1: read-модели отчётов (SQL views + read-репозиторий).
+    ReportsModule,
   ],
   providers: [
     JwtStrategy,
