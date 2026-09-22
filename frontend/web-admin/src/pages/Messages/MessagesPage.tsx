@@ -162,11 +162,24 @@ export function MessagesPage() {
       )}
 
       <Card padded={false} className="overflow-hidden">
-        <div className="grid min-h-[560px] grid-cols-1 md:grid-cols-[320px_minmax(0,1fr)]">
+        {/*
+          Высота панели. На ≥768 px — прежние `min-h-[560px]`: список и переписка
+          стоят рядом, и панель не должна прыгать при смене чата. На телефоне
+          фиксированный минимум вместе с шапкой (`4rem`) и нижней навигацией
+          (`4.5rem`) давал лишнюю вертикальную прокрутку и уводил поле ввода за
+          край экрана, поэтому высота считается от динамического вьюпорта
+          (`dvh` — без учёта схлопывающейся адресной строки). Первое значение —
+          фолбэк для браузеров без `dvh`; `min-h-0` снимает прежний минимум.
+        */}
+        <div className="grid min-h-[560px] grid-cols-1 max-md:h-[calc(100vh-4rem-4.5rem-2rem)] max-md:min-h-0 max-md:h-[calc(100dvh-4rem-4.5rem-2rem)] md:grid-cols-[320px_minmax(0,1fr)]">
           {/* ── Список чатов ─────────────────────────────────────────────── */}
           <div
             className={[
-              'flex-col border-b border-neutral-200 md:border-b-0 md:border-r',
+              // На телефоне панель ограничена высотой вьюпорта (см. комментарий выше),
+              // поэтому длинный список чатов прокручивается внутри себя, а не растягивает
+              // панель: `max-md:overflow-y-auto` + `max-md:min-h-0` (иначе флекс-элемент
+              // не сжимается ниже своего содержимого). На ≥768 px колонка — как была.
+              'flex-col border-b border-neutral-200 max-md:min-h-0 max-md:overflow-y-auto md:border-b-0 md:border-r',
               showThread ? 'hidden md:flex' : 'flex',
             ].join(' ')}
           >

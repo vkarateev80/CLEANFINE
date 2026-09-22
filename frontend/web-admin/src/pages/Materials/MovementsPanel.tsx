@@ -7,15 +7,11 @@ import {
   Field,
   Input,
   LoadingBlock,
+  ResponsiveTable,
   Select,
   SoftWarning,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import {
   MovementTypeBadge,
@@ -26,6 +22,7 @@ import {
   shortId,
   useParamWriter,
 } from './materialsHelpers';
+import type { MaterialMovementEntity } from '../../types/materials';
 import { useMaterialsList, useMovementHistory, useObjectOptions } from './useMaterials';
 
 /**
@@ -77,9 +74,97 @@ export function MovementsPanel() {
     return objectNames.get(id) ?? shortId(id);
   }
 
+  /**
+   * Колонки истории движений: `cell` — прежняя ячейка таблицы, `card` — роль в
+   * карточке телефона (сущность — объект, статус — тип движения).
+   *
+   * `rowTestId` не передан: id строки нужен существующему e2e РОВНО один
+   * (`toHaveCount(3)` по `[data-testid^="movement-row-"]`), а примитив рендерит
+   * таблицу и карточки в DOM одновременно — дубль сломал бы подсчёт. Поэтому хук
+   * строки остаётся в табличной ячейке, а карточка получает `data-testid="card"`.
+   */
+  const movementColumns: ResponsiveColumn<MaterialMovementEntity>[] = [
+    {
+      key: 'createdAt',
+      header: 'Дата',
+      thClassName: 'w-[150px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Дата',
+      cell: (movement) => (
+        <TableOnlyTestId id={`movement-row-${movement.id}`}>
+          {formatDateTime(movement.createdAt)}
+        </TableOnlyTestId>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Тип',
+      thClassName: 'w-[150px]',
+      card: 'badge',
+      cell: (movement) => <MovementTypeBadge type={movement.type} />,
+    },
+    {
+      key: 'quantity',
+      header: 'Количество',
+      thClassName: 'w-[130px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Количество',
+      cell: (movement) =>
+        `${formatQuantity(movement.quantity)}${material ? ` ${material.unit}` : ''}`,
+    },
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'min-w-[200px]',
+      card: 'title',
+      cell: (movement) => (
+        <>
+          <span className="block text-neutral-800">{objectLabel(movement.objectId)}</span>
+          {movement.targetObjectId && (
+            <span className="block text-xs font-normal text-neutral-500">
+              → {objectLabel(movement.targetObjectId)}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'ticket',
+      header: 'Заявка',
+      thClassName: 'w-[140px]',
+      card: 'field',
+      cardLabel: 'Заявка',
+      cell: (movement) =>
+        movement.ticketId ? (
+          <span className="font-mono text-xs">{shortId(movement.ticketId)}</span>
+        ) : (
+          <span className="text-neutral-400">—</span>
+        ),
+    },
+    {
+      key: 'author',
+      header: 'Автор',
+      thClassName: 'w-[150px]',
+      card: 'field',
+      cardLabel: 'Автор',
+      cell: (movement) => (
+        <span className="font-mono text-xs">{movementAuthor(movement.userId)}</span>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex flex-wrap items-end gap-4">
+      {/*
+        На телефоне фильтры встают в одну колонку во всю ширину: `w-72`/`w-64`/`w-40`
+        рядом не помещаются в 360 px. `max-md:[&>*]:w-full` растягивает прямых детей
+        карточки (обёртки `Field`), а контролы внутри `Field` уже `w-full` — так
+        ширина полей не фиксирована и на планшете с desktop вид прежний.
+      */}
+      <Card className="flex flex-wrap items-end gap-4 max-md:[&>*]:w-full">
         <Field label="Материал" htmlFor="movements-material" required>
           <Select
             id="movements-material"
@@ -218,58 +303,13 @@ export function MovementsPanel() {
               )}
             </div>
 
-            <Table>
-              <THead>
-                <Th className="w-[150px]">Дата</Th>
-                <Th className="w-[150px]">Тип</Th>
-                <Th className="w-[130px]" align="right">
-                  Количество
-                </Th>
-                <Th className="min-w-[200px]">Объект</Th>
-                <Th className="w-[140px]">Заявка</Th>
-                <Th className="w-[150px]">Автор</Th>
-              </THead>
-              <TBody>
-                {items.map((movement) => (
-                  <Tr
-                    key={movement.id}
-                    testId={`movement-row-${movement.id}`}
-                    className={query.isFetching ? 'opacity-60' : ''}
-                  >
-                    <Td mono>{formatDateTime(movement.createdAt)}</Td>
-                    <Td>
-                      <MovementTypeBadge type={movement.type} />
-                    </Td>
-                    <Td mono align="right">
-                      {formatQuantity(movement.quantity)}
-                      {material ? ` ${material.unit}` : ''}
-                    </Td>
-                    <Td>
-                      <span className="text-neutral-800">{objectLabel(movement.objectId)}</span>
-                      {movement.targetObjectId && (
-                        <div className="text-xs text-neutral-500">
-                          → {objectLabel(movement.targetObjectId)}
-                        </div>
-                      )}
-                    </Td>
-                    <Td>
-                      {movement.ticketId ? (
-                        <span className="font-mono text-xs">{shortId(movement.ticketId)}</span>
-                      ) : (
-                        <span className="text-neutral-400">—</span>
-                      )}
-                    </Td>
-                    <Td>
-                      <span className="font-mono text-xs">{movementAuthor(movement.userId)}</span>
-                    </Td>
-                  </Tr>
-                ))}
-
-                {items.length === 0 && (
-                  <TableMessageRow colSpan={6}>Движений на этой странице нет</TableMessageRow>
-                )}
-              </TBody>
-            </Table>
+            <ResponsiveTable<MaterialMovementEntity>
+              items={items}
+              getKey={(movement) => movement.id}
+              columns={movementColumns}
+              rowClassName={() => (query.isFetching ? 'opacity-60' : '')}
+              empty="Движений на этой странице нет"
+            />
           </Card>
         )
       )}

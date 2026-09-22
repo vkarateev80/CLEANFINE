@@ -338,7 +338,9 @@ export function ScheduleFormModal({
               id="schedule-time"
               data-testid="schedule-time"
               type="time"
-              className="w-40 font-mono"
+              // На телефоне поле на всю ширину: фиксированные 160 px рядом с
+              // одноколоночной сеткой выглядят обрезанными.
+              className="w-40 font-mono max-md:w-full"
               value={values.time}
               invalid={Boolean(errors.time)}
               onChange={(event) => update('time', event.target.value)}
@@ -378,7 +380,7 @@ export function ScheduleFormModal({
             <Input
               id="schedule-day-of-month"
               data-testid="schedule-day-of-month"
-              className="w-24 font-mono"
+              className="w-24 font-mono max-md:w-full"
               inputMode="numeric"
               value={values.dayOfMonth}
               invalid={Boolean(errors.dayOfMonth)}

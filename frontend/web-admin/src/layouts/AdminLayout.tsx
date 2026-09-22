@@ -126,7 +126,12 @@ export function AdminLayout() {
             🧹
           </span>
         </div>
-        <nav className="flex flex-col gap-1 p-3">
+        {/* На планшете отступ рейки уменьшается (`p-2` вместо `p-3`), чтобы в её
+            64 px умещался тач-таргет 44 px: с прежними 12 px по бокам на пункт
+            оставалось 40 px. `items-center` там же центрирует укороченный пункт
+            (44 в 48 px контента → ровно по оси рейки), а на desktop отступ и
+            растягивание пунктов остаются прежними. */}
+        <nav className="flex flex-col gap-1 p-3 md:max-lg:items-center md:max-lg:p-2">
           {items.map((item) => (
             <NavLink
               key={item.to}
@@ -137,9 +142,13 @@ export function AdminLayout() {
               // aria-label задаёт точное доступное имя («Объекты», а не «🏢 Объекты»).
               title={item.label}
               aria-label={item.label}
+              // На планшете рейка — основной способ ввода пальцем, поэтому пункт
+              // доводится до тач-таргета 44×44 (`min-h`/`min-w` только в диапазоне
+              // `md:max-lg:`). На desktop эти классы не действуют: там пункт
+              // остаётся прежним — высота 36 px, подпись на прежнем месте.
               className={({ isActive }) =>
                 [
-                  'flex items-center gap-2 justify-center rounded-md px-3 py-2 text-sm transition-colors md:max-lg:px-2 lg:justify-start',
+                  'flex items-center gap-2 justify-center rounded-md px-3 py-2 text-sm transition-colors md:max-lg:min-h-[44px] md:max-lg:min-w-[44px] md:max-lg:px-2 lg:justify-start',
                   isActive
                     ? 'bg-primary-600 text-white'
                     : 'text-neutral-300 hover:bg-neutral-800 hover:text-white',

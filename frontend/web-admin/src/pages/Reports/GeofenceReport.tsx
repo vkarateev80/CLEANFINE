@@ -3,13 +3,11 @@ import {
   Card,
   EmptyState,
   LoadingBlock,
-  Table,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  ResponsiveTable,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
+import type { GeofenceControlReportRow, RouteActivityReportRow } from '../../types/reports';
 import { GeofenceDailyChart } from './ReportCharts';
 import { ReportFeedback, Metric } from './ReportFeedback';
 import {
@@ -68,6 +66,117 @@ export function GeofenceReport({
     );
   }
 
+  /**
+   * Колонки отчёта по геозонам: `cell` — прежняя ячейка таблицы, `card` — роль в
+   * карточке телефона. Хуки строк остаются в табличных ячейках: примитив держит в
+   * DOM и таблицу, и карточки, поэтому один id на два представления дал бы два
+   * совпадения (см. `TableOnlyTestId` в UI-ките).
+   */
+  const columns: ResponsiveColumn<GeofenceControlReportRow>[] = [
+    {
+      key: 'employee',
+      header: 'Сотрудник',
+      thClassName: 'min-w-[200px]',
+      card: 'title',
+      cell: (row) => (
+        <TableOnlyTestId id={`report-geofence-row-${row.objectId}`}>
+          {employeeLabel(row.userId, employeeNames)}
+        </TableOnlyTestId>
+      ),
+    },
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'min-w-[220px]',
+      card: 'field',
+      cardLabel: 'Объект',
+      cell: (row) => objectLabel(row.objectId, objectNames),
+    },
+    {
+      key: 'visits',
+      header: 'Посещений',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Посещений',
+      cell: (row) => row.visitsCount,
+    },
+    {
+      key: 'presence',
+      header: 'Появлений',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Появлений',
+      cell: (row) => row.presenceCount,
+    },
+    {
+      key: 'dwell',
+      header: 'Время на объекте',
+      thClassName: 'w-[160px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Время на объекте',
+      cell: (row) => formatMinutes(row.dwellMinutes),
+    },
+    {
+      key: 'firstEntered',
+      header: 'Первое появление',
+      thClassName: 'w-[170px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Первое появление',
+      cell: (row) => formatDateTime(row.firstEnteredAt),
+    },
+  ];
+
+  /** Колонки второй таблицы: покрытие дня точками трека по маршруту. */
+  const routeColumns: ResponsiveColumn<RouteActivityReportRow>[] = [
+    {
+      key: 'employee',
+      header: 'Сотрудник',
+      thClassName: 'min-w-[200px]',
+      card: 'title',
+      cell: (row) => employeeLabel(row.userId, employeeNames),
+    },
+    {
+      key: 'day',
+      header: 'День',
+      thClassName: 'w-[120px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'День',
+      cell: (row) => formatDate(row.day),
+    },
+    {
+      key: 'points',
+      header: 'Точек',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Точек',
+      cell: (row) => formatNumber(row.pointsCount),
+    },
+    {
+      key: 'span',
+      header: 'Период трека',
+      thClassName: 'w-[170px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Период трека',
+      cell: (row) => formatMinutes(row.spanMinutes),
+    },
+    {
+      key: 'objects',
+      header: 'Объектов',
+      thClassName: 'w-[140px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Объектов',
+      cell: (row) => row.objectsVisited,
+    },
+  ];
+
   return (
     <>
       <ReportFeedback
@@ -90,7 +199,7 @@ export function GeofenceReport({
             <Metric label="Время на объектах" value={formatMinutes(totals?.dwellMinutes ?? 0)} />
             <Metric label="Сотрудников с треком" value={String(totals?.trackedUsersCount ?? 0)} />
             <Metric label="Точек трека" value={formatNumber(totals?.pointsCount ?? 0)} />
-            <div className="ml-auto">
+            <div className="ml-auto max-md:ml-0">
               <Button
                 variant="secondary"
                 size="sm"
@@ -121,47 +230,11 @@ export function GeofenceReport({
                     источник: gps-service, PostGIS-геозоны
                   </span>
                 </div>
-                <Table>
-                  <THead>
-                    <Th className="min-w-[200px]">Сотрудник</Th>
-                    <Th className="min-w-[220px]">Объект</Th>
-                    <Th className="w-[120px]" align="right">
-                      Посещений
-                    </Th>
-                    <Th className="w-[120px]" align="right">
-                      Появлений
-                    </Th>
-                    <Th className="w-[160px]" align="right">
-                      Время на объекте
-                    </Th>
-                    <Th className="w-[170px]" align="right">
-                      Первое появление
-                    </Th>
-                  </THead>
-                  <TBody>
-                    {rows.map((row) => (
-                      <Tr
-                        key={`${row.userId}-${row.objectId}`}
-                        testId={`report-geofence-row-${row.objectId}`}
-                      >
-                        <Td>{employeeLabel(row.userId, employeeNames)}</Td>
-                        <Td>{objectLabel(row.objectId, objectNames)}</Td>
-                        <Td mono align="right">
-                          {row.visitsCount}
-                        </Td>
-                        <Td mono align="right">
-                          {row.presenceCount}
-                        </Td>
-                        <Td mono align="right">
-                          {formatMinutes(row.dwellMinutes)}
-                        </Td>
-                        <Td mono align="right">
-                          {formatDateTime(row.firstEnteredAt)}
-                        </Td>
-                      </Tr>
-                    ))}
-                  </TBody>
-                </Table>
+                <ResponsiveTable<GeofenceControlReportRow>
+                  items={rows}
+                  getKey={(row) => `${row.userId}-${row.objectId}`}
+                  columns={columns}
+                />
               </Card>
 
               <Card padded={false} testId="report-route-activity">
@@ -173,38 +246,12 @@ export function GeofenceReport({
                     маршрут — из графика смены, покрытие — из трека
                   </span>
                 </div>
-                <Table>
-                  <THead>
-                    <Th className="min-w-[200px]">Сотрудник</Th>
-                    <Th className="w-[120px]">День</Th>
-                    <Th className="w-[120px]" align="right">
-                      Точек
-                    </Th>
-                    <Th className="w-[170px]" align="right">
-                      Период трека
-                    </Th>
-                    <Th className="w-[140px]" align="right">
-                      Объектов
-                    </Th>
-                  </THead>
-                  <TBody>
-                    {routes.slice(0, 30).map((row) => (
-                      <Tr key={`${row.userId}-${row.day}`}>
-                        <Td>{employeeLabel(row.userId, employeeNames)}</Td>
-                        <Td mono>{formatDate(row.day)}</Td>
-                        <Td mono align="right">
-                          {formatNumber(row.pointsCount)}
-                        </Td>
-                        <Td mono align="right">
-                          {formatMinutes(row.spanMinutes)}
-                        </Td>
-                        <Td mono align="right">
-                          {row.objectsVisited}
-                        </Td>
-                      </Tr>
-                    ))}
-                  </TBody>
-                </Table>
+                <ResponsiveTable<RouteActivityReportRow>
+                  items={routes.slice(0, 30)}
+                  getKey={(row) => `${row.userId}-${row.day}`}
+                  columns={routeColumns}
+                  testId="report-route-activity-list"
+                />
               </Card>
             </>
           )}

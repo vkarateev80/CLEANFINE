@@ -7,18 +7,15 @@ import {
   EmptyState,
   ErrorBanner,
   LoadingBlock,
+  ResponsiveTable,
   Select,
   SoftWarning,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import { useCanMoveMaterials } from '../../hooks/usePermissions';
 import { StockLevelBadge, apiStatus, formatMoney, formatQuantity, shortId, useParamWriter } from './materialsHelpers';
+import type { StockView } from '../../types/materials';
 import type { MovementPreset } from './MovementModal';
 import { useObjectOptions, useStocks } from './useMaterials';
 
@@ -68,15 +65,145 @@ export function StocksPanel({ onMove }: { onMove: (preset: MovementPreset) => vo
     return objectNames.get(id) ?? shortId(id);
   }
 
+  /**
+   * Колонки списка остатков: `cell` — прежняя ячейка таблицы, `card` — роль в
+   * карточке телефона. Порядок и классы колонок сохранены как были, поэтому
+   * tablet/desktop выглядят прежним образом.
+   */
+  const columns: ResponsiveColumn<StockView>[] = [
+    {
+      key: 'material',
+      header: 'Материал',
+      thClassName: 'min-w-[220px]',
+      card: 'title',
+      cell: (stock) => (
+        <>
+          <TableOnlyTestId id={`stock-row-${stock.materialId}`}>
+            <span
+              className={
+                stock.belowThreshold ? 'block text-danger-600' : 'block text-neutral-900'
+              }
+            >
+              {stock.material.name}
+            </span>
+          </TableOnlyTestId>
+          <span className="block font-mono text-xs font-normal text-neutral-400">
+            {stock.material.unit}
+          </span>
+        </>
+      ),
+    },
+    ...(objectId === ''
+      ? [
+          {
+            key: 'object',
+            header: 'Объект',
+            thClassName: 'w-[200px]',
+            card: 'field' as const,
+            cardLabel: 'Объект',
+            cell: (stock: StockView) => objectLabel(stock.objectId),
+          },
+        ]
+      : []),
+    {
+      key: 'quantity',
+      header: 'Остаток',
+      thClassName: 'w-[130px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Остаток',
+      /*
+       * `data-testid` остатка читается существующим e2e строго (`toHaveText`),
+       * поэтому он остаётся только в табличной ячейке — карточка показывает то
+       * же число без хука (см. `TableOnlyTestId` в UI-ките).
+       */
+      cell: (stock) => (
+        <TableOnlyTestId id={`stock-quantity-${stock.materialId}`}>
+          <span className={stock.belowThreshold ? 'text-danger-600' : ''}>
+            {formatQuantity(stock.quantity)}
+          </span>
+        </TableOnlyTestId>
+      ),
+    },
+    {
+      key: 'threshold',
+      header: 'Порог',
+      thClassName: 'w-[110px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Порог',
+      cell: (stock) => formatQuantity(stock.minStockThreshold),
+    },
+    {
+      key: 'status',
+      header: 'Статус',
+      thClassName: 'w-[150px]',
+      card: 'badge',
+      cell: (stock) => <StockLevelBadge belowThreshold={stock.belowThreshold} />,
+    },
+    {
+      key: 'price',
+      header: 'Цена, ₽',
+      thClassName: 'w-[130px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Цена, ₽',
+      cell: (stock) => formatMoney(stock.material.costPerUnit),
+    },
+    {
+      key: 'cost',
+      header: 'Стоимость, ₽',
+      thClassName: 'w-[140px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Стоимость, ₽',
+      cell: (stock) => formatMoney(stock.quantity * stock.material.costPerUnit),
+    },
+    ...(canMove
+      ? [
+          {
+            key: 'actions',
+            header: 'Действия',
+            thClassName: 'w-[120px]',
+            align: 'right' as const,
+            card: 'actions' as const,
+            cell: (stock: StockView) => (
+              <TableOnlyTestId id={`stock-move-${stock.materialId}`}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    onMove({
+                      materialId: stock.materialId,
+                      objectId: stock.objectId,
+                      type: 'OUT',
+                    })
+                  }
+                >
+                  Движение
+                </Button>
+              </TableOnlyTestId>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <Card className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm text-neutral-600">
+        {/* На телефоне подпись и селект встают в столбик: `w-72` (288 px) плюс
+            подпись не помещаются в 360 px и распирали бы карточку фильтров. */}
+        <label className="flex items-center gap-2 text-sm text-neutral-600 max-md:w-full max-md:flex-col max-md:items-stretch max-md:gap-1">
           Объект
           <Select
             data-testid="stocks-object-filter"
             aria-label="Объект остатков"
-            className="w-72"
+            className="w-72 max-md:w-full"
             value={objectId}
             disabled={objects.isLoading}
             onChange={(event) => write({ stockObjectId: event.target.value || null })}
@@ -97,7 +224,7 @@ export function StocksPanel({ onMove }: { onMove: (preset: MovementPreset) => vo
           onChange={(event) => write({ stockLow: event.target.checked ? '1' : null })}
         />
 
-        <span className="ml-auto font-mono text-xs text-neutral-500">
+        <span className="ml-auto font-mono text-xs text-neutral-500 max-md:ml-0">
           позиций {total} · ниже порога {belowCount} · стоимость остатка{' '}
           {formatMoney(stockValue)} ₽
         </span>
@@ -136,106 +263,31 @@ export function StocksPanel({ onMove }: { onMove: (preset: MovementPreset) => vo
           />
         ) : (
           <Card padded={false}>
-            <Table>
-              <THead>
-                <Th className="min-w-[220px]">Материал</Th>
-                {objectId === '' && <Th className="w-[200px]">Объект</Th>}
-                <Th className="w-[130px]" align="right">
-                  Остаток
-                </Th>
-                <Th className="w-[110px]" align="right">
-                  Порог
-                </Th>
-                <Th className="w-[150px]">Статус</Th>
-                <Th className="w-[130px]" align="right">
-                  Цена, ₽
-                </Th>
-                <Th className="w-[140px]" align="right">
-                  Стоимость, ₽
-                </Th>
-                {canMove && <Th className="w-[120px]" align="right">Действия</Th>}
-              </THead>
-              <TBody>
-                {items.map((stock) => (
-                  <Tr
-                    key={`${stock.materialId}-${stock.objectId}`}
-                    /*
-                     * Идентификатор строки — пара «материал + объект», а не один
-                     * материал: в режиме «Все объекты» один и тот же материал
-                     * встречается столько раз, сколько объектов держат остаток.
-                     * Поэтому e2e перед обращением к `stock-quantity-<materialId>`
-                     * обязан выбрать объект в `stocks-object-filter` — иначе
-                     * селектор неоднозначен.
-                     */
-                    testId={`stock-row-${stock.materialId}`}
-                    /*
-                     * Подсветка «ниже порога»: полоса слева + красный остаток.
-                     * Мягкой заливки вроде `bg-danger-500/5` здесь нет
-                     * сознательно — цвета заданы как `var(--color-…)`, а
-                     * Tailwind v3 не умеет применять модификатор прозрачности к
-                     * CSS-переменной, и класс молча не сгенерировался бы.
-                     */
-                    className={stock.belowThreshold ? 'border-l-2 border-l-danger-500' : ''}
-                  >
-                    <Td>
-                      <span
-                        className={
-                          stock.belowThreshold ? 'block text-danger-600' : 'block text-neutral-900'
-                        }
-                      >
-                        {stock.material.name}
-                      </span>
-                      <span className="font-mono text-xs text-neutral-400">
-                        {stock.material.unit}
-                      </span>
-                    </Td>
-                    {objectId === '' && <Td>{objectLabel(stock.objectId)}</Td>}
-                    <Td mono align="right">
-                      <span
-                        data-testid={`stock-quantity-${stock.materialId}`}
-                        className={stock.belowThreshold ? 'text-danger-600' : ''}
-                      >
-                        {formatQuantity(stock.quantity)}
-                      </span>
-                    </Td>
-                    <Td mono align="right">
-                      {formatQuantity(stock.minStockThreshold)}
-                    </Td>
-                    <Td>
-                      <StockLevelBadge belowThreshold={stock.belowThreshold} />
-                    </Td>
-                    <Td mono align="right">
-                      {formatMoney(stock.material.costPerUnit)}
-                    </Td>
-                    <Td mono align="right">
-                      {formatMoney(stock.quantity * stock.material.costPerUnit)}
-                    </Td>
-                    {canMove && (
-                      <Td align="right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          data-testid={`stock-move-${stock.materialId}`}
-                          onClick={() =>
-                            onMove({
-                              materialId: stock.materialId,
-                              objectId: stock.objectId,
-                              type: 'OUT',
-                            })
-                          }
-                        >
-                          Движение
-                        </Button>
-                      </Td>
-                    )}
-                  </Tr>
-                ))}
+            {/*
+              Остатки: таблица на md+ и карточки на телефоне. Колонка «Объект»
+              появляется только в режиме «Все объекты» — примитив считает `colSpan`
+              пустого состояния сам, ручного счётчика колонок больше нет.
 
-                {items.length === 0 && (
-                  <TableMessageRow colSpan={canMove ? 8 : 7}>Позиций нет</TableMessageRow>
-                )}
-              </TBody>
-            </Table>
+              `rowTestId` не передан (см. `TableOnlyTestId` в UI-ките): id строки и ячейки
+              остатка читает существующий e2e, а примитив рендерит оба представления
+              в DOM — дубль id сломал бы строгие селекторы.
+            */}
+            <ResponsiveTable<StockView>
+              items={items}
+              getKey={(stock) => `${stock.materialId}-${stock.objectId}`}
+              columns={columns}
+              rowClassName={(stock) =>
+                /*
+                 * Подсветка «ниже порога»: полоса слева + красный остаток.
+                 * Мягкой заливки вроде `bg-danger-500/5` здесь нет
+                 * сознательно — цвета заданы как `var(--color-…)`, а
+                 * Tailwind v3 не умеет применять модификатор прозрачности к
+                 * CSS-переменной, и класс молча не сгенерировался бы.
+                 */
+                stock.belowThreshold ? 'border-l-2 border-l-danger-500' : ''
+              }
+              empty="Позиций нет"
+            />
           </Card>
         ))}
     </div>

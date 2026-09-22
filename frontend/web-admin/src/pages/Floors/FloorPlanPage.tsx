@@ -21,6 +21,7 @@ import {
   Spinner,
 } from '../../components/ui';
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { ROUTES } from '../../router/routes';
 import type { UpdateFloorPayload } from '../../types/core';
 import { FloorPlanCanvas } from './FloorPlanCanvas';
@@ -181,10 +182,33 @@ export function FloorPlanPage() {
     setScaleInput(scale === null || scale === undefined ? '' : String(scale));
   }, [floor?.planScale]);
 
+  // Уход на телефонную ширину (сужение окна, поворот планшета) гасит режим
+  // рисования: иначе он остался бы включённым при недоступном жесте и кнопка
+  // «Добавить помещение» врала бы о своём состоянии. Объявлено здесь, а не ниже:
+  // эффект обязан видеть `isTabletUp` (см. пояснение к `drawEnabled`).
+  const isTabletUp = useMediaQuery('(min-width: 768px)');
+  useEffect(() => {
+    if (!isTabletUp) setAddMode(false);
+  }, [isTabletUp]);
+
   const rooms = useMemo(() => floor?.rooms ?? [], [floor]);
   const planImageUrl = floor?.planImageUrl ?? null;
   const isPdf = isPdfPlanUrl(planImageUrl);
   const drawingAvailable = Boolean(planImageUrl) && !isPdf && canEdit;
+
+  /**
+   * Телефон (<768 px) — режим (б) из PRD §4.1: рисование рамкой, перемещение и
+   * ресайз за углы недоступны (палец закрывает маркер, точность ниже
+   * осмысленной). Всё остальное работает: просмотр, зум, панорама, «Вписать»,
+   * экспликация, выбор помещения, загрузка плана, параметры этажа, а создание и
+   * правка помещения идут через уже существующую форму ручного ввода координат
+   * («Указать координаты» → `RoomCreateModal` + `RoomFormFields`).
+   *
+   * Проверка идёт по JS, а не только классами: жест живёт в pointer-событиях
+   * canvas, и CSS его не выключит. Тач-эргономика прочих элементов — на классах
+   * UI-кита (`max-lg:`), здесь только само поведение.
+   */
+  const drawEnabled = drawingAvailable && isTabletUp;
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
   const deleteTargetRoom = rooms.find((room) => room.id === deleteTarget) ?? null;
@@ -292,8 +316,12 @@ export function FloorPlanPage() {
         </div>
 
         {floor && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-white p-1">
+          <div className="flex flex-wrap items-center gap-2 max-md:w-full">
+            {/* Переключатель «Просмотр / Добавить помещение» существует только ради
+                рисования рамкой. На телефоне рисования нет, поэтому нет и кнопки:
+                мёртвая кнопка, которая молча ничего не делает, хуже её отсутствия.
+                Роль «создать помещение» на телефоне берёт на себя «Указать координаты». */}
+            <div className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-white p-1 max-md:hidden">
               <Button
                 variant={addMode ? 'ghost' : 'primary'}
                 size="sm"
@@ -307,7 +335,7 @@ export function FloorPlanPage() {
                 size="sm"
                 data-testid="add-mode-toggle"
                 aria-pressed={addMode}
-                disabled={!drawingAvailable}
+                disabled={!drawEnabled}
                 title={
                   drawingAvailable
                     ? 'Протяните рамку по плану'
@@ -324,8 +352,12 @@ export function FloorPlanPage() {
 
             {canEdit && (
               <Button
-                variant="ghost"
+                // На телефоне это главное действие экрана (создание помещения),
+                // поэтому оно заметнее, чем на планшете/desktop, где рядом есть
+                // рисование рамкой. Вид desktop не меняется: ветка `max-md:`.
+                variant={isTabletUp ? 'ghost' : 'secondary'}
                 size="sm"
+                className="max-md:w-full"
                 data-testid="room-create-manual"
                 onClick={() => setCreateDraft({ rect: null })}
               >
@@ -371,7 +403,7 @@ export function FloorPlanPage() {
             </div>
 
             {canEdit && (
-              <div className="flex items-center gap-2 text-xs text-neutral-500">
+              <div className="flex items-center gap-2 text-xs text-neutral-500 max-md:w-full max-md:flex-wrap">
                 Масштаб, м/пкс
                 <div className="w-24 shrink-0">
                   <Input
@@ -456,6 +488,20 @@ export function FloorPlanPage() {
           }}
         />
       )}
+
+      {/* Телефон (<768 px). Инструменты рисования не «спрятаны молча»: кнопки нет,
+          а рядом сказано, почему её нет и чем её заменить. Это ровно та деградация,
+          которую зафиксировал PRD §4.1 — рисование рамкой пальцем не работает,
+          ручной ввод координат сохраняет функциональность целиком. */}
+      <div
+        data-testid="floor-drawing-hint"
+        className="rounded-lg bg-neutral-100 px-4 py-3 text-xs text-neutral-600 md:hidden"
+      >
+        Рисование рамкой и правка помещения за углы с телефона недоступны: палец закрывает
+        маркер. Помещение создаётся и правится кнопкой «Указать координаты» — координаты
+        x / y / ширина / высота вводятся вручную, а план остаётся доступен для просмотра
+        (зум, сдвиг, «Вписать»).
+      </div>
       {floor && !canEdit && (
         <SoftWarning>
           Режим просмотра: роль не позволяет менять план, помещения и параметры этажа.
@@ -486,7 +532,11 @@ export function FloorPlanPage() {
       )}
 
       {floor && (
-        <div className="relative flex h-[calc(100vh-15rem)] min-h-[420px] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="relative flex h-[calc(100vh-15rem)] min-h-[420px] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm max-md:h-[calc(100dvh-18rem)] max-md:min-h-[320px]">
+          {/* Экспликация ниже `lg` — выезжающая панель поверх плана (drawer):
+              на телефоне и планшете она не отнимает ширину у canvas. На телефоне
+              ширина 85% — чтобы был виден край плана и панель читалась как overlay,
+              а не как новый экран. */}
           <aside
             className={[
               'absolute inset-y-0 left-0 z-30 w-80 max-w-[85%] shrink-0 overflow-y-auto border-r border-neutral-200 bg-white transition-transform',
@@ -522,6 +572,7 @@ export function FloorPlanPage() {
             selectedRoomId={selectedRoomId}
             hoveredRoomId={hoveredRoomId}
             canEdit={canEdit}
+            drawEnabled={drawEnabled}
             addMode={addMode}
             zoom={zoom}
             fitNonce={fitNonce}

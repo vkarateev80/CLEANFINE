@@ -15,10 +15,11 @@ const VARIANTS: Record<NonNullable<ButtonProps['variant']>, string> = {
 
 const SIZES: Record<NonNullable<ButtonProps['size']>, string> = {
   // `max-lg:` — тач-эргономика (≥44 px) на телефоне и планшете: `sm`-кнопки
-  // (иконочные действия, «Назад/Вперёд») иначе ~28 px. `md`/`lg` не трогаем —
-  // они и так выше 44 px, а на desktop правило не действует вовсе.
+  // (иконочные действия, «Назад/Вперёд») иначе ~28 px, `md` — ровно 40 px
+  // (`py-2` + строка 24 px), то есть тоже ниже порога 44 px (замер 360/768).
+  // `lg` уже 52 px. Правила ограничены `max-lg:` — desktop ≥1024 не меняется.
   sm: 'px-3 py-1.5 text-sm max-lg:min-h-[44px] max-lg:min-w-[44px]',
-  md: 'px-4 py-2 text-base',
+  md: 'px-4 py-2 text-base max-lg:min-h-[44px]',
   lg: 'px-6 py-3 text-lg',
 };
 

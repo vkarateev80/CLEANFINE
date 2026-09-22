@@ -3,13 +3,11 @@ import {
   Card,
   EmptyState,
   LoadingBlock,
-  Table,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  ResponsiveTable,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
+import type { StaffByObjectRow, StaffControlReportRow } from '../../types/reports';
 import { StaffDailyChart } from './ReportCharts';
 import { ReportFeedback, Metric } from './ReportFeedback';
 import {
@@ -73,6 +71,135 @@ export function StaffReport({
     );
   }
 
+  /**
+   * Колонки отчёта по персоналу: `cell` — прежняя ячейка таблицы, `card` — роль в
+   * карточке телефона (сущность — сотрудник, все числа — поля «подпись — значение»).
+   * Хук строки остаётся в табличной ячейке: примитив рендерит таблицу и карточки в
+   * DOM сразу, дубль id ломал бы строгие селекторы (см. `TableOnlyTestId` в UI-ките).
+   */
+  const columns: ResponsiveColumn<StaffControlReportRow>[] = [
+    {
+      key: 'employee',
+      header: 'Сотрудник',
+      thClassName: 'min-w-[220px]',
+      card: 'title',
+      cell: (row) => (
+        <TableOnlyTestId id={`report-staff-row-${row.userId}`}>
+          {employeeLabel(row.userId, employeeNames)}
+        </TableOnlyTestId>
+      ),
+    },
+    {
+      key: 'shifts',
+      header: 'Смен',
+      thClassName: 'w-[90px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Смен',
+      cell: (row) => row.shiftsCount,
+    },
+    {
+      key: 'checkedIn',
+      header: 'Отметился',
+      thClassName: 'w-[110px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Отметился',
+      cell: (row) => row.checkedInCount,
+    },
+    {
+      key: 'missed',
+      header: 'Пропустил',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Пропустил',
+      cell: (row) => row.missedCount,
+    },
+    {
+      key: 'late',
+      header: 'Опоздал',
+      thClassName: 'w-[110px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Опоздал',
+      cell: (row) => row.lateCount,
+    },
+    {
+      key: 'autoClosed',
+      header: 'Авто-закрытий',
+      thClassName: 'w-[130px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Авто-закрытий',
+      cell: (row) => row.autoClosedCount,
+    },
+    {
+      key: 'worked',
+      header: 'Отработано',
+      thClassName: 'w-[140px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Отработано',
+      cell: (row) => formatMinutes(row.workedMinutes),
+    },
+    {
+      key: 'avg',
+      header: 'Средняя смена',
+      thClassName: 'w-[150px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Средняя смена',
+      cell: (row) => formatMinutes(row.avgWorkedMinutes),
+    },
+  ];
+
+  /** Колонки второй таблицы: те же смены в разрезе объектов. */
+  const byObjectColumns: ResponsiveColumn<StaffByObjectRow>[] = [
+    {
+      key: 'employee',
+      header: 'Сотрудник',
+      thClassName: 'min-w-[200px]',
+      card: 'title',
+      cell: (row) => employeeLabel(row.userId, employeeNames),
+    },
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'min-w-[220px]',
+      card: 'field',
+      cardLabel: 'Объект',
+      cell: (row) => objectLabel(row.objectId, objectNames),
+    },
+    {
+      key: 'shifts',
+      header: 'Смен',
+      thClassName: 'w-[90px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Смен',
+      cell: (row) => row.shiftsCount,
+    },
+    {
+      key: 'checkedIn',
+      header: 'Отметился',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Отметился',
+      cell: (row) => row.checkedInCount,
+    },
+    {
+      key: 'worked',
+      header: 'Отработано',
+      thClassName: 'w-[140px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Отработано',
+      cell: (row) => formatMinutes(row.workedMinutes),
+    },
+  ];
+
   return (
     <>
       <ReportFeedback
@@ -97,7 +224,7 @@ export function StaffReport({
             <Metric label="Опозданий" value={String(totals?.lateCount ?? 0)} />
             <Metric label="Авто-закрытий" value={String(totals?.autoClosedCount ?? 0)} />
             <Metric label="Явка" value={formatPercent(totals?.attendanceRate ?? 0)} />
-            <div className="ml-auto">
+            <div className="ml-auto max-md:ml-0">
               <Button
                 variant="secondary"
                 size="sm"
@@ -126,60 +253,11 @@ export function StaffReport({
                     источник: schedule-service (check-in/check-out)
                   </span>
                 </div>
-                <Table>
-                  <THead>
-                    <Th className="min-w-[220px]">Сотрудник</Th>
-                    <Th className="w-[90px]" align="right">
-                      Смен
-                    </Th>
-                    <Th className="w-[110px]" align="right">
-                      Отметился
-                    </Th>
-                    <Th className="w-[120px]" align="right">
-                      Пропустил
-                    </Th>
-                    <Th className="w-[110px]" align="right">
-                      Опоздал
-                    </Th>
-                    <Th className="w-[130px]" align="right">
-                      Авто-закрытий
-                    </Th>
-                    <Th className="w-[140px]" align="right">
-                      Отработано
-                    </Th>
-                    <Th className="w-[150px]" align="right">
-                      Средняя смена
-                    </Th>
-                  </THead>
-                  <TBody>
-                    {rows.map((row) => (
-                      <Tr key={row.userId} testId={`report-staff-row-${row.userId}`}>
-                        <Td>{employeeLabel(row.userId, employeeNames)}</Td>
-                        <Td mono align="right">
-                          {row.shiftsCount}
-                        </Td>
-                        <Td mono align="right">
-                          {row.checkedInCount}
-                        </Td>
-                        <Td mono align="right">
-                          {row.missedCount}
-                        </Td>
-                        <Td mono align="right">
-                          {row.lateCount}
-                        </Td>
-                        <Td mono align="right">
-                          {row.autoClosedCount}
-                        </Td>
-                        <Td mono align="right">
-                          {formatMinutes(row.workedMinutes)}
-                        </Td>
-                        <Td mono align="right">
-                          {formatMinutes(row.avgWorkedMinutes)}
-                        </Td>
-                      </Tr>
-                    ))}
-                  </TBody>
-                </Table>
+                <ResponsiveTable<StaffControlReportRow>
+                  items={rows}
+                  getKey={(row) => row.userId}
+                  columns={columns}
+                />
               </Card>
 
               <Card padded={false} testId="report-staff-by-object">
@@ -189,38 +267,12 @@ export function StaffReport({
                     объект и маршрут — из графика смены
                   </span>
                 </div>
-                <Table>
-                  <THead>
-                    <Th className="min-w-[200px]">Сотрудник</Th>
-                    <Th className="min-w-[220px]">Объект</Th>
-                    <Th className="w-[90px]" align="right">
-                      Смен
-                    </Th>
-                    <Th className="w-[120px]" align="right">
-                      Отметился
-                    </Th>
-                    <Th className="w-[140px]" align="right">
-                      Отработано
-                    </Th>
-                  </THead>
-                  <TBody>
-                    {(report.data?.byObject ?? []).slice(0, 30).map((row) => (
-                      <Tr key={`${row.userId}-${row.objectId}-${row.routeId}`}>
-                        <Td>{employeeLabel(row.userId, employeeNames)}</Td>
-                        <Td>{objectLabel(row.objectId, objectNames)}</Td>
-                        <Td mono align="right">
-                          {row.shiftsCount}
-                        </Td>
-                        <Td mono align="right">
-                          {row.checkedInCount}
-                        </Td>
-                        <Td mono align="right">
-                          {formatMinutes(row.workedMinutes)}
-                        </Td>
-                      </Tr>
-                    ))}
-                  </TBody>
-                </Table>
+                <ResponsiveTable<StaffByObjectRow>
+                  items={(report.data?.byObject ?? []).slice(0, 30)}
+                  getKey={(row) => `${row.userId}-${row.objectId}-${row.routeId}`}
+                  columns={byObjectColumns}
+                  testId="report-staff-by-object-list"
+                />
               </Card>
             </>
           )}

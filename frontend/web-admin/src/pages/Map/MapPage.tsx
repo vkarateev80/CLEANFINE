@@ -8,15 +8,11 @@ import {
   Field,
   Input,
   PageHeader,
+  ResponsiveTable,
   Select,
   SoftWarning,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import { mapboxToken } from '../Objects/utils';
 import { MapCanvas } from './MapCanvas';
@@ -145,6 +141,159 @@ export function MapPage() {
   const geofencesForbidden = apiStatus(geofences.error) === 403;
   const refreshing = geofences.isFetching || nearby.isFetching;
 
+  /**
+   * Колонки геозон: `cell` — прежняя ячейка таблицы, `card` — роль в карточке
+   * телефона (сущность — название геозоны, остальное — поля карточки).
+   *
+   * `rowTestId` не передан: примитив держит в DOM и таблицу, и карточки, поэтому
+   * один id на два представления дал бы два совпадения, а прежние хуки строк
+   * (`map-geofence-row-<id>`) сохранены в табличной ячейке
+   * (см. `TableOnlyTestId` в UI-ките).
+   */
+  const geofenceColumns: ResponsiveColumn<GeofenceEntity>[] = [
+    {
+      key: 'name',
+      header: 'Название',
+      thClassName: 'min-w-[220px]',
+      card: 'title',
+      cell: (geofence) => (
+        <>
+          <TableOnlyTestId id={`map-geofence-row-${geofence.id}`}>
+            <span className="block text-neutral-800">{geofence.name ?? 'Без названия'}</span>
+          </TableOnlyTestId>
+          <span className="block font-mono text-xs font-normal text-neutral-400">
+            {shortId(geofence.id)}
+          </span>
+        </>
+      ),
+    },
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'w-[160px]',
+      card: 'field',
+      cardLabel: 'Объект',
+      cell: (geofence) =>
+        geofence.objectId === objectId && selectedObject ? (
+          selectedObject.name
+        ) : (
+          <span className="font-mono text-xs text-neutral-400">{shortId(geofence.objectId)}</span>
+        ),
+    },
+    {
+      key: 'radius',
+      header: 'Радиус',
+      thClassName: 'w-[140px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Радиус',
+      cell: (geofence) =>
+        geofence.radiusMeters === null ? '—' : `${geofence.radiusMeters} м`,
+    },
+    {
+      key: 'boundary',
+      header: 'Полигон',
+      thClassName: 'w-[200px]',
+      card: 'field',
+      cardLabel: 'Полигон',
+      cell: (geofence) =>
+        geofence.boundary ? (
+          <span className="font-mono text-xs text-neutral-500">
+            {geofence.boundary.coordinates[0]?.length ?? 0} координат
+          </span>
+        ) : (
+          <span className="text-xs text-neutral-400">нет геометрии</span>
+        ),
+    },
+    {
+      key: 'points',
+      header: 'Точек',
+      thClassName: 'w-[120px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Точек',
+      cell: (geofence) => geofence.boundary?.coordinates.length ?? 0,
+    },
+  ];
+
+  /** Колонки ближайших сотрудников: сущность — сотрудник, трек — действие. */
+  const employeeColumns: ResponsiveColumn<NearbyEmployee>[] = [
+    {
+      key: 'employee',
+      header: 'Сотрудник',
+      thClassName: 'min-w-[220px]',
+      card: 'title',
+      cell: (employee) => (
+        <>
+          <TableOnlyTestId id={`map-employee-row-${employee.userId}`}>
+            <span className="block text-neutral-800">
+              {employeeNames.get(employee.userId) ?? 'Сотрудник'}
+            </span>
+          </TableOnlyTestId>
+          <span className="block font-mono text-xs font-normal text-neutral-400">
+            {shortId(employee.userId)}
+          </span>
+        </>
+      ),
+    },
+    {
+      key: 'distance',
+      header: 'Расстояние',
+      thClassName: 'w-[140px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Расстояние',
+      cell: (employee) => formatDistance(employee.distanceMeters),
+    },
+    {
+      key: 'coords',
+      header: 'Координаты',
+      thClassName: 'w-[180px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Координаты',
+      cell: (employee) =>
+        `${formatCoordinate(employee.lat)}, ${formatCoordinate(employee.lng)}`,
+    },
+    {
+      key: 'timestamp',
+      header: 'Точка от',
+      thClassName: 'w-[150px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Точка от',
+      cell: (employee) => formatDateTime(employee.timestamp),
+    },
+    {
+      key: 'battery',
+      header: 'Заряд',
+      thClassName: 'w-[120px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Заряд',
+      cell: (employee) =>
+        employee.batteryLevel === null ? '—' : `${employee.batteryLevel} %`,
+    },
+    {
+      key: 'track',
+      header: 'Трек',
+      thClassName: 'w-[140px]',
+      card: 'actions',
+      cell: (employee) => (
+        <TableOnlyTestId id={`map-track-${employee.userId}`}>
+          <Button
+            variant={trackUserId === employee.userId ? 'secondary' : 'ghost'}
+            size="sm"
+            loading={track.isPending && trackUserId === employee.userId}
+            onClick={() => toggleTrack(employee)}
+          >
+            {trackUserId === employee.userId ? 'Скрыть' : 'Показать'}
+          </Button>
+        </TableOnlyTestId>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -152,10 +301,21 @@ export function MapPage() {
         subtitle="Геозоны объектов и сотрудники поблизости — Mapbox GL"
         actions={
           <>
-            <Button variant="secondary" onClick={() => applyCenter(DEFAULT_CENTER)}>
+            <Button
+              variant="secondary"
+              className="max-lg:min-h-[44px]"
+              onClick={() => applyCenter(DEFAULT_CENTER)}
+            >
               Сбросить центр
             </Button>
-            <Button variant="primary" data-testid="map-refresh" loading={refreshing} onClick={refreshAll}>
+            <Button
+              variant="primary"
+              data-testid="map-refresh"
+              // Кнопки шапки — `size="md"` (~40 px): на телефоне и планшете ≥44 px.
+              className="max-lg:min-h-[44px]"
+              loading={refreshing}
+              onClick={refreshAll}
+            >
               Обновить
             </Button>
           </>
@@ -163,7 +323,13 @@ export function MapPage() {
       />
 
       <Card className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end gap-4">
+        {/*
+          На телефоне фильтры и «Найти здесь» — одной колонкой во всю ширину:
+          `w-72`/`w-44`/`w-40` рядом не помещаются в 360 px и распирали бы карточку.
+          `max-md:[&>*]:w-full` растягивает прямых детей, контролы внутри `Field`
+          уже `w-full`; на планшете и desktop вид прежний.
+        */}
+        <div className="flex flex-wrap items-end gap-4 max-md:[&>*]:w-full">
           <div className="w-72">
             <Field label="Объект" htmlFor="map-object">
               <Select
@@ -228,7 +394,12 @@ export function MapPage() {
             </Field>
           </div>
 
-          <Button variant="secondary" data-testid="map-center-apply" onClick={applyDraft}>
+          <Button
+            variant="secondary"
+            data-testid="map-center-apply"
+            className="max-lg:min-h-[44px]"
+            onClick={applyDraft}
+          >
             Найти здесь
           </Button>
         </div>
@@ -301,65 +472,18 @@ export function MapPage() {
           </h2>
           <span className="text-xs text-neutral-500">{geofencesList.length} шт.</span>
         </div>
-        <Table>
-          <THead>
-            <Th className="min-w-[220px]">Название</Th>
-            <Th className="w-[160px]">Объект</Th>
-            <Th className="w-[140px]">Радиус</Th>
-            <Th className="w-[200px]">Полигон</Th>
-            <Th className="w-[120px]">Точек</Th>
-          </THead>
-          <TBody>
-            {geofences.isLoading &&
-              Array.from({ length: 3 }).map((_, row) => (
-                <Tr key={row}>
-                  {Array.from({ length: 5 }).map((__, cell) => (
-                    <Td key={cell}>
-                      <span className="block h-4 w-full animate-pulse rounded-md bg-neutral-200" />
-                    </Td>
-                  ))}
-                </Tr>
-              ))}
-
-            {!geofences.isLoading &&
-              geofencesList.map((geofence) => (
-                <Tr key={geofence.id} testId={`map-geofence-row-${geofence.id}`}>
-                  <Td>
-                    <span className="text-neutral-800">{geofence.name ?? 'Без названия'}</span>
-                    <div className="font-mono text-xs text-neutral-400">{shortId(geofence.id)}</div>
-                  </Td>
-                  <Td>
-                    {geofence.objectId === objectId && selectedObject ? (
-                      selectedObject.name
-                    ) : (
-                      <span className="font-mono text-xs text-neutral-400">
-                        {shortId(geofence.objectId)}
-                      </span>
-                    )}
-                  </Td>
-                  <Td mono>{geofence.radiusMeters === null ? '—' : `${geofence.radiusMeters} м`}</Td>
-                  <Td>
-                    {geofence.boundary ? (
-                      <span className="font-mono text-xs text-neutral-500">
-                        {geofence.boundary.coordinates[0]?.length ?? 0} координат
-                      </span>
-                    ) : (
-                      <span className="text-xs text-neutral-400">нет геометрии</span>
-                    )}
-                  </Td>
-                  <Td mono>{geofence.boundary?.coordinates.length ?? 0}</Td>
-                </Tr>
-              ))}
-
-            {!geofences.isLoading && geofencesList.length === 0 && (
-              <TableMessageRow colSpan={5}>
-                {selectedObject
-                  ? 'У объекта нет геозон — создайте её через API геозон'
-                  : 'Геозон нет'}
-              </TableMessageRow>
-            )}
-          </TBody>
-        </Table>
+        <ResponsiveTable<GeofenceEntity>
+          items={geofencesList}
+          getKey={(geofence) => geofence.id}
+          columns={geofenceColumns}
+          loading={geofences.isLoading}
+          skeletonRows={3}
+          empty={
+            selectedObject
+              ? 'У объекта нет геозон — создайте её через API геозон'
+              : 'Геозон нет'
+          }
+        />
       </Card>
 
       <Card padded={false} className="overflow-hidden">
@@ -371,69 +495,23 @@ export function MapPage() {
             {nearby.data ? `точки не старше ${nearby.data.maxAgeMinutes} мин` : ''}
           </span>
         </div>
-        <Table>
-          <THead>
-            <Th className="min-w-[220px]">Сотрудник</Th>
-            <Th className="w-[140px]">Расстояние</Th>
-            <Th className="w-[180px]">Координаты</Th>
-            <Th className="w-[150px]">Точка от</Th>
-            <Th className="w-[120px]">Заряд</Th>
-            <Th className="w-[140px]">Трек</Th>
-          </THead>
-          <TBody>
-            {nearby.isLoading &&
-              Array.from({ length: 3 }).map((_, row) => (
-                <Tr key={row}>
-                  {Array.from({ length: 6 }).map((__, cell) => (
-                    <Td key={cell}>
-                      <span className="block h-4 w-full animate-pulse rounded-md bg-neutral-200" />
-                    </Td>
-                  ))}
-                </Tr>
-              ))}
-
-            {!nearby.isLoading &&
-              employeesList.map((employee) => (
-                <Tr key={employee.userId} testId={`map-employee-row-${employee.userId}`}>
-                  <Td>
-                    <span className="text-neutral-800">
-                      {employeeNames.get(employee.userId) ?? 'Сотрудник'}
-                    </span>
-                    <div className="font-mono text-xs text-neutral-400">
-                      {shortId(employee.userId)}
-                    </div>
-                  </Td>
-                  <Td mono>{formatDistance(employee.distanceMeters)}</Td>
-                  <Td mono>
-                    {formatCoordinate(employee.lat)}, {formatCoordinate(employee.lng)}
-                  </Td>
-                  <Td mono>{formatDateTime(employee.timestamp)}</Td>
-                  <Td mono>
-                    {employee.batteryLevel === null ? '—' : `${employee.batteryLevel} %`}
-                  </Td>
-                  <Td>
-                    <Button
-                      variant={trackUserId === employee.userId ? 'secondary' : 'ghost'}
-                      size="sm"
-                      data-testid={`map-track-${employee.userId}`}
-                      loading={track.isPending && trackUserId === employee.userId}
-                      onClick={() => toggleTrack(employee)}
-                    >
-                      {trackUserId === employee.userId ? 'Скрыть' : 'Показать'}
-                    </Button>
-                  </Td>
-                </Tr>
-              ))}
-
-            {!nearby.isLoading && employeesList.length === 0 && (
-              <TableMessageRow colSpan={6}>
-                {nearby.isError
-                  ? 'Не удалось получить список сотрудников'
-                  : 'В радиусе поиска нет сотрудников со свежими точками'}
-              </TableMessageRow>
-            )}
-          </TBody>
-        </Table>
+        <ResponsiveTable<NearbyEmployee>
+          items={employeesList}
+          getKey={(employee) => employee.userId}
+          columns={employeeColumns}
+          // Второй список на странице: свой контейнерный хук, чтобы канонический
+          // `card-list`/`responsive-table` остался в DOM ровно один (иначе строгий
+          // селектор проверки «таблица скрыта, карточки видны» падал бы на двух
+          // совпадениях).
+          testId="map-employees-list"
+          loading={nearby.isLoading}
+          skeletonRows={3}
+          empty={
+            nearby.isError
+              ? 'Не удалось получить список сотрудников'
+              : 'В радиусе поиска нет сотрудников со свежими точками'
+          }
+        />
       </Card>
 
       {trackUserId && (

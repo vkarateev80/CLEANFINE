@@ -7,7 +7,11 @@ import { ErrorBanner } from '../../components/ui/Feedback';
 import { Field, Input } from '../../components/ui/Input';
 import { ConfirmDialog, Modal } from '../../components/ui/Modal';
 import { Pagination } from '../../components/ui/Pagination';
-import { TBody, Table, TableMessageRow, Td, Th, THead, Tr } from '../../components/ui/Table';
+import {
+  ResponsiveTable,
+  TableOnlyTestId,
+  type ResponsiveColumn,
+} from '../../components/ui';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
 import { ROUTES } from '../../router/routes';
@@ -29,6 +33,14 @@ import { formatDateTime, operationsLabel, roomsLabel } from './techCardHelpers';
  * обязательные элементы: поиск, метрики, создание, переименование, удаление.
  */
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
+
+/**
+ * Оболочка «пусто»: в таблице текст и отступы задаёт `TableMessageRow`, в
+ * карточном режиме узел выводится отдельным блоком — без рамки он выглядел бы
+ * «оторванным». Все классы — `max-md:`, планшет и desktop не меняются.
+ */
+const PHONE_EMPTY_SHELL =
+  'flex flex-col items-center gap-3 max-md:rounded-xl max-md:border max-md:border-dashed max-md:border-neutral-300 max-md:bg-white max-md:px-4 max-md:py-8';
 
 type DialogKind = 'create' | 'rename' | 'delete';
 
@@ -106,6 +118,94 @@ export function TechCardsPage() {
 
   const busy = createCard.isPending || renameCard.isPending || deleteCard.isPending;
 
+  /**
+   * Колонки списка описаны один раз (ADR-002): на `md+` — прежняя таблица, на
+   * телефоне — карточка. В карточке название становится заголовком, счётчики и
+   * дата — строками «подпись — значение», действия уезжают в шапку карточки.
+   */
+  const columns: ResponsiveColumn<TechCardListItem>[] = [
+    {
+      key: 'name',
+      header: 'Название',
+      // Прежний `data-testid` строки (`techcard-row-<id>`) ставит `TableOnlyTestId`
+      // в табличном представлении: примитив держит в DOM и карточки, а дубль id
+      // ловится строгим режимом Playwright (см. `components/ui/TableOnlyTestId.tsx`).
+      cell: (card) => (
+        <TableOnlyTestId id={`techcard-row-${card.id}`}>
+          <span className="font-medium text-neutral-900">{card.name}</span>
+        </TableOnlyTestId>
+      ),
+      card: 'title',
+    },
+    {
+      key: 'operations',
+      header: 'Операций',
+      align: 'right',
+      mono: true,
+      cell: (card) => card._count.operations,
+      card: 'field',
+      cardLabel: 'Операций',
+    },
+    {
+      key: 'rooms',
+      header: 'Помещений',
+      align: 'right',
+      mono: true,
+      cell: (card) => card._count.rooms,
+      card: 'field',
+      cardLabel: 'Помещений',
+    },
+    {
+      key: 'created',
+      header: 'Создана',
+      cell: (card) => (
+        <span className="text-xs text-neutral-500">{formatDateTime(card.createdAt)}</span>
+      ),
+      card: 'field',
+      cardLabel: 'Создана',
+    },
+    {
+      key: 'actions',
+      header: 'Действия',
+      align: 'right',
+      cell: (card) => (
+        // В карточке две текстовые кнопки в строку отбирали бы у названия почти
+        // всю ширину 360 px, поэтому на телефоне они встают столбиком.
+        <span className="flex justify-end gap-2 max-md:flex-col max-md:items-stretch">
+          {canEdit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="max-md:px-2 max-md:text-xs"
+              aria-label={`Переименовать «${card.name}»`}
+              onClick={(event) => {
+                event.stopPropagation();
+                openDialog('rename', card);
+              }}
+            >
+              Переименовать
+            </Button>
+          )}
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-danger-600 max-md:px-2 max-md:text-xs"
+              aria-label={`Удалить «${card.name}»`}
+              onClick={(event) => {
+                event.stopPropagation();
+                openDialog('delete', card);
+              }}
+            >
+              Удалить
+            </Button>
+          )}
+        </span>
+      ),
+      card: 'actions',
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -117,7 +217,11 @@ export function TechCardsPage() {
         }
         actions={
           canEdit ? (
-            <Button data-testid="techcard-create-button" onClick={() => openDialog('create')}>
+            <Button
+              data-testid="techcard-create-button"
+              className="max-md:w-full max-lg:min-h-[44px]"
+              onClick={() => openDialog('create')}
+            >
               + Новая техкарта
             </Button>
           ) : undefined
@@ -135,13 +239,18 @@ export function TechCardsPage() {
 
       <Card padded={false} className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 px-4 py-3">
-          <label className="flex items-center gap-2 text-sm text-neutral-500" htmlFor="techcards-search">
+          {/* `w-72` (288 px) на 360 px шире доступного места: на телефоне поле
+              растягивается на всю строку. */}
+          <label
+            className="flex items-center gap-2 text-sm text-neutral-500 max-md:w-full"
+            htmlFor="techcards-search"
+          >
             <span className="sr-only">Поиск техкарты</span>
             <Input
               id="techcards-search"
               data-testid="techcards-search"
               type="search"
-              className="w-72"
+              className="w-72 max-md:w-full"
               placeholder="Поиск техкарты"
               value={search}
               onChange={(event) => {
@@ -157,105 +266,36 @@ export function TechCardsPage() {
           </span>
         </div>
 
-        <Table>
-          <THead>
-            <Th>Название</Th>
-            <Th align="right">Операций</Th>
-            <Th align="right">Помещений</Th>
-            <Th>Создана</Th>
-            <Th align="right">Действия</Th>
-          </THead>
-          <TBody>
-            {isLoading &&
-              Array.from({ length: 5 }).map((_, index) => (
-                <tr key={`skeleton-${index}`} className="border-b border-neutral-200 last:border-b-0">
-                  {Array.from({ length: 5 }).map((__, cell) => (
-                    <td key={cell} className="px-4 py-3">
-                      <span className="block h-4 w-full animate-pulse rounded-md bg-neutral-200" />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-
-            {!isLoading && items.length === 0 && (
-              <TableMessageRow colSpan={5}>
-                {trimmedSearch ? (
-                  <span className="flex flex-col items-center gap-3">
-                    Ничего не найдено
-                    <Button variant="secondary" size="sm" onClick={() => setSearch('')}>
-                      Сбросить поиск
-                    </Button>
-                  </span>
-                ) : (
-                  <span className="flex flex-col items-center gap-3">
-                    Техкарт пока нет
-                    {canEdit && (
-                      <Button
-                        size="sm"
-                        data-testid="techcard-create-button"
-                        onClick={() => openDialog('create')}
-                      >
-                        Создать техкарту
-                      </Button>
-                    )}
-                  </span>
+        <ResponsiveTable
+          items={items}
+          getKey={(card) => card.id}
+          onRowClick={(card) => navigate(ROUTES.techCard(card.id))}
+          loading={isLoading}
+          empty={
+            trimmedSearch ? (
+              <span className={PHONE_EMPTY_SHELL}>
+                Ничего не найдено
+                <Button variant="secondary" size="sm" onClick={() => setSearch('')}>
+                  Сбросить поиск
+                </Button>
+              </span>
+            ) : (
+              <span className={PHONE_EMPTY_SHELL}>
+                Техкарт пока нет
+                {canEdit && (
+                  <Button
+                    size="sm"
+                    data-testid="techcard-create-button"
+                    onClick={() => openDialog('create')}
+                  >
+                    Создать техкарту
+                  </Button>
                 )}
-              </TableMessageRow>
-            )}
-
-            {items.map((card) => (
-              <Tr
-                key={card.id}
-                data-testid={`techcard-row-${card.id}`}
-                onClick={() => navigate(ROUTES.techCard(card.id))}
-              >
-                <Td>
-                  <span className="font-medium text-neutral-900">{card.name}</span>
-                </Td>
-                <Td align="right" mono>
-                  {card._count.operations}
-                </Td>
-                <Td align="right" mono>
-                  {card._count.rooms}
-                </Td>
-                <Td>
-                  <span className="text-xs text-neutral-500">{formatDateTime(card.createdAt)}</span>
-                </Td>
-                <Td align="right">
-                  <span className="flex justify-end gap-2">
-                    {canEdit && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Переименовать «${card.name}»`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openDialog('rename', card);
-                        }}
-                      >
-                        Переименовать
-                      </Button>
-                    )}
-                    {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-danger-600"
-                        aria-label={`Удалить «${card.name}»`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openDialog('delete', card);
-                        }}
-                      >
-                        Удалить
-                      </Button>
-                    )}
-                  </span>
-                </Td>
-              </Tr>
-            ))}
-          </TBody>
-        </Table>
+              </span>
+            )
+          }
+          columns={columns}
+        />
 
         <Pagination
           total={total}

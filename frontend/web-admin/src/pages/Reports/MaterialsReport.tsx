@@ -3,13 +3,11 @@ import {
   Card,
   EmptyState,
   LoadingBlock,
-  Table,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  ResponsiveTable,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
+import type { ConsumptionReportRow } from '../../types/reports';
 import { ConsumptionDailyChart } from './ReportCharts';
 import { ReportFeedback, Metric } from './ReportFeedback';
 import {
@@ -21,6 +19,13 @@ import {
   objectLabel,
 } from './reportsHelpers';
 import { useConsumptionByObject, useConsumptionReport } from './useReports';
+
+/** Строка отчёта; `{ total: true }` — итоговая строка, она идёт через тот же список. */
+type ConsumptionItem = ConsumptionReportRow | { readonly total: true };
+
+function isTotal(item: ConsumptionItem): item is { readonly total: true } {
+  return 'total' in item;
+}
 
 /** Вкладка «Расход материалов»: разрез «объект + материал», ряд по дням и экспорт CSV. */
 export function MaterialsReport({
@@ -58,6 +63,116 @@ export function MaterialsReport({
     );
   }
 
+  /**
+   * Колонки разреза «объект + материал». Итоговая строка — такой же элемент
+   * списка (см. комментарий у `<ResponsiveTable>`): примитив берёт плоские
+   * списки, поэтому «Итого» передаётся последним элементом.
+   */
+  const columns: ResponsiveColumn<ConsumptionItem>[] = [
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'min-w-[200px]',
+      card: 'field',
+      cardLabel: 'Объект',
+      cell: (item) => (isTotal(item) ? null : objectLabel(item.objectId, objectNames)),
+    },
+    {
+      key: 'material',
+      header: 'Материал',
+      thClassName: 'min-w-[200px]',
+      card: 'title',
+      cell: (item) =>
+        isTotal(item) ? (
+          'Итого'
+        ) : (
+          /* Хук строки остаётся в таблице: примитив держит в DOM и карточки — дубль
+             id ломал бы строгие селекторы (см. `TableOnlyTestId` в UI-ките). */
+          <TableOnlyTestId id={`report-row-${item.materialId}`}>{item.name}</TableOnlyTestId>
+        ),
+    },
+    {
+      key: 'unit',
+      header: 'Единица',
+      thClassName: 'w-[90px]',
+      card: 'field',
+      cardLabel: 'Единица',
+      cell: (item) => (isTotal(item) ? null : item.unit),
+    },
+    {
+      key: 'consumed',
+      header: 'Расход',
+      thClassName: 'w-[130px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Расход',
+      cell: (item) =>
+        formatNumber(isTotal(item) ? (totals?.consumedQuantity ?? 0) : item.consumedQuantity),
+    },
+    {
+      key: 'operations',
+      header: 'Операций',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Операций',
+      cell: (item) => (isTotal(item) ? (totals?.operationsCount ?? 0) : item.operationsCount),
+    },
+    {
+      key: 'cost',
+      header: 'Стоимость, ₽',
+      thClassName: 'w-[150px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Стоимость, ₽',
+      cell: (item) =>
+        isTotal(item) ? (
+          <TableOnlyTestId id="report-total-cost-row">
+            {formatMoney(totals?.cost ?? 0)}
+          </TableOnlyTestId>
+        ) : (
+          formatMoney(item.cost)
+        ),
+    },
+  ];
+
+  /** Колонки второй таблицы: итоги по объектам за всё время. */
+  const byObjectColumns: ResponsiveColumn<ConsumptionReportRow>[] = [
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'min-w-[220px]',
+      card: 'field',
+      cardLabel: 'Объект',
+      cell: (row) => objectLabel(row.objectId, objectNames),
+    },
+    {
+      key: 'material',
+      header: 'Материал',
+      thClassName: 'min-w-[200px]',
+      card: 'title',
+      cell: (row) => row.name,
+    },
+    {
+      key: 'consumed',
+      header: 'Расход',
+      thClassName: 'w-[130px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Расход',
+      cell: (row) => formatNumber(row.consumedQuantity),
+    },
+    {
+      key: 'cost',
+      header: 'Стоимость, ₽',
+      thClassName: 'w-[150px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Стоимость, ₽',
+      cell: (row) => formatMoney(row.cost),
+    },
+  ];
+
   return (
     <>
       <ReportFeedback
@@ -79,7 +194,7 @@ export function MaterialsReport({
               value={`${formatMoney(totals?.cost ?? 0)} ₽`}
               testId="report-total-cost"
             />
-            <div className="ml-auto">
+            <div className="ml-auto max-md:ml-0">
               <Button
                 variant="secondary"
                 size="sm"
@@ -108,59 +223,12 @@ export function MaterialsReport({
                   </h2>
                   <span className="text-xs text-neutral-400">источник: material-service</span>
                 </div>
-                <Table>
-                  <THead>
-                    <Th className="min-w-[200px]">Объект</Th>
-                    <Th className="min-w-[200px]">Материал</Th>
-                    <Th className="w-[90px]">Единица</Th>
-                    <Th className="w-[130px]" align="right">
-                      Расход
-                    </Th>
-                    <Th className="w-[120px]" align="right">
-                      Операций
-                    </Th>
-                    <Th className="w-[150px]" align="right">
-                      Стоимость, ₽
-                    </Th>
-                  </THead>
-                  <TBody>
-                    {rows.map((row) => (
-                      <Tr
-                        key={`${row.objectId}-${row.materialId}`}
-                        testId={`report-row-${row.materialId}`}
-                      >
-                        <Td>{objectLabel(row.objectId, objectNames)}</Td>
-                        <Td>{row.name}</Td>
-                        <Td>{row.unit}</Td>
-                        <Td mono align="right">
-                          {formatNumber(row.consumedQuantity)}
-                        </Td>
-                        <Td mono align="right">
-                          {row.operationsCount}
-                        </Td>
-                        <Td mono align="right">
-                          {formatMoney(row.cost)}
-                        </Td>
-                      </Tr>
-                    ))}
-                    <Tr className="bg-neutral-50 font-medium">
-                      <Td>Итого</Td>
-                      <Td />
-                      <Td />
-                      <Td mono align="right">
-                        {formatNumber(totals?.consumedQuantity ?? 0)}
-                      </Td>
-                      <Td mono align="right">
-                        {totals?.operationsCount ?? 0}
-                      </Td>
-                      <Td mono align="right">
-                        <span data-testid="report-total-cost-row">
-                          {formatMoney(totals?.cost ?? 0)}
-                        </span>
-                      </Td>
-                    </Tr>
-                  </TBody>
-                </Table>
+                <ResponsiveTable<ConsumptionItem>
+                  items={[...rows, { total: true }]}
+                  getKey={(item) => (isTotal(item) ? '__total' : `${item.objectId}-${item.materialId}`)}
+                  columns={columns}
+                  rowClassName={(item) => (isTotal(item) ? 'bg-neutral-50 font-medium' : '')}
+                />
               </Card>
 
               <Card padded={false} testId="report-by-object">
@@ -172,32 +240,14 @@ export function MaterialsReport({
                     read-модель report_material_consumption без периода
                   </span>
                 </div>
-                <Table>
-                  <THead>
-                    <Th className="min-w-[220px]">Объект</Th>
-                    <Th className="min-w-[200px]">Материал</Th>
-                    <Th className="w-[130px]" align="right">
-                      Расход
-                    </Th>
-                    <Th className="w-[150px]" align="right">
-                      Стоимость, ₽
-                    </Th>
-                  </THead>
-                  <TBody>
-                    {(byObject.data?.rows ?? []).slice(0, 20).map((row) => (
-                      <Tr key={`all-${row.objectId}-${row.materialId}`}>
-                        <Td>{objectLabel(row.objectId, objectNames)}</Td>
-                        <Td>{row.name}</Td>
-                        <Td mono align="right">
-                          {formatNumber(row.consumedQuantity)}
-                        </Td>
-                        <Td mono align="right">
-                          {formatMoney(row.cost)}
-                        </Td>
-                      </Tr>
-                    ))}
-                  </TBody>
-                </Table>
+                <ResponsiveTable<ConsumptionReportRow>
+                  items={(byObject.data?.rows ?? []).slice(0, 20)}
+                  getKey={(row) => `all-${row.objectId}-${row.materialId}`}
+                  columns={byObjectColumns}
+                  // Второй список на странице: свой контейнерный хук, чтобы
+                  // канонический `card-list` остался однозначным (см. MapPage).
+                  testId="report-by-object-list"
+                />
               </Card>
             </>
           )}

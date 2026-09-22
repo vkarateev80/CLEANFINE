@@ -30,7 +30,13 @@ export function Pagination({ total, skip, take, onChange, disabled }: Pagination
         {from}–{to} из {total}
       </span>
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/* `max-md:flex-wrap`, а не безусловный `flex-wrap`: в узкой десктопной панели
+          (левая колонка каскада маршрутов `lg:grid-cols-[22rem_…]` = 352 px, ширина
+          самой пагинации на стенде — 318 px) перенос выбрасывал «Назад/Вперёд» на
+          вторую строку, и пагинация росла с 87 до 131 px — видимое изменение desktop,
+          запрещённое критерием приёмки. На телефоне перенос нужен: счётчик и
+          «На странице» не должны выдавливать кнопки за экран. */}
+      <div className="flex items-center gap-3 max-md:flex-wrap">
         <label className="flex items-center gap-2 text-xs">
           На странице
           <Select

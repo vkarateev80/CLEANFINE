@@ -24,14 +24,10 @@ import {
   Modal,
   ObjectStatusBadge,
   PageHeader,
+  ResponsiveTable,
   RouteStatusBadge,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
 import { ChatPanel } from '../Messages/ChatPanel';
@@ -42,6 +38,8 @@ import type {
   CreateObjectPayload,
   FloorEntity,
   ObjectDetail,
+  RoomEntity,
+  RouteWithPoints,
 } from '../../types/core';
 import { OBJECT_ALLOWED_TRANSITIONS, type ObjectStatus } from '../../types/status';
 import { ActionMenu, type ActionMenuItem } from './ActionMenu';
@@ -62,6 +60,14 @@ import {
 
 /** Лимит API на выдачу списка пользователей (`take <= 100`). */
 const CLIENT_ACCOUNTS_TAKE = 100;
+
+/**
+ * Пустое состояние вложенной таблицы: в таблице текст рисует `TableMessageRow`,
+ * а в карточном режиме строка выводится как есть — без рамки она выглядела бы
+ * «оторванной». Классы только `max-md:`, планшет и desktop не затрагиваются.
+ */
+const PHONE_EMPTY =
+  'max-md:block max-md:rounded-xl max-md:border max-md:border-dashed max-md:border-neutral-300 max-md:bg-white max-md:px-4 max-md:py-8 max-md:text-center max-md:text-sm max-md:text-neutral-400';
 
 type DetailTab = 'floors' | 'rooms' | 'routes';
 
@@ -331,9 +337,12 @@ export function ObjectDetailPage() {
   }, 0);
 
   const headerActions = (
-    <>
+    // На телефоне три кнопки в строку не помещаются и сжимались бы ниже тач-таргета:
+    // действия уезжают второй строкой шапки (`PageHeader` уже переносит блок) и
+    // растягиваются на всю ширину. На `md+` это прежний ряд с тем же `gap-3`.
+    <div className="flex flex-wrap items-center gap-3 max-md:w-full max-md:flex-col max-md:items-stretch">
       {canEdit && (
-        <Button variant="secondary" onClick={openObject}>
+        <Button variant="secondary" className="max-lg:min-h-[44px]" onClick={openObject}>
           Редактировать
         </Button>
       )}
@@ -341,6 +350,7 @@ export function ObjectDetailPage() {
         <Button
           variant="primary"
           data-testid="floor-create-button"
+          className="max-lg:min-h-[44px]"
           disabled={archived}
           onClick={() => openFloor()}
         >
@@ -350,6 +360,7 @@ export function ObjectDetailPage() {
       {canEdit && OBJECT_ALLOWED_TRANSITIONS[detail.status].includes('ARCHIVED') && (
         <Button
           variant="danger"
+          className="max-lg:min-h-[44px]"
           disabled={archived}
           onClick={() => {
             archiveMutation.reset();
@@ -359,7 +370,7 @@ export function ObjectDetailPage() {
           В архив
         </Button>
       )}
-    </>
+    </div>
   );
 
   function floorItems(floor: FloorEntity): ActionMenuItem[] {
@@ -388,6 +399,218 @@ export function ObjectDetailPage() {
 
   const planFloor = modal?.kind === 'plan' ? modal.floor : undefined;
   const deleteFloorTarget = modal?.kind === 'deleteFloor' ? modal.floor : undefined;
+
+  /**
+   * Три вложенные таблицы (этажи, помещения, маршруты) описаны один раз и
+   * переключаются на карточки на телефоне (ADR-002). Роли в карточке: `title` —
+   * имя сущности, `subtitle` — контекст (этаж), `badge` — статус, `field` —
+   * строки «подпись — значение», `actions` — меню действий. Ширины `thClassName`
+   * перенесены из прежних `<Th>` — на `md+` таблицы остались прежними.
+   */
+  const floorColumns: ResponsiveColumn<FloorEntity>[] = [
+    {
+      key: 'number',
+      header: '№',
+      thClassName: 'w-[70px]',
+      mono: true,
+      cell: (floor) => formatInteger(floor.number),
+      card: 'field',
+      cardLabel: '№',
+    },
+    {
+      key: 'name',
+      header: 'Название',
+      thClassName: 'min-w-[180px]',
+      cell: (floor) => (
+        <TableOnlyTestId id={`floor-row-${floor.id}`}>{floor.name}</TableOnlyTestId>
+      ),
+      cellClassName: 'text-sm font-medium text-neutral-900',
+      card: 'title',
+    },
+    {
+      key: 'plan',
+      header: 'План',
+      thClassName: 'min-w-[160px]',
+      cell: (floor) =>
+        floor.planImageUrl ? (
+          <div className="flex items-center gap-2">
+            <img
+              src={floor.planImageUrl}
+              alt={`План этажа: ${floor.name}`}
+              className="h-10 w-16 rounded-md border border-neutral-200 object-cover"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!canEdit || archived}
+              onClick={(event) => {
+                event.stopPropagation();
+                openPlan(floor);
+              }}
+            >
+              Заменить
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!canEdit || archived}
+              onClick={(event) => {
+                event.stopPropagation();
+                openPlan(floor);
+              }}
+            >
+              Загрузить план
+            </Button>
+            <span className="text-xs text-warning-600">План не загружен</span>
+          </div>
+        ),
+      card: 'field',
+      cardLabel: 'План',
+    },
+    {
+      key: 'scale',
+      header: 'Масштаб',
+      thClassName: 'w-[110px]',
+      mono: true,
+      cell: (floor) => (floor.planScale === null ? '—' : formatScale(floor.planScale)),
+      card: 'field',
+      cardLabel: 'Масштаб',
+    },
+    {
+      key: 'rooms',
+      header: 'Помещений',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      mono: true,
+      cell: (floor) => {
+        const roomsCount = floorRooms(floor).length;
+        return (
+          <span className={roomsCount === 0 ? 'text-neutral-400' : undefined}>
+            {formatInteger(roomsCount)}
+          </span>
+        );
+      },
+      card: 'field',
+      cardLabel: 'Помещений',
+    },
+    {
+      key: 'routes',
+      header: 'Маршрутов',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      mono: true,
+      cell: (floor) => formatInteger(floorRoutes(floor).length),
+      card: 'field',
+      cardLabel: 'Маршрутов',
+    },
+    {
+      key: 'actions',
+      header: ' ',
+      thClassName: 'w-[56px]',
+      cell: (floor) => (
+        <div onClick={(event) => event.stopPropagation()}>
+          <ActionMenu label={`Действия: ${floor.name}`} items={floorItems(floor)} />
+        </div>
+      ),
+      cellClassName: 'text-right',
+      card: 'actions',
+    },
+  ];
+
+  const roomColumns: ResponsiveColumn<{ floor: FloorEntity; room: RoomEntity }>[] = [
+    {
+      key: 'name',
+      header: 'Помещение',
+      thClassName: 'min-w-[220px]',
+      cell: ({ room }) => room.name,
+      cellClassName: 'text-sm font-medium text-neutral-900',
+      card: 'title',
+    },
+    {
+      key: 'floor',
+      header: 'Этаж',
+      thClassName: 'min-w-[180px]',
+      cell: ({ floor }) => floor.name,
+      card: 'subtitle',
+    },
+    {
+      key: 'area',
+      header: 'Площадь, м²',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      mono: true,
+      cell: ({ room }) => formatNumber(room.areaM2, 2),
+      card: 'field',
+      cardLabel: 'Площадь, м²',
+    },
+    {
+      key: 'floorType',
+      header: 'Тип',
+      thClassName: 'w-[140px]',
+      cell: ({ room }) => room.floorType,
+      card: 'field',
+      cardLabel: 'Тип',
+    },
+    {
+      key: 'zone',
+      header: 'Зона',
+      thClassName: 'w-[160px]',
+      cell: ({ room }) => room.zone ?? '—',
+      card: 'field',
+      cardLabel: 'Зона',
+    },
+    {
+      key: 'techCard',
+      header: 'Техкарта',
+      thClassName: 'w-[160px]',
+      cell: ({ room }) =>
+        room.techCardId ? <span className="font-mono text-xs">{room.techCardId}</span> : '—',
+      card: 'field',
+      cardLabel: 'Техкарта',
+    },
+  ];
+
+  const routeColumns: ResponsiveColumn<{ floor: FloorEntity; route: RouteWithPoints }>[] = [
+    {
+      key: 'name',
+      header: 'Маршрут',
+      thClassName: 'min-w-[220px]',
+      cell: ({ floor, route }) => (
+        <Link className="hover:text-primary-600" to={`${ROUTES.routes}?floorId=${floor.id}`}>
+          {route.name}
+        </Link>
+      ),
+      cellClassName: 'text-sm font-medium text-neutral-900',
+      card: 'title',
+    },
+    {
+      key: 'floor',
+      header: 'Этаж',
+      thClassName: 'w-[140px]',
+      cell: ({ floor }) => floor.name,
+      card: 'subtitle',
+    },
+    {
+      key: 'status',
+      header: 'Статус',
+      thClassName: 'w-[140px]',
+      cell: ({ route }) => <RouteStatusBadge status={route.status} />,
+      card: 'badge',
+    },
+    {
+      key: 'points',
+      header: 'Точек',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      mono: true,
+      cell: ({ route }) => formatInteger(route.points.length),
+      card: 'field',
+      cardLabel: 'Точек',
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -483,7 +706,12 @@ export function ObjectDetailPage() {
         )}
       </Card>
 
-      <div className="flex gap-6 border-b border-neutral-200 text-sm">
+      {/*
+        Полоса вкладок: три подписи на 360 px не влезают в строку. На телефоне
+        она становится собственным контейнером со скроллом (страница по
+        горизонтали при этом не скроллится), на планшете и desktop — прежняя.
+      */}
+      <div className="flex gap-6 border-b border-neutral-200 text-sm max-md:gap-4 max-md:overflow-x-auto">
         <TabButton active={tab === 'floors'} onClick={() => setTab('floors')}>
           Этажи
         </TabButton>
@@ -514,93 +742,18 @@ export function ObjectDetailPage() {
             />
           ) : (
             <Card padded={false}>
-              <Table>
-                <THead>
-                  <Th className="w-[70px]">№</Th>
-                  <Th className="min-w-[180px]">Название</Th>
-                  <Th className="min-w-[160px]">План</Th>
-                  <Th className="w-[110px]">Масштаб</Th>
-                  <Th align="right" className="w-[120px]">
-                    Помещений
-                  </Th>
-                  <Th align="right" className="w-[120px]">
-                    Маршрутов
-                  </Th>
-                  <Th className="w-[56px]"> </Th>
-                </THead>
-                <TBody>
-                  {floors.map((floor) => {
-                    const roomsCount = floorRooms(floor).length;
-                    const routesCount = floorRoutes(floor).length;
-                    return (
-                      <Tr
-                        key={floor.id}
-                        onClick={() => navigate(ROUTES.floorPlan(id, floor.id))}
-                        className={planMutation.isPending && planFloor?.id === floor.id ? 'opacity-60' : ''}
-                      >
-                        <Td mono>{formatInteger(floor.number)}</Td>
-                        <Td className="text-sm font-medium text-neutral-900">
-                          <span data-testid={`floor-row-${floor.id}`}>{floor.name}</span>
-                        </Td>
-                        <Td>
-                          {floor.planImageUrl ? (
-                            <div className="flex items-center gap-2">
-                              <img
-                                src={floor.planImageUrl}
-                                alt={`План этажа: ${floor.name}`}
-                                className="h-10 w-16 rounded-md border border-neutral-200 object-cover"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={!canEdit || archived}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openPlan(floor);
-                                }}
-                              >
-                                Заменить
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={!canEdit || archived}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openPlan(floor);
-                                }}
-                              >
-                                Загрузить план
-                              </Button>
-                              <span className="text-xs text-warning-600">План не загружен</span>
-                            </div>
-                          )}
-                        </Td>
-                        <Td mono>{floor.planScale === null ? '—' : formatScale(floor.planScale)}</Td>
-                        <Td align="right" mono>
-                          <span className={roomsCount === 0 ? 'text-neutral-400' : undefined}>
-                            {formatInteger(roomsCount)}
-                          </span>
-                        </Td>
-                        <Td align="right" mono>
-                          {formatInteger(routesCount)}
-                        </Td>
-                        <Td className="text-right">
-                          <div onClick={(event) => event.stopPropagation()}>
-                            <ActionMenu
-                              label={`Действия: ${floor.name}`}
-                              items={floorItems(floor)}
-                            />
-                          </div>
-                        </Td>
-                      </Tr>
-                    );
-                  })}
-                </TBody>
-              </Table>
+              {/* `floor-row-<id>` e2e читает из `data-testid` и по нему открывает план:
+                  прежний селектор ставит `TableOnlyTestId` в ячейке названия этажа —
+                  в DOM он ровно один (примитив держит таблицу и карточки сразу). */}
+              <ResponsiveTable
+                items={floors}
+                getKey={(floor) => floor.id}
+                rowClassName={(floor) =>
+                  planMutation.isPending && planFloor?.id === floor.id ? 'opacity-60' : ''
+                }
+                onRowClick={(floor) => navigate(ROUTES.floorPlan(id, floor.id))}
+                columns={floorColumns}
+              />
             </Card>
           )}
         </div>
@@ -608,72 +761,25 @@ export function ObjectDetailPage() {
 
       {tab === 'rooms' && (
         <Card padded={false}>
-          <Table>
-            <THead>
-              <Th className="min-w-[180px]">Этаж</Th>
-              <Th className="min-w-[220px]">Помещение</Th>
-              <Th align="right" className="w-[120px]">Площадь, м²</Th>
-              <Th className="w-[140px]">Тип</Th>
-              <Th className="w-[160px]">Зона</Th>
-              <Th className="w-[160px]">Техкарта</Th>
-            </THead>
-            <TBody>
-              {allRooms.length === 0 ? (
-                <TableMessageRow colSpan={6}>Помещения не заведены</TableMessageRow>
-              ) : (
-                allRooms.map(({ floor, room }) => (
-                  <Tr key={room.id}>
-                    <Td>{floor.name}</Td>
-                    <Td className="text-sm font-medium text-neutral-900">{room.name}</Td>
-                    <Td align="right" mono>
-                      {formatNumber(room.areaM2, 2)}
-                    </Td>
-                    <Td>{room.floorType}</Td>
-                    <Td>{room.zone ?? '—'}</Td>
-                    <Td>{room.techCardId ? <span className="font-mono text-xs">{room.techCardId}</span> : '—'}</Td>
-                  </Tr>
-                ))
-              )}
-            </TBody>
-          </Table>
+          {/* Плоский список помещений всех этажей: на телефоне — карточки в одну
+              колонку, «этаж» становится подзаголовком карточки. */}
+          <ResponsiveTable
+            items={allRooms}
+            getKey={({ room }) => room.id}
+            columns={roomColumns}
+            empty={<span className={PHONE_EMPTY}>Помещения не заведены</span>}
+          />
         </Card>
       )}
 
       {tab === 'routes' && (
         <Card padded={false}>
-          <Table>
-            <THead>
-              <Th className="min-w-[220px]">Маршрут</Th>
-              <Th className="w-[140px]">Этаж</Th>
-              <Th className="w-[140px]">Статус</Th>
-              <Th align="right" className="w-[120px]">Точек</Th>
-            </THead>
-            <TBody>
-              {allRoutes.length === 0 ? (
-                <TableMessageRow colSpan={4}>Маршруты не заведены</TableMessageRow>
-              ) : (
-                allRoutes.map(({ floor, route }) => (
-                  <Tr key={route.id}>
-                    <Td className="text-sm font-medium text-neutral-900">
-                      <Link
-                        className="hover:text-primary-600"
-                        to={`${ROUTES.routes}?floorId=${floor.id}`}
-                      >
-                        {route.name}
-                      </Link>
-                    </Td>
-                    <Td>{floor.name}</Td>
-                    <Td>
-                      <RouteStatusBadge status={route.status} />
-                    </Td>
-                    <Td align="right" mono>
-                      {formatInteger(route.points.length)}
-                    </Td>
-                  </Tr>
-                ))
-              )}
-            </TBody>
-          </Table>
+          <ResponsiveTable
+            items={allRoutes}
+            getKey={({ route }) => route.id}
+            columns={routeColumns}
+            empty={<span className={PHONE_EMPTY}>Маршруты не заведены</span>}
+          />
         </Card>
       )}
 
@@ -834,6 +940,9 @@ function TabButton({
       onClick={onClick}
       className={[
         '-mb-px border-b-2 px-1 pb-2',
+        // Вкладка — тач-таргет (≥44 px) на телефоне и планшете; на телефоне она
+        // ещё и не сжимается в полосе со скроллом, иначе подписи наезжали бы.
+        'max-lg:min-h-[44px] max-lg:px-2 max-md:shrink-0 max-md:whitespace-nowrap',
         active
           ? 'border-primary-600 text-primary-700'
           : 'border-transparent text-neutral-500 hover:text-neutral-800',

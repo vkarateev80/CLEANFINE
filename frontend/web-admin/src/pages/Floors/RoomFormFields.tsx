@@ -80,7 +80,10 @@ export function RoomFormFields({
         />
       </Field>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* На телефоне (<768 px) форма одноколоночная: `sm:grid-cols-2` включается
+          уже с 640 px, то есть внутри телефонного диапазона, и в fullscreen-модалке
+          на 640–767 px давал бы два узких поля вместо одного нормального. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-md:grid-cols-1">
         <Field
           label="Площадь, м²"
           htmlFor={`${idPrefix}-area`}
@@ -155,7 +158,10 @@ export function RoomFormFields({
 
       <fieldset className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3" disabled={disabled}>
         <legend className="px-1 text-sm text-neutral-500">Координаты, px</legend>
-        <div className="grid grid-cols-4 gap-2">
+        {/* Четыре координаты в строку (desktop/планшет). На телефоне — по две в
+            ряд: поле x/y/ширина/высота в 60 px шириной нечитаемо, а именно эта
+            форма на телефоне и есть основной путь создания помещения. */}
+        <div className="grid grid-cols-4 gap-2 max-md:grid-cols-2">
           {COORD_FIELDS.map((field) => (
             <Field
               key={field.key}

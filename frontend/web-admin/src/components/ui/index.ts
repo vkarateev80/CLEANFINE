@@ -13,3 +13,4 @@ export * from './Pagination';
 export * from './ResponsiveTable';
 export * from './SortableList';
 export * from './Table';
+export * from './TableOnlyTestId';

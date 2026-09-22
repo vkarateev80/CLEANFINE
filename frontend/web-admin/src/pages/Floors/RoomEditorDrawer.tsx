@@ -30,7 +30,15 @@ interface RoomEditorDrawerProps {
   onClose: () => void;
 }
 
-/** Карточка помещения (drawer справа): план остаётся видимым и доступным. */
+/**
+ * Карточка помещения (drawer справа): план остаётся видимым и доступным.
+ *
+ * Адаптив. На телефоне (<768 px) панель занимает всю ширину и обрезается сверху
+ * и снизу: сверху — шапкой каркаса (`top-16`), снизу — фиксированной нижней
+ * навигацией (4.5rem + safe-area). Без этого нижнего ограничения кнопки
+ * «Сохранить»/«Отмена» уезжали бы под навигацию и были бы недоступны.
+ * На планшете и desktop вид прежний: `sm:w-96` боковая панель поверх плана.
+ */
 export function RoomEditorDrawer({
   room,
   draftRect,
@@ -76,11 +84,15 @@ export function RoomEditorDrawer({
     onSubmit(values);
   }
 
+  // На телефоне панель тянется от шапки каркаса до нижней навигации:
+  // `h-auto` + `bottom` вместо `h-[calc(100vh-4rem)]`, иначе футер с
+  // «Сохранить» уходил бы под фиксированную навигацию. `max-md:` — вид
+  // планшета и desktop не меняется.
   return (
     <aside
       role="dialog"
       aria-label={`Помещение ${room.name}`}
-      className="fixed right-0 top-16 z-40 flex h-[calc(100vh-4rem)] w-full flex-col border-l border-neutral-200 bg-white shadow-lg sm:w-96"
+      className="fixed right-0 top-16 z-40 flex h-[calc(100vh-4rem)] w-full flex-col border-l border-neutral-200 bg-white shadow-lg sm:w-96 max-md:bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] max-md:h-auto"
     >
       <div className="flex items-start justify-between gap-3 border-b border-neutral-200 p-4">
         <div>
@@ -121,7 +133,10 @@ export function RoomEditorDrawer({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-neutral-200 p-4">
+        {/* На телефоне кнопки футера — столбиком во всю ширину: «Удалить
+            помещение» + «Отмена» + «Сохранить» в строку на 360 px не помещаются
+            и выдавили бы панель по горизонтали. */}
+        <div className="flex items-center justify-between gap-2 border-t border-neutral-200 p-4 max-md:flex-col max-md:items-stretch max-md:gap-3">
           {isAdmin ? (
             <Button
               variant="danger"
@@ -136,7 +151,7 @@ export function RoomEditorDrawer({
           ) : (
             <span />
           )}
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-md:flex-col max-md:gap-3">
             <Button variant="secondary" size="sm" type="button" onClick={onClose} disabled={busy}>
               Отмена
             </Button>

@@ -35,6 +35,17 @@ interface FloorPlanCanvasProps {
   selectedRoomId: string | null;
   hoveredRoomId: string | null;
   canEdit: boolean;
+  /**
+   * Разрешены ли жесты правки геометрии: рисование рамкой, перемещение помещения
+   * и ресайз за угол. На телефоне (<768 px) — `false`: палец закрывает маркер, а
+   * точность указания падает ниже осмысленной (System Design §7.6). Просмотр,
+   * зум, панорама и выбор помещения при этом продолжают работать.
+   *
+   * Признак приходит пропом, а не берётся из CSS: это не вид, а поведение —
+   * pointer-события нельзя «выключить» классом, не тронув панорамирование
+   * (оно живёт на том же слое).
+   */
+  drawEnabled: boolean;
   addMode: boolean;
   zoom: number;
   /** Инкремент — команда «Вписать»: canvas сам считает масштаб под свою область. */
@@ -90,6 +101,7 @@ export function FloorPlanCanvas({
   selectedRoomId,
   hoveredRoomId,
   canEdit,
+  drawEnabled,
   addMode,
   zoom,
   fitNonce,
@@ -235,7 +247,7 @@ export function FloorPlanCanvas({
     const viewport = viewportRef.current;
     if (!viewport) return;
 
-    if (event.button === 0 && addMode && canEdit) {
+    if (event.button === 0 && addMode && canEdit && drawEnabled) {
       const start = toPlanPoint(event.clientX, event.clientY);
       interactionRef.current = { kind: 'draw', start };
       setPreview({ x: start.x, y: start.y, width: 0, height: 0 });
@@ -346,7 +358,18 @@ export function FloorPlanCanvas({
     origin: Rect,
   ) {
     // Пробел оставлен панораме: событие должно дойти до слоя плана.
-    if (event.button !== 0 || !canEdit || addMode || spaceHeld) return;
+    if (event.button !== 0 || addMode || spaceHeld) return;
+
+    // Телефон (<768 px): перемещение рамки пальцем выключено, но тап по
+    // помещению обязан его выбирать — иначе рамка на телефоне становится
+    // «мёртвой зоной», а единственным путём к карточке остаётся экспликация.
+    if (!drawEnabled) {
+      event.stopPropagation();
+      onSelect(roomId);
+      return;
+    }
+
+    if (!canEdit) return;
     event.stopPropagation();
     interactionRef.current = {
       kind: 'move',
@@ -528,7 +551,7 @@ export function FloorPlanCanvas({
                       : hovered
                         ? 'border-primary-500 bg-primary-100'
                         : 'border-primary-500 bg-primary-50',
-                  canEdit && !addMode ? 'cursor-move' : 'cursor-pointer',
+                  canEdit && drawEnabled && !addMode ? 'cursor-move' : 'cursor-pointer',
                 ].join(' ')}
               >
                 {zoomPercent(zoom) >= 50 && (
@@ -539,14 +562,24 @@ export function FloorPlanCanvas({
                 {selected &&
                   canEdit &&
                   !addMode &&
+                  // На телефоне угловых маркеров нет вовсе: их размер (12 px)
+                  // меньше тач-таргета, а ресайз за угол пальцем всё равно
+                  // недоступен — правка идёт через координаты в карточке.
+                  drawEnabled &&
                   CORNERS.map((corner) => (
                     <span
                       key={corner}
                       role="presentation"
                       aria-hidden="true"
+                      data-testid="room-resize-handle"
                       onPointerDown={(event) => handleResizePointerDown(event, room.id, corner, rect)}
                       className={[
-                        'absolute h-3 w-3 rounded-sm border border-primary-600 bg-white lg:h-2 lg:w-2',
+                        // Планшет 768–1023: маркер крупнее (14 px ≈ h-3.5) — на нём
+                        // рисование и ресайз остаются доступными, и требование
+                        // «маркер ≥12 px» (floor_plan.md) закрывается диапазоном.
+                        // Desktop (lg:) сохраняет прежние 8 px.
+                        'absolute h-3 w-3 rounded-sm border border-primary-600 bg-white',
+                        'md:max-lg:h-3.5 md:max-lg:w-3.5 lg:h-2 lg:w-2',
                         CORNER_CLASS[corner],
                       ].join(' ')}
                     />

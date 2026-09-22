@@ -295,7 +295,16 @@ export function MapCanvas({
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100">
-      <div ref={containerRef} className="h-[520px] w-full" data-testid="map-canvas" />
+      {/*
+        Высота карты: на телефоне 360 px вместо 520 — при 520 карта занимает
+        почти весь экран, и до списков геозон под ней приходится долго листать.
+        Ширина всегда 100%, жесты pan/zoom остаются нативными (их даёт mapbox-gl).
+      */}
+      <div
+        ref={containerRef}
+        className="h-[520px] w-full max-md:h-[360px]"
+        data-testid="map-canvas"
+      />
       {!ready && !error && (
         <div className="absolute inset-0 flex items-center justify-center bg-neutral-100/80 text-sm text-neutral-500">
           Загрузка карты…

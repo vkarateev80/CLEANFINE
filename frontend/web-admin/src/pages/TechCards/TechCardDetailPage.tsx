@@ -286,7 +286,7 @@ export function TechCardDetailPage() {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card padded={false} className="overflow-hidden">
-          <div className="flex items-center justify-between gap-3 border-b border-neutral-200 px-4 py-3">
+          <div className="flex items-center justify-between gap-3 border-b border-neutral-200 px-4 py-3 max-md:flex-col max-md:items-stretch max-md:gap-2">
             <h2 className="text-sm font-medium text-neutral-900">Операции</h2>
             {canEdit && (
               <Button
@@ -322,7 +322,23 @@ export function TechCardDetailPage() {
               />
             </div>
           ) : (
-            <div data-testid="operations">
+            /**
+             * Телефон (<768 px): строка операции — карточка. Ручную вёрстку берём
+             * потому, что строка нерегулярная (чекбоксы требований, drag-ручка,
+             * кнопки ↑/↓, аккордеон с материалами) — `ResponsiveTable` для таких
+             * списков не подходит (System Design §4.1).
+             *
+             * `SortableList` — общий примитив UI-кита и рисует строку
+             * горизонтально; на 360 px содержимому остаётся ~120 px. Строку
+             * перестраиваем снаружи произвольными вариантами по потомкам, строго
+             * в `max-md:`: блок кнопок ↑/↓ переносится на свою строку
+             * (`basis-full`), содержимое получает всю ширину. Планшет и desktop
+             * правил не видят.
+             */
+            <div
+              data-testid="operations"
+              className="max-md:[&>ul>li]:flex-wrap max-md:[&>ul>li]:gap-y-2 max-md:[&>ul>li>div:last-child]:basis-full max-md:[&>ul>li>div:last-child]:justify-end"
+            >
               <SortableList
                 items={operations}
                 getId={(operation) => operation.id}
@@ -493,11 +509,14 @@ function OperationRow({
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div data-testid={`operation-row-${operation.id}`} className="flex flex-col gap-2 py-1">
-      <div className="flex flex-wrap items-center gap-3">
+    <div
+      data-testid={`operation-row-${operation.id}`}
+      className="flex flex-col gap-2 py-1 max-md:gap-3 max-md:rounded-lg max-md:border max-md:border-neutral-200 max-md:p-3"
+    >
+      <div className="flex flex-wrap items-center gap-3 max-md:flex-col max-md:items-stretch max-md:gap-2">
         <button
           type="button"
-          className="min-w-0 flex-1 text-left"
+          className="min-w-0 flex-1 text-left max-md:w-full"
           aria-expanded={expanded}
           onClick={onToggle}
         >
@@ -511,28 +530,33 @@ function OperationRow({
           )}
         </button>
 
-        {operation.equipment !== null && <Badge tone="neutral">Оборудование</Badge>}
+        {/* Метрики операции — отдельной строкой карточки: на 360 px бейдж,
+            иконки требований, расход материалов и время в одну строку с
+            названием не помещаются. На desktop это прежний общий `flex`-ряд. */}
+        <div className="flex flex-wrap items-center gap-3 max-md:w-full max-md:gap-2">
+          {operation.equipment !== null && <Badge tone="neutral">Оборудование</Badge>}
 
-        {operation.requiresPhoto && (
-          <span className="text-primary-600" title="Требуется фото" aria-label="Требуется фото">
-            📷
-          </span>
-        )}
-        {operation.requiresQr && (
-          <span className="text-primary-600" title="Требуется QR" aria-label="Требуется QR">
-            ▣
-          </span>
-        )}
-        {!operation.requiresPhoto && !operation.requiresQr && (
-          <span className="text-neutral-300">—</span>
-        )}
+          {operation.requiresPhoto && (
+            <span className="text-primary-600" title="Требуется фото" aria-label="Требуется фото">
+              📷
+            </span>
+          )}
+          {operation.requiresQr && (
+            <span className="text-primary-600" title="Требуется QR" aria-label="Требуется QR">
+              ▣
+            </span>
+          )}
+          {!operation.requiresPhoto && !operation.requiresQr && (
+            <span className="text-neutral-300">—</span>
+          )}
 
-        <span className="text-xs text-neutral-500">{materialsLabel(operation.materials.length)}</span>
+          <span className="text-xs text-neutral-500">{materialsLabel(operation.materials.length)}</span>
 
-        <span className="font-mono text-sm text-neutral-900">{operation.estimatedTimeMin} мин</span>
+          <span className="font-mono text-sm text-neutral-900">{operation.estimatedTimeMin} мин</span>
+        </div>
 
         {canEdit && (
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 max-md:self-end">
             <Button
               variant="ghost"
               size="sm"
@@ -546,7 +570,7 @@ function OperationRow({
               <div className="absolute right-0 top-full z-10 flex w-44 flex-col rounded-lg border border-neutral-200 bg-white py-1 shadow-md">
                 <button
                   type="button"
-                  className="px-3 py-2 text-left text-sm hover:bg-neutral-50"
+                  className="px-3 py-2 text-left text-sm hover:bg-neutral-50 max-lg:min-h-[44px]"
                   onClick={() => {
                     setMenuOpen(false);
                     onEdit();
@@ -556,7 +580,7 @@ function OperationRow({
                 </button>
                 <button
                   type="button"
-                  className="px-3 py-2 text-left text-sm hover:bg-neutral-50"
+                  className="px-3 py-2 text-left text-sm hover:bg-neutral-50 max-lg:min-h-[44px]"
                   onClick={() => {
                     setMenuOpen(false);
                     onDuplicate();
@@ -566,7 +590,7 @@ function OperationRow({
                 </button>
                 <button
                   type="button"
-                  className="px-3 py-2 text-left text-sm text-danger-600 hover:bg-neutral-50"
+                  className="px-3 py-2 text-left text-sm text-danger-600 hover:bg-neutral-50 max-lg:min-h-[44px]"
                   onClick={() => {
                     setMenuOpen(false);
                     onDelete();
@@ -599,9 +623,13 @@ function OperationRow({
             {operation.equipment === null ? (
               <p className="text-xs text-neutral-400">Не задано</p>
             ) : (
-              <pre className="overflow-x-auto rounded-md bg-white p-2 font-mono text-xs text-neutral-700">
-                {JSON.stringify(operation.equipment, null, 2)}
-              </pre>
+              // `min-w-0` у обёртки и `max-w-full` у блока: JSON скроллится
+              // ВНУТРИ себя и не распирает страницу по горизонтали (System Design §8).
+              <div className="min-w-0">
+                <pre className="max-w-full overflow-x-auto rounded-md bg-white p-2 font-mono text-xs text-neutral-700">
+                  {JSON.stringify(operation.equipment, null, 2)}
+                </pre>
+              </div>
             )}
           </div>
 

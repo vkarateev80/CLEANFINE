@@ -238,6 +238,12 @@ export function FloorPlanPanel({
                   className={[
                     'absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center',
                     'rounded-full border-2 text-xs font-medium shadow-sm',
+                    // Маркер остаётся 24 px (на плане их может быть много, крупные
+                    // круги закрыли бы помещения), но зона нажатия на телефоне и
+                    // планшете расширяется псевдоэлементом до ~44 px. `relative`
+                    // здесь не нужен: кнопка уже `absolute`, то есть служит
+                    // содержащим блоком для своего `after`.
+                    'max-lg:after:absolute max-lg:after:-inset-2.5 max-lg:after:content-[\'\']',
                     selected
                       ? 'border-primary-600 bg-primary-600 text-white'
                       : withoutTechCard
@@ -293,6 +299,9 @@ export function FloorPlanPanel({
             onClick={() => onSelectPoint(point.id)}
             className={[
               'flex items-center gap-2 rounded-md px-2 py-1 text-left text-xs',
+              // Список точек под планом — дублирующий путь выбора точки; на
+              // телефоне и планшете строка доводится до тач-таргета 44 px.
+              'max-lg:min-h-[44px]',
               point.id === selectedPointId
                 ? 'bg-primary-50 text-primary-700'
                 : 'text-neutral-500 hover:bg-neutral-50',

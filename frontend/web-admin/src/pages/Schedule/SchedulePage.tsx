@@ -139,28 +139,41 @@ export function SchedulePage() {
         }
       />
 
-      <div className="flex flex-wrap gap-2 border-b border-neutral-200" role="tablist">
-        {TABS.map((item) => {
-          const active = item.key === tab;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              data-testid={item.testId}
-              onClick={() => selectTab(item.key)}
-              className={[
-                '-mb-px border-b-2 px-4 py-2 text-sm transition-colors',
-                active
-                  ? 'border-primary-500 font-medium text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-800',
-              ].join(' ')}
-            >
-              {item.label}
-            </button>
-          );
-        })}
+      {/*
+        Три вкладки на телефоне шире 360 px: лента вкладок получает собственный
+        горизонтальный скролл (`min-w-0` у родителя обязателен, иначе flex-элемент
+        не сожмётся и переполнит страницу). На ≥768 px правила `max-md:` не
+        действуют — прежний перенос `flex-wrap` и та же высота вкладок.
+      */}
+      <div className="min-w-0 max-md:overflow-x-auto max-md:pb-px">
+        <div
+          className="flex flex-wrap gap-2 border-b border-neutral-200 max-md:w-max max-md:flex-nowrap"
+          role="tablist"
+        >
+          {TABS.map((item) => {
+            const active = item.key === tab;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-testid={item.testId}
+                onClick={() => selectTab(item.key)}
+                className={[
+                  // `max-lg:min-h-[44px]` — тач-таргет вкладки ≥44 px на телефоне и
+                  // планшете; desktop (≥1024) сохраняет прежнюю высоту.
+                  '-mb-px whitespace-nowrap border-b-2 px-4 py-2 text-sm transition-colors max-lg:min-h-[44px]',
+                  active
+                    ? 'border-primary-500 font-medium text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-800',
+                ].join(' ')}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {tab === 'list' && (
@@ -175,7 +188,9 @@ export function SchedulePage() {
             <Input
               data-testid="schedule-search"
               aria-label="Поиск по названию графика"
-              className="w-72"
+              // На телефоне поиск занимает всю ширину: `w-72` рядом со счётчиком
+              // «Найдено» не помещается в 360 px.
+              className="w-72 max-md:w-full"
               placeholder="Поиск по названию графика"
               value={listSearch}
               onChange={(event) => write({ listSearch: event.target.value || null })}

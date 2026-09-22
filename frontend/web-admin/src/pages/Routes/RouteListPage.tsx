@@ -240,12 +240,14 @@ export function RouteListPage({
             3. Маршруты этажа
             <span className="ml-2 font-mono text-neutral-700">{routes.length}</span>
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-md:w-full">
+            {/* На телефоне «фильтр + создать» — одна строка: селект тянется,
+                кнопка не сжимается ниже тач-таргета. */}
             <Select
               aria-label="Фильтр по статусу"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as RouteStatus | '')}
-              className="w-40 py-1 text-xs"
+              className="w-40 py-1 text-xs max-md:flex-1"
               disabled={floorId === null}
             >
               <option value="">Все статусы</option>
@@ -259,6 +261,7 @@ export function RouteListPage({
               variant="primary"
               size="sm"
               data-testid="route-create-button"
+              className="max-md:shrink-0 max-md:whitespace-nowrap"
               onClick={openCreate}
               disabled={floorId === null || !canEdit}
               title={floorId === null ? 'Сначала выберите этаж' : undefined}
@@ -303,41 +306,71 @@ export function RouteListPage({
               />
             </div>
           ) : (
-            <ul className="flex flex-col">
-              {filteredRoutes.map((route) => (
-                <li key={route.id} className="border-b border-neutral-200 last:border-b-0">
-                  <div className="flex items-center gap-2 px-4 py-3 hover:bg-neutral-50">
-                    <button
-                      type="button"
-                      data-testid="route-select"
-                      data-route-id={route.id}
-                      onClick={() => onOpenRoute(route.id, route.floorId)}
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <div className="truncate text-sm font-medium text-neutral-900">{route.name}</div>
-                      <div className="mt-1 flex items-center gap-2">
-                        <RouteStatusPill status={route.status} />
-                        <span className="font-mono text-xs text-neutral-500">
-                          {route.points.length} точек ·{' '}
-                          {route.points.reduce((sum, point) => sum + (point.estimatedTimeMin ?? 0), 0)} мин
-                        </span>
-                      </div>
-                    </button>
-                    {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Удалить маршрут ${route.name}`}
-                        disabled={deleteMutation.isPending}
-                        onClick={() => setRouteToDelete(route)}
+            /*
+              Два представления одного списка. На планшете и desktop (≥768) —
+              ПРЕЖНИЙ список `<ul>`: критерий приёмки требует визуальной
+              идентичности ≥1024, поэтому разметка, классы и роли строки здесь
+              дословно те же, что были до адаптива. На телефоне (<768) —
+              карточки руками: `ResponsiveTable` для этого не годится, он по
+              построению рисует `<table>` на `md+`, а таблица здесь запрещена.
+              Состав данных карточки совпадает со строкой списка.
+            */
+            <>
+              <ul className="hidden flex-col md:flex">
+                {filteredRoutes.map((route) => (
+                  <li key={route.id} className="border-b border-neutral-200 last:border-b-0">
+                    <div className="flex items-center gap-2 px-4 py-3 hover:bg-neutral-50">
+                      <button
+                        type="button"
+                        data-testid="route-select"
+                        data-route-id={route.id}
+                        onClick={() => onOpenRoute(route.id, route.floorId)}
+                        className="min-w-0 flex-1 text-left"
                       >
-                        ✕
-                      </Button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                        <div className="truncate text-sm font-medium text-neutral-900">
+                          {route.name}
+                        </div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <RouteStatusPill status={route.status} />
+                          <span className="font-mono text-xs text-neutral-500">
+                            {route.points.length} точек ·{' '}
+                            {route.points.reduce(
+                              (sum, point) => sum + (point.estimatedTimeMin ?? 0),
+                              0,
+                            )}{' '}
+                            мин
+                          </span>
+                        </div>
+                      </button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Удалить маршрут ${route.name}`}
+                          disabled={deleteMutation.isPending}
+                          onClick={() => setRouteToDelete(route)}
+                        >
+                          ✕
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex flex-col gap-3 p-3 md:hidden">
+                {filteredRoutes.map((route) => (
+                  <RouteCard
+                    key={route.id}
+                    route={route}
+                    isAdmin={isAdmin}
+                    deleting={deleteMutation.isPending}
+                    onOpen={() => onOpenRoute(route.id, route.floorId)}
+                    onDelete={() => setRouteToDelete(route)}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
 
@@ -452,6 +485,75 @@ export function RouteListPage({
           if (routeToDelete) deleteMutation.mutate(routeToDelete.id);
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * Карточка маршрута — только для телефона (<768). Локальный компонент, а не
+ * `ResponsiveTable`: тот рисует `<table>` на `md+`, а на планшете и desktop по
+ * критерию приёмки обязан остаться прежний список `<ul>`.
+ * Тестовые хуки (`route-select`, `data-route-id`) и состав данных — как у строки
+ * списка: имя, статус, число точек и время, удаление для ADMIN.
+ */
+function RouteCard({
+  route,
+  isAdmin,
+  deleting,
+  onOpen,
+  onDelete,
+}: {
+  route: RouteWithPoints;
+  isAdmin: boolean;
+  deleting: boolean;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const minutes = route.points.reduce((sum, point) => sum + (point.estimatedTimeMin ?? 0), 0);
+  return (
+    <div
+      data-testid="route-select"
+      data-route-id={route.id}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="cursor-pointer rounded-xl border border-neutral-200 bg-white p-4 shadow-sm active:bg-neutral-50"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="break-words text-sm font-medium text-neutral-900">{route.name}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <RouteStatusPill status={route.status} />
+          </div>
+        </div>
+        {isAdmin && (
+          // Клик по действию не должен уводить в конструктор маршрута.
+          <span className="shrink-0" onClick={(event) => event.stopPropagation()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Удалить маршрут ${route.name}`}
+              disabled={deleting}
+              onClick={onDelete}
+            >
+              ✕
+            </Button>
+          </span>
+        )}
+      </div>
+
+      <dl className="mt-3 flex items-baseline justify-between gap-3">
+        <dt className="shrink-0 text-xs text-neutral-500">Точек / время</dt>
+        <dd className="min-w-0 break-words text-right font-mono text-xs text-neutral-800">
+          {route.points.length} · {minutes} мин
+        </dd>
+      </dl>
     </div>
   );
 }

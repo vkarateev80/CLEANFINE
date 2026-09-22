@@ -106,12 +106,25 @@ export function NotificationsPage() {
         }
         actions={
           <>
-            <Checkbox
-              label="Только непрочитанные"
-              checked={unreadOnly}
-              data-testid="notifications-unread-toggle"
-              onChange={toggleUnreadOnly}
-            />
+            {/* Чекбокс «Только непрочитанные» обёрнут по двум причинам.
+                1. Выравнивание. Свой `className` у `Checkbox` уходит на сам
+                   `<input>` (16×16), а не на лейбл, поэтому `items-start` в нём
+                   не работал. Выравниванием подписи управляет только родитель:
+                   `max-md:items-start` прижимает лейбл к верху строки, а
+                   `[&>label]:items-start` снимает `items-center` самого лейбла —
+                   иначе многострочная подпись центрировалась бы относительно
+                   чекбокса. На ≥768 обёртка снова `items-center`, как было.
+                2. Тап-зона. Зона нажатия — это лейбл (`Checkbox` даёт ему
+                   `max-lg:min-h-[44px]`), и растянуть её на всю ширину строки
+                   может тоже только родитель: `[&>label]:w-full`. */}
+            <div className="flex items-center max-md:items-start [&>label]:w-full [&>label]:items-start">
+              <Checkbox
+                label="Только непрочитанные"
+                checked={unreadOnly}
+                data-testid="notifications-unread-toggle"
+                onChange={toggleUnreadOnly}
+              />
+            </div>
             <Button
               variant="secondary"
               size="sm"
@@ -188,20 +201,25 @@ export function NotificationsPage() {
                   key={item.id}
                   data-testid={`notification-row-${item.id}`}
                   className={[
-                    'flex flex-wrap items-start justify-between gap-3 border-b border-neutral-200 px-4 py-3 last:border-b-0',
+                    // Карточный вид на телефоне: содержимое во всю ширину, действия —
+                    // отдельной строкой снизу (`max-md:` не действует на ≥768 px, где
+                    // раскладка остаётся прежней: текст слева, кнопки справа).
+                    'flex flex-wrap items-start justify-between gap-3 border-b border-neutral-200 px-3 py-3 last:border-b-0 md:px-4',
                     item.readAt ? 'bg-white' : 'bg-primary-50',
                   ].join(' ')}
                 >
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1 max-md:basis-full">
                     <span className="text-xs text-neutral-500">
                       {notificationTypeIcon(item.type)} {notificationTypeLabel(item.type)} ·{' '}
                       {formatDateTime(item.createdAt)}
                     </span>
-                    <span className="text-sm font-medium text-neutral-900">{item.title}</span>
-                    <span className="text-sm text-neutral-700">{item.body}</span>
+                    <span className="break-words text-sm font-medium text-neutral-900">
+                      {item.title}
+                    </span>
+                    <span className="break-words text-sm text-neutral-700">{item.body}</span>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2 max-md:w-full max-md:justify-between">
                     {ticketId && (
                       <Button
                         variant="ghost"

@@ -3,13 +3,11 @@ import {
   Card,
   EmptyState,
   LoadingBlock,
-  Table,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  ResponsiveTable,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
+import type { TicketExecutionRow } from '../../types/reports';
 import { TicketDailyChart } from './ReportCharts';
 import { ReportFeedback, Metric } from './ReportFeedback';
 import {
@@ -56,6 +54,72 @@ export function TicketsReport({
     );
   }
 
+  /**
+   * Колонки отчёта по заявкам: `cell` — прежняя ячейка таблицы, `card` — роль в
+   * карточке телефона (сущность — объект, тип заявки и числа — поля карточки).
+   *
+   * Хук строки `report-ticket-row-<тип>` остаётся в табличной ячейке: примитив
+   * держит в DOM и таблицу, и карточки, поэтому один id на оба представления дал бы
+   * два совпадения (см. `TableOnlyTestId` в UI-ките).
+   */
+  const columns: ResponsiveColumn<TicketExecutionRow>[] = [
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'min-w-[220px]',
+      card: 'title',
+      cell: (row) => (
+        <TableOnlyTestId id={`report-ticket-row-${row.type}`}>
+          {objectLabel(row.objectId, objectNames)}
+        </TableOnlyTestId>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Тип',
+      thClassName: 'w-[170px]',
+      card: 'field',
+      cardLabel: 'Тип',
+      cell: (row) => ticketTypeLabel(row.type),
+    },
+    {
+      key: 'total',
+      header: 'Всего',
+      thClassName: 'w-[100px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Всего',
+      cell: (row) => row.ticketsCount,
+    },
+    {
+      key: 'completed',
+      header: 'Выполнено',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Выполнено',
+      cell: (row) => row.completedCount,
+    },
+    {
+      key: 'overdue',
+      header: 'Просрочено',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Просрочено',
+      cell: (row) => row.overdueCount,
+    },
+    {
+      key: 'cycle',
+      header: 'Время цикла',
+      thClassName: 'w-[170px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Время цикла',
+      cell: (row) => formatMinutes(row.avgCycleMinutes),
+    },
+  ];
+
   return (
     <>
       <ReportFeedback
@@ -82,7 +146,7 @@ export function TicketsReport({
               value={formatMinutes(totals?.avgCycleMinutes ?? null)}
             />
             <Metric label="Доля просрочек" value={formatPercent(totals?.overdueRate ?? 0)} />
-            <div className="ml-auto">
+            <div className="ml-auto max-md:ml-0">
               <Button
                 variant="secondary"
                 size="sm"
@@ -111,47 +175,11 @@ export function TicketsReport({
                   </h2>
                   <span className="text-xs text-neutral-400">источник: ticket-service</span>
                 </div>
-                <Table>
-                  <THead>
-                    <Th className="min-w-[220px]">Объект</Th>
-                    <Th className="w-[170px]">Тип</Th>
-                    <Th className="w-[100px]" align="right">
-                      Всего
-                    </Th>
-                    <Th className="w-[120px]" align="right">
-                      Выполнено
-                    </Th>
-                    <Th className="w-[120px]" align="right">
-                      Просрочено
-                    </Th>
-                    <Th className="w-[170px]" align="right">
-                      Время цикла
-                    </Th>
-                  </THead>
-                  <TBody>
-                    {rows.map((row) => (
-                      <Tr
-                        key={`${row.objectId}-${row.type}`}
-                        testId={`report-ticket-row-${row.type}`}
-                      >
-                        <Td>{objectLabel(row.objectId, objectNames)}</Td>
-                        <Td>{ticketTypeLabel(row.type)}</Td>
-                        <Td mono align="right">
-                          {row.ticketsCount}
-                        </Td>
-                        <Td mono align="right">
-                          {row.completedCount}
-                        </Td>
-                        <Td mono align="right">
-                          {row.overdueCount}
-                        </Td>
-                        <Td mono align="right">
-                          {formatMinutes(row.avgCycleMinutes)}
-                        </Td>
-                      </Tr>
-                    ))}
-                  </TBody>
-                </Table>
+                <ResponsiveTable<TicketExecutionRow>
+                  items={rows}
+                  getKey={(row) => `${row.objectId}-${row.type}`}
+                  columns={columns}
+                />
               </Card>
             </>
           )}

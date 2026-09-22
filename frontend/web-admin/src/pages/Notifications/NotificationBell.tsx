@@ -135,7 +135,9 @@ export function NotificationBell() {
           <div className="flex items-center justify-between gap-2 border-t border-neutral-200 px-4 py-2">
             <Link
               to={ROUTES.notifications}
-              className="text-sm text-primary-600 hover:underline"
+              // Ссылка — строчный текст (по замеру 20 px высоты): на телефоне и
+              // планшете растягиваем зону нажатия до 44 px, на desktop вид прежний.
+              className="text-sm text-primary-600 hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center"
               onClick={() => setOpen(false)}
             >
               Все уведомления

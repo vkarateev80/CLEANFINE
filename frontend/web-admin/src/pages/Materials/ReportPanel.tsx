@@ -8,14 +8,11 @@ import {
   Field,
   Input,
   LoadingBlock,
+  ResponsiveTable,
   Select,
   SoftWarning,
-  Table,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import type { MaterialConsumptionRow } from '../../types/materials';
 import { apiStatus, formatMoney, formatQuantity, useParamWriter } from './materialsHelpers';
@@ -37,6 +34,13 @@ import { useObjectOptions, useReport } from './useMaterials';
 /** Сколько материалов показываем на диаграмме: больше — уже не читается. */
 const CHART_ROWS = 8;
 
+/** Строка отчёта; `{ total: true }` — итоговая строка, она идёт через тот же список. */
+type ReportItem = MaterialConsumptionRow | { readonly total: true };
+
+function isTotal(item: ReportItem): item is { readonly total: true } {
+  return 'total' in item;
+}
+
 export function ReportPanel() {
   const [params] = useSearchParams();
   const write = useParamWriter();
@@ -57,9 +61,86 @@ export function ReportPanel() {
   const forbidden = apiStatus(query.error) === 403;
   const filtersActive = objectId !== '' || from !== '' || to !== '';
 
+  /**
+   * Колонки отчёта: `cell` — прежняя ячейка таблицы, `card` — роль в карточке
+   * телефона. `rowTestId` не передан сознательно: `report-row-<id>` читает
+   * существующий e2e (`toBeVisible`), а примитив рендерит таблицу и карточки в DOM
+   * сразу — дубль id дал бы strict-ошибку. Хук строки остаётся в табличной ячейке.
+   */
+  const reportColumns: ResponsiveColumn<ReportItem>[] = [
+    {
+      key: 'material',
+      header: 'Материал',
+      thClassName: 'min-w-[220px]',
+      card: 'title',
+      cell: (item) =>
+        isTotal(item) ? (
+          'Итого'
+        ) : (
+          <TableOnlyTestId id={`report-row-${item.materialId}`}>{item.name}</TableOnlyTestId>
+        ),
+    },
+    {
+      key: 'unit',
+      header: 'Единица',
+      thClassName: 'w-[90px]',
+      card: 'field',
+      cardLabel: 'Единица',
+      cell: (item) => (isTotal(item) ? null : item.unit),
+    },
+    {
+      key: 'consumed',
+      header: 'Расход',
+      thClassName: 'w-[140px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Расход',
+      cell: (item) => formatQuantity(isTotal(item) ? (totals?.consumedQuantity ?? 0) : item.consumedQuantity),
+    },
+    {
+      key: 'operations',
+      header: 'Операций',
+      thClassName: 'w-[130px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Операций',
+      cell: (item) => (isTotal(item) ? (totals?.operationsCount ?? 0) : item.operationsCount),
+    },
+    {
+      key: 'price',
+      header: 'Цена за ед., ₽',
+      thClassName: 'w-[140px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Цена за ед., ₽',
+      cell: (item) => (isTotal(item) ? null : formatMoney(item.costPerUnit)),
+    },
+    {
+      key: 'cost',
+      header: 'Стоимость, ₽',
+      thClassName: 'w-[150px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Стоимость, ₽',
+      cell: (item) =>
+        isTotal(item) ? (
+          <TableOnlyTestId id="report-total-cost-row">
+            {formatMoney(totals?.cost ?? 0)}
+          </TableOnlyTestId>
+        ) : (
+          formatMoney(item.cost)
+        ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex flex-wrap items-end gap-4">
+      {/* На телефоне фильтры — одной колонкой во всю ширину (см. MovementsPanel). */}
+      <Card className="flex flex-wrap items-end gap-4 max-md:[&>*]:w-full">
         <Field label="Объект" htmlFor="report-object">
           <Select
             id="report-object"
@@ -110,7 +191,7 @@ export function ReportPanel() {
           </Button>
         )}
 
-        <div className="ml-auto text-right">
+        <div className="ml-auto text-right max-md:ml-0 max-md:text-left">
           <div className="text-xs text-neutral-500">Итог по стоимости</div>
           <div className="font-mono text-lg text-neutral-900" data-testid="report-total-cost">
             {formatMoney(totals?.cost ?? 0)} ₽
@@ -147,61 +228,19 @@ export function ReportPanel() {
             <ReportChart rows={rows.slice(0, CHART_ROWS)} />
 
             <Card padded={false}>
-              <Table>
-                <THead>
-                  <Th className="min-w-[220px]">Материал</Th>
-                  <Th className="w-[90px]">Единица</Th>
-                  <Th className="w-[140px]" align="right">
-                    Расход
-                  </Th>
-                  <Th className="w-[130px]" align="right">
-                    Операций
-                  </Th>
-                  <Th className="w-[140px]" align="right">
-                    Цена за ед., ₽
-                  </Th>
-                  <Th className="w-[150px]" align="right">
-                    Стоимость, ₽
-                  </Th>
-                </THead>
-                <TBody>
-                  {rows.map((row) => (
-                    <Tr key={row.materialId} testId={`report-row-${row.materialId}`}>
-                      <Td>{row.name}</Td>
-                      <Td>{row.unit}</Td>
-                      <Td mono align="right">
-                        {formatQuantity(row.consumedQuantity)}
-                      </Td>
-                      <Td mono align="right">
-                        {row.operationsCount}
-                      </Td>
-                      <Td mono align="right">
-                        {formatMoney(row.costPerUnit)}
-                      </Td>
-                      <Td mono align="right">
-                        {formatMoney(row.cost)}
-                      </Td>
-                    </Tr>
-                  ))}
-
-                  <Tr className="bg-neutral-50 font-medium">
-                    <Td>Итого</Td>
-                    <Td />
-                    <Td mono align="right">
-                      {formatQuantity(totals?.consumedQuantity ?? 0)}
-                    </Td>
-                    <Td mono align="right">
-                      {totals?.operationsCount ?? 0}
-                    </Td>
-                    <Td />
-                    <Td mono align="right">
-                      <span data-testid="report-total-cost-row">
-                        {formatMoney(totals?.cost ?? 0)}
-                      </span>
-                    </Td>
-                  </Tr>
-                </TBody>
-              </Table>
+              {/*
+                Итоговая строка — такой же элемент списка: примитив берёт только
+                плоские списки, поэтому «Итого» передаётся последним элементом и
+                через `rowClassName` получает прежнее оформление (`bg-neutral-50
+                font-medium`). На телефоне она становится отдельной карточкой
+                «Итого», а не теряется вместе с `<tfoot>`.
+              */}
+              <ResponsiveTable<ReportItem>
+                items={[...rows, { total: true }]}
+                getKey={(item) => (isTotal(item) ? '__total' : item.materialId)}
+                columns={reportColumns}
+                rowClassName={(item) => (isTotal(item) ? 'bg-neutral-50 font-medium' : '')}
+              />
             </Card>
           </>
         ))}

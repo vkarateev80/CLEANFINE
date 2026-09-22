@@ -13,15 +13,11 @@ import {
   ObjectStatusBadge,
   PageHeader,
   Pagination,
+  ResponsiveTable,
   Select,
   SoftWarning,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import { listUsers } from '../../api/users';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -68,6 +64,15 @@ type SortKey = 'name' | 'totalArea';
 type SortOrder = 'asc' | 'desc';
 
 const TAKE = 50;
+
+/**
+ * Пустая страница списка: в таблице текст рисует `TableMessageRow` (отступы и
+ * центрирование задаёт ячейка), а в карточном режиме строка выводится как есть —
+ * без рамки она выглядела бы «оторванным» текстом. Все классы — `max-md:`, чтобы
+ * на планшете и desktop разметка осталась прежней.
+ */
+const PHONE_EMPTY =
+  'max-md:block max-md:rounded-xl max-md:border max-md:border-dashed max-md:border-neutral-300 max-md:bg-white max-md:px-4 max-md:py-8 max-md:text-center max-md:text-sm max-md:text-neutral-400';
 
 /** Модалки экрана взаимоисключающие — одно состояние вместо пяти флагов. */
 type ListModal =
@@ -307,13 +312,136 @@ export function ObjectsListPage() {
   const showSkeleton = query.isLoading;
   const rowOpacity = query.isFetching && !showSkeleton ? 'opacity-60' : '';
 
+  /**
+   * Колонки списка описаны один раз: `cell` — ячейка таблицы, `card` — роль в
+   * карточке на телефоне (ADR-002). Ширины `thClassName` перенесены из прежних
+   * `<Th>` без изменений, поэтому на планшете и desktop таблица прежняя.
+   * Сортировка остаётся на экране — она живёт в `header`.
+   */
+  const columns: ResponsiveColumn<ObjectEntity>[] = [
+    {
+      key: 'name',
+      header: (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-700 max-lg:min-h-[44px]"
+          onClick={() =>
+            setSort((current) => ({
+              key: 'name',
+              order: current.key === 'name' && current.order === 'asc' ? 'desc' : 'asc',
+            }))
+          }
+        >
+          Название {sort.key === 'name' ? (sort.order === 'asc' ? '▲' : '▼') : ''}
+        </button>
+      ),
+      thClassName: 'min-w-[220px]',
+      cell: (object) => (
+        <TableOnlyTestId id={`object-row-${object.id}`}>
+          <span>{object.name}</span>
+        </TableOnlyTestId>
+      ),
+      cellClassName: 'text-sm font-medium text-neutral-900',
+      card: 'title',
+    },
+    {
+      key: 'address',
+      header: 'Адрес',
+      thClassName: 'min-w-[240px]',
+      cell: (object) => <span title={object.address}>{object.address}</span>,
+      cellClassName: 'max-w-[320px] truncate text-neutral-500',
+      card: 'subtitle',
+    },
+    {
+      key: 'type',
+      header: 'Тип',
+      thClassName: 'w-[120px]',
+      cell: (object) => (
+        <span className="rounded-md border border-neutral-200 px-2 py-0.5 text-xs text-neutral-700">
+          {object.type}
+        </span>
+      ),
+      card: 'field',
+      cardLabel: 'Тип',
+    },
+    {
+      key: 'totalArea',
+      header: (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-700 max-lg:min-h-[44px]"
+          onClick={() =>
+            setSort((current) => ({
+              key: 'totalArea',
+              order: current.key === 'totalArea' && current.order === 'asc' ? 'desc' : 'asc',
+            }))
+          }
+        >
+          Площадь, м² {sort.key === 'totalArea' ? (sort.order === 'asc' ? '▲' : '▼') : ''}
+        </button>
+      ),
+      thClassName: 'w-[120px]',
+      align: 'right',
+      mono: true,
+      cell: (object) => formatNumber(object.totalArea),
+      card: 'field',
+      cardLabel: 'Площадь, м²',
+    },
+    {
+      key: 'floorsCount',
+      header: 'Этажей',
+      thClassName: 'w-[90px]',
+      align: 'right',
+      mono: true,
+      cell: (object) => formatInteger(object.floorsCount),
+      card: 'field',
+      cardLabel: 'Этажей',
+    },
+    {
+      key: 'client',
+      header: 'Клиент',
+      thClassName: 'w-[200px]',
+      cell: (object) => <ClientCell object={object} clientsById={clientsById} />,
+      card: 'field',
+      cardLabel: 'Клиент',
+    },
+    {
+      key: 'status',
+      header: 'Статус',
+      thClassName: 'w-[130px]',
+      cell: (object) => <ObjectStatusBadge status={object.status} />,
+      card: 'badge',
+    },
+    {
+      key: 'actions',
+      header: ' ',
+      thClassName: 'w-[56px]',
+      // Клик в колонке действий не должен уводить в карточку объекта — правило
+      // работает и в строке таблицы, и в карточке телефона.
+      cell: (object) => (
+        <div onClick={(event) => event.stopPropagation()}>
+          <ActionMenu label={`Действия: ${object.name}`} items={rowItems(object)} />
+        </div>
+      ),
+      cellClassName: 'text-right',
+      card: 'actions',
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title={total > 0 ? `Объекты · ${formatInteger(total)}` : 'Объекты'}
         actions={
           canEdit ? (
-            <Button variant="primary" data-testid="object-create-button" onClick={openCreate}>
+            // `Button size="md"` даёт ~40 px; на телефоне главное действие списка
+            // растягивается на строку и добирает высоту до тач-таргета.
+            <Button
+              variant="primary"
+              data-testid="object-create-button"
+              className="max-md:w-full max-lg:min-h-[44px]"
+              onClick={openCreate}
+            >
               Создать объект
             </Button>
           ) : null
@@ -334,7 +462,9 @@ export function ObjectsListPage() {
 
       <Card className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-[240px] flex-1">
+          {/* На телефоне фильтры занимают строку целиком: `flex-1` с `min-w-[240px]`
+              на 360 px либо распирал карточку, либо сжимал поле до нечитаемого. */}
+          <div className="min-w-[240px] flex-1 max-md:min-w-0 max-md:w-full">
             <Input
               type="search"
               data-testid="objects-search"
@@ -349,7 +479,7 @@ export function ObjectsListPage() {
             data-testid="objects-status-filter"
             aria-label="Фильтр по статусу"
             value={status}
-            className="w-48"
+            className="w-48 max-md:w-full"
             onChange={(event) => updateParams({ status: event.target.value, skip: null })}
           >
             <option value="">Все статусы</option>
@@ -363,7 +493,7 @@ export function ObjectsListPage() {
           <Select
             aria-label="Фильтр по типу"
             value={type}
-            className="w-48"
+            className="w-48 max-md:w-full"
             onChange={(event) => updateParams({ type: event.target.value, skip: null })}
           >
             <option value="">Все типы</option>
@@ -437,7 +567,7 @@ export function ObjectsListPage() {
               hint="Создайте первый объект обслуживания"
               action={
                 canEdit ? (
-                  <Button variant="primary" onClick={openCreate}>
+                  <Button variant="primary" className="max-lg:min-h-[44px]" onClick={openCreate}>
                     Создать объект
                   </Button>
                 ) : null
@@ -446,104 +576,23 @@ export function ObjectsListPage() {
           )
         ) : (
           <Card padded={false}>
-            <Table>
-              <THead>
-                <Th className="min-w-[220px]">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-700"
-                    onClick={() =>
-                      setSort((current) => ({
-                        key: 'name',
-                        order: current.key === 'name' && current.order === 'asc' ? 'desc' : 'asc',
-                      }))
-                    }
-                  >
-                    Название {sort.key === 'name' ? (sort.order === 'asc' ? '▲' : '▼') : ''}
-                  </button>
-                </Th>
-                <Th className="min-w-[240px]">Адрес</Th>
-                <Th className="w-[120px]">Тип</Th>
-                <Th align="right" className="w-[120px]">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-700"
-                    onClick={() =>
-                      setSort((current) => ({
-                        key: 'totalArea',
-                        order:
-                          current.key === 'totalArea' && current.order === 'asc' ? 'desc' : 'asc',
-                      }))
-                    }
-                  >
-                    Площадь, м²{' '}
-                    {sort.key === 'totalArea' ? (sort.order === 'asc' ? '▲' : '▼') : ''}
-                  </button>
-                </Th>
-                <Th align="right" className="w-[90px]">
-                  Этажей
-                </Th>
-                <Th className="w-[200px]">Клиент</Th>
-                <Th className="w-[130px]">Статус</Th>
-                <Th className="w-[56px]"> </Th>
-              </THead>
-              <TBody>
-                {showSkeleton
-                  ? Array.from({ length: 5 }).map((_, index) => (
-                      <Tr key={index}>
-                        {Array.from({ length: 8 }).map((__, cell) => (
-                          <Td key={cell}>
-                            <span className="block h-4 w-full animate-pulse rounded-md bg-neutral-200" />
-                          </Td>
-                        ))}
-                      </Tr>
-                    ))
-                  : sortedObjects.map((object) => (
-                      <Tr
-                        key={object.id}
-                        className={rowOpacity}
-                        onClick={() => navigate(ROUTES.object(object.id))}
-                      >
-                        <Td className="text-sm font-medium text-neutral-900">
-                          <span data-testid={`object-row-${object.id}`}>{object.name}</span>
-                        </Td>
-                        <Td className="max-w-[320px] truncate text-neutral-500">
-                          <span title={object.address}>{object.address}</span>
-                        </Td>
-                        <Td>
-                          <span className="rounded-md border border-neutral-200 px-2 py-0.5 text-xs text-neutral-700">
-                            {object.type}
-                          </span>
-                        </Td>
-                        <Td align="right" mono>
-                          {formatNumber(object.totalArea)}
-                        </Td>
-                        <Td align="right" mono>
-                          {formatInteger(object.floorsCount)}
-                        </Td>
-                        <Td>
-                          <ClientCell object={object} clientsById={clientsById} />
-                        </Td>
-                        <Td>
-                          <ObjectStatusBadge status={object.status} />
-                        </Td>
-                        <Td className="text-right">
-                          {/* Клик в колонке действий не должен уводить в карточку объекта. */}
-                          <div onClick={(event) => event.stopPropagation()}>
-                            <ActionMenu
-                              label={`Действия: ${object.name}`}
-                              items={rowItems(object)}
-                            />
-                          </div>
-                        </Td>
-                      </Tr>
-                    ))}
-
-                {!showSkeleton && sortedObjects.length === 0 && (
-                  <TableMessageRow colSpan={8}>Объектов на этой странице нет</TableMessageRow>
-                )}
-              </TBody>
-            </Table>
+            {/*
+              Один список на два представления: `<table>` на `md+` — прежние
+              8 колонок, карточки на телефоне. `onRowClick` — переход в карточку
+              объекта, к которому привыкли и мышь, и e2e; прежний `data-testid`
+              строки (`object-row-<id>`) ставит `TableOnlyTestId` в ячейке названия —
+              так он остаётся в DOM ровно один раз (примитив держит и таблицу, и
+              карточки одновременно, см. `components/ui/TableOnlyTestId.tsx`).
+            */}
+            <ResponsiveTable
+              items={sortedObjects}
+              getKey={(object) => object.id}
+              rowClassName={() => rowOpacity}
+              onRowClick={(object) => navigate(ROUTES.object(object.id))}
+              loading={showSkeleton}
+              empty={<span className={PHONE_EMPTY}>Объектов на этой странице нет</span>}
+              columns={columns}
+            />
 
             <Pagination
               total={total}

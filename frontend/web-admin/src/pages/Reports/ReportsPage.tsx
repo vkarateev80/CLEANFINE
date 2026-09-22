@@ -124,7 +124,12 @@ export function ReportsPage() {
         }
       />
 
-      <Card className="flex flex-wrap items-end gap-4">
+      {/*
+        На телефоне фильтры встают одной колонкой во всю ширину (`w-40`/`w-72`/`w-64`
+        рядом не помещаются в 360 px). `max-md:[&>*]:w-full` растягивает прямых детей
+        карточки — обёртки `Field`, а контролы внутри `Field` уже `w-full`.
+      */}
+      <Card className="flex flex-wrap items-end gap-4 max-md:[&>*]:w-full">
         <Field label="Период с" htmlFor="report-from">
           <Input
             id="report-from"
@@ -182,7 +187,17 @@ export function ReportsPage() {
           </Field>
         ) : null}
 
-        <nav className="ml-auto flex flex-wrap gap-1" aria-label="Отчёты">
+        {/*
+          Вкладки отчётов — четыре кнопки `size="sm"`: в 360 px они не помещаются,
+          поэтому на телефоне лента вкладок скроллится по горизонтали внутри своего
+          контейнера (страница по горизонтали не скроллится). `ml-auto` переехал на
+          обёртку, чтобы на планшете и desktop вкладки остались прижатыми вправо.
+        */}
+        <div className="ml-auto max-md:ml-0 max-md:w-full max-md:overflow-x-auto">
+          <nav
+            className="flex flex-wrap gap-1 max-md:w-max max-md:flex-nowrap"
+            aria-label="Отчёты"
+          >
           {TABS.map((item) => (
             <Button
               key={item.key}
@@ -194,7 +209,8 @@ export function ReportsPage() {
               {item.label}
             </Button>
           ))}
-        </nav>
+          </nav>
+        </div>
       </Card>
 
       {tab === 'materials' && (

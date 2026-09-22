@@ -416,7 +416,7 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-md:w-full max-md:basis-full">
           {canEdit && (
             <Button
               variant="secondary"
@@ -469,10 +469,15 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
         <ErrorBanner error={deletePointMutation.error} onRetry={() => deletePointMutation.reset()} />
       )}
 
-      <div className="flex gap-2 lg:hidden">
+      {/* Переключатель «Точки / План» — только ниже `lg` (на desktop видны обе
+          панели). На телефоне он занимает всю ширину, а кнопки делят её поровну:
+          это основной навигационный контрол экрана, попадать в него пальцем
+          должно быть легко. На планшете и desktop правила `max-md:` не действуют. */}
+      <div className="flex gap-2 lg:hidden max-md:w-full">
         <Button
           variant={tab === 'points' ? 'primary' : 'secondary'}
           size="sm"
+          className="max-md:flex-1"
           data-testid="route-tab-points"
           onClick={() => setTab('points')}
         >
@@ -481,6 +486,7 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
         <Button
           variant={tab === 'plan' ? 'primary' : 'secondary'}
           size="sm"
+          className="max-md:flex-1"
           data-testid="route-tab-plan"
           onClick={() => setTab('plan')}
         >

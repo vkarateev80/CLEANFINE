@@ -7,15 +7,10 @@ import {
   ErrorBanner,
   PageHeader,
   Pagination,
+  ResponsiveTable,
   Select,
   SoftWarning,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import { useCanAssignTicket, useCanCreateTicket } from '../../hooks/usePermissions';
 import { ROUTES } from '../../router/routes';
@@ -55,6 +50,14 @@ import { useAssigneeOptions, useObjectOptions, useTickets, userName } from './us
  */
 
 const TAKE = 25;
+
+/**
+ * Пустое состояние в карточном режиме: в таблице текст и отступы задаёт
+ * `TableMessageRow`, поэтому все классы — `max-md:` и на планшете с desktop
+ * разметка не меняется.
+ */
+const PHONE_EMPTY =
+  'max-md:block max-md:rounded-xl max-md:border max-md:border-dashed max-md:border-neutral-300 max-md:bg-white max-md:px-4 max-md:py-8 max-md:text-center max-md:text-sm max-md:text-neutral-400';
 
 export function TicketsPage() {
   const [params, setParams] = useSearchParams();
@@ -122,6 +125,122 @@ export function TicketsPage() {
 
   const showSkeleton = query.isLoading;
 
+  /**
+   * Колонки списка описаны один раз (ADR-002): `cell` — ячейка таблицы
+   * (на `md+` разметка прежняя, ширины перенесены из `<Th>`), `card` — роль в
+   * карточке телефона. У заявки нет «названия», поэтому `title` — описание
+   * (суть работы), `subtitle` — тип и приоритет, `badge` — статус, остальное —
+   * поля «подпись — значение».
+   */
+  const columns: ResponsiveColumn<TicketListItem>[] = [
+    {
+      key: 'type',
+      header: 'Тип / приоритет',
+      thClassName: 'w-[150px]',
+      cell: (ticket) => (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-neutral-700">{TICKET_TYPE_LABELS[ticket.type]}</span>
+          <TicketPriorityBadge
+            priority={ticket.priority}
+            label={TICKET_PRIORITY_LABELS[ticket.priority]}
+          />
+        </div>
+      ),
+      card: 'subtitle',
+    },
+    {
+      key: 'status',
+      header: 'Статус',
+      thClassName: 'w-[140px]',
+      cell: (ticket) => <TicketStatusBadge status={ticket.status} />,
+      card: 'badge',
+    },
+    {
+      key: 'description',
+      header: 'Описание',
+      thClassName: 'min-w-[240px]',
+      cellClassName: 'max-w-[360px]',
+      cell: (ticket) => (
+        <>
+          {/* `truncate` — плотность таблицы; в карточке описание переносится
+              строками, иначе на телефоне от него оставалась бы одна строка. */}
+          <span
+            className="block truncate text-neutral-800 max-md:overflow-visible max-md:whitespace-normal max-md:break-words"
+            title={ticket.description}
+          >
+            {ticket.description}
+          </span>
+          <span className="font-mono text-xs text-neutral-400">{shortId(ticket.id)}</span>
+        </>
+      ),
+      card: 'title',
+    },
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'w-[200px]',
+      cell: (ticket) => (
+        <>
+          {/* Ссылка на объект: клик по строке ведёт в заявку, поэтому переход к
+              объекту — отдельная ссылка (в карточке правило то же). */}
+          <Link
+            to={ROUTES.object(ticket.objectId)}
+            className="text-primary-600 hover:underline"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {objectNames.get(ticket.objectId) ?? shortId(ticket.objectId)}
+          </Link>
+          {ticket.roomId && (
+            <div className="font-mono text-xs text-neutral-400">
+              помещение {shortId(ticket.roomId)}
+            </div>
+          )}
+        </>
+      ),
+      card: 'field',
+      cardLabel: 'Объект',
+    },
+    {
+      key: 'assignee',
+      header: 'Исполнитель',
+      thClassName: 'w-[180px]',
+      cell: (ticket) => {
+        const assignee = userName(assignees.data?.items, ticket.assigneeId);
+        if (assignee) return <span className="text-neutral-800">{assignee}</span>;
+        if (ticket.assigneeId) {
+          return (
+            <span className="font-mono text-xs text-neutral-400">{shortId(ticket.assigneeId)}</span>
+          );
+        }
+        return <span className="text-neutral-400">Не назначен</span>;
+      },
+      card: 'field',
+      cardLabel: 'Исполнитель',
+    },
+    {
+      key: 'links',
+      header: 'Связи',
+      thClassName: 'w-[120px]',
+      cell: (ticket) => (
+        <span className="font-mono text-xs text-neutral-500">
+          {ticket._count.comments} 💬 · {ticket._count.operations} ✅ ·{' '}
+          {ticket._count.assignments} 👤
+        </span>
+      ),
+      card: 'field',
+      cardLabel: 'Связи',
+    },
+    {
+      key: 'created',
+      header: 'Создана',
+      thClassName: 'w-[150px]',
+      mono: true,
+      cell: (ticket) => formatDateTime(ticket.createdAt),
+      card: 'field',
+      cardLabel: 'Создана',
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -129,9 +248,12 @@ export function TicketsPage() {
         subtitle="Плановые, внеплановые и аварийные работы по объектам"
         actions={
           <>
+            {/* SOS — главное действие телефона: крупный тач-таргет на всю ширину
+                строки действий (на `md+` кнопки остаются в прежнем ряду). */}
             <Button
               variant="danger"
               data-testid="ticket-sos-button"
+              className="max-md:w-full max-lg:min-h-[48px] max-md:text-base"
               onClick={() => setSosOpen(true)}
             >
               🚨 SOS
@@ -140,6 +262,7 @@ export function TicketsPage() {
               <Button
                 variant="primary"
                 data-testid="ticket-create-button"
+                className="max-md:w-full max-lg:min-h-[44px]"
                 onClick={() => {
                   setCreatedId(null);
                   setCreateOpen(true);
@@ -175,8 +298,10 @@ export function TicketsPage() {
       )}
 
       <Card className="flex flex-col gap-4">
+        {/* Пять фильтров фиксированной ширины (`w-48`/`w-64`) на телефоне встают
+            в одну колонку на всю ширину; на `md+` — прежний ряд с переносом. */}
         <div className="flex flex-wrap items-center gap-3">
-          <FilterSlot width="w-48">
+          <FilterSlot width="w-48 max-md:w-full">
             <Select
               data-testid="tickets-status-filter"
               aria-label="Фильтр по статусу"
@@ -192,7 +317,7 @@ export function TicketsPage() {
             </Select>
           </FilterSlot>
 
-          <FilterSlot width="w-48">
+          <FilterSlot width="w-48 max-md:w-full">
             <Select
               data-testid="tickets-type-filter"
               aria-label="Фильтр по типу"
@@ -208,7 +333,7 @@ export function TicketsPage() {
             </Select>
           </FilterSlot>
 
-          <FilterSlot width="w-48">
+          <FilterSlot width="w-48 max-md:w-full">
             <Select
               aria-label="Фильтр по приоритету"
               value={priority}
@@ -223,7 +348,7 @@ export function TicketsPage() {
             </Select>
           </FilterSlot>
 
-          <FilterSlot width="w-64">
+          <FilterSlot width="w-64 max-md:w-full">
             <Select
               data-testid="tickets-object-filter"
               aria-label="Фильтр по объекту"
@@ -241,7 +366,7 @@ export function TicketsPage() {
           </FilterSlot>
 
           {canAssign && (
-            <FilterSlot width="w-64">
+            <FilterSlot width="w-64 max-md:w-full">
               <Select
                 aria-label="Фильтр по исполнителю"
                 value={assigneeId}
@@ -294,7 +419,11 @@ export function TicketsPage() {
               hint="Создайте плановую заявку или отправьте SOS при аварии"
               action={
                 canCreate ? (
-                  <Button variant="primary" onClick={() => setCreateOpen(true)}>
+                  <Button
+                    variant="primary"
+                    className="max-lg:min-h-[44px]"
+                    onClick={() => setCreateOpen(true)}
+                  >
                     Создать заявку
                   </Button>
                 ) : null
@@ -303,103 +432,17 @@ export function TicketsPage() {
           )
         ) : (
           <Card padded={false}>
-            <Table>
-              <THead>
-                <Th className="w-[150px]">Тип / приоритет</Th>
-                <Th className="w-[140px]">Статус</Th>
-                <Th className="min-w-[240px]">Описание</Th>
-                <Th className="w-[200px]">Объект</Th>
-                <Th className="w-[180px]">Исполнитель</Th>
-                <Th className="w-[120px]">Связи</Th>
-                <Th className="w-[150px]">Создана</Th>
-              </THead>
-              <TBody>
-                {showSkeleton
-                  ? Array.from({ length: 5 }).map((_, row) => (
-                      <Tr key={row}>
-                        {Array.from({ length: 7 }).map((__, cell) => (
-                          <Td key={cell}>
-                            <span className="block h-4 w-full animate-pulse rounded-md bg-neutral-200" />
-                          </Td>
-                        ))}
-                      </Tr>
-                    ))
-                  : items.map((ticket) => {
-                      const assignee = userName(assignees.data?.items, ticket.assigneeId);
-                      return (
-                        <Tr
-                          key={ticket.id}
-                          className={query.isFetching && !showSkeleton ? 'opacity-60' : ''}
-                          onClick={() => navigate(ROUTES.ticket(ticket.id))}
-                        >
-                          <Td>
-                            <div className="flex flex-col gap-1">
-                              <span className="text-xs text-neutral-700">
-                                {TICKET_TYPE_LABELS[ticket.type]}
-                              </span>
-                              <TicketPriorityBadge
-                                priority={ticket.priority}
-                                label={TICKET_PRIORITY_LABELS[ticket.priority]}
-                              />
-                            </div>
-                          </Td>
-                          <Td>
-                            <TicketStatusBadge status={ticket.status} />
-                          </Td>
-                          <Td className="max-w-[360px]">
-                            <span
-                              className="block truncate text-neutral-800"
-                              title={ticket.description}
-                            >
-                              {ticket.description}
-                            </span>
-                            <span className="font-mono text-xs text-neutral-400">
-                              {shortId(ticket.id)}
-                            </span>
-                          </Td>
-                          <Td>
-                            {/* Ссылка на объект: клик по строке ведёт в заявку, поэтому
-                                переход к объекту — отдельная ссылка. */}
-                            <Link
-                              to={ROUTES.object(ticket.objectId)}
-                              className="text-primary-600 hover:underline"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              {objectNames.get(ticket.objectId) ?? shortId(ticket.objectId)}
-                            </Link>
-                            {ticket.roomId && (
-                              <div className="font-mono text-xs text-neutral-400">
-                                помещение {shortId(ticket.roomId)}
-                              </div>
-                            )}
-                          </Td>
-                          <Td>
-                            {assignee ? (
-                              <span className="text-neutral-800">{assignee}</span>
-                            ) : ticket.assigneeId ? (
-                              <span className="font-mono text-xs text-neutral-400">
-                                {shortId(ticket.assigneeId)}
-                              </span>
-                            ) : (
-                              <span className="text-neutral-400">Не назначен</span>
-                            )}
-                          </Td>
-                          <Td>
-                            <span className="font-mono text-xs text-neutral-500">
-                              {ticket._count.comments} 💬 · {ticket._count.operations} ✅ ·{' '}
-                              {ticket._count.assignments} 👤
-                            </span>
-                          </Td>
-                          <Td mono>{formatDateTime(ticket.createdAt)}</Td>
-                        </Tr>
-                      );
-                    })}
-
-                {!showSkeleton && items.length === 0 && (
-                  <TableMessageRow colSpan={7}>Заявок на этой странице нет</TableMessageRow>
-                )}
-              </TBody>
-            </Table>
+            {/* Таблица из 7 колонок была шире вьюпорта на 200 px уже при 360 px:
+                на телефоне — карточки, на `md+` — прежняя таблица. */}
+            <ResponsiveTable
+              items={items}
+              getKey={(ticket) => ticket.id}
+              rowClassName={() => (query.isFetching && !showSkeleton ? 'opacity-60' : '')}
+              onRowClick={(ticket) => navigate(ROUTES.ticket(ticket.id))}
+              loading={showSkeleton}
+              empty={<span className={PHONE_EMPTY}>Заявок на этой странице нет</span>}
+              columns={columns}
+            />
 
             <Pagination
               total={total}

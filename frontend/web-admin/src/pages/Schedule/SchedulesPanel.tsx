@@ -8,14 +8,10 @@ import {
   EmptyState,
   ErrorBanner,
   LoadingBlock,
+  ResponsiveTable,
   SoftWarning,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import { useCanManageSchedule } from '../../hooks/usePermissions';
 import type { SessionUser } from '../../types';
@@ -91,6 +87,128 @@ export function SchedulesPanel({
   const items = schedules ?? [];
   const forbidden = apiStatus(error) === 403;
 
+  /**
+   * Колонки списка графиков: `cell` — прежняя ячейка таблицы, `card` — роль в
+   * карточке телефона (сущность — название графика, статус — «Активен/Выключен»).
+   *
+   * `rowTestId` не передан: `schedule-row-<id>` существующий e2e считает строго
+   * (`toHaveCount(1)`), а примитив держит в DOM и таблицу, и карточки — дубль id
+   * сломал бы подсчёт (см. `TableOnlyTestId` в UI-ките). Хук строки остаётся
+   * в табличной ячейке, карточка получает канонический `data-testid="card"`.
+   */
+  const columns: ResponsiveColumn<ScheduleEntity>[] = [
+    {
+      key: 'name',
+      header: 'Название',
+      thClassName: 'min-w-[220px]',
+      card: 'title',
+      cell: (schedule) => (
+        <>
+          <TableOnlyTestId id={`schedule-row-${schedule.id}`}>
+            <span className="block text-neutral-900">{schedule.name}</span>
+          </TableOnlyTestId>
+          {schedule.routeId && (
+            <span className="block font-mono text-xs font-normal text-neutral-400">
+              маршрут {shortId(schedule.routeId)}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'min-w-[200px]',
+      card: 'field',
+      cardLabel: 'Объект',
+      cell: (schedule) => {
+        const name = objectName(objects, schedule.objectId);
+        return (
+          name ?? (
+            <span className="text-neutral-400">
+              {schedule.objectId ? shortId(schedule.objectId) : 'без объекта'}
+            </span>
+          )
+        );
+      },
+    },
+    {
+      key: 'recurrence',
+      header: 'Повторение',
+      thClassName: 'min-w-[190px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Повторение',
+      cell: (schedule) => describeRecurrence(schedule.recurrence),
+    },
+    {
+      key: 'assignees',
+      header: 'Исполнители',
+      thClassName: 'min-w-[200px]',
+      card: 'field',
+      cardLabel: 'Исполнители',
+      cell: (schedule) => assigneeNames(users, schedule.assignees),
+    },
+    {
+      key: 'events',
+      header: 'Смен',
+      thClassName: 'w-[90px]',
+      align: 'right',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Смен',
+      cell: (schedule) => schedule.eventsCount,
+    },
+    {
+      key: 'active',
+      header: 'Активность',
+      thClassName: 'w-[120px]',
+      card: 'badge',
+      cell: (schedule) =>
+        schedule.isActive ? (
+          <span className="text-neutral-800">Активен</span>
+        ) : (
+          <span className="text-neutral-400">Выключен</span>
+        ),
+    },
+    {
+      key: 'actions',
+      header: 'Действия',
+      thClassName: 'w-[190px]',
+      align: 'right',
+      card: 'actions',
+      cell: (schedule) =>
+        canManage && (
+          <div className="flex justify-end gap-2">
+            <TableOnlyTestId id={`schedule-edit-${schedule.id}`}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setDeleteError(null);
+                  setForm({ schedule });
+                }}
+              >
+                Изменить
+              </Button>
+            </TableOnlyTestId>
+            <TableOnlyTestId id={`schedule-delete-${schedule.id}`}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleting(schedule);
+                }}
+              >
+                Удалить
+              </Button>
+            </TableOnlyTestId>
+          </div>
+        ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <Card className="flex flex-wrap items-center gap-3">
@@ -102,6 +220,8 @@ export function SchedulesPanel({
             <Button
               variant="primary"
               data-testid="schedule-create-button"
+              // Главное действие вкладки: на телефоне и планшете таргет ≥44 px.
+              className="max-lg:min-h-[44px] max-md:w-full"
               onClick={() => setForm({ schedule: null })}
             >
               Создать график
@@ -146,91 +266,13 @@ export function SchedulesPanel({
           />
         ) : (
           <Card padded={false}>
-            <Table>
-              <THead>
-                <Th className="min-w-[220px]">Название</Th>
-                <Th className="min-w-[200px]">Объект</Th>
-                <Th className="min-w-[190px]">Повторение</Th>
-                <Th className="min-w-[200px]">Исполнители</Th>
-                <Th className="w-[90px]" align="right">
-                  Смен
-                </Th>
-                <Th className="w-[120px]">Активность</Th>
-                <Th className="w-[190px]" align="right">
-                  Действия
-                </Th>
-              </THead>
-              <TBody>
-                {items.map((schedule) => {
-                  const name = objectName(objects, schedule.objectId);
-                  return (
-                    <Tr
-                      key={schedule.id}
-                      testId={`schedule-row-${schedule.id}`}
-                      className={isFetching ? 'opacity-60' : ''}
-                    >
-                      <Td>
-                        <span className="block text-neutral-900">{schedule.name}</span>
-                        {schedule.routeId && (
-                          <span className="font-mono text-xs text-neutral-400">
-                            маршрут {shortId(schedule.routeId)}
-                          </span>
-                        )}
-                      </Td>
-                      <Td>
-                        {name ?? (
-                          <span className="text-neutral-400">
-                            {schedule.objectId ? shortId(schedule.objectId) : 'без объекта'}
-                          </span>
-                        )}
-                      </Td>
-                      <Td mono>{describeRecurrence(schedule.recurrence)}</Td>
-                      <Td>{assigneeNames(users, schedule.assignees)}</Td>
-                      <Td mono align="right">
-                        {schedule.eventsCount}
-                      </Td>
-                      <Td>
-                        {schedule.isActive ? (
-                          <span className="text-neutral-800">Активен</span>
-                        ) : (
-                          <span className="text-neutral-400">Выключен</span>
-                        )}
-                      </Td>
-                      <Td align="right">
-                        {canManage && (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              data-testid={`schedule-edit-${schedule.id}`}
-                              onClick={() => {
-                                setDeleteError(null);
-                                setForm({ schedule });
-                              }}
-                            >
-                              Изменить
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              data-testid={`schedule-delete-${schedule.id}`}
-                              onClick={() => {
-                                setDeleteError(null);
-                                setDeleting(schedule);
-                              }}
-                            >
-                              Удалить
-                            </Button>
-                          </div>
-                        )}
-                      </Td>
-                    </Tr>
-                  );
-                })}
-
-                {items.length === 0 && <TableMessageRow colSpan={7}>Графиков нет</TableMessageRow>}
-              </TBody>
-            </Table>
+            <ResponsiveTable<ScheduleEntity>
+              items={items}
+              getKey={(schedule) => schedule.id}
+              columns={columns}
+              rowClassName={() => (isFetching ? 'opacity-60' : '')}
+              empty="Графиков нет"
+            />
           </Card>
         ))}
 

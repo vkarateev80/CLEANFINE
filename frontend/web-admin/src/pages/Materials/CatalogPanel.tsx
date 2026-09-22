@@ -10,14 +10,10 @@ import {
   ErrorBanner,
   Input,
   Pagination,
+  ResponsiveTable,
   SoftWarning,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCanManageMaterials, useCanMoveMaterials } from '../../hooks/usePermissions';
@@ -124,13 +120,188 @@ export function CatalogPanel({ onMove }: { onMove: (preset: MovementPreset) => v
   const forbidden = apiStatus(query.error) === 403;
   const showSkeleton = query.isLoading;
 
+  /**
+   * Колонки описываются ОДИН раз: `cell` — ячейка таблицы (md+, как раньше),
+   * `card` — роль в карточке телефона (<768, см. ADR-002).
+   *
+   * `rowTestId` сознательно не передан: примитив рендерит оба представления в DOM
+   * (переключение — CSS), и один id строки оказался бы в DOM дважды, а e2e-набор
+   * считает строки поиска строго (`toHaveCount(1)` по `[data-testid^="material-row-"]`).
+   * Поэтому прежние хуки строк и кнопок остаются в таблице (`TableOnlyTestId`),
+   * а карточка получает канонический `data-testid="card"` от примитива.
+   */
+  const columns: ResponsiveColumn<MaterialListItem>[] = [
+    {
+      key: 'name',
+      header: (
+        <button
+          type="button"
+          // Сортировка в шапке таблицы: на телефоне и планшете таргет ≥44 px
+          // (на 360 px сортировки нет — таблица заменена карточками).
+          className="max-lg:min-h-[44px]"
+          data-testid="materials-sort-name"
+          onClick={() => toggleSort('name')}
+        >
+          Название{sortMark('name')}
+        </button>
+      ),
+      thClassName: 'min-w-[220px]',
+      card: 'title',
+      cell: (material) => (
+        <>
+          <TableOnlyTestId id={`material-row-${material.id}`}>
+            <span className="block text-neutral-900">{material.name}</span>
+          </TableOnlyTestId>
+          {/*
+            Счётчики складов и движений остаются во второй строке той же ячейки:
+            отдельной колонкой они дали бы лишний столбец в таблице desktop.
+            `font-normal` — чтобы в карточке (там заголовок набран medium) вторая
+            строка не выглядела частью названия; на desktop вес не меняется.
+          */}
+          <span className="block font-mono text-xs font-normal text-neutral-400">
+            {material._count.stocks} склад. · {material._count.movements} движ.
+          </span>
+        </>
+      ),
+    },
+    {
+      key: 'unit',
+      header: 'Единица',
+      thClassName: 'w-[110px]',
+      card: 'field',
+      cardLabel: 'Единица',
+      cell: (material) => material.unit,
+    },
+    {
+      key: 'consumption',
+      header: (
+        <button
+          type="button"
+          // Сортировка в шапке таблицы: на телефоне и планшете таргет ≥44 px
+          // (на 360 px сортировки нет — таблица заменена карточками).
+          className="max-lg:min-h-[44px]"
+          data-testid="materials-sort-consumption"
+          onClick={() => toggleSort('defaultConsumption')}
+        >
+          Норма расхода{sortMark('defaultConsumption')}
+        </button>
+      ),
+      thClassName: 'w-[150px]',
+      card: 'field',
+      cardLabel: 'Норма расхода',
+      mono: true,
+      cell: (material) => formatQuantity(material.defaultConsumption),
+    },
+    {
+      key: 'threshold',
+      header: (
+        <button
+          type="button"
+          // Сортировка в шапке таблицы: на телефоне и планшете таргет ≥44 px
+          // (на 360 px сортировки нет — таблица заменена карточками).
+          className="max-lg:min-h-[44px]"
+          data-testid="materials-sort-threshold"
+          onClick={() => toggleSort('minStockThreshold')}
+        >
+          Порог{sortMark('minStockThreshold')}
+        </button>
+      ),
+      thClassName: 'w-[130px]',
+      card: 'field',
+      cardLabel: 'Порог',
+      mono: true,
+      cell: (material) => formatQuantity(material.minStockThreshold),
+    },
+    {
+      key: 'cost',
+      header: (
+        <button
+          type="button"
+          // Сортировка в шапке таблицы: на телефоне и планшете таргет ≥44 px
+          // (на 360 px сортировки нет — таблица заменена карточками).
+          className="max-lg:min-h-[44px]"
+          data-testid="materials-sort-cost"
+          onClick={() => toggleSort('costPerUnit')}
+        >
+          Цена, ₽{sortMark('costPerUnit')}
+        </button>
+      ),
+      thClassName: 'w-[140px]',
+      align: 'right',
+      card: 'field',
+      cardLabel: 'Цена, ₽',
+      mono: true,
+      cell: (material) => formatMoney(material.costPerUnit),
+    },
+    {
+      key: 'supplier',
+      header: 'Поставщик',
+      thClassName: 'min-w-[180px]',
+      card: 'field',
+      cardLabel: 'Поставщик',
+      cell: (material) => material.supplier ?? <span className="text-neutral-400">—</span>,
+    },
+    {
+      key: 'actions',
+      header: 'Действия',
+      thClassName: 'w-[190px]',
+      align: 'right',
+      card: 'actions',
+      cell: (material) => (
+        <div className="flex justify-end gap-2">
+          {canMove && (
+            <TableOnlyTestId id={`material-move-${material.id}`}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onMove({ materialId: material.id, type: 'IN' })}
+              >
+                Движение
+              </Button>
+            </TableOnlyTestId>
+          )}
+          {canManage && (
+            <>
+              <TableOnlyTestId id={`material-edit-${material.id}`}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setEditing(material);
+                    setFormOpen(true);
+                  }}
+                >
+                  Изменить
+                </Button>
+              </TableOnlyTestId>
+              <TableOnlyTestId id={`material-delete-${material.id}`}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeleting(material);
+                  }}
+                >
+                  Удалить
+                </Button>
+              </TableOnlyTestId>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <Card className="flex flex-wrap items-center gap-3">
         <Input
           data-testid="materials-search"
           aria-label="Поиск по материалам"
-          className="w-72"
+          // На телефоне поле поиска занимает всю ширину строки: `w-72` (288 px)
+          // рядом с кнопкой не помещается в 360 px и распирал бы карточку.
+          className="w-72 max-md:w-full"
           placeholder="Поиск по названию и поставщику"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
@@ -147,11 +318,14 @@ export function CatalogPanel({ onMove }: { onMove: (preset: MovementPreset) => v
             Сбросить поиск
           </Button>
         )}
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3 max-md:ml-0 max-md:w-full">
           {canManage && (
             <Button
               variant="primary"
               data-testid="material-create-button"
+              // Тач-таргет основной кнопки экрана: у `size="md"` высота ~40 px,
+              // на телефоне и планшете доводим до 44 px (на desktop не действует).
+              className="max-lg:min-h-[44px] max-md:w-full"
               onClick={() => {
                 setEditing(null);
                 setFormOpen(true);
@@ -218,126 +392,19 @@ export function CatalogPanel({ onMove }: { onMove: (preset: MovementPreset) => v
           )
         ) : (
           <Card padded={false}>
-            <Table>
-              <THead>
-                <Th className="min-w-[220px]">
-                  <button type="button" data-testid="materials-sort-name" onClick={() => toggleSort('name')}>
-                    Название{sortMark('name')}
-                  </button>
-                </Th>
-                <Th className="w-[110px]">Единица</Th>
-                <Th className="w-[150px]">
-                  <button
-                    type="button"
-                    data-testid="materials-sort-consumption"
-                    onClick={() => toggleSort('defaultConsumption')}
-                  >
-                    Норма расхода{sortMark('defaultConsumption')}
-                  </button>
-                </Th>
-                <Th className="w-[130px]">
-                  <button
-                    type="button"
-                    data-testid="materials-sort-threshold"
-                    onClick={() => toggleSort('minStockThreshold')}
-                  >
-                    Порог{sortMark('minStockThreshold')}
-                  </button>
-                </Th>
-                <Th className="w-[140px]">
-                  <button
-                    type="button"
-                    data-testid="materials-sort-cost"
-                    onClick={() => toggleSort('costPerUnit')}
-                  >
-                    Цена, ₽{sortMark('costPerUnit')}
-                  </button>
-                </Th>
-                <Th className="min-w-[180px]">Поставщик</Th>
-                <Th className="w-[190px]" align="right">
-                  Действия
-                </Th>
-              </THead>
-              <TBody>
-                {showSkeleton
-                  ? Array.from({ length: 5 }).map((_, row) => (
-                      <Tr key={row}>
-                        {Array.from({ length: 7 }).map((__, cell) => (
-                          <Td key={cell}>
-                            <span className="block h-4 w-full animate-pulse rounded-md bg-neutral-200" />
-                          </Td>
-                        ))}
-                      </Tr>
-                    ))
-                  : sorted.map((material) => (
-                      <Tr
-                        key={material.id}
-                        testId={`material-row-${material.id}`}
-                        className={query.isFetching && !showSkeleton ? 'opacity-60' : ''}
-                      >
-                        <Td>
-                          <span className="block text-neutral-900">{material.name}</span>
-                          <span className="font-mono text-xs text-neutral-400">
-                            {material._count.stocks} склад. · {material._count.movements} движ.
-                          </span>
-                        </Td>
-                        <Td>{material.unit}</Td>
-                        <Td mono>{formatQuantity(material.defaultConsumption)}</Td>
-                        <Td mono>{formatQuantity(material.minStockThreshold)}</Td>
-                        <Td mono align="right">
-                          {formatMoney(material.costPerUnit)}
-                        </Td>
-                        <Td>
-                          {material.supplier ?? <span className="text-neutral-400">—</span>}
-                        </Td>
-                        <Td align="right">
-                          <div className="flex justify-end gap-2">
-                            {canMove && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                data-testid={`material-move-${material.id}`}
-                                onClick={() => onMove({ materialId: material.id, type: 'IN' })}
-                              >
-                                Движение
-                              </Button>
-                            )}
-                            {canManage && (
-                              <>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  data-testid={`material-edit-${material.id}`}
-                                  onClick={() => {
-                                    setEditing(material);
-                                    setFormOpen(true);
-                                  }}
-                                >
-                                  Изменить
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  data-testid={`material-delete-${material.id}`}
-                                  onClick={() => {
-                                    setDeleteError(null);
-                                    setDeleting(material);
-                                  }}
-                                >
-                                  Удалить
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </Td>
-                      </Tr>
-                    ))}
-
-                {!showSkeleton && sorted.length === 0 && (
-                  <TableMessageRow colSpan={7}>Материалов на этой странице нет</TableMessageRow>
-                )}
-              </TBody>
-            </Table>
+            {/*
+              Справочник: таблица на планшете и desktop, карточки на телефоне.
+              Сортировка, поиск и пагинация остаются на экране — примитив берёт
+              только переключатель представлений (ADR-002).
+            */}
+            <ResponsiveTable<MaterialListItem>
+              items={sorted}
+              getKey={(material) => material.id}
+              columns={columns}
+              loading={showSkeleton}
+              rowClassName={() => (query.isFetching && !showSkeleton ? 'opacity-60' : '')}
+              empty="Материалов на этой странице нет"
+            />
 
             <Pagination
               total={total}

@@ -110,10 +110,18 @@ export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement
   label: string;
 }
 
-/** Чекбокс с подписью: используется для requiresPhoto/requiresQr и «показать архивные». */
+/**
+ * Чекбокс с подписью: используется для requiresPhoto/requiresQr и «показать архивные».
+ *
+ * Тач-эргономика: `<input>` обёрнут в `<label>`, поэтому клик по подписи уже
+ * переключает состояние, и увеличивать надо именно лейбл — `max-lg:min-h-[44px]`
+ * даёт зону нажатия 44 px по высоте на телефоне и планшете. `min-w-[44px]` —
+ * страховка для коротких подписей («Да»): без неё лейбл был бы уже 44 px.
+ * На desktop (`lg:`, ≥1024) правила не действуют, вид прежний.
+ */
 export function Checkbox({ label, className, ...props }: CheckboxProps) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+    <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-neutral-700 max-lg:min-h-[44px] max-lg:min-w-[44px]">
       <input
         type="checkbox"
         className={['h-4 w-4 rounded border-neutral-300 text-primary-500 focus:ring-primary-500', className ?? ''].join(' ')}

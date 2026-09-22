@@ -137,7 +137,23 @@ export function RoutePointsPanel({
             />
           </div>
         ) : (
-          <div data-testid="route-points">
+          /**
+           * Телефон (<768 px): точка — карточка. `SortableList` — общий примитив
+           * UI-кита и рисует строку горизонтально (ручка, номер, содержимое,
+           * кнопки ↑/↓), из-за чего на 360 px содержимому остаётся ~120 px.
+           * Примитив не правим (он общий для маршрутов и техкарт), но его строку
+           * перестраиваем снаружи — произвольными вариантами по потомкам,
+           * строго в диапазоне `max-md:`:
+           *   - `flex-wrap` + `basis-full` у блока кнопок переносят ↑/↓ на
+           *     отдельную строку (это основной touch-путь перестановки — PRD §4.2);
+           *   - содержимое получает всю ширину строки и рисуется карточкой.
+           * На планшете и desktop правила не действуют: две панели и прежняя
+           * плотная строка.
+           */
+          <div
+            data-testid="route-points"
+            className="max-md:[&>ul>li]:flex-wrap max-md:[&>ul>li]:gap-y-2 max-md:[&>ul>li>div:last-child]:basis-full max-md:[&>ul>li>div:last-child]:justify-end"
+          >
             <SortableList
               items={points}
               getId={(point) => point.id}
@@ -149,12 +165,16 @@ export function RoutePointsPanel({
                 return (
                   <div
                     data-testid={`route-point-row-${point.id}`}
-                    className={['flex items-center gap-2 rounded-md px-1', selected ? 'bg-primary-50' : ''].join(' ')}
+                    className={[
+                      'flex items-center gap-2 rounded-md px-1',
+                      'max-md:flex-col max-md:items-stretch max-md:gap-3 max-md:rounded-lg max-md:border max-md:border-neutral-200 max-md:bg-white max-md:p-3',
+                      selected ? 'bg-primary-50' : '',
+                    ].join(' ')}
                   >
                     <button
                       type="button"
                       onClick={() => onSelectPoint(point.id)}
-                      className="min-w-0 flex-1 text-left"
+                      className="min-w-0 flex-1 text-left max-md:w-full"
                       aria-pressed={selected}
                     >
                       <div className="flex items-center gap-1 truncate text-sm font-medium text-neutral-900">
@@ -172,43 +192,51 @@ export function RoutePointsPanel({
                       {invalidTime && <div className="text-xs text-danger-600">Не удалось сохранить время</div>}
                     </button>
 
-                    <label className="flex shrink-0 items-center gap-1">
-                      <span className="sr-only">Нормативное время, мин, для {point.room.name}</span>
-                      <input
-                        type="number"
-                        min={1}
-                        step={1}
-                        inputMode="numeric"
-                        data-testid={`route-point-time-${point.id}`}
-                        value={point.estimatedTimeMin}
-                        disabled={disabled}
-                        onChange={(event) => onChangeTime(point.id, event.target.value)}
-                        aria-invalid={invalidTime || undefined}
-                        className={[
-                          'w-20 rounded-md border px-2 py-1 text-right font-mono text-sm text-neutral-900',
-                          'focus:outline-none focus:ring-2 focus:ring-offset-1',
-                          invalidTime
-                            ? 'border-danger-500 focus:ring-danger-500'
-                            : 'border-neutral-200 focus:border-primary-500 focus:ring-primary-500',
-                          'disabled:bg-neutral-100 disabled:text-neutral-500',
-                        ].join(' ')}
-                      />
-                      <span className="text-xs text-neutral-500">мин</span>
-                    </label>
+                    {/* Время и удаление — одной строкой внутри карточки: на
+                        телефоне поле крупное (≥44 px по высоте), на desktop —
+                        прежний компактный `w-20`. */}
+                    <div className="flex items-center gap-2 max-md:w-full max-md:justify-between">
+                      <label className="flex shrink-0 items-center gap-1 max-md:flex-1">
+                        <span className="sr-only">Нормативное время, мин, для {point.room.name}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          inputMode="numeric"
+                          data-testid={`route-point-time-${point.id}`}
+                          value={point.estimatedTimeMin}
+                          disabled={disabled}
+                          onChange={(event) => onChangeTime(point.id, event.target.value)}
+                          aria-invalid={invalidTime || undefined}
+                          className={[
+                            'w-20 rounded-md border px-2 py-1 text-right font-mono text-sm text-neutral-900',
+                            // Поле — не из UI-кита, поэтому тач-высоту задаём здесь
+                            // (в ките это делает `CONTROL`): `max-lg:` = телефон+планшет.
+                            'max-lg:min-h-[44px] max-md:w-24',
+                            'focus:outline-none focus:ring-2 focus:ring-offset-1',
+                            invalidTime
+                              ? 'border-danger-500 focus:ring-danger-500'
+                              : 'border-neutral-200 focus:border-primary-500 focus:ring-primary-500',
+                            'disabled:bg-neutral-100 disabled:text-neutral-500',
+                          ].join(' ')}
+                        />
+                        <span className="text-xs text-neutral-500">мин</span>
+                      </label>
 
-                    {canEdit && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-danger-600"
-                        data-testid={`route-point-delete-${point.id}`}
-                        aria-label={`Удалить точку ${point.room.name}`}
-                        disabled={disabled}
-                        onClick={() => onDeletePoint(point.id)}
-                      >
-                        ✕
-                      </Button>
-                    )}
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-danger-600"
+                          data-testid={`route-point-delete-${point.id}`}
+                          aria-label={`Удалить точку ${point.room.name}`}
+                          disabled={disabled}
+                          onClick={() => onDeletePoint(point.id)}
+                        >
+                          ✕
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               }}
@@ -238,7 +266,10 @@ export function RoutePointsPanel({
           </div>
 
           {canEdit && (
-            <div className="flex items-center gap-2">
+            // На телефоне кнопки сохранения — столбиком во всю ширину: в строку
+            // «Отменить изменения» + «Сохранить порядок» не помещаются в 296 px
+            // контента и выдавили бы страницу по горизонтали.
+            <div className="flex items-center gap-2 max-md:w-full max-md:flex-col max-md:gap-2">
               <Button variant="ghost" size="sm" onClick={onDiscard} disabled={!dirty || saving}>
                 Отменить изменения
               </Button>

@@ -98,6 +98,9 @@ export function MaterialsPage() {
             <Button
               variant="primary"
               data-testid="movement-open-button"
+              // «Приход / расход» — главное действие экрана: на телефоне и планшете
+              // доводим таргет до 44 px (у `size="md"` высота ~40 px), desktop не меняем.
+              className="max-lg:min-h-[44px] max-md:w-full"
               onClick={() => {
                 setNotice(null);
                 setMovement({});
@@ -122,28 +125,43 @@ export function MaterialsPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 border-b border-neutral-200" role="tablist">
-        {TABS.map((item) => {
-          const active = item.key === tab;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              data-testid={`materials-tab-${item.key}`}
-              onClick={() => selectTab(item.key)}
-              className={[
-                '-mb-px border-b-2 px-4 py-2 text-sm transition-colors',
-                active
-                  ? 'border-primary-500 font-medium text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-800',
-              ].join(' ')}
-            >
-              {item.label}
-            </button>
-          );
-        })}
+      {/*
+        На телефоне четыре вкладки в 360 px не помещаются: строка вкладок получает
+        собственный горизонтальный скролл (`overflow-x-auto` + `w-max` у ленты), поэтому
+        вкладки не сжимаются и не обрезаются, а страница по горизонтали не скроллится.
+        Родитель ленты — `min-w-0`, иначе flex-элемент не дал бы ей сжаться и переполнил
+        бы страницу. На планшете и desktop все `max-md:` правила не действуют: остаётся
+        прежний перенос `flex-wrap`.
+      */}
+      <div className="min-w-0 max-md:overflow-x-auto max-md:pb-px">
+        <div
+          className="flex flex-wrap gap-2 border-b border-neutral-200 max-md:w-max max-md:flex-nowrap"
+          role="tablist"
+        >
+          {TABS.map((item) => {
+            const active = item.key === tab;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                data-testid={`materials-tab-${item.key}`}
+                onClick={() => selectTab(item.key)}
+                className={[
+                  // `max-lg:min-h-[44px]` — тач-таргет вкладки ≥44 px на телефоне и
+                  // планшете; на desktop (≥1024) высота остаётся прежней.
+                  '-mb-px whitespace-nowrap border-b-2 px-4 py-2 text-sm transition-colors max-lg:min-h-[44px]',
+                  active
+                    ? 'border-primary-500 font-medium text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-800',
+                ].join(' ')}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {tab === 'catalog' && (

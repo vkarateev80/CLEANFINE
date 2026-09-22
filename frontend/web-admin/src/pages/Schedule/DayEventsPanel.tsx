@@ -8,15 +8,11 @@ import {
   Field,
   Input,
   LoadingBlock,
+  ResponsiveTable,
   Select,
   SoftWarning,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import { ROUTES } from '../../router/routes';
 import { useIsScheduleAdmin } from '../../hooks/usePermissions';
@@ -145,9 +141,115 @@ export function DayEventsPanel({
       ? missedSummary(missed)
       : null;
 
+  /**
+   * Колонки смен дня: `cell` — прежняя ячейка таблицы, `card` — роль в карточке
+   * телефона. Сущность смены — график (название), статус — `badge`, время,
+   * объект, исполнитель и заявка — строки «подпись — значение».
+   *
+   * `rowTestId` не передан: `event-row-<id>` и `event-status-<id>` существующий e2e
+   * читает строго (`toBeVisible` / `toContainText`), а примитив держит в DOM и
+   * таблицу, и карточки: второй такой же id дал бы ошибку strict-режима
+   * (см. `TableOnlyTestId` в UI-ките). Оба хука остаются в табличном
+   * представлении, карточка получает канонический `data-testid="card"`.
+   */
+  const columns: ResponsiveColumn<ScheduleEventEntity>[] = [
+    {
+      key: 'start',
+      header: 'Начало',
+      thClassName: 'w-[110px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Начало',
+      cell: (event) => utcTimeOf(event.plannedStart),
+    },
+    {
+      key: 'end',
+      header: 'Окончание',
+      thClassName: 'w-[190px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Окончание',
+      cell: (event) =>
+        event.checkOutAt ? (
+          utcTimeOf(event.checkOutAt)
+        ) : (
+          <span className="text-neutral-400">—</span>
+        ),
+    },
+    {
+      key: 'schedule',
+      header: 'График',
+      thClassName: 'min-w-[200px]',
+      card: 'title',
+      cell: (event) => (
+        <TableOnlyTestId id={`event-row-${event.id}`}>{event.scheduleName}</TableOnlyTestId>
+      ),
+    },
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'min-w-[180px]',
+      card: 'field',
+      cardLabel: 'Объект',
+      cell: (event) =>
+        event.objectId ? (
+          objectNames.get(event.objectId) ?? shortId(event.objectId)
+        ) : (
+          <span className="text-neutral-400">без объекта</span>
+        ),
+    },
+    {
+      key: 'user',
+      header: 'Исполнитель',
+      thClassName: 'min-w-[170px]',
+      card: 'field',
+      cardLabel: 'Исполнитель',
+      cell: (event) =>
+        event.userId ? (
+          userNames.get(event.userId) ?? (
+            <span className="font-mono text-xs">{shortId(event.userId)}</span>
+          )
+        ) : (
+          <span className="text-neutral-400">не назначен</span>
+        ),
+    },
+    {
+      key: 'status',
+      header: 'Статус',
+      thClassName: 'w-[150px]',
+      card: 'badge',
+      cell: (event) => (
+        <TableOnlyTestId id={`event-status-${event.id}`}>
+          <EventStatusBadge status={event.status} />
+        </TableOnlyTestId>
+      ),
+    },
+    {
+      key: 'ticket',
+      header: 'Заявка',
+      thClassName: 'w-[140px]',
+      card: 'field',
+      cardLabel: 'Заявка',
+      cell: (event) =>
+        event.ticketId ? (
+          <Link
+            // Ссылка узкая (font-mono text-xs ≈ 14 px): на телефоне и планшете
+            // растягиваем зону нажатия до 44 px, desktop не меняем.
+            className="font-mono text-xs text-primary-600 hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center"
+            to={ROUTES.ticket(event.ticketId)}
+          >
+            {shortId(event.ticketId)}
+          </Link>
+        ) : (
+          <span className="text-neutral-400">—</span>
+        ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex flex-wrap items-end gap-4">
+      {/* На телефоне фильтры и триггеры — одной колонкой во всю ширину (360 px). */}
+      <Card className="flex flex-wrap items-end gap-4 max-md:[&>*]:w-full">
         <Field label="Дата" htmlFor="events-date" required>
           <Input
             id="events-date"
@@ -206,10 +308,11 @@ export function DayEventsPanel({
         )}
 
         {isAdmin && (
-          <div className="ml-auto flex flex-wrap items-center gap-3">
+          <div className="ml-auto flex flex-wrap items-center gap-3 max-md:ml-0 max-md:w-full">
             <Button
               variant="secondary"
               data-testid="events-generate-button"
+              className="max-lg:min-h-[44px] max-md:w-full"
               loading={generate.isPending}
               onClick={() => {
                 setNoticeDismissed(false);
@@ -221,6 +324,7 @@ export function DayEventsPanel({
             <Button
               variant="secondary"
               data-testid="events-check-missed-button"
+              className="max-lg:min-h-[44px] max-md:w-full"
               loading={checkMissed.isPending}
               onClick={() => {
                 setNoticeDismissed(false);
@@ -229,7 +333,7 @@ export function DayEventsPanel({
             >
               Прогнать неявки
             </Button>
-            <Button variant="ghost" onClick={onToggleScheduler}>
+            <Button variant="ghost" className="max-lg:min-h-[44px] max-md:w-full" onClick={onToggleScheduler}>
               Состояние планировщика
             </Button>
           </div>
@@ -343,71 +447,13 @@ export function DayEventsPanel({
                 <span>Смен за день: {items.length}</span>
                 <span>Время указано в UTC</span>
               </div>
-              <Table>
-                <THead>
-                  <Th className="w-[110px]">Начало</Th>
-                  <Th className="w-[190px]">Окончание</Th>
-                  <Th className="min-w-[200px]">График</Th>
-                  <Th className="min-w-[180px]">Объект</Th>
-                  <Th className="min-w-[170px]">Исполнитель</Th>
-                  <Th className="w-[150px]">Статус</Th>
-                  <Th className="w-[140px]">Заявка</Th>
-                </THead>
-                <TBody>
-                  {items.map((event) => (
-                    <Tr
-                      key={event.id}
-                      testId={`event-row-${event.id}`}
-                      className={isFetching ? 'opacity-60' : ''}
-                    >
-                      <Td mono>{utcTimeOf(event.plannedStart)}</Td>
-                      <Td mono>
-                        {event.checkOutAt ? (
-                          utcTimeOf(event.checkOutAt)
-                        ) : (
-                          <span className="text-neutral-400">—</span>
-                        )}
-                      </Td>
-                      <Td>{event.scheduleName}</Td>
-                      <Td>
-                        {event.objectId ? (
-                          objectNames.get(event.objectId) ?? shortId(event.objectId)
-                        ) : (
-                          <span className="text-neutral-400">без объекта</span>
-                        )}
-                      </Td>
-                      <Td>
-                        {event.userId ? (
-                          userNames.get(event.userId) ?? <span className="font-mono text-xs">{shortId(event.userId)}</span>
-                        ) : (
-                          <span className="text-neutral-400">не назначен</span>
-                        )}
-                      </Td>
-                      <Td>
-                        <span data-testid={`event-status-${event.id}`}>
-                          <EventStatusBadge status={event.status} />
-                        </span>
-                      </Td>
-                      <Td>
-                        {event.ticketId ? (
-                          <Link
-                            className="font-mono text-xs text-primary-600 hover:underline"
-                            to={ROUTES.ticket(event.ticketId)}
-                          >
-                            {shortId(event.ticketId)}
-                          </Link>
-                        ) : (
-                          <span className="text-neutral-400">—</span>
-                        )}
-                      </Td>
-                    </Tr>
-                  ))}
-
-                  {items.length === 0 && (
-                    <TableMessageRow colSpan={7}>Смен на этот день нет</TableMessageRow>
-                  )}
-                </TBody>
-              </Table>
+              <ResponsiveTable<ScheduleEventEntity>
+                items={items}
+                getKey={(event) => event.id}
+                columns={columns}
+                rowClassName={() => (isFetching ? 'opacity-60' : '')}
+                empty="Смен на этот день нет"
+              />
             </Card>
           )}
         </>

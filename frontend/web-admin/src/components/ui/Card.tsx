@@ -74,7 +74,13 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
         <span key={`${item.label}-${index}`} className="flex items-center gap-1">
           {index > 0 && <span className="text-neutral-300">/</span>}
           {item.to ? (
-            <Link to={item.to} className="hover:text-primary-600">
+            // Ссылка-крошка — строчный текст (≈16 px высоты): на телефоне и планшете
+            // растягиваем её до 44 px, чтобы попадать пальцем; на desktop ≥1024
+            // правил нет и строка крошек выглядит как прежде.
+            <Link
+              to={item.to}
+              className="hover:text-primary-600 max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center"
+            >
               {item.label}
             </Link>
           ) : (

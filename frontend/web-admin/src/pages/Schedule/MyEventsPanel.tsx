@@ -8,14 +8,10 @@ import {
   Field,
   Input,
   LoadingBlock,
+  ResponsiveTable,
   SoftWarning,
-  Table,
-  TableMessageRow,
-  TBody,
-  Td,
-  Th,
-  THead,
-  Tr,
+  TableOnlyTestId,
+  type ResponsiveColumn,
 } from '../../components/ui';
 import { ROUTES } from '../../router/routes';
 import { useCanCheckIn } from '../../hooks/usePermissions';
@@ -100,9 +96,169 @@ export function MyEventsPanel({
   // привязанными к той же смене и после перезагрузки страницы.
   const selectedEvent = items.find((event) => event.id === selectedId) ?? null;
 
+  /**
+   * Колонки «Моих смен»: `cell` — прежняя ячейка таблицы, `card` — роль в карточке
+   * телефона (сущность — график, статус — `badge`, отметки — строки «подпись —
+   * значение», кнопки отметки — `actions`).
+   *
+   * `rowTestId` не передан: `my-event-row-<id>`, `my-event-status-<id>` и
+   * `my-checkin-<id>` существующий e2e читает строго, а примитив держит в DOM и
+   * таблицу, и карточки — дубль id дал бы ошибку strict-режима. Хуки остаются в
+   * табличном представлении (см. `TableOnlyTestId` в UI-ките), карточка
+   * получает канонический `data-testid="card"`.
+   */
+  const columns: ResponsiveColumn<ScheduleEventEntity>[] = [
+    {
+      key: 'date',
+      header: 'Дата',
+      thClassName: 'w-[110px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Дата',
+      cell: (event) => event.date,
+    },
+    {
+      key: 'start',
+      header: 'Начало',
+      thClassName: 'w-[110px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Начало',
+      cell: (event) => utcTimeOf(event.plannedStart),
+    },
+    {
+      key: 'checks',
+      header: 'Отметки',
+      thClassName: 'w-[190px]',
+      mono: true,
+      card: 'field',
+      cardLabel: 'Отметки',
+      cell: (event) => (
+        <>
+          {event.checkInAt ? (
+            <span className="block">приход {utcTimeOf(event.checkInAt)}</span>
+          ) : (
+            <span className="block text-neutral-400">прихода нет</span>
+          )}
+          {event.checkOutAt ? (
+            <span className="block">уход {utcTimeOf(event.checkOutAt)}</span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      key: 'schedule',
+      header: 'График',
+      thClassName: 'min-w-[200px]',
+      card: 'title',
+      cell: (event) => (
+        <TableOnlyTestId id={`my-event-row-${event.id}`}>{event.scheduleName}</TableOnlyTestId>
+      ),
+    },
+    {
+      key: 'object',
+      header: 'Объект',
+      thClassName: 'min-w-[180px]',
+      card: 'field',
+      cardLabel: 'Объект',
+      cell: (event) =>
+        event.objectId ? (
+          objectNames.get(event.objectId) ?? shortId(event.objectId)
+        ) : (
+          <span className="text-neutral-400">без объекта</span>
+        ),
+    },
+    {
+      key: 'status',
+      header: 'Статус',
+      thClassName: 'w-[150px]',
+      card: 'badge',
+      cell: (event) => (
+        <TableOnlyTestId id={`my-event-status-${event.id}`}>
+          <EventStatusBadge status={event.status} />
+        </TableOnlyTestId>
+      ),
+    },
+    {
+      key: 'ticket',
+      header: 'Заявка',
+      thClassName: 'w-[140px]',
+      card: 'field',
+      cardLabel: 'Заявка',
+      cell: (event) =>
+        event.ticketId ? (
+          <Link
+            // Ссылка узкая (font-mono text-xs ≈ 14 px): на телефоне и планшете
+            // растягиваем зону нажатия до 44 px, desktop не меняем.
+            className="font-mono text-xs text-primary-600 hover:underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center"
+            to={ROUTES.ticket(event.ticketId)}
+          >
+            {shortId(event.ticketId)}
+          </Link>
+        ) : (
+          <span className="text-neutral-400">—</span>
+        ),
+    },
+    {
+      key: 'actions',
+      header: 'Отметить',
+      thClassName: 'w-[160px]',
+      align: 'right',
+      card: 'actions',
+      cell: (event) => (
+        /*
+         * Явное «Выбрать» рядом с панельными «Отметить приход/уход»:
+         * кнопки в шапке работают с выбранной строкой, поэтому выбор
+         * должен быть видимым и однозначным. Click по «Приход»/«Уход»
+         * в строке делает то же самое сразу, без второго шага.
+         */
+        <div className="flex flex-wrap justify-end gap-2">
+          <TableOnlyTestId id={`my-select-${event.id}`}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onParamChange({ myEvent: event.id })}
+            >
+              {event.id === selectedId ? 'Выбрана' : 'Выбрать'}
+            </Button>
+          </TableOnlyTestId>
+          {canCheckIn && canCheckInEvent(event) && (
+            <TableOnlyTestId id={`my-checkin-${event.id}`}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onParamChange({ myEvent: event.id });
+                  setCheckInFor(event);
+                }}
+              >
+                Приход
+              </Button>
+            </TableOnlyTestId>
+          )}
+          {canCheckIn && canCheckOutEvent(event) && (
+            <TableOnlyTestId id={`my-checkout-${event.id}`}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onParamChange({ myEvent: event.id });
+                  setCheckInFor(event);
+                }}
+              >
+                Уход
+              </Button>
+            </TableOnlyTestId>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex flex-wrap items-end gap-4">
+      {/* На телефоне период и кнопки отметки — одной колонкой во всю ширину. */}
+      <Card className="flex flex-wrap items-end gap-4 max-md:[&>*]:w-full">
         <Field label="С" htmlFor="my-from">
           <Input
             id="my-from"
@@ -124,12 +280,15 @@ export function MyEventsPanel({
           />
         </Field>
 
-        <div className="ml-auto flex flex-wrap items-center gap-3">
+        <div className="ml-auto flex flex-wrap items-center gap-3 max-md:ml-0 max-md:w-full">
           {canCheckIn && (
             <>
               <Button
                 variant="primary"
                 data-testid="checkin-button"
+                // «Отметиться» в поле — главное действие вкладки: на телефоне кнопка
+                // во всю ширину и высотой ≥44 px (у `size="md"` было ~40 px).
+                className="max-lg:min-h-[44px] max-md:w-full"
                 disabled={!selectedEvent || !canCheckInEvent(selectedEvent)}
                 onClick={() => selectedEvent && setCheckInFor(selectedEvent)}
               >
@@ -138,6 +297,7 @@ export function MyEventsPanel({
               <Button
                 variant="secondary"
                 data-testid="checkout-button"
+                className="max-lg:min-h-[44px] max-md:w-full"
                 disabled={!selectedEvent || !canCheckOutEvent(selectedEvent)}
                 onClick={() => selectedEvent && setCheckInFor(selectedEvent)}
               >
@@ -186,118 +346,18 @@ export function MyEventsPanel({
                 <span>Смен за период: {items.length}</span>
                 <span>Время указано в UTC</span>
               </div>
-              <Table>
-                <THead>
-                  <Th className="w-[110px]">Дата</Th>
-                  <Th className="w-[110px]">Начало</Th>
-                  <Th className="w-[190px]">Отметки</Th>
-                  <Th className="min-w-[200px]">График</Th>
-                  <Th className="min-w-[180px]">Объект</Th>
-                  <Th className="w-[150px]">Статус</Th>
-                  <Th className="w-[140px]">Заявка</Th>
-                  <Th className="w-[160px]" align="right">
-                    Отметить
-                  </Th>
-                </THead>
-                <TBody>
-                  {items.map((event) => (
-                    <Tr
-                      key={event.id}
-                      testId={`my-event-row-${event.id}`}
-                      className={[
-                        isFetching ? 'opacity-60' : '',
-                        event.id === selectedId ? 'bg-primary-50' : '',
-                      ].join(' ')}
-                    >
-                      <Td mono>{event.date}</Td>
-                      <Td mono>{utcTimeOf(event.plannedStart)}</Td>
-                      <Td mono>
-                        {event.checkInAt ? (
-                          <span className="block">приход {utcTimeOf(event.checkInAt)}</span>
-                        ) : (
-                          <span className="block text-neutral-400">прихода нет</span>
-                        )}
-                        {event.checkOutAt ? (
-                          <span className="block">уход {utcTimeOf(event.checkOutAt)}</span>
-                        ) : null}
-                      </Td>
-                      <Td>{event.scheduleName}</Td>
-                      <Td>
-                        {event.objectId ? (
-                          objectNames.get(event.objectId) ?? shortId(event.objectId)
-                        ) : (
-                          <span className="text-neutral-400">без объекта</span>
-                        )}
-                      </Td>
-                      <Td>
-                        <span data-testid={`my-event-status-${event.id}`}>
-                          <EventStatusBadge status={event.status} />
-                        </span>
-                      </Td>
-                      <Td>
-                        {event.ticketId ? (
-                          <Link
-                            className="font-mono text-xs text-primary-600 hover:underline"
-                            to={ROUTES.ticket(event.ticketId)}
-                          >
-                            {shortId(event.ticketId)}
-                          </Link>
-                        ) : (
-                          <span className="text-neutral-400">—</span>
-                        )}
-                      </Td>
-                      <Td align="right">
-                        <div className="flex flex-wrap justify-end gap-2">
-                          {/*
-                            Явное «Выбрать» рядом с панельными «Отметить приход/уход»:
-                            кнопки в шапке работают с выбранной строкой, поэтому выбор
-                            должен быть видимым и однозначным. Click по «Приход»/«Уход»
-                            в строке делает то же самое сразу, без второго шага.
-                          */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            data-testid={`my-select-${event.id}`}
-                            onClick={() => onParamChange({ myEvent: event.id })}
-                          >
-                            {event.id === selectedId ? 'Выбрана' : 'Выбрать'}
-                          </Button>
-                          {canCheckIn && canCheckInEvent(event) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              data-testid={`my-checkin-${event.id}`}
-                              onClick={() => {
-                                onParamChange({ myEvent: event.id });
-                                setCheckInFor(event);
-                              }}
-                            >
-                              Приход
-                            </Button>
-                          )}
-                          {canCheckIn && canCheckOutEvent(event) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              data-testid={`my-checkout-${event.id}`}
-                              onClick={() => {
-                                onParamChange({ myEvent: event.id });
-                                setCheckInFor(event);
-                              }}
-                            >
-                              Уход
-                            </Button>
-                          )}
-                        </div>
-                      </Td>
-                    </Tr>
-                  ))}
-
-                  {items.length === 0 && (
-                    <TableMessageRow colSpan={8}>Смен за период нет</TableMessageRow>
-                  )}
-                </TBody>
-              </Table>
+              <ResponsiveTable<ScheduleEventEntity>
+                items={items}
+                getKey={(event) => event.id}
+                columns={columns}
+                rowClassName={(event) =>
+                  [
+                    isFetching ? 'opacity-60' : '',
+                    event.id === selectedId ? 'bg-primary-50' : '',
+                  ].join(' ')
+                }
+                empty="Смен за период нет"
+              />
             </Card>
           )}
         </>

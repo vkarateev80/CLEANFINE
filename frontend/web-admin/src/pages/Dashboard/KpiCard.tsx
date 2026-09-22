@@ -40,14 +40,23 @@ export function KpiCard({
   };
 
   return (
-    <Card className="flex min-w-[190px] flex-1 flex-col gap-1" testId={testId}>
+    // `max-md:min-w-0 max-md:flex-none max-md:w-full` — на телефоне плитка занимает
+    // всю ширину строки: прежний `min-w-[190px]` и `flex-1` (базис 0) вместе давали
+    // сжатие плиток до «квадратов» и вынос подписей за экран. На ≥768 px ограничение
+    // и растяжение остаются прежними — плитки идут по несколько в ряд, как раньше.
+    <Card
+      className="flex min-w-[190px] flex-1 flex-col gap-1 max-md:w-full max-md:min-w-0 max-md:flex-none"
+      testId={testId}
+    >
       <div className="text-xs text-neutral-500">{label}</div>
       <div className={`font-mono text-2xl ${tones[tone]}`}>
         {value}
         {unit && <span className="ml-1 text-base text-neutral-500">{unit}</span>}
       </div>
       {footer}
-      {hint && <div className="mt-auto text-[11px] text-neutral-400">{hint}</div>}
+      {/* Источник KPI — длинная строка вида `material-service · report_…`: на 360 px
+          переносим её по словам, иначе она распирала бы плитку по горизонтали. */}
+      {hint && <div className="mt-auto break-words text-[11px] text-neutral-400">{hint}</div>}
     </Card>
   );
 }
