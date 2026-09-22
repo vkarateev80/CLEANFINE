@@ -54,9 +54,14 @@ export function KpiCard({
         {unit && <span className="ml-1 text-base text-neutral-500">{unit}</span>}
       </div>
       {footer}
-      {/* Источник KPI — длинная строка вида `material-service · report_…`: на 360 px
-          переносим её по словам, иначе она распирала бы плитку по горизонтали. */}
-      {hint && <div className="mt-auto break-words text-[11px] text-neutral-400">{hint}</div>}
+      {/* Источник KPI — длинная строка вида `material-service · report_…`: на телефоне
+          переносим её по словам, иначе она распирает плитку по горизонтали. Класс
+          обязан быть диапазонным: безусловный `break-words` менял расчёт переноса
+          и добавлял 1 px к высоте плитки (191 → 192) на планшете и desktop, а вместе
+          с ним уезжало всё, что ниже (графики, main, body). На ≥768 px — как было. */}
+      {hint && (
+        <div className="mt-auto text-[11px] text-neutral-400 max-md:break-words">{hint}</div>
+      )}
     </Card>
   );
 }

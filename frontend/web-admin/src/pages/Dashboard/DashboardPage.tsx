@@ -110,10 +110,11 @@ export function DashboardPage() {
       )}
 
       {/* Первый экран: KPI виден до того, как догрузятся графики.
-          Подписи футеров плиток («новых / в работе / просрочено») переносятся
-          строками (`flex-wrap` в футерах): на 360 px три подписи в одну строку
-          не помещались и вылезали за карточку. На ≥768 px они по-прежнему встают
-          одной строкой — переносить нечего, вид не меняется. */}
+          Классы подвалов плиток — прежние (`flex gap-3`, без `flex-wrap`):
+          `flex-wrap` не участвовал в мобильной правке (её делают `max-md:`-классы
+          самой плитки — `w-full`/`flex-none`), зато на ≥768 px менял высоту
+          подвала, убирая неявный перенос подписей внутри `<span>`. Возвращено
+          как было: desktop ≥1024 обязан остаться прежним (SD §2.3 п.5). */}
       <section className="flex flex-wrap gap-4" data-testid="dashboard-kpi">
         <KpiCard
           label="Заявки за 30 дней"
@@ -122,7 +123,7 @@ export function DashboardPage() {
           testId="kpi-tickets-total"
           footer={
             tickets.data ? (
-              <div className="flex flex-wrap gap-x-3 text-xs text-neutral-500">
+              <div className="flex gap-3 text-xs text-neutral-500">
                 <span>новых {tickets.data.newCount}</span>
                 <span>в работе {tickets.data.inWorkCount}</span>
                 <span>просрочено {tickets.data.overdueCount}</span>
@@ -157,7 +158,7 @@ export function DashboardPage() {
           testId="kpi-materials-cost"
           footer={
             consumption.data ? (
-              <div className="flex flex-wrap gap-x-3 text-xs text-neutral-500">
+              <div className="flex gap-3 text-xs text-neutral-500">
                 <span>операций {consumption.data.operations30d}</span>
                 <span>объектов {consumption.data.objectsCount}</span>
               </div>
@@ -185,7 +186,7 @@ export function DashboardPage() {
           testId="kpi-staff-attendance"
           footer={
             staff.data ? (
-              <div className="flex flex-wrap gap-x-3 text-xs text-neutral-500">
+              <div className="flex gap-3 text-xs text-neutral-500">
                 <span>смен {staff.data.shiftsTotal}</span>
                 <span>пропущено {staff.data.missedCount}</span>
               </div>
@@ -206,7 +207,7 @@ export function DashboardPage() {
           testId="kpi-geofence-visits"
           footer={
             geofences.data ? (
-              <div className="flex flex-wrap gap-x-3 text-xs text-neutral-500">
+              <div className="flex gap-3 text-xs text-neutral-500">
                 <span>на объектах {formatMinutes(geofences.data.dwellMinutes)}</span>
                 <span>точек {formatNumber(geofences.data.pointsCount)}</span>
               </div>
