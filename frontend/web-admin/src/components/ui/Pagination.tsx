@@ -23,18 +23,22 @@ export function Pagination({ total, skip, take, onChange, disabled }: Pagination
   const canNext = skip + take < total;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 px-4 py-3 text-sm text-neutral-500">
+    // `px-3 md:px-4`: на телефоне отступ строки меньше — счётчик и «На странице»
+    // должны ужиматься, а не выдавливать кнопки навигации за экран.
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 px-3 py-3 text-sm text-neutral-500 md:px-4">
       <span className="font-mono text-xs">
         {from}–{to} из {total}
       </span>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-xs">
           На странице
           <Select
             value={take}
             disabled={disabled}
             onChange={(event) => onChange({ skip: 0, take: Number(event.target.value) })}
+            // `py-1 text-xs` — десктопная плотность строки; на телефоне поле всё
+            // равно ≥44 px из `CONTROL` (`max-lg:min-h-[44px]`).
             className="w-20 py-1 text-xs"
           >
             {PAGE_SIZES.map((size) => (
@@ -45,10 +49,13 @@ export function Pagination({ total, skip, take, onChange, disabled }: Pagination
           </Select>
         </label>
 
-        <div className="flex gap-2">
+        {/* Кнопки на телефоне растягиваются на равные доли строки: `size="sm"`
+            даёт тач-высоту 44 px, а `flex-1` — ширину, достаточную для пальца. */}
+        <div className="flex gap-2 max-md:flex-1">
           <Button
             variant="secondary"
             size="sm"
+            className="max-md:flex-1"
             disabled={disabled || !canPrev}
             onClick={() => onChange({ skip: Math.max(0, skip - take), take })}
           >
@@ -57,6 +64,7 @@ export function Pagination({ total, skip, take, onChange, disabled }: Pagination
           <Button
             variant="secondary"
             size="sm"
+            className="max-md:flex-1"
             disabled={disabled || !canNext}
             onClick={() => onChange({ skip: skip + take, take })}
           >

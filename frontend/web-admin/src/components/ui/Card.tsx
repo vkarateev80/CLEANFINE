@@ -20,7 +20,9 @@ export function Card({
       data-testid={testId}
       className={[
         'rounded-xl border border-neutral-200 bg-white shadow-sm',
-        padded ? 'p-6' : '',
+        // На телефоне внутренний отступ меньше: 24 px с каждой стороны на 360 px
+        // съедают шестую часть ширины, а контенту (таблицы, подписи) тесно.
+        padded ? 'p-4 md:p-6' : '',
         className ?? '',
       ].join(' ')}
     >
@@ -43,12 +45,17 @@ export function PageHeader({
   return (
     <div className="flex flex-col gap-2">
       {breadcrumbs}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* На телефоне шапка идёт в столбик: длинное название переносится, а
+          действия уезжают отдельной строкой на всю ширину — иначе кнопки
+          выдавливают заголовок за экран. На ≥768 вид прежний. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 max-md:flex-col max-md:items-stretch">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-neutral-900">{title}</h1>
-          {subtitle && <div className="mt-1 text-sm text-neutral-500">{subtitle}</div>}
+          <h1 className="break-words text-2xl font-semibold text-neutral-900 max-md:text-xl">{title}</h1>
+          {subtitle && <div className="mt-1 break-words text-sm text-neutral-500">{subtitle}</div>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
+        {actions && (
+          <div className="flex flex-wrap items-center gap-3 max-md:w-full max-md:basis-full">{actions}</div>
+        )}
       </div>
     </div>
   );

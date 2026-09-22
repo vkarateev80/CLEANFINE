@@ -53,6 +53,8 @@ export function NotificationBell() {
 
   return (
     <div ref={containerRef} className="relative">
+      {/* Тач-таргет ≥44 px на телефоне и планшете (`max-lg:` — здесь свой `<button>`,
+          не `Button`). Глиф по центру — за счёт `inline-flex`. */}
       <button
         type="button"
         data-testid="notification-bell"
@@ -61,7 +63,7 @@ export function NotificationBell() {
         }
         aria-haspopup="menu"
         aria-expanded={open}
-        className="relative rounded-lg px-3 py-1.5 text-lg text-neutral-600 hover:bg-neutral-100"
+        className="relative inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-lg text-neutral-600 hover:bg-neutral-100 max-lg:min-h-[44px] max-lg:min-w-[44px]"
         onClick={() => setOpen((value) => !value)}
       >
         🔔
@@ -78,7 +80,9 @@ export function NotificationBell() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-40 mt-2 w-96 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg"
+          // `w-96` (384 px) шире телефона (360 px) — на `<md` список становится
+          // оверлеем под шапкой (шапка `h-16`, отсюда `top-16`), на ≥768 вид прежний.
+          className="absolute right-0 z-40 mt-2 w-96 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg max-md:fixed max-md:left-2 max-md:right-2 max-md:top-16 max-md:mt-0 max-md:w-auto"
         >
           <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-2">
             <span className="text-sm font-medium text-neutral-900">Уведомления</span>

@@ -15,6 +15,9 @@ const CONTROL = [
   'w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900',
   'placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2',
   'focus:ring-primary-500 focus:ring-offset-1 disabled:bg-neutral-100 disabled:text-neutral-500',
+  // Тач-эргономика на телефоне и планшете: высота контрола ≥44 px. На desktop
+  // (`lg:`, ≥1024) правило не действует, вид остаётся прежним.
+  'max-lg:min-h-[44px]',
 ].join(' ');
 
 const INVALID = 'border-danger-500 focus:border-danger-500 focus:ring-danger-500';

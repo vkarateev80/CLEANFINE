@@ -124,12 +124,17 @@ function SortableRow({ id, index, total, disabled, onMove, children }: SortableR
       ].join(' ')}
       data-testid={`sortable-row-${id}`}
     >
+      {/* Ручка: тач-таргет ≥44 px на телефоне и планшете. Зона нажатия расширена
+          псевдоэлементом `after`, а не padding/размером: padding сдвинул бы номер
+          строки и содержимое, а плотность строки на планшете важна. `-inset-2`
+          даёт ~8 px к каждой стороне — вместе с глифом это ≈44 px, и на desktop
+          (`lg:`) ничего не меняется: утилиты ограничены `max-lg:`. */}
       <button
         type="button"
         ref={setActivatorNodeRef}
         aria-label="Переместить"
         title="Перетащите или используйте Space и стрелки"
-        className="cursor-grab rounded px-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 disabled:cursor-not-allowed"
+        className="relative cursor-grab rounded px-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 disabled:cursor-not-allowed max-lg:after:absolute max-lg:after:-inset-2 max-lg:after:content-['']"
         disabled={disabled}
         {...attributes}
         {...listeners}

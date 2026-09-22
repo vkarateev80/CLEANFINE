@@ -30,10 +30,13 @@ export function ErrorBanner({ error, onRetry, className }: ErrorBannerProps) {
       role="alert"
       className={[
         'flex items-start justify-between gap-4 rounded-lg border border-danger-500 bg-white px-4 py-3',
+        // `flex-wrap`: на телефоне текст ошибки и «Повторить» не влезают в строку,
+        // кнопка переносится вниз целым тач-таргетом, а не сжимается.
+        'max-md:flex-wrap',
         className ?? '',
       ].join(' ')}
     >
-      <span className="text-sm text-danger-600">{errorMessage(error)}</span>
+      <span className="min-w-0 break-words text-sm text-danger-600">{errorMessage(error)}</span>
       {onRetry && (
         <Button variant="ghost" size="sm" onClick={onRetry}>
           Повторить
@@ -46,7 +49,7 @@ export function ErrorBanner({ error, onRetry, className }: ErrorBannerProps) {
 /** Мягкое предупреждение: данные показаны, но неполные или устаревшие. */
 export function SoftWarning({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-md border border-neutral-200 bg-neutral-100 px-4 py-3 text-sm text-warning-600">
+    <div className="break-words rounded-md border border-neutral-200 bg-neutral-100 px-4 py-3 text-sm text-warning-600">
       {children}
     </div>
   );
@@ -54,9 +57,9 @@ export function SoftWarning({ children }: { children: ReactNode }) {
 
 export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-neutral-300 bg-white p-10 text-center">
-      <div className="text-sm font-medium text-neutral-500">{title}</div>
-      {hint && <div className="max-w-md text-xs text-neutral-400">{hint}</div>}
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-neutral-300 bg-white p-6 text-center md:p-10">
+      <div className="break-words text-sm font-medium text-neutral-500">{title}</div>
+      {hint && <div className="max-w-md break-words text-xs text-neutral-400">{hint}</div>}
       {action}
     </div>
   );
