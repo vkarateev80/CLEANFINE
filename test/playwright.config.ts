@@ -83,5 +83,26 @@ export default defineConfig({
         baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
       },
     },
+    {
+      /**
+       * Адаптив админки (телефон <768 / планшет 768–1023 / desktop ≥1024) — против
+       * СТЕНДА, а не локальной vite dev: `E2E_ADMIN_URL`, по умолчанию tailnet-адрес
+       * стенда `prj-cleanfine`. Файл набора — `e2e/web/adaptive.spec.ts`, и имя
+       * намеренно НЕ `*.ui.spec.ts`: с шаблоном проекта `web` спека попадала бы в
+       * него при обычном `playwright test` (штатный `pnpm test:e2e` идёт без
+       * `--project`) и уходила бы на localhost:5173.
+       *
+       * `timeout` поднят до 90 с намеренно: единственный вход на прогон живёт в
+       * worker-фикстуре `adaptiveStorage` и укладывается в таймаут ПЕРВОГО теста.
+       * При конфиговых 30 с холодный сетевой стенд (загрузка бандла + вход) не
+       * укладывался, и падение фикстуры уносило все 19 проверок сразу.
+       */
+      name: 'adaptive',
+      testMatch: /adaptive\.spec\.ts/,
+      timeout: 90_000,
+      use: {
+        baseURL: process.env.E2E_ADMIN_URL ?? 'http://100.109.185.14:8090',
+      },
+    },
   ],
 });
