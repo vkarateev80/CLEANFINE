@@ -185,7 +185,7 @@ export function TicketsPage() {
               объекту — отдельная ссылка (в карточке правило то же). */}
           <Link
             to={ROUTES.object(ticket.objectId)}
-            className="text-primary-600 hover:underline"
+            className="text-primary-600 hover:underline max-lg:inline-flex max-lg:items-center max-lg:min-h-[44px]"
             onClick={(event) => event.stopPropagation()}
           >
             {objectNames.get(ticket.objectId) ?? shortId(ticket.objectId)}
@@ -281,7 +281,10 @@ export function TicketsPage() {
           className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success-500 bg-white px-4 py-3 text-sm text-success-600"
         >
           <span>Заявка создана.</span>
-          <Link className="text-primary-600 hover:underline" to={ROUTES.ticket(createdId)}>
+          <Link
+            className="text-primary-600 hover:underline max-lg:inline-flex max-lg:items-center max-lg:min-h-[44px]"
+            to={ROUTES.ticket(createdId)}
+          >
             Открыть заявку →
           </Link>
         </div>

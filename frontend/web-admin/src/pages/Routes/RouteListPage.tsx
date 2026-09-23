@@ -325,7 +325,7 @@ export function RouteListPage({
                         data-testid="route-select"
                         data-route-id={route.id}
                         onClick={() => onOpenRoute(route.id, route.floorId)}
-                        className="min-w-0 flex-1 text-left"
+                        className="min-w-0 flex-1 text-left max-lg:min-h-[44px]"
                       >
                         <div className="truncate text-sm font-medium text-neutral-900">
                           {route.name}

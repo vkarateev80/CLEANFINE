@@ -579,7 +579,10 @@ export function ObjectDetailPage() {
       header: 'Маршрут',
       thClassName: 'min-w-[220px]',
       cell: ({ floor, route }) => (
-        <Link className="hover:text-primary-600" to={`${ROUTES.routes}?floorId=${floor.id}`}>
+        <Link
+          className="hover:text-primary-600 max-lg:inline-flex max-lg:items-center max-lg:min-h-[44px]"
+          to={`${ROUTES.routes}?floorId=${floor.id}`}
+        >
           {route.name}
         </Link>
       ),
@@ -654,7 +657,13 @@ export function ObjectDetailPage() {
           <OwnerClientRow detail={detail} clientsById={clientsById} />
           <DetailRow label="Клиент">{detail.clientName}</DetailRow>
           <DetailRow label="Контакт клиента">
-            {contact ? <a className="text-primary-600 hover:underline" href={contact.href}>{contact.label}</a> : detail.clientContact}
+            {contact ? (
+              <a className="text-primary-600 hover:underline max-lg:inline-flex max-lg:items-center max-lg:min-h-[44px]" href={contact.href}>
+                {contact.label}
+              </a>
+            ) : (
+              detail.clientContact
+            )}
           </DetailRow>
           <DetailRow label="Координаты">
             <span className="font-mono text-xs">
@@ -662,7 +671,7 @@ export function ObjectDetailPage() {
             </span>
             {token !== undefined && (
               <a
-                className="ml-2 text-xs text-primary-600 hover:underline"
+                className="ml-2 text-xs text-primary-600 hover:underline max-lg:inline-flex max-lg:items-center max-lg:min-h-[44px]"
                 href={`https://www.openstreetmap.org/?mlat=${detail.lat}&mlon=${detail.lng}#map=17/${detail.lat}/${detail.lng}`}
                 target="_blank"
                 rel="noreferrer"
