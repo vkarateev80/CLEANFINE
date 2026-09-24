@@ -281,7 +281,9 @@ Cleaning Ops / CLEANFINE (npm – @cleaning-ops/*, git origin vkarateev80/CLEANF
   Бэкапы             ⬜ TODO  Не настроен
   Terraform/K8s      ⬜ TODO  Не начато (М7.5)
   Домен+TLS          ⬜ TODO  Не начато (М7.5)
-  Release v1.0.0     ⬜ TODO  Не начато (М7.6)
+  Release v1.0.0     🟢 DONE  release/1.0.0 → main (fast-forward),
+                                тег v1.0.0, релизные заметки,
+                                документация (DOCLEVERAGE.md, STATUS_TABLE)
 
   ════════════ ПОДСИСТЕМА DOCLEVERAGE ════════════
 
