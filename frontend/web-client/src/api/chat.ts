@@ -46,10 +46,20 @@ export function listMessagesBefore(chatId: string, before: string, limit = 50): 
 }
 
 /**
- * REST-фолбэк отправки. Основной путь — `message:send` по сокету; сюда попадаем
- * только если сокет не подключён, поэтому дубля не будет (портал не отправляет
- * одно и то же двумя путями).
+ * REST-фолбэк отправки. Основной путь — `message:send` по сокету; сюда попадаем,
+ * если сокет не подключён или не ответил за таймаут. `clientMessageId` общий
+ * с WS-попыткой (М6): если первая отправка дошла до сервера, фолбэк вернёт то же
+ * сообщение, а не создаст дубль.
  */
-export function sendMessageRest(chatId: string, text: string): Promise<MessageView> {
-  return apiClient.post(`/chat/chats/${chatId}/messages`, { text }).then((r) => r.data);
+export function sendMessageRest(
+  chatId: string,
+  text: string,
+  clientMessageId?: string,
+): Promise<MessageView> {
+  return apiClient
+    .post(`/chat/chats/${chatId}/messages`, {
+      text,
+      ...(clientMessageId ? { clientMessageId } : {}),
+    })
+    .then((r) => r.data);
 }

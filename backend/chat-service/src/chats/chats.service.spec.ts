@@ -90,7 +90,10 @@ function createPrismaMock() {
     message: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
       count: jest.fn(),
     },
   };
@@ -656,6 +659,19 @@ describe('ChatsService', () => {
       expect(page.items).toEqual([]);
       expect(page.limit).toBe(50);
     });
+
+    it('загрузка истории помечает чужие недоставленные (deliveredAt)', async () => {
+      prisma.chat.findUnique.mockResolvedValue(chatRow());
+      prisma.chatMember.findUnique.mockResolvedValue({ id: 'm-1' });
+      prisma.message.findMany.mockResolvedValue([]);
+
+      await service.listMessages('c-1', {}, admin);
+
+      expect(prisma.message.updateMany).toHaveBeenCalledWith({
+        where: { chatId: 'c-1', authorId: { not: 'u-admin' }, deliveredAt: null },
+        data: { deliveredAt: expect.any(Date) },
+      });
+    });
   });
 
   // ------------------------------------------------------------ отправка
@@ -741,6 +757,90 @@ describe('ChatsService', () => {
       await service.sendMessage('c-1', { text: 'очень длинное сообщение для пуша' }, admin);
       expect(push.calls[0].body).toBe('очень длин…');
       expect(push.calls[0].title).toBe('Диалог');
+    });
+
+    it('сохраняет clientMessageId и отдаёт duplicate=false в первый раз', async () => {
+      prisma.message.create.mockResolvedValue(
+        messageRow({ id: 'm-20', authorId: 'u-admin', clientMessageId: 'client-1' }),
+      );
+      prisma.chatMember.findMany.mockResolvedValue([{ userId: 'u-admin' }, { userId: 'u-oper' }]);
+
+      const plan = await service.sendMessage(
+        'c-1',
+        { text: 'привет', clientMessageId: 'client-1' },
+        admin,
+        ['u-admin'],
+      );
+
+      expect(prisma.message.findUnique).toHaveBeenCalledWith({
+        where: { authorId_clientMessageId: { authorId: 'u-admin', clientMessageId: 'client-1' } },
+      });
+      expect(prisma.message.create.mock.calls[0][0].data.clientMessageId).toBe('client-1');
+      expect(plan.duplicate).toBe(false);
+    });
+
+    it('повтор с тем же clientMessageId → duplicate=true, без create и push', async () => {
+      prisma.message.findUnique.mockResolvedValue(
+        messageRow({ id: 'm-21', authorId: 'u-admin', clientMessageId: 'client-1' }),
+      );
+      prisma.chatMember.findMany.mockResolvedValue([{ userId: 'u-admin' }, { userId: 'u-oper' }]);
+
+      const plan = await service.sendMessage(
+        'c-1',
+        { text: 'привет', clientMessageId: 'client-1' },
+        admin,
+        [],
+      );
+
+      expect(plan.duplicate).toBe(true);
+      expect(plan.message.id).toBe('m-21');
+      expect(plan.recipientIds).toEqual(['u-oper']);
+      expect(prisma.message.create).not.toHaveBeenCalled();
+      expect(push.calls).toHaveLength(0);
+    });
+
+    it('гонка параллельных повторов: P2002 → отдаёт сообщение победителя', async () => {
+      const winner = messageRow({ id: 'm-22', authorId: 'u-admin', clientMessageId: 'client-1' });
+      prisma.message.findUnique
+        .mockResolvedValueOnce(null) // предварительная проверка: ещё нет
+        .mockResolvedValueOnce(winner); // после P2002: создан параллельно
+      prisma.message.create.mockRejectedValue({ code: 'P2002' });
+      prisma.chatMember.findMany.mockResolvedValue([{ userId: 'u-admin' }, { userId: 'u-oper' }]);
+
+      const plan = await service.sendMessage(
+        'c-1',
+        { text: 'привет', clientMessageId: 'client-1' },
+        admin,
+      );
+
+      expect(plan.duplicate).toBe(true);
+      expect(plan.message.id).toBe('m-22');
+    });
+
+    it('онлайн-получатель → deliveredAt проставлен в ответе', async () => {
+      prisma.message.create.mockResolvedValue(messageRow({ id: 'm-23', authorId: 'u-admin' }));
+      prisma.chatMember.findMany.mockResolvedValue([{ userId: 'u-admin' }, { userId: 'u-oper' }]);
+
+      const plan = await service.sendMessage('c-1', { text: 'онлайн' }, admin, [
+        'u-admin',
+        'u-oper',
+      ]);
+
+      expect(prisma.message.update).toHaveBeenCalledWith({
+        where: { id: 'm-23' },
+        data: { deliveredAt: expect.any(Date) },
+      });
+      expect(plan.message.deliveredAt).toEqual(expect.any(String));
+    });
+
+    it('все получатели оффлайн → deliveredAt остаётся null', async () => {
+      prisma.message.create.mockResolvedValue(messageRow({ id: 'm-24', authorId: 'u-admin' }));
+      prisma.chatMember.findMany.mockResolvedValue([{ userId: 'u-admin' }, { userId: 'u-oper' }]);
+
+      const plan = await service.sendMessage('c-1', { text: 'оффлайн' }, admin, []);
+
+      expect(prisma.message.update).not.toHaveBeenCalled();
+      expect(plan.message.deliveredAt).toBeNull();
     });
   });
 
@@ -828,6 +928,24 @@ describe('ChatsService', () => {
 
       const result = await service.markRead('c-1', { lastMessageId: 'm-7' }, admin);
       expect(result.authorId).toBeNull();
+    });
+
+    it('прочтение помечает чужие недоставленные до момента чтения', async () => {
+      prisma.message.findFirst.mockResolvedValue(messageRow({ id: 'm-8', authorId: 'u-oper' }));
+      prisma.chatMember.findUnique.mockResolvedValue({ id: 'm-1', lastReadAt: null });
+      prisma.chatMember.update.mockResolvedValue({});
+
+      await service.markRead('c-1', { lastMessageId: 'm-8' }, admin);
+
+      expect(prisma.message.updateMany).toHaveBeenCalledWith({
+        where: {
+          chatId: 'c-1',
+          authorId: { not: 'u-admin' },
+          deliveredAt: null,
+          createdAt: { lte: NOW },
+        },
+        data: { deliveredAt: expect.any(Date) },
+      });
     });
   });
 

@@ -63,6 +63,8 @@ export interface MessageView {
   text: string;
   attachmentIds: string[];
   createdAt: string;
+  /** Когда сообщение получил хотя бы один получатель; null — только отправлено. */
+  deliveredAt: string | null;
 }
 
 /**

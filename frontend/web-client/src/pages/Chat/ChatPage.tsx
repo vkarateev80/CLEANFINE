@@ -130,7 +130,7 @@ export function ChatPage() {
     try {
       const sent = await sendMutation.mutateAsync({
         text,
-        socketSend: () => socket.send(chatId, text),
+        socketSend: (clientMessageId) => socket.send(chatId, text, clientMessageId),
       });
       // Буфер фолбэка наполняется всегда: при WS-отправке сервер вернёт то же
       // сообщение (по id), и дедупликация в `messages` оставит одну копию.

@@ -26,6 +26,7 @@ function messageView(id = 'msg-1', authorId = 'u-admin') {
     text: 'привет',
     attachmentIds: [],
     createdAt: '2026-01-01T10:00:00.000Z',
+    deliveredAt: null,
   };
 }
 
@@ -34,6 +35,7 @@ function plan(overrides: Partial<DeliveryPlan> = {}): DeliveryPlan {
     message: messageView(),
     recipientIds: ['u-oper'],
     offlineIds: [],
+    duplicate: false,
     ...overrides,
   };
 }
@@ -226,6 +228,34 @@ describe('ChatGateway', () => {
       expect(chats.sendMessage.mock.calls[0][3]).toEqual(['u-admin']);
     });
 
+    it('переносит clientMessageId из payload в сервис', async () => {
+      chats.sendMessage.mockResolvedValue(plan());
+
+      await gateway.handleMessageSend(socket as never, {
+        chatId: 'c-1',
+        text: 'привет',
+        clientMessageId: 'client-1',
+      });
+
+      expect(chats.sendMessage.mock.calls[0][1]).toMatchObject({
+        text: 'привет',
+        clientMessageId: 'client-1',
+      });
+    });
+
+    it('дубль по clientMessageId: ack отдаётся, повторной рассылки нет', async () => {
+      chats.sendMessage.mockResolvedValue(plan({ duplicate: true }));
+
+      const ack = await gateway.handleMessageSend(socket as never, {
+        chatId: 'c-1',
+        text: 'привет',
+        clientMessageId: 'client-1',
+      });
+
+      expect(ack).toEqual({ ok: true, message: expect.objectContaining({ id: 'msg-1' }) });
+      expect(server.emits).toEqual([]);
+    });
+
     it('отдаёт ack с ошибкой при невалидном payload', async () => {
       const ack = await gateway.handleMessageSend(socket as never, { chatId: '', text: '' });
       expect(ack).toEqual({ ok: false, error: 'Укажите chatId' });
@@ -394,6 +424,27 @@ describe('parseSendPayload / parseReadPayload', () => {
       ok: true,
       value: { chatId: 'c-1', text: 'a', attachmentIds: [] },
     });
+  });
+
+  it('принимает clientMessageId и включает его в value', () => {
+    expect(parseSendPayload({ chatId: 'c-1', text: 'a', clientMessageId: ' client-1 ' })).toEqual({
+      ok: true,
+      value: { chatId: 'c-1', text: 'a', attachmentIds: [], clientMessageId: 'client-1' },
+    });
+  });
+
+  it('отклоняет пустой, нестрочный и слишком длинный clientMessageId', () => {
+    expect(parseSendPayload({ chatId: 'c-1', text: 'a', clientMessageId: '  ' })).toEqual({
+      ok: false,
+      error: 'clientMessageId должен быть непустой строкой',
+    });
+    expect(parseSendPayload({ chatId: 'c-1', text: 'a', clientMessageId: 42 })).toEqual({
+      ok: false,
+      error: 'clientMessageId должен быть непустой строкой',
+    });
+    expect(
+      parseSendPayload({ chatId: 'c-1', text: 'a', clientMessageId: 'x'.repeat(101) }),
+    ).toEqual({ ok: false, error: 'clientMessageId длиннее 100 символов' });
   });
 
   it('валидирует payload отметки прочтения', () => {

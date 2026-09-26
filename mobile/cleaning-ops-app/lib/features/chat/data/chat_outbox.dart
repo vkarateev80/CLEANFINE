@@ -191,6 +191,7 @@ class ChatOutbox {
         chatId: chatId,
         text: text,
         attachmentIds: attachmentIds,
+        clientMessageId: clientId,
       );
       final ChatMessage? message = ack.message;
       if (ack.ok && message != null) {
@@ -208,6 +209,7 @@ class ChatOutbox {
       chatId,
       text: text,
       attachmentIds: attachmentIds,
+      clientMessageId: clientId,
     );
     final ChatMessage? message = sent.dataOrNull;
     if (message != null) {

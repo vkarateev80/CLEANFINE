@@ -198,6 +198,7 @@ class QueueActionSender {
       chatId,
       text: text,
       attachmentIds: _ids(action.payload['attachmentIds']),
+      clientMessageId: clientMessageId,
     );
     final Failure? failure = sent.failureOrNull;
     if (failure != null) return _failure(failure);
@@ -205,7 +206,8 @@ class QueueActionSender {
     final ChatMessage? message = sent.dataOrNull;
     if (clientMessageId != null && message != null) {
       // Best-effort: сообщение уже ушло, ошибка локальной записи не должна
-      // возвращать его в очередь и создавать дубль (идемпотентности нет).
+      // возвращать его в очередь; повтор с тем же clientMessageId сервер
+      // отбрасывает как дубль (М6, идемпотентность message:send).
       try {
         await _chatStore?.markSent(clientMessageId, serverId: message.id);
       } on Object {

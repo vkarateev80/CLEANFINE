@@ -23,7 +23,7 @@ import type { MessageReadEvent, MessageView, WsAck } from '../types/chat';
 export interface UseChatSocketResult {
   status: 'connecting' | 'online' | 'offline';
   /** Отправка сообщения с подтверждением сервера (ack) либо ошибкой. */
-  send: (chatId: string, text: string) => Promise<MessageView>;
+  send: (chatId: string, text: string, clientMessageId?: string) => Promise<MessageView>;
   /** Отметка прочтения: `lastMessageId` — последнее видимое сообщение чата. */
   markRead: (chatId: string, lastMessageId: string) => void;
   /** Новые сообщения из сокета (экран решает, к какому чату они относятся). */
@@ -85,32 +85,41 @@ export function useChatSocket(enabled: boolean): UseChatSocketResult {
     };
   }, [enabled, accessToken]);
 
-  const send = useCallback((chatId: string, text: string): Promise<MessageView> => {
-    return new Promise((resolve, reject) => {
-      const socket = socketRef.current;
-      if (!socket || !socket.connected) {
-        reject(new Error('Нет соединения с сервером чата'));
-        return;
-      }
-      socket
-        .timeout(10_000)
-        .emit(
-          'message:send',
-          { chatId, text },
-          (timeoutError: Error | null, response: WsAck<{ message: MessageView }>) => {
-            if (timeoutError) {
-              reject(new Error('Сервер не подтвердил отправку сообщения'));
-              return;
-            }
-            if (!response || response.ok !== true) {
-              reject(new Error(response?.error ?? 'Не удалось отправить сообщение'));
-              return;
-            }
-            resolve(response.message);
-          },
-        );
-    });
-  }, []);
+  const send = useCallback(
+    (chatId: string, text: string, clientMessageId?: string): Promise<MessageView> => {
+      return new Promise((resolve, reject) => {
+        const socket = socketRef.current;
+        if (!socket || !socket.connected) {
+          reject(new Error('Нет соединения с сервером чата'));
+          return;
+        }
+        socket
+          .timeout(10_000)
+          .emit(
+            'message:send',
+            // clientMessageId — ключ идемпотентности (М6): фолбэк на REST после
+            // таймаута с тем же ключом не создаёт дубль.
+            {
+              chatId,
+              text,
+              ...(clientMessageId ? { clientMessageId } : {}),
+            },
+            (timeoutError: Error | null, response: WsAck<{ message: MessageView }>) => {
+              if (timeoutError) {
+                reject(new Error('Сервер не подтвердил отправку сообщения'));
+                return;
+              }
+              if (!response || response.ok !== true) {
+                reject(new Error(response?.error ?? 'Не удалось отправить сообщение'));
+                return;
+              }
+              resolve(response.message);
+            },
+          );
+      });
+    },
+    [],
+  );
 
   const markRead = useCallback((chatId: string, lastMessageId: string) => {
     const socket = socketRef.current;

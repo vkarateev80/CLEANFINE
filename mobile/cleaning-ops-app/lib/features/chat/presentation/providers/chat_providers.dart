@@ -524,6 +524,7 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
         chatId: _chatId,
         text: trimmed,
         attachmentIds: attachmentIds,
+        clientMessageId: clientId,
       );
       final ChatMessage? message = ack.message;
       if (ack.ok && message != null) {

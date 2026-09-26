@@ -121,8 +121,11 @@ export class ChatsController {
     const plan = await this.chats.sendMessage(id, dto, user, this.gateway.getOnlineUserIds());
     // Онлайн-получатели узнают о сообщении мгновенно; оффлайн получили push
     // внутри sendMessage. Отправителю сообщение возвращается в ответе — дублировать
-    // ему message:new не нужно, поэтому excludeUserId не требуется.
-    this.gateway.emitMessageNew(plan);
+    // ему message:new не нужно, поэтому excludeUserId не требуется. Дубль по
+    // clientMessageId (ретрай) не рассылаем: получатели уже получили его в первый раз.
+    if (!plan.duplicate) {
+      this.gateway.emitMessageNew(plan);
+    }
     return plan.message;
   }
 

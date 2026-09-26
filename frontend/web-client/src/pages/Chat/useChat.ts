@@ -195,16 +195,25 @@ export function useChatHistory(chatId: string | null) {
   };
 }
 
-/** Отправка с фолбэком на REST, если сокет не подключён (контракт М5.1). */
+/** Отправка с фолбэком на REST, если сокет не подключён или не ответил (контракт М5.1). */
 export function useSendMessage(chatId: string | null) {
   return useMutation({
-    mutationFn: async ({ text, socketSend }: { text: string; socketSend: () => Promise<MessageView> }) => {
+    mutationFn: async ({
+      text,
+      socketSend,
+    }: {
+      text: string;
+      socketSend: (clientMessageId: string) => Promise<MessageView>;
+    }) => {
+      // Один ключ на одну попытку пользователя: WS-таймаут → REST-фолбэк с тем же
+      // ключом идемпотентен, сервер отдаст уже сохранённое сообщение (М6).
+      const clientMessageId = crypto.randomUUID();
       try {
-        return await socketSend();
+        return await socketSend(clientMessageId);
       } catch {
         // Основной путь — WebSocket; REST-фолбэк спасает, когда WS-прокси нет
         // (корпоративный прокси, отключённые websocket-транспорты).
-        return await sendMessageRest(chatId as string, text);
+        return await sendMessageRest(chatId as string, text, clientMessageId);
       }
     },
   });

@@ -60,11 +60,14 @@ class FakeChatSocket implements ChatSocket {
     required String chatId,
     required String text,
     List<String> attachmentIds = const <String>[],
+    String? clientMessageId,
   }) async {
     sends.add(<String, Object?>{
       'chatId': chatId,
       'text': text,
       'attachmentIds': attachmentIds,
+      if (clientMessageId != null && clientMessageId.isNotEmpty)
+        'clientMessageId': clientMessageId,
     });
     if (sendFailure != null) return ChatSendAck.failure(sendFailure!);
     if (!connected) return const ChatSendAck.failure('Нет соединения');
@@ -181,6 +184,7 @@ class FakeChatRepository extends ChatRepository {
     String chatId, {
     required String text,
     List<String> attachmentIds = const <String>[],
+    String? clientMessageId,
   }) async {
     if (sendFailure != null) return Err<ChatMessage>(sendFailure!);
     return Ok<ChatMessage>(
