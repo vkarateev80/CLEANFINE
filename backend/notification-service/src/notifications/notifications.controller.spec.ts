@@ -14,6 +14,7 @@ const user: AuthUser = { id: 'u-1', email: 'admin@cleaning-ops.com', role: 'ADMI
 describe('NotificationsController', () => {
   const notifications = {
     registerDevice: jest.fn(),
+    unregisterDevice: jest.fn(),
     list: jest.fn(),
     getSettings: jest.fn(),
     updateSettings: jest.fn(),
@@ -33,6 +34,14 @@ describe('NotificationsController', () => {
     await expect(controller.registerDevice(user, dto)).resolves.toEqual({ id: 'd-1' });
     // userId берётся из токена, а не из тела: иначе можно было бы читать чужие данные.
     expect(notifications.registerDevice).toHaveBeenCalledWith('u-1', dto);
+  });
+
+  it('отписывает токен: декодирует path и передаёт userId из JWT', async () => {
+    notifications.unregisterDevice.mockResolvedValue(undefined);
+
+    await controller.unregisterDevice(user, encodeURIComponent('tok/1'));
+
+    expect(notifications.unregisterDevice).toHaveBeenCalledWith('u-1', 'tok/1');
   });
 
   it('отдаёт список уведомлений с фильтрами', async () => {

@@ -50,6 +50,23 @@ describe('CoreClient', () => {
     });
   });
 
+  it('getRouteName читает имя маршрута из GET /api/routes/:id', async () => {
+    const { client } = build();
+    (global.fetch as jest.Mock).mockResolvedValue(jsonResponse(200, { id: 'r-1', name: 'Этаж 1' }));
+
+    await expect(client.getRouteName('r-1')).resolves.toBe('Этаж 1');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://localhost:3003/api/routes/r-1',
+      expect.objectContaining({ headers: expect.any(Object) }),
+    );
+  });
+
+  it('пустой routeId не ходит в сеть', async () => {
+    const { client } = build();
+    await expect(client.getRouteName('')).resolves.toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   it('читает name из вложенного объекта и предпочитает переданный токен', async () => {
     const { client, tokens } = build();
     (global.fetch as jest.Mock).mockResolvedValue(

@@ -10,6 +10,7 @@ import type { ChangePinDto } from './dto/change-pin.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { PinLoginDto } from './dto/pin-login.dto';
 import type { RefreshTokenDto } from './dto/refresh-token.dto';
+import type { RegisterBiometricDto } from './dto/register-biometric.dto';
 
 @Injectable()
 export class AuthService {
@@ -100,5 +101,17 @@ export class AuthService {
     }
     const pinCode = await bcrypt.hash(dto.newPin, 10);
     await this.prisma.user.update({ where: { id: userId }, data: { pinCode } });
+  }
+
+  /**
+   * Регистрация/замена биометрического ключа устройства (М6).
+   * Ключ пишется только себе (userId из JWT); повторный вызов заменяет ключ.
+   */
+  async registerBiometric(userId: string, dto: RegisterBiometricDto): Promise<SafeUser> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { biometricKey: dto.biometricKey.trim() },
+    });
+    return toSafeUser(user);
   }
 }

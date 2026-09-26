@@ -61,6 +61,10 @@ export interface ScheduleEventView {
   scheduleName: string;
   objectId: string | null;
   routeId: string | null;
+  /** Имя объекта из core (null — core недоступен или объекта нет). */
+  objectName: string | null;
+  /** Имя маршрута из core (null — маршрута нет или core недоступен). */
+  routeName: string | null;
   date: string;
   plannedStart: string;
   /** Плановый конец смены (plannedStart + durationMin). UI: «окончание» — план. */
@@ -243,7 +247,7 @@ export class ScheduleService {
       include: { schedule: true },
       orderBy: [{ plannedStart: 'asc' }, { id: 'asc' }],
     });
-    return events.map(toView);
+    return this.enrichViews(events.map(toView));
   }
 
   /** GET /api/schedule/my — смены текущего пользователя (по умолчанию — сегодня). */
@@ -259,7 +263,7 @@ export class ScheduleService {
       include: { schedule: true },
       orderBy: [{ plannedStart: 'asc' }, { id: 'asc' }],
     });
-    return events.map(toView);
+    return this.enrichViews(events.map(toView));
   }
 
   /** Одна смена по id (для админки/отладки). */
@@ -271,7 +275,7 @@ export class ScheduleService {
     if (!event) {
       throw new NotFoundException('Смена не найдена');
     }
-    return toView(event);
+    return this.enrichViews([toView(event)]).then((views) => views[0]);
   }
 
   // --------------------------------------------------------------- генерация
@@ -507,7 +511,7 @@ export class ScheduleService {
       `Check-in смены ${updated.id} (график ${updated.scheduleId}), внутри геозоны` +
         (geofence.geofence ? ` «${geofence.geofence.name}»` : ''),
     );
-    return toView(updated);
+    return this.enrichViews([toView(updated)]).then((views) => views[0]);
   }
 
   /** POST /api/schedule/check-out: закрывает смену, время и (опционально) координаты. */
@@ -541,7 +545,7 @@ export class ScheduleService {
       `Check-out смены ${updated.id}: длительность ` +
         `${Math.round((now.getTime() - (event.checkInAt?.getTime() ?? now.getTime())) / 60_000)} мин`,
     );
-    return toView(updated);
+    return this.enrichViews([toView(updated)]).then((views) => views[0]);
   }
 
   // ------------------------------------------------------- неявки и авто check-out
@@ -766,7 +770,8 @@ export class ScheduleService {
     const full =
       event.schedule ??
       (await this.prisma.schedule.findUnique({ where: { id: event.scheduleId } }));
-    return toView({ ...event, schedule: full } as ScheduleEvent & { schedule: Schedule });
+    const view = toView({ ...event, schedule: full } as ScheduleEvent & { schedule: Schedule });
+    return this.enrichViews([view]).then((views) => views[0]);
   }
 
   /** Проверка геозоны; недоступность gps-service → 502, а не 500. */
@@ -856,6 +861,28 @@ export class ScheduleService {
     }
     return normalized;
   }
+
+  /**
+   * Дополняет view именами объекта/маршрута из core (кэш по id внутри вызова).
+   * Ошибка core не должна ронять список — имена остаются null.
+   */
+  private async enrichViews(views: ScheduleEventView[]): Promise<ScheduleEventView[]> {
+    const objectNames = new Map<string, string | null>();
+    const routeNames = new Map<string, string | null>();
+    for (const view of views) {
+      if (view.objectId && !objectNames.has(view.objectId)) {
+        objectNames.set(view.objectId, await this.core.getObjectName(view.objectId));
+      }
+      if (view.routeId && !routeNames.has(view.routeId)) {
+        routeNames.set(view.routeId, await this.core.getRouteName(view.routeId));
+      }
+    }
+    return views.map((view) => ({
+      ...view,
+      objectName: view.objectId ? objectNames.get(view.objectId) ?? null : null,
+      routeName: view.routeId ? routeNames.get(view.routeId) ?? null : null,
+    }));
+  }
 }
 
 function describe(error: unknown): string {
@@ -874,6 +901,9 @@ function toView(event: ScheduleEvent & { schedule: Schedule }): ScheduleEventVie
     scheduleName: event.schedule.name,
     objectId: event.schedule.objectId,
     routeId: event.schedule.routeId,
+    // Заполняется enrichViews — имена из core (ukрашение, не блокер).
+    objectName: null,
+    routeName: null,
     date: formatDateOnly(event.date),
     plannedStart: event.plannedStart.toISOString(),
     plannedEnd: event.plannedEnd.toISOString(),

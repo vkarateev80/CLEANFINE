@@ -54,6 +54,7 @@ describe('AuthController (HTTP)', () => {
     me: jest.fn(),
     changePassword: jest.fn(),
     changePin: jest.fn(),
+    registerBiometric: jest.fn(),
   };
 
   const tokenPair = { accessToken: 'access-1', refreshToken: 'refresh-1' };
@@ -213,6 +214,25 @@ describe('AuthController (HTTP)', () => {
         .send({ refreshToken: 'refresh-1' })
         .expect(204);
       expect(authService.logout).toHaveBeenCalledWith('u1', { refreshToken: 'refresh-1' });
+    });
+
+    it('POST /api/auth/biometric/register сохраняет ключ текущего пользователя', async () => {
+      authService.registerBiometric.mockResolvedValue({ id: 'u1', email: 'u1@x' });
+      await request(app.getHttpServer())
+        .post('/api/auth/biometric/register')
+        .set('Authorization', bearer('ADMIN'))
+        .send({ biometricKey: 'device-key-1' })
+        .expect(201);
+      expect(authService.registerBiometric).toHaveBeenCalledWith('u1', {
+        biometricKey: 'device-key-1',
+      });
+    });
+
+    it('POST /api/auth/biometric/register без токена → 401', async () => {
+      await request(app.getHttpServer())
+        .post('/api/auth/biometric/register')
+        .send({ biometricKey: 'k' })
+        .expect(401);
     });
 
     it('POST /api/auth/change-password валидирует DTO', async () => {

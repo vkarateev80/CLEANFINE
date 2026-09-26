@@ -37,15 +37,30 @@ export class CoreClient {
       return null;
     }
     const url = `${this.baseUrl}/api/objects/${encodeURIComponent(objectId)}`;
+    return this.fetchName(url, accessToken, objectId);
+  }
 
+  /** GET /api/routes/:id → name. null — маршрут/сервис недоступен. */
+  async getRouteName(routeId: string, accessToken?: string): Promise<string | null> {
+    if (!routeId) {
+      return null;
+    }
+    const url = `${this.baseUrl}/api/routes/${encodeURIComponent(routeId)}`;
+    return this.fetchName(url, accessToken, routeId);
+  }
+
+  private async fetchName(
+    url: string,
+    accessToken: string | undefined,
+    entityId: string,
+  ): Promise<string | null> {
     let token = accessToken ?? null;
     if (!token) {
       try {
         token = await this.tokens.getAccessToken();
       } catch (error) {
         this.logger.warn(
-          `Служебный токен недоступен для чтения имени объекта: ${describe(error)}. ` +
-            'В уведомлении будет id объекта.',
+          `Служебный токен недоступен для чтения имени ${entityId}: ${describe(error)}.`,
         );
         return null;
       }
@@ -62,7 +77,7 @@ export class CoreClient {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
       if (!response.ok) {
-        this.logger.warn(`core-service вернул ${response.status} на объект ${objectId}`);
+        this.logger.warn(`core-service вернул ${response.status} на ${entityId}`);
         return null;
       }
       const payload: unknown = await response.json().catch(() => null);

@@ -15,6 +15,7 @@ import { ChangePinDto } from './dto/change-pin.dto';
 import { LoginDto } from './dto/login.dto';
 import { PinLoginDto } from './dto/pin-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RegisterBiometricDto } from './dto/register-biometric.dto';
 import { TokenPairDto } from './dto/token-pair.dto';
 
 /** Именованный лимит входа: значения задаются в ThrottlerModule (env-настраиваемые). */
@@ -58,6 +59,22 @@ export class AuthController {
   @ApiResponse({ status: 429, description: 'Превышен лимит попыток входа' })
   async biometricLogin(@Body() dto: BiometricDto): Promise<TokenPairDto> {
     return this.auth.biometricLogin(dto);
+  }
+
+  @Post('biometric/register')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Сохранить/заменить биометрический ключ текущего пользователя (М6)',
+    description:
+      'Вызывается после первого входа по паролю. Ключ не возвращается в /me.',
+  })
+  @ApiResponse({ status: 201, description: 'Профиль (без biometricKey)' })
+  @ApiResponse({ status: 401, description: 'Нет access-токена' })
+  async registerBiometric(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RegisterBiometricDto,
+  ): Promise<unknown> {
+    return this.auth.registerBiometric(user.id, dto);
   }
 
   @Public()
