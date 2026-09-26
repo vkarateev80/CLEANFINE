@@ -1,69 +1,20 @@
-# Ingress: admin + portal + общий /api.
-# TLS: cert-manager ClusterIssuer letsencrypt-prod (устанавливается на кластере).
-# Хосты — заглушки; замените на боевой домен (DNS A → ingress controller).
+# Catch-all → web-admin (SPA + nginx fanout /api → 9 сервисов).
+# TLS: cert-manager после указания Host (домен).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: cleaning-ops
   namespace: cleaning-ops
-  labels:
-    app.kubernetes.io/part-of: cleaning-ops
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    # WebSocket /chat и socket.io
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    kubernetes.io/ingress.class: traefik
 spec:
-  ingressClassName: nginx
-  tls:
-    - hosts: [admin.example.com]
-      secretName: cleaning-ops-tls
-    - hosts: [portal.example.com]
-      secretName: cleaning-ops-portal-tls
   rules:
-    - host: admin.example.com
-      http:
+    - http:
         paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: web-admin
-                port: { number: 80 }
           - path: /
             pathType: Prefix
             backend:
               service:
                 name: web-admin
-                port: { number: 80 }
-    - host: portal.example.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: web-client
-                port: { number: 80 }
----
-# Отдельный путь WebSocket → chat (если nginx-прокси во frontends не ходит на chat)
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: cleaning-ops-ws
-  namespace: cleaning-ops
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: admin.example.com
-      http:
-        paths:
-          - path: /socket.io
-            pathType: Prefix
-            backend:
-              service:
-                name: web-admin
-                port: { number: 80 }
+                port:
+                  number: 80
