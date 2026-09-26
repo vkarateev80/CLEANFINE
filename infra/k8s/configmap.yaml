@@ -1,0 +1,39 @@
+# Несекретные настройки. Пароли и полные connection string — в cleaning-ops-secrets.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cleaning-ops-config
+  namespace: cleaning-ops
+  labels:
+    app.kubernetes.io/part-of: cleaning-ops
+data:
+  POSTGRES_USER: "admin"
+  POSTGRES_DB: "cleaning_ops"
+
+  # Внутренние ClusterIP
+  REDIS_URL: "redis://redis:6379"
+  MINIO_ENDPOINT: "minio"
+  MINIO_PORT: "9000"
+  MINIO_USE_SSL: "false"
+
+  AUTH_SERVICE_URL: "http://auth:3001"
+  FILE_SERVICE_URL: "http://files:3002"
+  CORE_SERVICE_URL: "http://core:3003"
+  GPS_SERVICE_URL: "http://gps:3004"
+  TICKET_SERVICE_URL: "http://tickets:3005"
+  NOTIFICATION_SERVICE_URL: "http://notifications:3006"
+  MATERIAL_SERVICE_URL: "http://materials:3007"
+  SCHEDULE_SERVICE_URL: "http://schedule:3008"
+  CHAT_SERVICE_URL: "http://chat:3009"
+
+  SERVICE_AUTH_EMAIL: "admin@cleaning-ops.com"
+
+  JWT_ACCESS_TTL: "15m"
+  JWT_REFRESH_TTL: "30d"
+
+  VITE_API_URL: "/api"
+  VITE_MAPBOX_TOKEN: ""
+
+  SCHEDULE_CRON_ENABLED: "true"
+  SCHEDULE_AUTO_CHECKOUT_MINUTES: "15"
+  SCHEDULE_DEFAULT_SHIFT_MINUTES: "480"
