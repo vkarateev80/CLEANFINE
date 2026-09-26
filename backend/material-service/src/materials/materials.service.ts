@@ -98,7 +98,7 @@ export class MaterialsService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.material.findMany({
         where,
-        orderBy: { name: 'asc' },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
         skip: query.skip ?? 0,
         take: Math.min(query.take ?? 50, 100),
         include: { _count: { select: { stocks: true, movements: true } } },
@@ -221,7 +221,7 @@ export class MaterialsService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.materialMovement.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: Math.min(query.limit ?? 100, 500),
       }),
       this.prisma.materialMovement.count({ where }),

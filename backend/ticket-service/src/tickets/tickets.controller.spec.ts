@@ -19,6 +19,7 @@ const ticketsMock = {
   assign: jest.fn(),
   addComment: jest.fn(),
   completeOperation: jest.fn(),
+  completeRoom: jest.fn(),
 };
 
 const USER: AuthUser = {
@@ -105,6 +106,17 @@ describe('TicketsController', () => {
     expect(ticketsMock.completeOperation).toHaveBeenCalledWith('t-1', 'op-9', dto, USER);
   });
 
+  it('completeRoom передаёт ticketId и roomId из пути (М6.4)', async () => {
+    const dto = { totalRooms: 3 } as never;
+    ticketsMock.completeRoom.mockResolvedValue({ alreadyCompleted: true, roomId: 'room-1' });
+
+    await expect(controller.completeRoom('t-1', 'room-1', dto, USER)).resolves.toEqual({
+      alreadyCompleted: true,
+      roomId: 'room-1',
+    });
+    expect(ticketsMock.completeRoom).toHaveBeenCalledWith('t-1', 'room-1', dto, USER);
+  });
+
   it('роуты и RBAC объявлены там, где ожидает API-контракт', () => {
     expect(Reflect.getMetadata(PATH_METADATA, TicketsController)).toBe('api/tickets');
     expect(Reflect.getMetadata(METHOD_METADATA, controller.create)).toBe(RequestMethod.POST);
@@ -115,6 +127,7 @@ describe('TicketsController', () => {
     expect(Reflect.getMetadata(METHOD_METADATA, controller.assign)).toBe(RequestMethod.POST);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.addComment)).toBe(RequestMethod.POST);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.completeOperation)).toBe(RequestMethod.POST);
+    expect(Reflect.getMetadata(METHOD_METADATA, controller.completeRoom)).toBe(RequestMethod.POST);
 
     expect(Reflect.getMetadata(PATH_METADATA, controller.createEmergency)).toBe('emergency');
     expect(Reflect.getMetadata(PATH_METADATA, controller.changeStatus)).toBe(':id/status');
@@ -122,6 +135,9 @@ describe('TicketsController', () => {
     expect(Reflect.getMetadata(PATH_METADATA, controller.addComment)).toBe(':id/comments');
     expect(Reflect.getMetadata(PATH_METADATA, controller.completeOperation)).toBe(
       ':id/operations/:operationId/complete',
+    );
+    expect(Reflect.getMetadata(PATH_METADATA, controller.completeRoom)).toBe(
+      ':id/rooms/:roomId/complete',
     );
 
     // RBAC: назначает только админ/бригадир; статусы двигают и операторы;

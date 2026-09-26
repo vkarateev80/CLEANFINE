@@ -28,7 +28,7 @@ export function validateEnv(env: Record<string, unknown>): Record<string, unknow
       if (isProd) {
         problems.push(`${key} не задан`);
       } else {
-        // eslint-disable-next-line no-console
+         
         console.warn(`[config] ${key} не задан — используется dev-значение по умолчанию`);
       }
       continue;

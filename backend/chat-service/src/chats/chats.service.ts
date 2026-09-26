@@ -156,7 +156,7 @@ export class ChatsService {
     // первое (самое новое) на чат — вместо N запросов в цикле.
     const recent = await this.prisma.message.findMany({
       where: { chatId: { in: chatIds } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: 200,
     });
     const lastByChat = new Map<string, Message>();
@@ -519,7 +519,7 @@ export class ChatsService {
         chatId,
         ...(before ? { createdAt: { lt: before } } : {}),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
     });
 
@@ -690,7 +690,7 @@ export class ChatsService {
     const [items, total] = await Promise.all([
       this.prisma.message.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: limit,
       }),
       this.prisma.message.count({ where }),

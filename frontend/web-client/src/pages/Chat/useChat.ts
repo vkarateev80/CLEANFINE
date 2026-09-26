@@ -109,7 +109,6 @@ export function useChatResolution(): ChatResolution {
         creatingRef.current = false;
       },
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chats.isSuccess, directChats.length, managerId]);
 
   // Выбранным считается сохранённый чат, если он всё ещё среди своих; иначе —

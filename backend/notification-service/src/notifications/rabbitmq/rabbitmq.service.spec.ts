@@ -21,6 +21,7 @@ interface FakeChannel {
   consume: jest.Mock;
   ack: jest.Mock;
   nack: jest.Mock;
+  publish: jest.Mock;
   close: jest.Mock;
   on: jest.Mock;
 }
@@ -34,6 +35,7 @@ function createChannel(): FakeChannel {
     consume: jest.fn().mockResolvedValue({ consumerTag: 'tag' }),
     ack: jest.fn(),
     nack: jest.fn(),
+    publish: jest.fn().mockReturnValue(true),
     close: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
   };
@@ -136,12 +138,23 @@ describe('RabbitmqService', () => {
     expect(channel.assertExchange).toHaveBeenCalledWith('cleaning-ops.events', 'topic', {
       durable: true,
     });
+    expect(channel.assertExchange).toHaveBeenCalledWith('cleaning-ops.events.dlq', 'topic', {
+      durable: true,
+    });
     expect(channel.assertQueue).toHaveBeenCalledWith('notification.ticket.created', {
+      durable: true,
+    });
+    expect(channel.assertQueue).toHaveBeenCalledWith('notification.ticket.created.dlq', {
       durable: true,
     });
     expect(channel.bindQueue).toHaveBeenCalledWith(
       'notification.ticket.created',
       'cleaning-ops.events',
+      'ticket.created',
+    );
+    expect(channel.bindQueue).toHaveBeenCalledWith(
+      'notification.ticket.created.dlq',
+      'cleaning-ops.events.dlq',
       'ticket.created',
     );
     expect(channel.consume).toHaveBeenCalledWith('notification.ticket.created', expect.any(Function));
@@ -310,15 +323,21 @@ describe('RabbitmqService', () => {
       expect(error).toHaveBeenCalledWith(expect.stringContaining('некорректный JSON'));
     });
 
-    it('ошибка обработчика → nack без requeue (сообщение уходит в DLQ)', async () => {
+    it('ошибка обработчика → публикация в DLQ и ack (сообщение не теряется)', async () => {
       const { channel, handler } = await connected();
       handler.mockRejectedValue(new Error('упало'));
 
       consumeCallback(channel)(amqpMessage('{"ticketId":"t-1"}'));
       await flush();
 
-      expect(channel.nack).toHaveBeenCalledWith(expect.anything(), false, false);
-      expect(channel.ack).not.toHaveBeenCalled();
+      expect(channel.publish).toHaveBeenCalledWith(
+        'cleaning-ops.events.dlq',
+        'ticket.created',
+        expect.anything(),
+        expect.objectContaining({ persistent: true }),
+      );
+      expect(channel.ack).toHaveBeenCalledTimes(1);
+      expect(channel.nack).not.toHaveBeenCalled();
     });
 
     it('null-сообщение (отмена consumer-а) игнорируется', async () => {

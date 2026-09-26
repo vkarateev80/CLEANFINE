@@ -59,6 +59,7 @@ class RouteDetail {
     required this.points,
     this.floorId,
     this.totalEstimatedTimeMin,
+    this.operationsTotal,
   });
 
   final String id;
@@ -67,6 +68,10 @@ class RouteDetail {
   final List<RoutePointView> points;
   final String? floorId;
   final int? totalEstimatedTimeMin;
+
+  /// Сколько операций чек-листов на маршруте (сервер суммирует по точкам;
+  /// одна техкарта на двух помещениях считается дважды — у каждой свой roomId).
+  final int? operationsTotal;
 
   int get pointsCount => points.length;
 
@@ -87,6 +92,7 @@ class RouteDetail {
       points: RoutePointView.listFrom(body['points']),
       floorId: rawFloor?.toString(),
       totalEstimatedTimeMin: _int(body['totalEstimatedTimeMin']),
+      operationsTotal: _int(body['operationsTotal']),
     );
   }
 

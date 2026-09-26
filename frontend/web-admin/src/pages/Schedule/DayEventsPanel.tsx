@@ -36,8 +36,8 @@ import { EventStatusBadge, formatUtcDateTime, shortId, utcTimeOf } from './sched
  * Время показывается в UTC — так же, как оно хранится в графике (`recurrence.time`
  * в `recurrence.ts` schedule-service): сервис не знает локальную зону объекта, и
  * «08:00» здесь означает именно 08:00 UTC, а не 08:00 по часам браузера.
- * Окончание смены в модели отсутствует — есть только фактический `checkOutAt`,
- * поэтому в колонке «Окончание» показываем прочерк или факт закрытия.
+ * Колонка «Окончание» — плановый `plannedEnd`; `checkOutAt` (факт) показывается
+ * отдельно, если смена уже закрыта.
  *
  * Ручные триггеры (`/generate`, `/check-missed`) и состояние планировщика доступны
  * только ADMIN: это действия над периодическими проходами, а не рабочее действие
@@ -170,7 +170,14 @@ export function DayEventsPanel({
       card: 'field',
       cardLabel: 'Окончание',
       cell: (event) =>
-        event.checkOutAt ? (
+        event.plannedEnd ? (
+          <>
+            <span className="block">{utcTimeOf(event.plannedEnd)}</span>
+            {event.checkOutAt ? (
+              <span className="block text-neutral-400">закрыта {utcTimeOf(event.checkOutAt)}</span>
+            ) : null}
+          </>
+        ) : event.checkOutAt ? (
           utcTimeOf(event.checkOutAt)
         ) : (
           <span className="text-neutral-400">—</span>

@@ -77,13 +77,15 @@ class TicketsRepository {
 
   /// `POST /api/tickets/:ticketId/operations/:operationId/complete` (М3.6).
   ///
-  /// Идемпотентно по паре `(ticketId, operationId)`: повтор возвращает
-  /// `alreadyCompleted: true` — для вызывающего это успех.
+  /// Идемпотентно по тройке `(ticketId, operationId, roomId)`: повтор возвращает
+  /// `alreadyCompleted: true` — для вызывающего это успех. `roomId` входит в ключ:
+  /// одна техкарта на несколько помещений маршрута.
   /// `requiresPhoto` отправляем только вместе с `photoUrl`: сервер отвечает 400,
   /// если операция требует фото, а ссылки нет.
   Future<Result<CompleteOperationResult>> completeOperation({
     required String ticketId,
     required String operationId,
+    String? roomId,
     DateTime? completedAt,
     String? photoUrl,
     bool requiresPhoto = false,
@@ -93,6 +95,7 @@ class TicketsRepository {
       final response = await _api.post(
         '$_ticketsPath/$ticketId/operations/$operationId/complete',
         data: <String, dynamic>{
+          if (roomId != null && roomId.isNotEmpty) 'roomId': roomId,
           if (completedAt != null) 'completedAt': completedAt.toUtc().toIso8601String(),
           if (photoUrl != null) 'photoUrl': photoUrl,
           if (requiresPhoto && photoUrl != null) 'requiresPhoto': true,
@@ -102,6 +105,32 @@ class TicketsRepository {
       final CompleteOperationResult? result = CompleteOperationResult.tryParse(response.data);
       if (result == null) {
         throw const ServerException('Некорректный ответ сервера: не удалось разобрать завершение операции');
+      }
+      return result;
+    });
+  }
+
+  /// `POST /api/tickets/:ticketId/rooms/:roomId/complete` (М6.4).
+  ///
+  /// Серверная отметка «помещение завершено». Идемпотентно по `(ticketId, roomId)`:
+  /// повтор возвращает `alreadyCompleted: true` — успех.
+  Future<Result<CompleteRoomResult>> completeRoom({
+    required String ticketId,
+    required String roomId,
+    DateTime? completedAt,
+    int? totalRooms,
+  }) {
+    return guard(() async {
+      final response = await _api.post(
+        '$_ticketsPath/$ticketId/rooms/$roomId/complete',
+        data: <String, dynamic>{
+          if (completedAt != null) 'completedAt': completedAt.toUtc().toIso8601String(),
+          if (totalRooms != null) 'totalRooms': totalRooms,
+        },
+      );
+      final CompleteRoomResult? result = CompleteRoomResult.tryParse(response.data);
+      if (result == null) {
+        throw const ServerException('Некорректный ответ сервера: не удалось разобрать завершение помещения');
       }
       return result;
     });

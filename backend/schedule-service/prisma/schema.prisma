@@ -3,6 +3,8 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Свой output на сервис: pnpm-стор не дедуплицирует клиенты между схемами.
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -49,6 +51,9 @@ model ScheduleEvent {
   date         DateTime
   /// Плановое начало: date + recurrence.time.
   plannedStart DateTime
+  /// Плановый конец смены: plannedStart + durationMin (или defaultShiftMinutes).
+  /// UI показывает его как «окончание», а checkOutAt — факт закрытия.
+  plannedEnd   DateTime
   status       ScheduleEventStatus @default(PLANNED)
   /// Исполнитель смены (auth-service). null — смена без назначенного исполнителя.
   userId       String?

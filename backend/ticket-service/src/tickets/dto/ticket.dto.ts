@@ -158,6 +158,17 @@ export class CompleteOperationDto {
   @IsISO8601()
   completedAt?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Помещение маршрута (core-service). Входит в ключ идемпотентности: ' +
+      'одна техкарта на несколько помещений — операции разных помещений независимы. ' +
+      'Без поля — операция без привязки к помещению.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  roomId?: string;
+
   @ApiPropertyOptional({ description: 'URL фото из file-service' })
   @IsOptional()
   @IsString()
@@ -180,6 +191,25 @@ export class CompleteOperationDto {
   @IsInt()
   @Min(1)
   totalOperations?: number;
+}
+
+/** Завершение помещения маршрута по заявке (пробел API М6.4). */
+export class CompleteRoomDto {
+  @ApiPropertyOptional({ description: 'Время завершения (ISO 8601); по умолчанию — сейчас' })
+  @IsOptional()
+  @IsISO8601()
+  completedAt?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Сколько всего помещений у маршрута заявки — чтобы определить «все помещения завершены». ' +
+      'Первый вызов запоминает значение в заявке.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  totalRooms?: number;
 }
 
 /** Список заявок с фильтрами и пагинацией (М3.4). */

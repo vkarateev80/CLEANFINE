@@ -132,6 +132,9 @@ class FakeTicketsRepository extends TicketsRepository {
   /// Что именно ушло в `POST /api/tickets/:id/operations/:operationId/complete`.
   final List<Map<String, Object?>> completeCalls = <Map<String, Object?>>[];
 
+  /// Что именно ушло в `POST /api/tickets/:id/rooms/:roomId/complete`.
+  final List<Map<String, Object?>> completeRoomCalls = <Map<String, Object?>>[];
+
   /// Что именно ушло в `POST /api/tickets/emergency`.
   final List<Map<String, Object?>> emergencyCalls = <Map<String, Object?>>[];
 
@@ -143,6 +146,7 @@ class FakeTicketsRepository extends TicketsRepository {
   Future<Result<CompleteOperationResult>> completeOperation({
     required String ticketId,
     required String operationId,
+    String? roomId,
     DateTime? completedAt,
     String? photoUrl,
     bool requiresPhoto = false,
@@ -151,6 +155,7 @@ class FakeTicketsRepository extends TicketsRepository {
     completeCalls.add(<String, Object?>{
       'ticketId': ticketId,
       'operationId': operationId,
+      'roomId': roomId,
       'completedAt': completedAt?.toUtc().toIso8601String(),
       'photoUrl': photoUrl,
       'requiresPhoto': requiresPhoto,
@@ -161,8 +166,32 @@ class FakeTicketsRepository extends TicketsRepository {
       CompleteOperationResult(
         operationId: operationId,
         ticketId: ticketId,
+        roomId: roomId ?? '',
         completedAt: completedAt?.toUtc().toIso8601String(),
         photoUrl: photoUrl,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<CompleteRoomResult>> completeRoom({
+    required String ticketId,
+    required String roomId,
+    DateTime? completedAt,
+    int? totalRooms,
+  }) async {
+    completeRoomCalls.add(<String, Object?>{
+      'ticketId': ticketId,
+      'roomId': roomId,
+      'completedAt': completedAt?.toUtc().toIso8601String(),
+      'totalRooms': totalRooms,
+    });
+    if (completeFailure != null) return Err<CompleteRoomResult>(completeFailure!);
+    return Ok<CompleteRoomResult>(
+      CompleteRoomResult(
+        roomId: roomId,
+        ticketId: ticketId,
+        completedAt: completedAt?.toUtc().toIso8601String(),
       ),
     );
   }

@@ -148,7 +148,6 @@ export function ObjectsListPage() {
     updateParams({ search: debouncedSearch === '' ? null : debouncedSearch, skip: null });
     // updateParams читает параметры через функциональную форму setParams, поэтому
     // в зависимостях достаточно отложенного значения поиска.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
 
   const query = useQuery({

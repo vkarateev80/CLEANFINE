@@ -72,6 +72,7 @@ describe('JwtAuthGuard', () => {
 
   it('защищённый эндпоинт с валидным токеном → пропускает', async () => {
     (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
+     
     const jwt = require('jsonwebtoken') as { sign: (p: object, s: string, o?: object) => string };
     const token = jwt.sign({ sub: 'u1', role: 'ADMIN' }, TEST_SECRET, { expiresIn: '5m' });
     await expect(guard.canActivate(contextWith(`Bearer ${token}`))).resolves.toBe(true);

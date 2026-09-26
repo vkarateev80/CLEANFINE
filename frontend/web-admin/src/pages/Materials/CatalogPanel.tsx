@@ -79,7 +79,6 @@ export function CatalogPanel({ onMove }: { onMove: (preset: MovementPreset) => v
     write({ catSearch: debouncedSearch === '' ? null : debouncedSearch, catSkip: null });
     // write читает актуальные параметры через функциональную форму setParams,
     // поэтому в зависимостях достаточно отложенного значения поиска.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
 
   const remove = useMutation({

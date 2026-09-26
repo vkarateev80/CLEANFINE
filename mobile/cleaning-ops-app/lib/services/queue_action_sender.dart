@@ -66,6 +66,8 @@ class QueueActionSender {
         return _sendAttach(action);
       case PendingActionTypes.operationCompleted:
         return _sendOperation(action);
+      case PendingActionTypes.roomCompleted:
+        return _sendRoom(action);
       case PendingActionTypes.chatMessage:
         return _sendChatMessage(action);
       default:
@@ -149,10 +151,29 @@ class QueueActionSender {
     final Result<CompleteOperationResult> result = await _tickets.completeOperation(
       ticketId: ticketId,
       operationId: operationId,
+      roomId: _text(payload['roomId']),
       completedAt: _date(payload['completedAt']),
       photoUrl: _text(payload['photoUrl']),
       requiresPhoto: payload['requiresPhoto'] == true,
       totalOperations: _int(payload['totalOperations']),
+    );
+    final Failure? failure = result.failureOrNull;
+    return failure == null ? const QueueSendResult.success() : _failure(failure);
+  }
+
+  /// Завершение помещения маршрута (М6.4): `alreadyCompleted` — успех.
+  Future<QueueSendResult> _sendRoom(PendingAction action) async {
+    final Map<String, dynamic> payload = action.payload;
+    final String? ticketId = _text(payload['ticketId']);
+    final String? roomId = _text(payload['roomId']);
+    if (ticketId == null || roomId == null) {
+      return const QueueSendResult.permanent('В записи нет ticketId или roomId');
+    }
+
+    final Result<CompleteRoomResult> result = await _tickets.completeRoom(
+      ticketId: ticketId,
+      roomId: roomId,
+      completedAt: _date(payload['completedAt']),
     );
     final Failure? failure = result.failureOrNull;
     return failure == null ? const QueueSendResult.success() : _failure(failure);

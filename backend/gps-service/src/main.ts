@@ -34,10 +34,10 @@ async function bootstrap(): Promise<void> {
 
   const port = app.get(ConfigService).get<number>('port') ?? DEFAULT_PORT;
   await app.listen(port);
-  // eslint-disable-next-line no-console
+   
   console.log(`gps-service запущен: http://localhost:${port}/api`);
   if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
+     
     console.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
 }

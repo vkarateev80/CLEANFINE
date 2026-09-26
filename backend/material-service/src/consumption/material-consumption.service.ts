@@ -3,7 +3,6 @@ import { Prisma } from '@prisma/client';
 import { ROUTING_KEYS } from '@cleaning-ops/shared/constants/events';
 import { EventsPublisher } from '../amqp/events.publisher';
 import { CoreMaterialsClient } from '../integration/core-materials.client';
-import { OperationMaterials } from '../integration/operation-materials';
 import {
   OPERATION_MATERIALS_RESOLVER,
   OperationMaterialsResolver,

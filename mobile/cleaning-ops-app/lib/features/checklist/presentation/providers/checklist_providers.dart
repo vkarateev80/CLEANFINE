@@ -15,7 +15,6 @@ import '../../../../shared/data/models/operator_models.dart';
 import '../../../../shared/data/models/schedule_event.dart';
 import '../../../../shared/data/models/tech_card_models.dart';
 import '../../../../shared/data/pending_actions.dart';
-import '../../../../shared/data/repositories/operator_repositories.dart';
 import '../../../../shared/data/result.dart';
 import '../../../../shared/services/location_service.dart';
 import '../../../../shared/services/photo_service.dart';
@@ -246,10 +245,10 @@ class ChecklistArgs {
 /// Сколько всего операций у маршрута смены.
 ///
 /// ticket-service запоминает это число при первом вызове и по нему определяет
-/// `allOperationsCompleted`. Отдельного эндпоинта нет, поэтому сумму
-/// `operations.length` по всем точкам маршрута считает клиент (N+1 запросов,
-/// значение кэшируется провайдером на смену). Любая ошибка здесь не критична:
-/// завершение уходит без `totalOperations`, сервер его примет.
+/// `allOperationsCompleted`. Сервер отдаёт `operationsTotal` в
+/// `GET /api/routes/:id` — один запрос вместо N+1 (деталь маршрута).
+/// Любая ошибка здесь не критична: завершение уходит без `totalOperations`,
+/// сервер его примет.
 final routeOperationsTotalProvider = FutureProvider.family<int?, String>((Ref ref, String eventId) async {
   final Result<ScheduleEvent> eventResult =
       await ref.read(scheduleRepositoryProvider).eventById(eventId);
@@ -259,26 +258,9 @@ final routeOperationsTotalProvider = FutureProvider.family<int?, String>((Ref re
   final Result<RouteDetail> routeResult =
       await ref.read(coreRepositoryProvider).route(event.routeId!);
   final RouteDetail? route = routeResult.dataOrNull;
-  if (route == null || route.points.isEmpty) return null;
-
-  final CoreRepository core = ref.read(coreRepositoryProvider);
-  final List<Result<RoomDetail>> rooms = await Future.wait(
-    route.points.map((RoutePointView point) => core.room(point.roomId)),
-  );
-  final Set<String> techCardIds = <String>{
-    for (final Result<RoomDetail> room in rooms)
-      if (room.dataOrNull?.techCardId != null) room.dataOrNull!.techCardId!,
-  };
-  if (techCardIds.isEmpty) return null;
-
-  final List<Result<TechCardDetail>> cards = await Future.wait(
-    techCardIds.map((String id) => core.techCard(id)),
-  );
-  int total = 0;
-  for (final Result<TechCardDetail> card in cards) {
-    total += card.dataOrNull?.operations.length ?? 0;
-  }
-  return total == 0 ? null : total;
+  final int? total = route?.operationsTotal;
+  if (total == null || total <= 0) return null;
+  return total;
 });
 
 /// Чек-лист помещения (М6.4): порядок операций, таймер, фото, завершение помещения.
@@ -573,6 +555,7 @@ class ChecklistController extends FamilyAsyncNotifier<ChecklistState, ChecklistA
         await ref.read(ticketsRepositoryProvider).completeOperation(
               ticketId: current.ticketId!,
               operationId: operationId,
+              roomId: current.room.id,
               completedAt: now,
               photoUrl: op.photoUrl,
               requiresPhoto: op.operation.requiresPhoto,
@@ -600,13 +583,41 @@ class ChecklistController extends FamilyAsyncNotifier<ChecklistState, ChecklistA
     return completeOperation(operationId);
   }
 
-  /// «Завершить помещение»: локальная отметка точки маршрута (`markRoomDone`).
+  /// «Завершить помещение»: серверная отметка + локальная точка маршрута.
   ///
-  /// Серверного эндпоинта завершения помещения нет — это пробел API
-  /// (DS-002 `checklist.md` п. 11.1), прогресс живёт в приложении.
+  /// Сервер `POST /api/tickets/:id/rooms/:roomId/complete` (М6.4) идемпотентен;
+  /// без сети действие уходит в очередь. Локальная отметка `markRoomDone`
+  /// ставится в любом случае — прогресс маршрута живёт и в приложении.
   Future<bool> completeRoom() async {
     final ChecklistState? current = state.valueOrNull;
     if (current == null || !current.allCompleted) return false;
+
+    final DateTime now = ref.read(nowProvider)();
+    final String? ticketId = current.ticketId;
+    if (ticketId != null) {
+      final Result<CompleteRoomResult> result =
+          await ref.read(ticketsRepositoryProvider).completeRoom(
+                ticketId: ticketId,
+                roomId: current.room.id,
+                completedAt: now,
+              );
+      final Failure? failure = result.failureOrNull;
+      if (failure is NetworkFailure) {
+        await ref.read(pendingActionQueueProvider).add(
+              type: PendingActionTypes.roomCompleted,
+              idempotencyKey: 'room:$ticketId:${current.room.id}',
+              payload: <String, dynamic>{
+                'eventId': current.event.id,
+                'ticketId': ticketId,
+                'roomId': current.room.id,
+                'roomName': current.room.name,
+                'completedAt': now.toUtc().toIso8601String(),
+              },
+            );
+      }
+      // Остальные ошибки сервера не блокируют локальную отметку: оператор
+      // уже закрыл все операции помещения, и точка маршрута должна стать done.
+    }
 
     final RouteDayController routeDay =
         ref.read(routeDayProvider(current.event.id).notifier);
@@ -647,9 +658,9 @@ class ChecklistController extends FamilyAsyncNotifier<ChecklistState, ChecklistA
   }) async {
     await ref.read(pendingActionQueueProvider).add(
           type: PendingActionTypes.operationCompleted,
-          // Ключ идемпотентности из DS-002 `offline.md` §4.2: повтор из очереди
-          // не создаст второе завершение той же операции.
-          idempotencyKey: 'op:${current.ticketId}:${op.operation.id}',
+          // Ключ идемпотентности: повтор из очереди не создаст второе завершение
+          // той же операции того же помещения (`roomId` входит в ключ сервера).
+          idempotencyKey: 'op:${current.ticketId}:${current.room.id}:${op.operation.id}',
           payload: <String, dynamic>{
             'eventId': current.event.id,
             'roomId': current.room.id,

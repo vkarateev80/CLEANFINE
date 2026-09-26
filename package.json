@@ -10,7 +10,8 @@
   "scripts": {
     "build:shared": "pnpm --filter @cleaning-ops/shared build",
     "build": "pnpm build:shared && pnpm -r build --if-present",
-    "lint": "pnpm -r lint --if-present",
+    "lint": "eslint \"backend/*/src/**/*.{ts,tsx}\" \"frontend/*/src/**/*.{ts,tsx}\" \"shared/{types,constants,utils}/**/*.{ts,tsx}\" --max-warnings 0",
+    "lint:fix": "pnpm lint -- --fix",
     "typecheck": "pnpm --filter @cleaning-ops/shared typecheck && pnpm -r typecheck --if-present",
     "test": "pnpm -r test --if-present",
     "test:e2e": "pnpm -r test:e2e --if-present",
@@ -18,6 +19,9 @@
     "format:check": "prettier --check package.json pnpm-workspace.yaml .prettierrc shared/package.json shared/tsconfig.json \"shared/types/**/*.ts\" \"shared/constants/**/*.ts\""
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
     "prettier": "^3.3.3"
   }
 }

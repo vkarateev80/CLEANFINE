@@ -1,33 +1,14 @@
-#!/usr/bin/env node
 /**
- * Prisma-клиент каждому сервису в его собственный node_modules.
+ * Генерация Prisma-клиента каждой схемы в node_modules своего сервиса.
  *
- * Проблема: pnpm дедуплицирует @prisma/client в один каталог
- * `node_modules/.pnpm/@prisma+client@<версия>_prisma@<версия>/node_modules`,
- * поэтому `prisma generate` для девяти схем пишет в одно и то же место —
- * побеждает тот сервис, который сгенерировал последним. В CI это ломало
- * `build`/`typecheck` auth-service (он видел модели ticket-service).
+ * Схемы указывают `output = "../node_modules/.prisma/client"` — prisma пишет
+ * клиент прямо в пакет сервиса, `@prisma/client` автоматически форвардит импорты
+ * туда. Копирование из общего store больше не нужно.
  *
- * Решение: после generate переносим клиент в node_modules самого сервиса
- * реальной копией. Разрешение `@prisma/client` из сервиса больше не идёт по
- * симлинку в общий store, и каждый сервис видит модели своей схемы и при
- * сборке, и при запуске (в e2e все девять сервисов работают одновременно).
- *
- * Скрипт идемпотентен: повторный запуск просто перезаписывает копии.
  * Запуск: node scripts/ci/prisma-clients.mjs
  */
 import { execFileSync } from 'node:child_process';
-import {
-  cpSync,
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  unlinkSync,
-} from 'node:fs';
-import { createRequire } from 'node:module';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -42,83 +23,12 @@ function serviceDirs() {
     .sort();
 }
 
-function requireFrom(dir) {
-  return createRequire(path.join(dir, 'package.json'));
-}
-
-/** Каталог установленного пакета @prisma/client (реальный путь, без симлинка pnpm). */
-function clientPackageDir(dir) {
-  return path.dirname(requireFrom(dir).resolve('@prisma/client/package.json'));
-}
-
-/** Удаление цели: каталог или симлинк на каталог (симлинк снимаем, не трогая цель). */
-function removeTarget(target) {
-  if (!existsSync(target)) return;
-  if (lstatSync(target).isSymbolicLink()) {
-    unlinkSync(target);
-    return;
-  }
-  rmSync(target, { recursive: true, force: true });
-}
-
-/** Сравнение путей без учёта регистра на Windows. */
-function samePath(left, right) {
-  const normalize = (value) => {
-    const resolved = path.resolve(value);
-    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
-  };
-  return normalize(left) === normalize(right);
-}
-
-function copyInto(source, target) {
-  // При повторном запуске цель уже может быть тем же каталогом, что источник
-  // (раскладка npm, где клиент лежит в node_modules самого сервиса).
-  if (samePath(source, target)) return;
-  removeTarget(target);
-  mkdirSync(path.dirname(target), { recursive: true });
-  cpSync(source, target, { recursive: true, dereference: true });
-}
-
-/**
- * Каталог сгенерированного клиента: prisma пишет его в `node_modules/.prisma/client`
- * того node_modules, в котором лежит сам пакет `@prisma/client`. В раскладке pnpm
- * это `node_modules/.pnpm/@prisma+client@…/node_modules/.prisma/client`, в раскладке
- * npm — `backend/<сервис>/node_modules/.prisma/client`. Поэтому идём вверх по
- * каталогам, а не полагаемся на одну конкретную глубину.
- */
-function generatedClientDir(pkgDir) {
-  const candidates = [path.join(pkgDir, '.prisma', 'client')];
-  let dir = pkgDir;
-  for (let level = 0; level < 4; level += 1) {
-    dir = path.dirname(dir);
-    candidates.push(path.join(dir, '.prisma', 'client'));
-  }
-  const found = candidates.find((candidate) => existsSync(path.join(candidate, 'index.js')));
-  if (!found) {
-    const seen = candidates.map(
-      (candidate) =>
-        `  ${candidate} → ${existsSync(candidate) ? 'каталог есть, index.js нет' : 'нет'}`,
-    );
-    throw new Error(`не найден сгенерированный Prisma-клиент для ${pkgDir}\n${seen.join('\n')}`);
-  }
-  return found;
-}
-
 function generate(dir) {
   execFileSync('pnpm', ['prisma:generate'], {
     cwd: dir,
     stdio: 'inherit',
     shell: process.platform === 'win32',
   });
-}
-
-/** Переносит клиент сервиса в его node_modules; возвращает путь к копии. */
-function materialize(dir) {
-  const pkgDir = clientPackageDir(dir);
-  const generated = generatedClientDir(pkgDir);
-  const nodeModules = path.join(dir, 'node_modules');
-  copyInto(generated, path.join(nodeModules, '.prisma', 'client'));
-  copyInto(pkgDir, path.join(nodeModules, '@prisma', 'client'));
 }
 
 /** Модели из схемы сервиса — эталон для проверки. */
@@ -129,9 +39,8 @@ function schemaModels(dir) {
 
 /**
  * Проверка клиента сервиса — обязательно в дочернем процессе: в текущем
- * процессе Node кэширует realpath симлинков, поэтому после подмены ссылки на
- * каталог `require.resolve` ещё возвращал бы путь в общем store. Дочерний
- * процесс видит ровно то, что увидят сборка и запуск сервиса.
+ * процессе Node кэширует realpath симлинков. Дочерний процесс видит ровно то,
+ * что увидят сборка и запуск сервиса.
  */
 const INSPECT = `
 const path = require('node:path');
@@ -177,10 +86,9 @@ for (const dir of dirs) {
   const name = path.basename(dir);
   console.log(`== prisma client: ${name} ==`);
   generate(dir);
-  materialize(dir);
 }
 
-// Второй проход — проверка: у каждого сервиса своя копия клиента и модели его схемы.
+// Второй проход — проверка: у каждого сервиса свой клиент и модели его схемы.
 let failed = 0;
 for (const dir of dirs) {
   const name = path.basename(dir);

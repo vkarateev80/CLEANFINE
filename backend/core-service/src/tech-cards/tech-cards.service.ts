@@ -28,7 +28,7 @@ export class TechCardsService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.techCard.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: query.skip ?? 0,
         take: Math.min(query.take ?? 50, 100),
         include: { _count: { select: { operations: true, rooms: true } } },

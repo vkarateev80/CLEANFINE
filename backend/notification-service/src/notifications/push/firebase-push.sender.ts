@@ -33,7 +33,6 @@ export const INVALID_TOKEN_ERROR_CODES: readonly string[] = [
  * может отсутствовать, и это не должно ломать сборку и запуск сервиса.
  */
 export function defaultFirebaseLoader(): FirebaseAdminLike {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   return require('firebase-admin') as FirebaseAdminLike;
 }
 

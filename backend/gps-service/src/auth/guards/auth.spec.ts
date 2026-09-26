@@ -123,7 +123,7 @@ describe('декораторы (gps-service)', () => {
     >;
     const key = Object.keys(args).find((k) => k.includes(CUSTOM_ROUTE_ARGS_METADATA)) as string;
     const user = { id: 'u1', email: 'admin@cleaning-ops.com', role: 'ADMIN' };
-    const request = { user };
+    const _request = { user };
 
     expect(args[key].factory(undefined, contextWith(user))).toBe(user);
   });

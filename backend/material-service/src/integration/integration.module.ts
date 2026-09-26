@@ -3,7 +3,6 @@ import { CoreMaterialsClient } from './core-materials.client';
 import {
   ApiOperationMaterialsResolver,
   OPERATION_MATERIALS_RESOLVER,
-  OperationMaterialsResolver,
 } from './operation-materials.resolver';
 import { ServiceTokenProvider } from './service-token.provider';
 import { TicketsClient } from './tickets.client';

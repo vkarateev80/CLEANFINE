@@ -12,7 +12,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 
 const ACCESS_SECRET = 'integration-access-secret';
-const REFRESH_SECRET = 'integration-refresh-secret';
+// Секрет для e2e-стенда задаётся окружением; локальная копия не нужна.
+const _REFRESH_SECRET = 'integration-refresh-secret';
 
 interface TestUser {
   id: string;

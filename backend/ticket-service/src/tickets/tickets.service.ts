@@ -22,8 +22,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import type {
   AssignTicketDto,
   CompleteOperationDto,
+  CompleteRoomDto,
   CreateCommentDto,
-  CreateTicketDto,
   EmergencyTicketDto,
   ListTicketsQueryDto,
   UpdateStatusDto,
@@ -64,6 +64,8 @@ export type EmergencyResult = Ticket & { nearbyOperators: NearbyEmployee[] };
 export interface CompleteOperationResult {
   ticketId: string;
   operationId: string;
+  /** Помещение маршрута; "" — операция без привязки к помещению. */
+  roomId: string;
   objectId: string;
   completedAt: string;
   photoUrl: string | null;
@@ -72,6 +74,18 @@ export interface CompleteOperationResult {
   completedOperations: number;
   operationsTotal: number | null;
   allOperationsCompleted: boolean;
+}
+
+/** Ответ завершения помещения маршрута (пробел API М6.4). */
+export interface CompleteRoomResult {
+  ticketId: string;
+  roomId: string;
+  completedAt: string;
+  /** true — помещение уже было отмечено ранее. */
+  alreadyCompleted: boolean;
+  completedRooms: number;
+  roomsTotal: number | null;
+  allRoomsCompleted: boolean;
 }
 
 /**
@@ -244,7 +258,7 @@ export class TicketsService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.ticket.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: query.skip ?? 0,
         take: Math.min(query.take ?? 50, 100),
       }),
@@ -474,8 +488,9 @@ export class TicketsService {
   /**
    * Завершение операции техкарты (М3.6).
    *
-   * Идемпотентность: уникальность (ticketId, operationId) в БД + проверка перед
-   * записью. Повторный вызов возвращает alreadyCompleted: true и НЕ публикует
+   * Идемпотентность: уникальность (ticketId, operationId, roomId) в БД + проверка перед
+   * записью. roomId входит в ключ — одна техкарта на несколько помещений маршрута.
+   * Повторный вызов возвращает alreadyCompleted: true и НЕ публикует
    * ticket.operation.completed второй раз — material-service не спишет материалы дважды.
    */
   async completeOperation(
@@ -490,11 +505,17 @@ export class TicketsService {
       throw new BadRequestException('Для операции требуется фото (photoUrl)');
     }
 
+    // "" вместо null: в Postgres NULL != NULL в уникальном индексе, и повтор
+    // без roomId создал бы вторую запись.
+    const roomId = dto.roomId?.trim() ?? '';
+
     const existing = await this.prisma.ticketOperationCompletion.findUnique({
-      where: { ticketId_operationId: { ticketId, operationId } },
+      where: { ticketId_operationId_roomId: { ticketId, operationId, roomId } },
     });
     if (existing) {
-      this.logger.log(`Операция ${operationId} заявки ${ticketId} уже завершена — повтор игнорируется`);
+      this.logger.log(
+        `Операция ${operationId} (помещение ${roomId || '—'}) заявки ${ticketId} уже завершена — повтор игнорируется`,
+      );
       return this.operationResult(ticket, existing, true);
     }
 
@@ -507,6 +528,7 @@ export class TicketsService {
         data: {
           ticketId,
           operationId,
+          roomId,
           completedAt,
           photoUrl: dto.photoUrl ?? null,
           completedBy: user.id,
@@ -516,7 +538,7 @@ export class TicketsService {
       // Гонка двух одновременных вызовов: уникальный индекс отдаёт P2002.
       if (isUniqueViolation(error)) {
         const raced = await this.prisma.ticketOperationCompletion.findUnique({
-          where: { ticketId_operationId: { ticketId, operationId } },
+          where: { ticketId_operationId_roomId: { ticketId, operationId, roomId } },
         });
         if (raced) {
           return this.operationResult(ticket, raced, true);
@@ -534,6 +556,60 @@ export class TicketsService {
     });
 
     return this.operationResult(ticket, created, false, operationsTotal);
+  }
+
+  /**
+   * Завершение помещения маршрута по заявке (пробел API М6.4).
+   *
+   * До этого отметка жила только в мобильном приложении. Идемпотентно по
+   * (ticketId, roomId): повторный вызов возвращает alreadyCompleted: true.
+   */
+  async completeRoom(
+    ticketId: string,
+    roomId: string,
+    dto: CompleteRoomDto,
+    user: AuthUser,
+  ): Promise<CompleteRoomResult> {
+    const ticket = await this.getTicketOrFail(ticketId);
+    const roomKey = roomId.trim();
+    if (!roomKey) {
+      throw new BadRequestException('roomId помещения обязателен');
+    }
+
+    const existing = await this.prisma.ticketRoomCompletion.findUnique({
+      where: { ticketId_roomId: { ticketId, roomId: roomKey } },
+    });
+    if (existing) {
+      this.logger.log(`Помещение ${roomKey} заявки ${ticketId} уже завершено — повтор игнорируется`);
+      return this.roomResult(ticket, existing, true);
+    }
+
+    const completedAt = dto.completedAt ? new Date(dto.completedAt) : new Date();
+    const roomsTotal = await this.resolveRoomsTotal(ticket, dto.totalRooms);
+
+    let created;
+    try {
+      created = await this.prisma.ticketRoomCompletion.create({
+        data: {
+          ticketId,
+          roomId: roomKey,
+          completedAt,
+          completedBy: user.id,
+        },
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        const raced = await this.prisma.ticketRoomCompletion.findUnique({
+          where: { ticketId_roomId: { ticketId, roomId: roomKey } },
+        });
+        if (raced) {
+          return this.roomResult(ticket, raced, true);
+        }
+      }
+      throw error;
+    }
+
+    return this.roomResult(ticket, created, false, roomsTotal);
   }
 
   // ------------------------------------------------------------------ helpers
@@ -599,9 +675,29 @@ export class TicketsService {
     return totalFromRequest;
   }
 
+  /** Запоминает ожидаемое число помещений заявки (первое переданное значение). */
+  private async resolveRoomsTotal(ticket: Ticket, totalFromRequest?: number): Promise<number | null> {
+    if (totalFromRequest === undefined || ticket.roomsTotal === totalFromRequest) {
+      return ticket.roomsTotal;
+    }
+    if (ticket.roomsTotal !== null) {
+      return ticket.roomsTotal;
+    }
+    await this.prisma.ticket.update({
+      where: { id: ticket.id },
+      data: { roomsTotal: totalFromRequest },
+    });
+    return totalFromRequest;
+  }
+
   private async operationResult(
     ticket: Ticket,
-    completion: { operationId: string; completedAt: Date; photoUrl: string | null },
+    completion: {
+      operationId: string;
+      roomId?: string;
+      completedAt: Date;
+      photoUrl: string | null;
+    },
     alreadyCompleted: boolean,
     operationsTotalOverride?: number | null,
   ): Promise<CompleteOperationResult> {
@@ -622,6 +718,7 @@ export class TicketsService {
     return {
       ticketId: ticket.id,
       operationId: completion.operationId,
+      roomId: completion.roomId ?? '',
       objectId: ticket.objectId,
       completedAt: completion.completedAt.toISOString(),
       photoUrl: completion.photoUrl,
@@ -629,6 +726,36 @@ export class TicketsService {
       completedOperations,
       operationsTotal,
       allOperationsCompleted,
+    };
+  }
+
+  private async roomResult(
+    ticket: Ticket,
+    completion: { roomId: string; completedAt: Date },
+    alreadyCompleted: boolean,
+    roomsTotalOverride?: number | null,
+  ): Promise<CompleteRoomResult> {
+    const completedRooms = await this.prisma.ticketRoomCompletion.count({
+      where: { ticketId: ticket.id },
+    });
+    const roomsTotal = roomsTotalOverride !== undefined ? roomsTotalOverride : ticket.roomsTotal;
+    const allRoomsCompleted =
+      roomsTotal !== null && roomsTotal > 0 && completedRooms >= roomsTotal;
+
+    if (allRoomsCompleted && !alreadyCompleted) {
+      this.logger.log(
+        `Заявка ${ticket.id}: завершены все помещения маршрута (${completedRooms}/${roomsTotal})`,
+      );
+    }
+
+    return {
+      ticketId: ticket.id,
+      roomId: completion.roomId,
+      completedAt: completion.completedAt.toISOString(),
+      alreadyCompleted,
+      completedRooms,
+      roomsTotal,
+      allRoomsCompleted,
     };
   }
 }

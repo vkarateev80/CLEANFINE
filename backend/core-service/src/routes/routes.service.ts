@@ -45,7 +45,7 @@ export class RoutesService {
     await this.getFloor(floorId);
     return this.prisma.route.findMany({
       where: { floorId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       include: { points: { orderBy: { orderIndex: 'asc' }, include: { room: true } } },
     });
   }
@@ -68,7 +68,7 @@ export class RoutesService {
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.route.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: query.skip ?? 0,
         take: Math.min(query.take ?? 50, 100),
         select: {
@@ -101,13 +101,42 @@ export class RoutesService {
       where: { id },
       include: {
         floor: { select: { id: true, objectId: true, name: true, number: true, planImageUrl: true } },
-        points: { orderBy: { orderIndex: 'asc' }, include: { room: true } },
+        points: {
+          orderBy: { orderIndex: 'asc' },
+          include: {
+            room: {
+              include: {
+                techCard: { select: { id: true, operations: { select: { id: true } } } },
+              },
+            },
+          },
+        },
       },
     });
     if (!route) {
       throw new NotFoundException('Маршрут не найден');
     }
-    return { ...route, totalEstimatedTimeMin: sumEstimatedTime(route.points) };
+    // Операции по точкам: одна техкарта на двух помещениях считается дважды —
+    // ключ идемпотентности завершения включает roomId, каждое помещение
+    // закрывает свои копии операций (М6.4).
+    const operationsByTechCard = new Map<string, number>();
+    let operationsTotal = 0;
+    for (const point of route.points) {
+      const techCard = point.room?.techCard;
+      if (!techCard) continue;
+      let count = operationsByTechCard.get(techCard.id);
+      if (count === undefined) {
+        count = techCard.operations?.length ?? 0;
+        operationsByTechCard.set(techCard.id, count);
+      }
+      operationsTotal += count;
+    }
+    return {
+      ...route,
+      totalEstimatedTimeMin: sumEstimatedTime(route.points),
+      /** Сколько операций чек-листов на маршруте — чтобы клиент не собирал N+1. */
+      operationsTotal,
+    };
   }
 
   async update(id: string, dto: UpdateRouteDto): Promise<Route> {

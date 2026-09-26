@@ -92,8 +92,31 @@ const floorFixture = { id: 'floor-1', name: 'Первый этаж', number: 1 }
 const roomSameFloor = { id: 'room-1', floorId: 'floor-1', name: 'Санузел 101' };
 const roomOtherFloor = { id: 'room-2', floorId: 'floor-2', name: 'Санузел 201' };
 
-const pointA = { id: 'point-a', routeId: 'route-1', roomId: 'room-1', orderIndex: 0, estimatedTimeMin: 5 };
-const pointB = { id: 'point-b', routeId: 'route-1', roomId: 'room-2', orderIndex: 1, estimatedTimeMin: 7 };
+const pointA = {
+  id: 'point-a',
+  routeId: 'route-1',
+  roomId: 'room-1',
+  orderIndex: 0,
+  estimatedTimeMin: 5,
+  room: {
+    id: 'room-1',
+    techCardId: 'tc-1',
+    techCard: { id: 'tc-1', operations: [{ id: 'op-1' }, { id: 'op-2' }] },
+  },
+};
+const pointB = {
+  id: 'point-b',
+  routeId: 'route-1',
+  roomId: 'room-2',
+  orderIndex: 1,
+  estimatedTimeMin: 7,
+  room: {
+    id: 'room-2',
+    // Та же техкарта, что у point-a: операции считаются на каждое помещение.
+    techCardId: 'tc-1',
+    techCard: { id: 'tc-1', operations: [{ id: 'op-1' }, { id: 'op-2' }] },
+  },
+};
 
 describe('RoutesService', () => {
   let service: RoutesService;
@@ -140,7 +163,7 @@ describe('RoutesService', () => {
 
       expect(prisma.route.findMany).toHaveBeenCalledWith({
         where: { floorId: 'floor-1' },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         include: { points: { orderBy: { orderIndex: 'asc' }, include: { room: true } } },
       });
     });
@@ -191,7 +214,7 @@ describe('RoutesService', () => {
 
       expect(prisma.route.findMany).toHaveBeenCalledWith({
         where: { floorId: undefined },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 0,
         take: 50,
         select,
@@ -262,18 +285,29 @@ describe('RoutesService', () => {
         where: { id: 'route-1' },
         include: {
           floor: { select: { id: true, objectId: true, name: true, number: true, planImageUrl: true } },
-          points: { orderBy: { orderIndex: 'asc' }, include: { room: true } },
+          points: {
+            orderBy: { orderIndex: 'asc' },
+            include: {
+              room: {
+                include: {
+                  techCard: { select: { id: true, operations: { select: { id: true } } } },
+                },
+              },
+            },
+          },
         },
       });
       // Сумма нужна фронту для планирования смены; null-время считается нулём.
       expect(detail.totalEstimatedTimeMin).toBe(12);
+      // Одна техкарта на двух помещениях: 2 операции × 2 точки = 4.
+      expect(detail.operationsTotal).toBe(4);
     });
 
-    it('маршрут без точек: суммарное время 0', async () => {
+    it('маршрут без точек: суммарное время 0 и operationsTotal 0', async () => {
       prisma.route.findUnique.mockResolvedValue({ ...routeFixture, points: [] });
 
       await expect(service.getDetail('route-1')).resolves.toEqual(
-        expect.objectContaining({ totalEstimatedTimeMin: 0 }),
+        expect.objectContaining({ totalEstimatedTimeMin: 0, operationsTotal: 0 }),
       );
     });
 

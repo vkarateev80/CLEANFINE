@@ -74,6 +74,8 @@ export interface ScheduleEventEntity {
   date: string;
   /** Плановое начало: ISO 8601 UTC (день + `recurrence.time`). */
   plannedStart: string;
+  /** Плановый конец: `plannedStart` + durationMin (или 8 ч по умолчанию). */
+  plannedEnd: string | null;
   status: ScheduleEventStatus;
   userId: string | null;
   checkInAt: string | null;

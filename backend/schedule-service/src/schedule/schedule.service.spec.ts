@@ -51,6 +51,8 @@ function eventFixture(overrides: Record<string, unknown> = {}) {
     scheduleId: SCHEDULE_ID,
     date: TODAY,
     plannedStart: new Date('2026-09-16T08:00:00.000Z'),
+    // defaultShiftMinutes 480: 08:00 + 8 часов
+    plannedEnd: new Date('2026-09-16T16:00:00.000Z'),
     status: ScheduleEventStatus.PLANNED,
     userId: USER,
     checkInAt: null,
@@ -280,6 +282,7 @@ describe('ScheduleService (М4.4–М4.5)', () => {
           scheduleId: SCHEDULE_ID,
           date: new Date('2026-09-16T00:00:00.000Z'),
           plannedStart: new Date('2026-09-16T08:00:00.000Z'),
+          plannedEnd: new Date('2026-09-16T16:00:00.000Z'),
           status: ScheduleEventStatus.PLANNED,
           userId: USER,
         },
@@ -969,7 +972,7 @@ describe('ScheduleService (М4.4–М4.5)', () => {
           userId: USER,
         },
         include: { schedule: true },
-        orderBy: [{ plannedStart: 'asc' }],
+        orderBy: [{ plannedStart: 'asc' }, { id: 'asc' }],
       });
       expect(result[0]).toMatchObject({
         id: 'event-1',
@@ -977,6 +980,7 @@ describe('ScheduleService (М4.4–М4.5)', () => {
         objectId: OBJECT_ID,
         date: '2026-09-16',
         plannedStart: '2026-09-16T08:00:00.000Z',
+        plannedEnd: '2026-09-16T16:00:00.000Z',
         checkInAt: null,
         checkOutAt: null,
         ticketId: null,

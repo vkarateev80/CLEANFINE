@@ -11,6 +11,8 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Свой output на сервис: pnpm-стор не дедуплицирует клиенты между схемами.
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -80,10 +82,13 @@ model Ticket {
   /// Ожидаемое число операций техкарты заявки (М3.6, необязательно):
   /// нужно, чтобы отличить «завершена очередная операция» от «завершены все операции».
   operationsTotal    Int?
+  /// Ожидаемое число помещений маршрута заявки (М6.4): «все помещения завершены».
+  roomsTotal         Int?
 
   assignments TicketAssignment[]
   comments    TicketComment[]
   operations  TicketOperationCompletion[]
+  rooms       TicketRoomCompletion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -129,13 +134,19 @@ model TicketComment {
 }
 
 /// Факт завершения операции техкарты (М3.6).
-/// @@unique([ticketId, operationId]) — идемпотентность: повторный вызов
+/// @@unique([ticketId, operationId, roomId]) — идемпотентность: повторный вызов
 /// не создаёт вторую запись и не эмитит ticket.operation.completed ещё раз.
+/// roomId входит в ключ: одна техкарта может обслуживать несколько помещений
+/// маршрута, и операции разных помещений не должны считаться одной.
+/// Пустая строка (а не NULL) — «помещение не указано»: в Postgres NULL != NULL
+/// в уникальном индексе, и без этого повторы без roomId проходили бы как новые.
 model TicketOperationCompletion {
   id          String   @id @default(uuid())
   ticketId    String
   ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   operationId String
+  /// Помещение маршрута (core-service); "" — операция без привязки к помещению.
+  roomId      String   @default("")
   completedAt DateTime
   /// URL фото из file-service (обязателен, если операция требует фото).
   photoUrl    String?
@@ -144,6 +155,24 @@ model TicketOperationCompletion {
   createdAt   DateTime @default(now())
 
   @@map("ticket_operation_completions")
-  @@unique([ticketId, operationId])
+  @@unique([ticketId, operationId, roomId])
+  @@index([ticketId])
+}
+
+/// Факт завершения помещения маршрута по заявке (пробел API М6.4).
+/// До этого отметка жила только в мобильном приложении. @@unique([ticketId, roomId])
+/// — идемпотентность «Завершить помещение».
+model TicketRoomCompletion {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  roomId      String
+  completedAt DateTime
+  /// Кто отметил (id пользователя из JWT).
+  completedBy String?
+  createdAt   DateTime @default(now())
+
+  @@map("ticket_room_completions")
+  @@unique([ticketId, roomId])
   @@index([ticketId])
 }

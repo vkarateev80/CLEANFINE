@@ -1,0 +1,12 @@
+project      = "cleanfine"
+environment  = "prod"
+
+# Боевые хосты (заменить)
+domain_admin   = "admin.example.com"
+domain_portal  = "portal.example.com"
+
+# Зона DNS провайдера и IP ingress (kubectl get svc -n ingress-nginx)
+dns_zone_id    = "example-zone-id"
+ingress_lb_ip  = "203.0.113.10"
+
+registry = "ghcr.io/your-org"
