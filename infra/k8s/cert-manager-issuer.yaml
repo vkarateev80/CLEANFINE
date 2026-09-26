@@ -1,0 +1,18 @@
+# ClusterIssuer Let's Encrypt (M7.5, TLS для cleanfine.ru).
+# HTTP-01 вызов через Traefik entrypoint web (:80, hostPort).
+# Ставится один раз: kubectl apply -f infra/k8s/cert-manager-issuer.yaml
+# (сам cert-manager v1.21.2 — манифесты в /root на vps2, CRDs отдельным файлом).
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@cleaning-ops.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik

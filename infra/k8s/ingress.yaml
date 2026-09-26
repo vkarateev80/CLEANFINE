@@ -1,14 +1,41 @@
-# Catch-all → web-admin (SPA + nginx fanout /api → 9 сервисов).
-# TLS: cert-manager после указания Host (домен).
+# cleanfine.ru + www → web-admin (SPA + nginx fanout /api → 9 сервисов).
+# TLS: cert-manager ClusterIssuer letsencrypt-prod (cert-manager-issuer.yaml),
+# секрет cleanfine-tls в ns cleaning-ops. Catch-all по IP — для прямого доступа.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: cleaning-ops
   namespace: cleaning-ops
   annotations:
-    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - cleanfine.ru
+        - www.cleanfine.ru
+      secretName: cleanfine-tls
   rules:
+    - host: cleanfine.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-admin
+                port:
+                  number: 80
+    - host: www.cleanfine.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-admin
+                port:
+                  number: 80
     - http:
         paths:
           - path: /
