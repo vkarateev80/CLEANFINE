@@ -202,7 +202,7 @@ describe('ObjectsService', () => {
       // where содержит только переданные фильтры (все undefined), без OR-поиска.
       expect(prisma.object.findMany).toHaveBeenCalledWith({
         where: { status: undefined, type: undefined, ownerClientId: undefined },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 0,
         take: 50,
       });
@@ -242,7 +242,7 @@ describe('ObjectsService', () => {
             { clientName: { contains: 'север', mode: 'insensitive' } },
           ],
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 0,
         take: 50,
       });
@@ -271,7 +271,7 @@ describe('ObjectsService', () => {
             { clientName: { contains: 'север', mode: 'insensitive' } },
           ],
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 0,
         take: 50,
       });

@@ -38,7 +38,7 @@ export class UsersService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: query.skip ?? 0,
         take: Math.min(query.take ?? 50, 100),
       }),

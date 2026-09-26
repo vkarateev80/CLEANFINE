@@ -7,6 +7,8 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Свой output на сервис: pnpm-стор не дедуплицирует клиенты между схемами.
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {

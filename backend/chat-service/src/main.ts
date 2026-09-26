@@ -32,12 +32,12 @@ async function bootstrap(): Promise<void> {
 
   const port = Number(process.env.CHAT_SERVICE_PORT ?? process.env.PORT) || 3009;
   await app.listen(port);
-  // eslint-disable-next-line no-console
+   
   console.log(`chat-service запущен: http://localhost:${port}/api`);
-  // eslint-disable-next-line no-console
+   
   console.log(`WebSocket: ws://localhost:${port}/chat (namespace chat)`);
   if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
+     
     console.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
 }

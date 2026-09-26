@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Floor, Prisma } from '@prisma/client';
+import type { Floor } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AttachPlanDto, CreateFloorDto, UpdateFloorDto } from './dto/floor.dto';
 import { FileServiceClient, PlanUploadError } from './file-service.client';

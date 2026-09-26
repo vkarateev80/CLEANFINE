@@ -4,7 +4,7 @@ import { connect } from 'amqplib';
 // amqplib 0.10.5+: connect() отдаёт ChannelModel (фасад соединения), а Connection —
 // нижележащий сокет-слой; в сервисе нужен именно ChannelModel.
 import type { Channel, ChannelModel, ConsumeMessage } from 'amqplib';
-import { EVENTS_EXCHANGE } from '@cleaning-ops/shared/constants/events';
+import { EVENTS_EXCHANGE, EVENTS_EXCHANGE_DLQ } from '@cleaning-ops/shared/constants/events';
 import { errorMessage } from '../../common/error.util';
 import { DEFAULT_RABBITMQ_URL } from '../../config/configuration';
 
@@ -179,8 +179,13 @@ export class RabbitmqService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async bind(channel: Channel, subscription: Subscription): Promise<void> {
+    await channel.assertExchange(EVENTS_EXCHANGE_DLQ, 'topic', { durable: true });
     await channel.assertQueue(subscription.queue, { durable: true });
     await channel.bindQueue(subscription.queue, EVENTS_EXCHANGE, subscription.routingKey);
+    // DLQ той же routing key: nack(requeue=false) сам по себе сообщение теряет,
+    // если очередь не привязана к dead-letter exchange (дефект «DLX/DLQ не привязаны»).
+    await channel.assertQueue(dlqName(subscription.queue), { durable: true });
+    await channel.bindQueue(dlqName(subscription.queue), EVENTS_EXCHANGE_DLQ, subscription.routingKey);
     await channel.consume(subscription.queue, (message) => {
       void this.dispatch(channel, subscription, message);
     });
@@ -219,8 +224,27 @@ export class RabbitmqService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(
         `RabbitMQ: ошибка обработки ${subscription.routingKey}: ${errorMessage(error)}`,
       );
-      // requeue=false: сообщение уходит в DLQ (или отбрасывается), а не крутится вечно.
-      channel.nack(message, false, false);
+      // Явная публикация в DLQ + ack: nack(requeue=false) без dead-letter-exchange
+      // на очереди просто отбрасывает сообщение. Так событие сохраняется для разбора.
+      try {
+        channel.publish(
+          EVENTS_EXCHANGE_DLQ,
+          subscription.routingKey,
+          message.content,
+          { contentType: 'application/json', persistent: true },
+        );
+        channel.ack(message);
+      } catch (publishError) {
+        // Канал закрылся: сообщение останется unacked и вернётся после переподключения.
+        this.logger.warn(
+          `RabbitMQ: не удалось убрать ${subscription.routingKey} в DLQ: ${errorMessage(publishError)}`,
+        );
+      }
     }
   }
+}
+
+/** Имя DLQ рабочей очереди: `<queue>.dlq` (как у material-service). */
+export function dlqName(queue: string): string {
+  return `${queue}.dlq`;
 }

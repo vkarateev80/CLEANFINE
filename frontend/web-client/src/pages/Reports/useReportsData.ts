@@ -99,7 +99,6 @@ export function usePeriodEvents(objectId: string | undefined, period: Period, en
     return Array.from(unique.values()).sort((left, right) =>
       left.plannedStart.localeCompare(right.plannedStart),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results]);
 
   return {

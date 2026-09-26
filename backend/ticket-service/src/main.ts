@@ -33,15 +33,15 @@ async function bootstrap(): Promise<void> {
   // Порт фиксирован в .env (TICKET_SERVICE_PORT=3005); PORT — общий фолбэк.
   const port = Number(process.env.TICKET_SERVICE_PORT ?? process.env.PORT) || 3005;
   await app.listen(port);
-  // eslint-disable-next-line no-console
+   
   console.log(`ticket-service запущен: http://localhost:${port}/api`);
   if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
+     
     console.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
   // ConfigService подключается здесь, чтобы конфигурация точно была провалидирована на старте.
   const escalation = app.get(ConfigService).get('escalation');
-  // eslint-disable-next-line no-console
+   
   console.log(
     `Эскалация: NEW→accept ${escalation?.newToAcceptMin} мин, accept→arrive ${escalation?.acceptToArriveMin} мин, ` +
       `arrive→done ${escalation?.arriveToDoneMin} мин, интервал ${escalation?.intervalMs} мс`,

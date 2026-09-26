@@ -109,7 +109,7 @@ describe('TechCardsService', () => {
 
       expect(prisma.techCard.findMany).toHaveBeenCalledWith({
         where: {},
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 0,
         take: 50,
         include: { _count: { select: { operations: true, rooms: true } } },

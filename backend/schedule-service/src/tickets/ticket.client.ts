@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ServiceTokenProvider } from '../auth/service-token.provider';
-import { ticketServiceUnavailable } from '../common/external-service.exception';
 
 /** Что schedule-service передаёт в ticket-service при создании плановой заявки. */
 export interface CreateTicketInput {

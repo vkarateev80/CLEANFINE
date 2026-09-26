@@ -11,7 +11,7 @@ import type { ChatsService, DeliveryPlan, MarkReadResult } from './chats.service
 import type { AuthUser } from '../auth/guards/roles.guard';
 
 const admin: AuthUser = { id: 'u-admin', email: 'admin@cleaning-ops.com', role: 'ADMIN', fullName: '' };
-const operator: AuthUser = {
+const _operator: AuthUser = {
   id: 'u-oper',
   email: 'operator@cleaning-ops.com',
   role: 'OPERATOR',

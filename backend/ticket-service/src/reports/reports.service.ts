@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   ReportsRepository,
-  type ReportPeriodFilter,
   type TicketExecutionDailyRow,
-  type TicketExecutionRow,
 } from './reports.repository';
 
 /**

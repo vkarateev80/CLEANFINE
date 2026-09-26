@@ -349,7 +349,7 @@ describe('FilesService', () => {
       expect(prisma.fileAttachment.findMany).toHaveBeenCalledWith({
         where: { entityType: 'TICKET', entityId: 'e1' },
         include: { file: true },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       });
     });
   });

@@ -204,7 +204,7 @@ export class FilesService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.storedFile.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: query.skip ?? 0,
         take: Math.min(query.take ?? 50, 100),
       }),
@@ -219,7 +219,7 @@ export class FilesService {
     const attachments = await this.prisma.fileAttachment.findMany({
       where: { entityType, entityId },
       include: { file: true },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
     return attachments.map((a) => toView(a.file));
   }

@@ -97,7 +97,6 @@ export function ChatPage() {
     const lastIncoming = incoming[incoming.length - 1];
     if (!lastIncoming) return;
     socket.markRead(chatId, lastIncoming.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, messages.length, currentUserId]);
 
   // Галочки `✓` → `✓✓` для своих сообщений: сервер уведомляет автора событием.

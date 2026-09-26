@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
   ReportsRepository,
-  type ConsumptionDailyViewRow,
   type ConsumptionTotalsViewRow,
   type ConsumptionViewRow,
 } from './reports.repository';
