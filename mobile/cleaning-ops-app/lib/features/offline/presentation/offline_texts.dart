@@ -40,6 +40,9 @@ class OfflineTexts {
         final String name = _text(action.payload['operationName']) ?? 'операция техкарты';
         final String? room = _text(action.payload['roomName']);
         return room == null ? 'Операция «$name»' : 'Операция «$name» · $room';
+      case PendingActionTypes.roomCompleted:
+        final String? room = _text(action.payload['roomName']);
+        return room == null ? 'Помещение завершено' : 'Помещение «$room»';
       default:
         return action.type;
     }

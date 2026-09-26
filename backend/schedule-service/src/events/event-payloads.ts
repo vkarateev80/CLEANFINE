@@ -41,4 +41,10 @@ export interface RecurrenceRule {
   dayOfMonth?: number;
   /** Время начала смены "HH:mm" (UTC). */
   time: string;
+  /**
+   * Плановая длительность смены в минутах (от `time` до `plannedEnd`).
+   * Необязательное: если не задано, берётся `schedule.defaultShiftMinutes` (480).
+   * Аддитивное расширение — существующие графики без поля продолжают работать.
+   */
+  durationMin?: number;
 }

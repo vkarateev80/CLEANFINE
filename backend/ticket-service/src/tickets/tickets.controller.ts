@@ -7,6 +7,7 @@ import type { AuthUser } from '../auth/guards/roles.guard';
 import {
   AssignTicketDto,
   CompleteOperationDto,
+  CompleteRoomDto,
   CreateCommentDto,
   CreateTicketDto,
   EmergencyTicketDto,
@@ -105,7 +106,8 @@ export class TicketsController {
   @ApiOperation({
     summary: 'Отметить выполнение операции техкарты (М3.6)',
     description:
-      'Идемпотентно по operationId: повторный вызов не эмитит ticket.operation.completed. ' +
+      'Идемпотентно по (operationId, roomId): повторный вызов не эмитит ticket.operation.completed. ' +
+      'roomId входит в ключ — одна техкарта на несколько помещений маршрута. ' +
       'Если операция требует фото (requiresPhoto), без photoUrl — 400.',
   })
   @ApiResponse({ status: 201, description: 'Операция зафиксирована (alreadyCompleted при повторе)' })
@@ -116,5 +118,26 @@ export class TicketsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.tickets.completeOperation(id, operationId, dto, user);
+  }
+
+  @Post(':id/rooms/:roomId/complete')
+  @Roles('ADMIN', 'SUPERVISOR', 'OPERATOR')
+  @ApiOperation({
+    summary: 'Отметить завершение помещения маршрута по заявке (М6.4)',
+    description:
+      'Идемпотентно по roomId: повторный вызов возвращает alreadyCompleted: true. ' +
+      'До этого отметка жила только в мобильном приложении.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Помещение зафиксировано (alreadyCompleted при повторе)',
+  })
+  async completeRoom(
+    @Param('id') id: string,
+    @Param('roomId') roomId: string,
+    @Body() dto: CompleteRoomDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.completeRoom(id, roomId, dto, user);
   }
 }

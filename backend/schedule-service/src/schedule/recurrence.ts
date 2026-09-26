@@ -157,10 +157,17 @@ export function normalizeRecurrence(value: unknown): RecurrenceRule | null {
     record.dayOfMonth === undefined || record.dayOfMonth === null
       ? undefined
       : Number(record.dayOfMonth);
+  const durationRaw = record.durationMin;
+  const durationMin =
+    durationRaw === undefined || durationRaw === null ? undefined : Math.trunc(Number(durationRaw));
   return {
     frequency: frequency as Frequency,
     days,
     dayOfMonth: Number.isFinite(dayOfMonth) ? dayOfMonth : undefined,
     time,
+    durationMin:
+      durationMin !== undefined && Number.isFinite(durationMin) && durationMin > 0
+        ? durationMin
+        : undefined,
   };
 }

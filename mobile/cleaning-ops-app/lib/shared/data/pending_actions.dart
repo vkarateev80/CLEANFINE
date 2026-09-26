@@ -22,6 +22,10 @@ class PendingActionTypes {
   /// Завершение операции техкарты (`POST /api/tickets/:id/operations/:operationId/complete`).
   static const String operationCompleted = 'operation_completed';
 
+  /// Завершение помещения маршрута (`POST /api/tickets/:id/rooms/:roomId/complete`, М6.4).
+  /// Приоритет 3 — после операций: помещение закрывается, когда его операции ушли.
+  static const String roomCompleted = 'room_completed';
+
   /// Сообщение в чат (М6.8, DS-002 `offline.md` §4.1): основной путь — WS
   /// `message:send`, фолбэк — `POST /api/chat/chats/:id/messages`.
   ///
@@ -34,6 +38,7 @@ class PendingActionTypes {
         sos => 1,
         operationCompleted => 2,
         sosAttachPhoto => 3,
+        roomCompleted => 3,
         chatMessage => 4,
         _ => 9,
       };

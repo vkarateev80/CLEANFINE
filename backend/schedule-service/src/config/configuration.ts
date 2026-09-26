@@ -72,10 +72,14 @@ export default () => ({
     /**
      * Авто check-out (М4.5): если оператор отметился, но не закрыл смену за
      * SCHEDULE_AUTO_CHECKOUT_MINUTES от планового начала — смена закрывается сама.
-     * Отсчёт от plannedStart (а не от конца смены) выбран потому, что длительность смены
-     * в модели не хранится: расписание задаёт только начало.
+     * Отсчёт от plannedStart (а не от plannedEnd) — историческое правило М4.5.
      */
     autoCheckoutMinutes: positiveInt(process.env.SCHEDULE_AUTO_CHECKOUT_MINUTES, 15),
+    /**
+     * Плановая длительность смены в минутах, если recurrence.durationMin не задан.
+     * Нужна для plannedStart → plannedEnd (пробел API М6). 480 = 8 часов.
+     */
+    defaultShiftMinutes: positiveInt(process.env.SCHEDULE_DEFAULT_SHIFT_MINUTES, 480),
     /** Интервал прохода ежедневной генерации смен (по умолчанию — раз в сутки). */
     generateIntervalMs: positiveInt(process.env.SCHEDULE_GENERATE_INTERVAL_MS, DAY_MS),
     /** Час UTC, в который выполняется ежедневная генерация (0 — как «00:00» в уставе). */

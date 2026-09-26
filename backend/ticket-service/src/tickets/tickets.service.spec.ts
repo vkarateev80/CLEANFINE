@@ -30,6 +30,7 @@ interface PrismaMock {
   ticketAssignment: { create: jest.Mock; groupBy: jest.Mock };
   ticketComment: { create: jest.Mock; groupBy: jest.Mock };
   ticketOperationCompletion: { create: jest.Mock; findUnique: jest.Mock; count: jest.Mock; groupBy: jest.Mock };
+  ticketRoomCompletion: { create: jest.Mock; findUnique: jest.Mock; count: jest.Mock };
   $transaction: jest.Mock;
 }
 
@@ -49,6 +50,11 @@ function createPrismaMock(): PrismaMock {
       findUnique: jest.fn(),
       count: jest.fn(),
       groupBy: jest.fn().mockResolvedValue([]),
+    },
+    ticketRoomCompletion: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      count: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -93,6 +99,7 @@ function ticketFixture(overrides: Partial<Ticket> = {}): Ticket {
     arrivalDeadline: null,
     completionDeadline: null,
     operationsTotal: null,
+    roomsTotal: null,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -335,7 +342,7 @@ describe('TicketsService (М3.4–М3.6)', () => {
       await expect(service.list({})).resolves.toEqual({ items: [], total: 0 });
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: {}, skip: 0, take: 50, orderBy: { createdAt: 'desc' } }),
+        expect.objectContaining({ where: {}, skip: 0, take: 50, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       );
       expect(prisma.ticket.count).toHaveBeenCalledWith({ where: {} });
     });
@@ -773,6 +780,7 @@ describe('TicketsService (М3.4–М3.6)', () => {
       id: 'oc-1',
       ticketId: 't-1',
       operationId: 'op-1',
+      roomId: '',
       completedAt: NOW,
       photoUrl: null,
       completedBy: 'u-admin',
@@ -791,10 +799,14 @@ describe('TicketsService (М3.4–М3.6)', () => {
         data: {
           ticketId: 't-1',
           operationId: 'op-1',
+          roomId: '',
           completedAt: NOW,
           photoUrl: null,
           completedBy: 'u-admin',
         },
+      });
+      expect(prisma.ticketOperationCompletion.findUnique).toHaveBeenCalledWith({
+        where: { ticketId_operationId_roomId: { ticketId: 't-1', operationId: 'op-1', roomId: '' } },
       });
       expect(publisher.publish).toHaveBeenCalledWith(ROUTING_KEYS.TICKET_OPERATION_COMPLETED, {
         operationId: 'op-1',
@@ -805,6 +817,29 @@ describe('TicketsService (М3.4–М3.6)', () => {
       expect(result.alreadyCompleted).toBe(false);
       expect(result.completedOperations).toBe(1);
       expect(result.completedAt).toBe(NOW.toISOString());
+      expect(result.roomId).toBe('');
+    });
+
+    it('roomId входит в ключ идемпотентности: операции разных помещений независимы', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(ticketFixture());
+      prisma.ticketOperationCompletion.findUnique.mockResolvedValue(null);
+      prisma.ticketOperationCompletion.create.mockResolvedValue({
+        ...completion,
+        roomId: 'room-1',
+      });
+      prisma.ticketOperationCompletion.count.mockResolvedValue(1);
+
+      const result = await service.completeOperation('t-1', 'op-1', { roomId: 'room-1' }, USER);
+
+      expect(prisma.ticketOperationCompletion.findUnique).toHaveBeenCalledWith({
+        where: {
+          ticketId_operationId_roomId: { ticketId: 't-1', operationId: 'op-1', roomId: 'room-1' },
+        },
+      });
+      expect(prisma.ticketOperationCompletion.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ roomId: 'room-1' }),
+      });
+      expect(result.roomId).toBe('room-1');
     });
 
     it('идемпотентность: повторный вызов не создаёт запись и НЕ публикует событие второй раз', async () => {
@@ -946,6 +981,104 @@ describe('TicketsService (М3.4–М3.6)', () => {
       prisma.ticket.findUnique.mockResolvedValue(null);
 
       await expect(service.completeOperation('nope', 'op-1', {}, USER)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  // --------------------------------------------- завершение помещения (М6.4)
+
+  describe('completeRoom (М6.4)', () => {
+    const roomCompletion = {
+      id: 'rc-1',
+      ticketId: 't-1',
+      roomId: 'room-1',
+      completedAt: NOW,
+      completedBy: 'u-admin',
+      createdAt: NOW,
+    };
+
+    it('фиксирует помещение и возвращает счётчики', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(ticketFixture());
+      prisma.ticketRoomCompletion.findUnique.mockResolvedValue(null);
+      prisma.ticketRoomCompletion.create.mockResolvedValue(roomCompletion);
+      prisma.ticketRoomCompletion.count.mockResolvedValue(1);
+
+      const result = await service.completeRoom('t-1', 'room-1', {}, USER);
+
+      expect(prisma.ticketRoomCompletion.create).toHaveBeenCalledWith({
+        data: {
+          ticketId: 't-1',
+          roomId: 'room-1',
+          completedAt: NOW,
+          completedBy: 'u-admin',
+        },
+      });
+      expect(result.alreadyCompleted).toBe(false);
+      expect(result.roomId).toBe('room-1');
+      expect(result.completedRooms).toBe(1);
+      expect(result.completedAt).toBe(NOW.toISOString());
+    });
+
+    it('идемпотентность: повторный вызов не создаёт запись', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(ticketFixture());
+      prisma.ticketRoomCompletion.findUnique.mockResolvedValue(roomCompletion);
+      prisma.ticketRoomCompletion.count.mockResolvedValue(1);
+
+      const result = await service.completeRoom('t-1', 'room-1', {}, USER);
+
+      expect(result.alreadyCompleted).toBe(true);
+      expect(prisma.ticketRoomCompletion.create).not.toHaveBeenCalled();
+    });
+
+    it('гонка двух одновременных вызовов (P2002) — тоже идемпотентный повтор', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(ticketFixture());
+      prisma.ticketRoomCompletion.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(roomCompletion);
+      prisma.ticketRoomCompletion.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '5.22.0',
+        }),
+      );
+      prisma.ticketRoomCompletion.count.mockResolvedValue(1);
+
+      const result = await service.completeRoom('t-1', 'room-1', {}, USER);
+
+      expect(result.alreadyCompleted).toBe(true);
+    });
+
+    it('totalRooms запоминается и даёт allRoomsCompleted на последнем помещении', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(ticketFixture());
+      prisma.ticketRoomCompletion.findUnique.mockResolvedValue(null);
+      prisma.ticketRoomCompletion.create.mockResolvedValue(roomCompletion);
+      prisma.ticketRoomCompletion.count.mockResolvedValue(2);
+      prisma.ticket.update.mockResolvedValue(ticketFixture({ roomsTotal: 2 }));
+
+      const result = await service.completeRoom('t-1', 'room-2', { totalRooms: 2 }, USER);
+
+      expect(prisma.ticket.update).toHaveBeenCalledWith({
+        where: { id: 't-1' },
+        data: { roomsTotal: 2 },
+      });
+      expect(result.roomsTotal).toBe(2);
+      expect(result.allRoomsCompleted).toBe(true);
+    });
+
+    it('пустой roomId → 400', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(ticketFixture());
+
+      await expect(service.completeRoom('t-1', '   ', {}, USER)).rejects.toThrow(
+        'roomId помещения обязателен',
+      );
+      expect(prisma.ticketRoomCompletion.create).not.toHaveBeenCalled();
+    });
+
+    it('заявка не найдена → 404', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(null);
+
+      await expect(service.completeRoom('nope', 'room-1', {}, USER)).rejects.toThrow(
         NotFoundException,
       );
     });

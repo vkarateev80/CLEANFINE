@@ -9,6 +9,7 @@ class ScheduleEvent {
     this.scheduleId,
     this.objectId,
     this.routeId,
+    this.plannedEnd,
     this.checkInAt,
     this.checkOutAt,
     this.ticketId,
@@ -24,6 +25,10 @@ class ScheduleEvent {
   final String scheduleName;
   final String date;
   final String plannedStart;
+
+  /// Плановый конец смены (plannedStart + durationMin). UI: «окончание» — план,
+  /// `checkOutAt` — факт закрытия.
+  final String? plannedEnd;
   final String status;
   final String? objectId;
   final String? routeId;
@@ -52,6 +57,7 @@ class ScheduleEvent {
       scheduleName: body['scheduleName']?.toString() ?? 'Смена',
       date: body['date']?.toString() ?? '',
       plannedStart: body['plannedStart']?.toString() ?? '',
+      plannedEnd: _text(body['plannedEnd']),
       status: body['status']?.toString() ?? 'PLANNED',
       objectId: _text(body['objectId']),
       routeId: _text(body['routeId']),

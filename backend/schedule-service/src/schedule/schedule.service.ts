@@ -63,6 +63,8 @@ export interface ScheduleEventView {
   routeId: string | null;
   date: string;
   plannedStart: string;
+  /** Плановый конец смены (plannedStart + durationMin). UI: «окончание» — план. */
+  plannedEnd: string;
   /** Статус смены: shared-словарь (админка и мобильное приложение — те же значения). */
   status: ApiScheduleEventStatus;
   userId: string | null;
@@ -178,7 +180,7 @@ export class ScheduleService {
 
   async list(): Promise<Array<Schedule & { eventsCount: number }>> {
     const schedules = await this.prisma.schedule.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: { _count: { select: { events: true } } },
     });
     return schedules.map(({ _count, ...schedule }) => ({
@@ -239,7 +241,7 @@ export class ScheduleService {
         ...(query.userId ? { userId: query.userId } : {}),
       },
       include: { schedule: true },
-      orderBy: [{ plannedStart: 'asc' }],
+      orderBy: [{ plannedStart: 'asc' }, { id: 'asc' }],
     });
     return events.map(toView);
   }
@@ -255,7 +257,7 @@ export class ScheduleService {
         date: { gte: from, ...(to ? { lt: to } : {}) },
       },
       include: { schedule: true },
-      orderBy: [{ plannedStart: 'asc' }],
+      orderBy: [{ plannedStart: 'asc' }, { id: 'asc' }],
     });
     return events.map(toView);
   }
@@ -352,6 +354,7 @@ export class ScheduleService {
       return;
     }
     const plannedStart = plannedStartAt(date, recurrence.time);
+    const plannedEnd = new Date(plannedStart.getTime() + this.shiftPlannedDurationMs(recurrence));
     const assignees = schedule.assignees.length > 0 ? schedule.assignees : [null];
 
     for (const assignee of assignees) {
@@ -372,6 +375,7 @@ export class ScheduleService {
           scheduleId: schedule.id,
           date,
           plannedStart,
+          plannedEnd,
           status: ScheduleEventStatus.PLANNED,
           userId: assignee,
         },
@@ -722,6 +726,19 @@ export class ScheduleService {
     return minutes * 60_000;
   }
 
+  /**
+   * Плановая длительность смены (plannedStart → plannedEnd).
+   * Приоритет: recurrence.durationMin → schedule.defaultShiftMinutes (480).
+   * Не путать с shiftDurationMs() — тот про таймаут бездействия авто check-out.
+   */
+  private shiftPlannedDurationMs(recurrence: RecurrenceRule): number {
+    const minutes =
+      recurrence.durationMin ??
+      this.config.get<number>('schedule.defaultShiftMinutes') ??
+      480;
+    return minutes * 60_000;
+  }
+
   /** Смена сегодняшнего дня по графику и исполнителю. */
   private async findTodayEvent(
     scheduleId: string,
@@ -859,6 +876,7 @@ function toView(event: ScheduleEvent & { schedule: Schedule }): ScheduleEventVie
     routeId: event.schedule.routeId,
     date: formatDateOnly(event.date),
     plannedStart: event.plannedStart.toISOString(),
+    plannedEnd: event.plannedEnd.toISOString(),
     status: event.status,
     userId: event.userId,
     checkInAt: event.checkInAt ? event.checkInAt.toISOString() : null,

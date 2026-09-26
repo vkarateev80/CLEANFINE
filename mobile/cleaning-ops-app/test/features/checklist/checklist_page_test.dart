@@ -244,7 +244,8 @@ void main() {
     expect(action.type, PendingActionTypes.operationCompleted);
     expect(action.payload['operationId'], 'op1');
     expect(action.payload['ticketId'], 'ticket-1');
-    expect(action.idempotencyKey, 'op:ticket-1:op1');
+    expect(action.payload['roomId'], 'room-1');
+    expect(action.idempotencyKey, 'op:ticket-1:room-1:op1');
 
     expect(find.byKey(const Key('checklist_op_queued_op1')), findsOneWidget);
     expect(find.text(ChecklistTexts.sending), findsOneWidget);

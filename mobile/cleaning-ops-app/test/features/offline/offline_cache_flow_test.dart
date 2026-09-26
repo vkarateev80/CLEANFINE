@@ -69,16 +69,22 @@ class AlreadyCompletedTicketsRepository extends FakeTicketsRepository {
   Future<Result<CompleteOperationResult>> completeOperation({
     required String ticketId,
     required String operationId,
+    String? roomId,
     DateTime? completedAt,
     String? photoUrl,
     bool requiresPhoto = false,
     int? totalOperations,
   }) async {
-    completeCalls.add(<String, Object?>{'ticketId': ticketId, 'operationId': operationId});
+    completeCalls.add(<String, Object?>{
+      'ticketId': ticketId,
+      'operationId': operationId,
+      'roomId': roomId,
+    });
     return Ok<CompleteOperationResult>(
       CompleteOperationResult(
         operationId: operationId,
         ticketId: ticketId,
+        roomId: roomId ?? '',
         alreadyCompleted: true,
       ),
     );
@@ -449,13 +455,13 @@ void main() {
         await tester.pumpAndSettle();
 
         // §10.1: одна запись `operation_complete` со статусом `pending`,
-        // нулём попыток и ключом идемпотентности `op:<ticketId>:<operationId>`.
+        // нулём попыток и ключом идемпотентности `op:<ticketId>:<roomId>:<operationId>`.
         final List<PendingActionRow> rows = await database.allRows();
         expect(rows, hasLength(1));
         expect(rows.single.kind, PendingActionTypes.operationCompleted);
         expect(rows.single.status, 'pending');
         expect(rows.single.attempts, 0);
-        expect(rows.single.idempotencyKey, 'op:ticket-1:op1');
+        expect(rows.single.idempotencyKey, 'op:ticket-1:room-1:op1');
         expect(rows.single.syncedAt, isNull);
         expect(rows.single.payloadJson, contains('"operationId":"op1"'));
 
