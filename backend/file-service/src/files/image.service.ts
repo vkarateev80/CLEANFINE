@@ -39,11 +39,18 @@ export class ImageService {
     }
   }
 
-  /** Проверка минимального разрешения фото (приёмка: 1280×720). */
+  /**
+   * Проверка минимального разрешения фото (приёмка: 1280×720).
+   * Ориентация не важна: портрет 1080×1920 проходит (min≥720, max≥1280),
+   * потому что раньше проверка «по ширине» браковала фронтальную камеру.
+   */
   assertMinResolution(dims: ImageDimensions): void {
-    if (dims.width < MIN_PHOTO_WIDTH || dims.height < MIN_PHOTO_HEIGHT) {
+    const minSide = Math.min(dims.width, dims.height);
+    const maxSide = Math.max(dims.width, dims.height);
+    if (minSide < MIN_PHOTO_HEIGHT || maxSide < MIN_PHOTO_WIDTH) {
       throw new BadRequestException(
-        `Разрешение фото ${dims.width}×${dims.height} меньше минимального ${MIN_PHOTO_WIDTH}×${MIN_PHOTO_HEIGHT}`,
+        `Разрешение фото ${dims.width}×${dims.height} меньше минимального ` +
+          `${MIN_PHOTO_WIDTH}×${MIN_PHOTO_HEIGHT} (ориентация не важна)`,
       );
     }
   }

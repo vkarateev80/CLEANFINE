@@ -95,15 +95,17 @@ abstract class ChatSocket {
 
   Future<void> disconnect();
 
-  /// `emit('message:send', {chatId, text, attachmentIds})` с ожиданием ack.
+  /// `emit('message:send', {chatId, text, attachmentIds?, clientMessageId?})`
+  /// с ожиданием ack.
   ///
-  /// `clientMessageId` в payload не уходит: сервер его не принимает
-  /// (`parseSendPayload`, `chat.md` п. 11.1) — идентификатор нужен только
-  /// приложению, чтобы связать ack с локальным пузырём.
+  /// `clientMessageId` — ключ идемпотентности сервера (М6, `chat.md` п. 11.1):
+  /// ретрай после обрыва связи с тем же ключом возвращает уже сохранённое
+  /// сообщение, а не создаёт дубль.
   Future<ChatSendAck> sendMessage({
     required String chatId,
     required String text,
     List<String> attachmentIds = const <String>[],
+    String? clientMessageId,
   });
 
   /// `emit('message:read', {chatId, lastMessageId})`.
@@ -224,6 +226,7 @@ class SocketIoChatSocket implements ChatSocket {
     required String chatId,
     required String text,
     List<String> attachmentIds = const <String>[],
+    String? clientMessageId,
   }) async {
     final io.Socket? socket = _socket;
     if (socket == null || !_connected) {
@@ -236,6 +239,8 @@ class SocketIoChatSocket implements ChatSocket {
         'chatId': chatId,
         'text': text,
         if (attachmentIds.isNotEmpty) 'attachmentIds': attachmentIds,
+        if (clientMessageId != null && clientMessageId.isNotEmpty)
+          'clientMessageId': clientMessageId,
       },
       ack: (dynamic response) {
         if (completer.isCompleted) return;

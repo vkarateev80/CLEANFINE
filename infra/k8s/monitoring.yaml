@@ -1,0 +1,137 @@
+# Окружение вокруг helm-релиза kube-prometheus-stack (B4).
+# Стек: helm -f monitoring-values.yaml (см. шапку этого файла).
+# Здесь: досборка метрик Traefik, правила алертов, доступ к Grafana по HTTPS.
+---
+# Traefik держит метрики на entrypoint :9100 («metrics»), в основном Service
+# они не входят — заводим отдельный Service для prometheus-operator.
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-metrics
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: traefik-metrics
+    app.kubernetes.io/part-of: cleaning-ops
+spec:
+  selector:
+    app.kubernetes.io/name: traefik
+  ports:
+    - name: metrics
+      port: 9100
+      targetPort: 9100
+---
+# Скрейп traefik: коды ответов (5xx), латентность, роутеры/сервисы.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: traefik
+  namespace: monitoring
+  labels:
+    release: kps # селектор prometheus-operator в этом стеке
+spec:
+  namespaceSelector:
+    matchNames: [kube-system]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik-metrics
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+---
+# Алерты по 5xx и латентости (замыкает требование плана М7:
+# «Alertmanager: правила 5xx, задержки, диск»; диск — в дефолтных node-rules).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: traefik-alerts
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  groups:
+    - name: traefik.rules
+      rules:
+        - alert: TraefikHigh5xxRate
+          expr: |
+            sum(rate(traefik_service_requests_total{code=~"5.."}[5m]))
+            /
+            sum(rate(traefik_service_requests_total[5m]))
+            > 0.05
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Более 5% ответов 5xx за 5 минут (Traefik)"
+            description: "Доля 5xx {{ $value | humanizePercentage }} — проверить логи backend-подов."
+        - alert: TraefikHighLatencyP95
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(traefik_service_request_duration_seconds_bucket[5m])) by (le)
+            ) > 2
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "p95 латентности Traefik выше 2с дольше 10 минут"
+---
+# Grafana на path-based маршруте: https://cleanfine.ru/grafana/
+# TLS: ingress-shim выпускает СВОЙ сертификат LE для cleanfine.ru в ns monitoring
+# (секрет cleaning-ops сюда не переносится, а копия протухла бы при renew).
+# HTTP→HTTPS: IngressRoute (см. infra/k8s/ingress.yaml — аннотации middleware
+# в k8s-ingress провайдере traefik 3.7 не работают), priority 60 > 50 у общего
+# редиректа и всё ещё < ~78 у ACME-solver.
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: monitoring
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: monitoring
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [cleanfine.ru]
+      secretName: cleanfine-tls
+  rules:
+    - host: cleanfine.ru
+      http:
+        paths:
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: kps-grafana
+                port:
+                  number: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana-redirect
+  namespace: monitoring
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`cleanfine.ru`) && PathPrefix(`/grafana`)
+      kind: Rule
+      priority: 60
+      services:
+        - name: kps-grafana
+          port: 80
+      middlewares:
+        - name: redirect-https

@@ -34,6 +34,7 @@ const messageView = {
   text: 'привет',
   attachmentIds: [],
   createdAt: '2026-01-01T10:00:00.000Z',
+  deliveredAt: null,
 };
 
 describe('ChatsController', () => {
@@ -76,7 +77,12 @@ describe('ChatsController', () => {
 
   it('POST /chats/:id/messages рассылает message:new и возвращает сохранённое сообщение', async () => {
     const { controller, chats, gateway } = build();
-    const plan: DeliveryPlan = { message: messageView, recipientIds: ['u-oper'], offlineIds: ['u-oper'] };
+    const plan: DeliveryPlan = {
+      message: messageView,
+      recipientIds: ['u-oper'],
+      offlineIds: ['u-oper'],
+      duplicate: false,
+    };
     chats.sendMessage.mockResolvedValue(plan);
 
     const result = await controller.sendMessage('c-1', { text: 'привет' }, admin);
@@ -85,6 +91,25 @@ describe('ChatsController', () => {
     // В сервис передаётся актуальный снимок онлайн-пользователей.
     expect(chats.sendMessage.mock.calls[0][3]).toEqual(['u-admin']);
     expect(gateway.emitMessageNew).toHaveBeenCalledWith(plan);
+  });
+
+  it('POST /chats/:id/messages: дубль по clientMessageId не рассылает message:new', async () => {
+    const { controller, chats, gateway } = build();
+    chats.sendMessage.mockResolvedValue({
+      message: messageView,
+      recipientIds: ['u-oper'],
+      offlineIds: [],
+      duplicate: true,
+    });
+
+    const result = await controller.sendMessage(
+      'c-1',
+      { text: 'привет', clientMessageId: 'client-1' },
+      admin,
+    );
+
+    expect(result).toEqual(messageView);
+    expect(gateway.emitMessageNew).not.toHaveBeenCalled();
   });
 
   it('POST /chats/:id/read уведомляет автора через шлюз', async () => {

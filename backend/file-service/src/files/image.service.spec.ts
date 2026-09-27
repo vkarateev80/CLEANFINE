@@ -42,6 +42,10 @@ describe('ImageService', () => {
       expect(() => service.assertMinResolution({ width: 4000, height: 3000 })).not.toThrow();
     });
 
+    it('пропускает портрет 1080×1920 (фронтальная камера)', () => {
+      expect(() => service.assertMinResolution({ width: 1080, height: 1920 })).not.toThrow();
+    });
+
     it('отклоняет меньше минимального по ширине', () => {
       expect(() => service.assertMinResolution({ width: 1279, height: 720 })).toThrow(
         BadRequestException,

@@ -20,9 +20,14 @@ class CapturedPhoto {
   final int height;
   final DateTime takenAt;
 
-  /// Сервер (`file-service`) принимает фото не меньше 1280×720 — проверяем то же
-  /// условие до загрузки, чтобы оператор не ждал ответа 400.
-  bool get isLargeEnough => width >= CapturedPhoto.minWidth && height >= CapturedPhoto.minHeight;
+  /// Сервер (`file-service`) принимает фото не меньше 1280×720 без учёта
+  /// ориентации: min(сторон) ≥ 720 и max(сторон) ≥ 1280 — портрет 1080×1920
+  /// проходит, как и ландшафт 1280×720.
+  bool get isLargeEnough {
+    final int minSide = width < height ? width : height;
+    final int maxSide = width < height ? height : width;
+    return minSide >= CapturedPhoto.minHeight && maxSide >= CapturedPhoto.minWidth;
+  }
 
   static const int minWidth = 1280;
   static const int minHeight = 720;

@@ -78,6 +78,19 @@ export class NotificationsService {
     return device;
   }
 
+  /**
+   * Отписка токена при выходе (М6, DS-002 `profile.md` п. 11.2).
+   * Удаляем строку: push больше не уходит. Чужой token не трогаем — where userId.
+   */
+  async unregisterDevice(userId: string, token: string): Promise<void> {
+    const { count } = await this.prisma.device.deleteMany({
+      where: { userId, token },
+    });
+    if (count > 0) {
+      this.logger.log(`Устройство отписано: user=${userId}`);
+    }
+  }
+
   /** In-app список уведомлений пользователя с пагинацией и фильтром непрочитанных. */
   async list(userId: string, query: ListNotificationsQueryDto): Promise<NotificationsPage> {
     const page = query.page ?? 1;

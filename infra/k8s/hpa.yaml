@@ -1,0 +1,149 @@
+# HPA по CPU для 9 backend-деплоев (М7.5).
+# Метрика: средняя загрузка 70% от CPU request (100m → масштаб при >70m).
+# min=1 / max=3; на одиночной ноде 4 core 27 реплик в худшем случае не
+# влезают — на практике триггерится только реально нагруженный сервис.
+# Источник метрик: metrics-server (входит в k3s, `kubectl top` работает).
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: auth
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: auth }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: files
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: files }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: core
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: core }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gps
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: gps }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tickets
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: tickets }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notifications
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: notifications }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: materials
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: materials }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: schedule
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: schedule }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: chat
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: chat }
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }

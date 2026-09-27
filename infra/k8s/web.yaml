@@ -43,8 +43,12 @@ spec:
       containers:
         - name: web-admin
           image: cleaning-ops/web-admin:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 80
+          envFrom:
+            - configMapRef: { name: cleaning-ops-config }
+            - secretRef: { name: cleaning-ops-secrets }
           env:
             - name: API_UPSTREAM
               value: "http://auth:3001"
@@ -53,6 +57,7 @@ spec:
             limits: { cpu: "250m", memory: "128Mi" }
           readinessProbe:
             httpGet: { path: /, port: 80 }
+
 ---
 apiVersion: v1
 kind: Service
@@ -99,8 +104,12 @@ spec:
       containers:
         - name: web-client
           image: cleaning-ops/web-client:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 80
+          envFrom:
+            - configMapRef: { name: cleaning-ops-config }
+            - secretRef: { name: cleaning-ops-secrets }
           env:
             - name: API_UPSTREAM
               value: "http://auth:3001"

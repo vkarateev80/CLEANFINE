@@ -9,7 +9,7 @@ import type { PushMessage, PushSender } from './push/push-sender';
 const VALID_TOKEN = 'fcm-token-abcdefghijklmnopqrstuvwxyz-0123456789';
 
 interface PrismaMock {
-  device: { upsert: jest.Mock; findMany: jest.Mock; updateMany: jest.Mock };
+  device: { upsert: jest.Mock; findMany: jest.Mock; updateMany: jest.Mock; deleteMany: jest.Mock };
   notification: {
     create: jest.Mock;
     findMany: jest.Mock;
@@ -26,6 +26,7 @@ function createPrismaMock(): PrismaMock {
       upsert: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     notification: {
       create: jest.fn(),
@@ -83,6 +84,18 @@ describe('NotificationsService', () => {
       expect(args.create).toMatchObject({ userId: 'u-1', token: VALID_TOKEN, platform: 'android', isActive: true });
       expect(args.update).toMatchObject({ userId: 'u-1', platform: 'android', isActive: true });
       expect(args.create.lastSeenAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('unregisterDevice', () => {
+    it('удаляет токен только своего пользователя', async () => {
+      prisma.device.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.unregisterDevice('u-1', 'tok-1');
+
+      expect(prisma.device.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'u-1', token: 'tok-1' },
+      });
     });
   });
 

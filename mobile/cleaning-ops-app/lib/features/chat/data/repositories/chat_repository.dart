@@ -65,6 +65,7 @@ class ChatRepository {
     String chatId, {
     required String text,
     List<String> attachmentIds = const <String>[],
+    String? clientMessageId,
   }) {
     return guard(() async {
       final response = await _api.post(
@@ -72,6 +73,8 @@ class ChatRepository {
         data: <String, dynamic>{
           'text': text,
           if (attachmentIds.isNotEmpty) 'attachmentIds': attachmentIds,
+          if (clientMessageId != null && clientMessageId.isNotEmpty)
+            'clientMessageId': clientMessageId,
         },
       );
       final ChatMessage? message = ChatMessage.tryParse(response.data, chatId: chatId);

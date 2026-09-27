@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -39,6 +40,18 @@ export class NotificationsController {
   @ApiResponse({ status: 400, description: 'Ошибка валидации' })
   async registerDevice(@CurrentUser() user: AuthUser, @Body() dto: RegisterDeviceDto) {
     return this.notifications.registerDevice(user.id, dto);
+  }
+
+  @Delete('device/:token')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Отписать push-токен устройства текущего пользователя (М6)',
+    description: 'Вызывается при выходе. Чужой токен не трогается — 204 идемпотентно.',
+  })
+  @ApiResponse({ status: 204, description: 'Токен отписан (или его не было)' })
+  @ApiResponse({ status: 401, description: 'Нет access-токена' })
+  async unregisterDevice(@CurrentUser() user: AuthUser, @Param('token') token: string) {
+    await this.notifications.unregisterDevice(user.id, decodeURIComponent(token));
   }
 
   @Get()

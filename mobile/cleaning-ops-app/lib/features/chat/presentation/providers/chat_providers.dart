@@ -399,14 +399,27 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
   /// Слияние истории сервера и локальных пузырей.
   ///
   /// Сообщение, уже подтверждённое сервером (`serverId` в истории), берётся из
-  /// истории: она источник правды по тексту и времени.
+  /// истории: она источник правды по тексту, времени и `deliveredAt`.
   Future<List<ChatMessage>> _merged(List<ChatMessage> serverMessages) async {
     final List<ChatMessage> local = await _localMessages();
-    final Set<String> serverIds = serverMessages.map((ChatMessage m) => m.id).toSet();
+    final List<ChatMessage> server = _deriveStatuses(serverMessages);
+    final Set<String> serverIds = server.map((ChatMessage m) => m.id).toSet();
     final List<ChatMessage> pending = local
         .where((ChatMessage message) => !serverIds.contains(message.id))
         .toList(growable: false);
-    return _sorted(<ChatMessage>[...serverMessages, ...pending]);
+    return _sorted(<ChatMessage>[...server, ...pending]);
+  }
+
+  /// Свои сообщения из истории: серверный `deliveredAt` → «Доставлено».
+  /// Приоритеты: pending/fail живут только локально, «Прочитано» приходит
+  /// живым событием и здесь не встретится, у чужих сообщений статус не наш.
+  List<ChatMessage> _deriveStatuses(List<ChatMessage> serverMessages) {
+    return serverMessages.map((ChatMessage message) {
+      if (message.authorId != _meId) return message;
+      if (message.status != ChatMessageStatus.sent) return message;
+      if (message.deliveredAt == null) return message;
+      return message.copyWith(status: ChatMessageStatus.delivered);
+    }).toList(growable: false);
   }
 
   static List<ChatMessage> _sorted(List<ChatMessage> messages) {
@@ -444,7 +457,7 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
     final ChatThreadState latest = state.valueOrNull ?? current;
     _setState(
       latest.copyWith(
-        messages: _sorted(<ChatMessage>[...page.items, ...latest.messages]),
+        messages: _sorted(<ChatMessage>[..._deriveStatuses(page.items), ...latest.messages]),
         hasMore: page.hasMore,
         nextBefore: page.nextBefore,
         clearNextBefore: page.nextBefore == null,
@@ -524,11 +537,19 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
         chatId: _chatId,
         text: trimmed,
         attachmentIds: attachmentIds,
+        clientMessageId: clientId,
       );
       final ChatMessage? message = ack.message;
       if (ack.ok && message != null) {
         await store.markSent(clientId, serverId: message.id);
-        _applyStatus(clientId, ChatMessageStatus.sent, serverId: message.id);
+        // Получатель онлайн → сервер вернул `deliveredAt` уже в ack.
+        final ChatMessageStatus acked = message.deliveredAt != null
+            ? ChatMessageStatus.delivered
+            : ChatMessageStatus.sent;
+        if (acked == ChatMessageStatus.delivered) {
+          await store.markStatus(clientId, acked);
+        }
+        _applyStatus(clientId, acked, serverId: message.id);
         return true;
       }
       if (ack.error != null) {

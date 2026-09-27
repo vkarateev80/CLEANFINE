@@ -124,9 +124,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const plan = await this.chats.sendMessage(parsed.value.chatId, {
         text: parsed.value.text,
         attachmentIds: parsed.value.attachmentIds,
+        ...(parsed.value.clientMessageId
+          ? { clientMessageId: parsed.value.clientMessageId }
+          : {}),
       }, user, this.getOnlineUserIds());
 
-      this.emitMessageNew(plan, { excludeUserId: user.id });
+      // Дубль по clientMessageId: получатели уже видели сообщение в первый
+      // раз — повторная рассыла создала бы второй пузырь. Ack отдаём тот же.
+      if (!plan.duplicate) {
+        this.emitMessageNew(plan, { excludeUserId: user.id });
+      }
       // Ack отправителю — подтверждение сохранения (у устава ack не детализирован,
       // но клиенту нужен id и createdAt, чтобы отрисовать своё сообщение).
       return { ok: true, message: plan.message };

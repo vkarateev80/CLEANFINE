@@ -70,6 +70,9 @@ export interface ScheduleEventEntity {
   scheduleName: string;
   objectId: string | null;
   routeId: string | null;
+  /** Имя объекта/маршрута из core (null — core недоступен). */
+  objectName: string | null;
+  routeName: string | null;
   /** День смены "YYYY-MM-DD" (полночь UTC). */
   date: string;
   /** Плановое начало: ISO 8601 UTC (день + `recurrence.time`). */

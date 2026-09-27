@@ -1,0 +1,94 @@
+# Бэкапы k3s (B5, М7): pg_dump всех 9 БД в custom format + tar MinIO-PVC.
+# Расписание: ежедневно 03:00 UTC (06:00 МСК), хранение — 14 последних копий.
+# Хранилище: hostPath /var/lib/cleanfine-backups на ноде vps2 (102G свободно).
+# Дрилл восстановления: scripts/backup/restore-verify.sh (запуск на ноде с kubectl).
+#
+# Замечание: копия лежит на том же диске, что и прод — офсайт-реплика (scp на
+# старый VPS) остаётся открытым пунктом.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-script
+  namespace: cleaning-ops
+  labels:
+    app.kubernetes.io/part-of: cleaning-ops
+data:
+  backup.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    TS="$(date -u +%Y%m%d-%H%M%S)"
+    DEST="/backups/${TS}"
+    mkdir -p "${DEST}"
+    # 9 БД: cleaning_ops (auth) + по одной на сервис (см. postgres initdb).
+    DBS=(
+      cleaning_ops
+      cleaning_ops_files
+      cleaning_ops_core
+      cleaning_ops_gps
+      cleaning_ops_tickets
+      cleaning_ops_notifications
+      cleaning_ops_materials
+      cleaning_ops_schedule
+      cleaning_ops_chat
+    )
+    for db in "${DBS[@]}"; do
+      echo "dump ${db}"
+      pg_dump -h postgres -U "${POSTGRES_USER}" -Fc "${db}" > "${DEST}/${db}.dump"
+    done
+    echo "tar minio-data"
+    tar -C /minio-data -czf "${DEST}/minio-data.tgz" .
+    # Ретеншн: оставляем 14 последних снапшотов.
+    ls -1dt /backups/*/ 2>/dev/null | tail -n +15 | xargs -r rm -rf
+    echo "done: ${DEST}"
+    du -sh "${DEST}"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-backup
+  namespace: cleaning-ops
+  labels:
+    app.kubernetes.io/part-of: cleaning-ops
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: daily-backup
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              # pg_dump 16 = версии сервера (postgis/postgis:16-3.4 уже на ноде).
+              image: postgis/postgis:16-3.4
+              imagePullPolicy: IfNotPresent
+              command: ["/bin/bash", "/scripts/backup.sh"]
+              env:
+                - name: POSTGRES_USER
+                  valueFrom:
+                    configMapKeyRef: { name: cleaning-ops-config, key: POSTGRES_USER }
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef: { name: cleaning-ops-secrets, key: DB_PASSWORD }
+              volumeMounts:
+                - { name: scripts, mountPath: /scripts }
+                - { name: backups, mountPath: /backups }
+                # RWO-PVC minio: на одиночной ноде k3s под CronJob монтируется
+                # поверх того же узла, что и под minio.
+                - { name: minio-data, mountPath: /minio-data, readOnly: true }
+          volumes:
+            - name: scripts
+              configMap:
+                name: backup-script
+                defaultMode: 0755
+            - name: backups
+              hostPath: { path: /var/lib/cleanfine-backups, type: DirectoryOrCreate }
+            - name: minio-data
+              persistentVolumeClaim: { claimName: minio-data }

@@ -77,6 +77,8 @@ export interface MessageView {
   text: string;
   attachmentIds: string[];
   createdAt: string;
+  /** Когда сообщение получил хотя бы один получатель; null — только отправлено. */
+  deliveredAt: string | null;
 }
 
 /** Страница истории: items — от старых к новым внутри страницы, hasMore — есть ли ещё выше. */
@@ -99,6 +101,11 @@ export interface DeliveryPlan {
   recipientIds: string[];
   /** Участники без активного соединения (для push). */
   offlineIds: string[];
+  /**
+   * Повтор с тем же clientMessageId: сообщение уже существовало, рассылку
+   * message:new и push повторять нельзя — получатели уже получили его в первый раз.
+   */
+  duplicate: boolean;
 }
 
 export interface MarkReadResult {
@@ -513,6 +520,13 @@ export class ChatsService {
     const limit = Math.min(query.limit ?? DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT);
     const before = query.before ? new Date(query.before) : null;
 
+    // Загрузка истории = устройство получило: чужие недоставленные помечаем
+    // до чтения, чтобы страница сразу вернула deliveredAt (М6, п.11.2).
+    await this.prisma.message.updateMany({
+      where: { chatId, authorId: { not: user.id }, deliveredAt: null },
+      data: { deliveredAt: new Date() },
+    });
+
     // Берём limit + 1 «сверху» (DESC), чтобы понять, есть ли ещё страница выше.
     const rows = await this.prisma.message.findMany({
       where: {
@@ -539,12 +553,13 @@ export class ChatsService {
 
   /**
    * Основной путь отправки (REST-фолбэк и WebSocket вызывают его же):
-   * проверка участия → сохранение → план доставки (онлайн/оффлайн).
+   * проверка участия → идемпотентность по clientMessageId → сохранение →
+   * план доставки (онлайн/оффлайн).
    *
-   * Идемпотентности по клиенту здесь нет: повторная доставка того же
-   * WebSocket-события — забота клиента (clientMessageId), а сервер фиксирует
-   * каждое принятое событие. От «дублей» защищает уникальность id сообщения:
-   * повторный ack вернёт то же сообщение, а не создаст новое.
+   * Повтор с тем же clientMessageId (ретрай после обрыва связи) возвращает
+   * уже сохранённое сообщение с duplicate=true: вызывающий не рассылает
+   * message:new и не шлёт push — получатели видели сообщение в первый раз.
+   * Гонка двух параллельных повторов ловится уникальным индексом (P2002).
    */
   async sendMessage(
     chatId: string,
@@ -562,26 +577,79 @@ export class ChatsService {
     if (text === '') {
       throw new BadRequestException('Сообщение не может быть пустым');
     }
+    const clientMessageId = dto.clientMessageId?.trim() || null;
 
-    const message = await this.prisma.message.create({
-      data: {
-        chatId,
-        authorId: user.id,
-        text,
-        attachmentIds: this.unique(dto.attachmentIds ?? []),
-      },
-    });
+    if (clientMessageId) {
+      const existing = await this.prisma.message.findUnique({
+        where: { authorId_clientMessageId: { authorId: user.id, clientMessageId } },
+      });
+      if (existing) {
+        return this.duplicatePlan(existing, user);
+      }
+    }
+
+    let message: Message;
+    try {
+      message = await this.prisma.message.create({
+        data: {
+          chatId,
+          authorId: user.id,
+          text,
+          attachmentIds: this.unique(dto.attachmentIds ?? []),
+          ...(clientMessageId ? { clientMessageId } : {}),
+        },
+      });
+    } catch (error) {
+      // Два параллельных повтора с одним ключом: кто-то создал первым —
+      // отдаём его сообщение, а не 500.
+      if (clientMessageId && isUniqueViolation(error)) {
+        const existing = await this.prisma.message.findUnique({
+          where: { authorId_clientMessageId: { authorId: user.id, clientMessageId } },
+        });
+        if (existing) {
+          return this.duplicatePlan(existing, user);
+        }
+      }
+      throw error;
+    }
 
     const memberIds = await this.getMemberIds(chatId);
     const recipientIds = memberIds.filter((userId) => userId !== user.id);
     const online = new Set(onlineUserIds);
     const offlineIds = recipientIds.filter((userId) => !online.has(userId));
 
+    // «Доставлено»: событие уходит минимум в одно онлайн-устройство получателя.
+    // Если все оффлайн — deliveredAt заполнится при загрузке истории или чтении.
+    if (recipientIds.some((userId) => online.has(userId))) {
+      const deliveredAt = new Date();
+      await this.prisma.message.update({
+        where: { id: message.id },
+        data: { deliveredAt },
+      });
+      message = { ...message, deliveredAt };
+    }
+
     if (offlineIds.length > 0) {
       await this.notifyOffline(chat, message, offlineIds);
     }
 
-    return { message: this.toView(message), recipientIds, offlineIds };
+    return {
+      message: this.toView(message),
+      recipientIds,
+      offlineIds,
+      duplicate: false,
+    };
+  }
+
+  /** План для уже существующего сообщения (повтор по clientMessageId). */
+  private async duplicatePlan(existing: Message, user: AuthUser): Promise<DeliveryPlan> {
+    const memberIds = await this.getMemberIds(existing.chatId);
+    return {
+      message: this.toView(existing),
+      recipientIds: memberIds.filter((userId) => userId !== user.id),
+      offlineIds: [],
+      duplicate: true,
+    };
   }
 
   /** Push оффлайн-получателям: не блокирует и не отменяет доставку в чат. */
@@ -626,6 +694,17 @@ export class ChatsService {
     }
 
     const readAt = message.createdAt;
+    // Прочтение включает доставку: чужие сообщения до момента чтения
+    // устройство явно получило. Идемпотентно — affected = недоставленные.
+    await this.prisma.message.updateMany({
+      where: {
+        chatId,
+        authorId: { not: user.id },
+        deliveredAt: null,
+        createdAt: { lte: readAt },
+      },
+      data: { deliveredAt: new Date() },
+    });
     const existing = await this.prisma.chatMember.findUnique({
       where: { chatId_userId: { chatId, userId: user.id } },
     });
@@ -780,6 +859,7 @@ export class ChatsService {
       text: message.text,
       attachmentIds: message.attachmentIds,
       createdAt: message.createdAt.toISOString(),
+      deliveredAt: message.deliveredAt ? message.deliveredAt.toISOString() : null,
     };
   }
 

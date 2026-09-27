@@ -216,14 +216,16 @@ class ChatDetail {
   }
 }
 
-/// Статус доставки сообщения в интерфейсе (`chat.md` §3.5).
+/// Статус доставки сообщения в интерфейсе (`chat.md` §3.5, §4).
 ///
-/// ⚠️ «Доставлено» отдельно от «отправлено» не существует: `MessageView` не
-/// содержит ни `deliveredAt`, ни `readAt` (`chat.md` п. 11.2), поэтому две
-/// галочки означают «прочитано».
+/// Три состояния (М6, `chat.md` п. 11.2): «Отправлено» — сервер сохранил,
+/// «Доставлено» — `MessageView.deliveredAt` (устройство получателя), «Прочитано»
+/// — событие `message:read`. Доставлено переживает перезагрузку (серверный
+/// признак), прочтение — только живое событие.
 enum ChatMessageStatus {
   pending('pending', 'Отправляется…'),
   sent('sent', 'Отправлено'),
+  delivered('delivered', 'Доставлено'),
   read('read', 'Прочитано'),
   failed('failed', 'Не отправлено · Повторить');
 
@@ -252,6 +254,7 @@ class ChatMessage {
     this.createdAt,
     this.attachmentIds = const <String>[],
     this.clientId,
+    this.deliveredAt,
     this.status = ChatMessageStatus.sent,
   });
 
@@ -265,6 +268,10 @@ class ChatMessage {
   /// Локальный идентификатор: `null` у сообщений, пришедших с сервера.
   final String? clientId;
 
+  /// Серверный признак доставки (`MessageView.deliveredAt`): устройство
+  /// получателя увидело сообщение. `null` — только отправлено.
+  final DateTime? deliveredAt;
+
   final ChatMessageStatus status;
 
   bool get isLocal => clientId != null;
@@ -273,8 +280,8 @@ class ChatMessage {
 
   bool get isFailed => status == ChatMessageStatus.failed;
 
-  /// «Отправляется…» / «Отправлено» / «Прочитано» / «Не отправлено · Повторить» —
-  /// показывается только у своих сообщений.
+  /// «Отправляется…» / «Отправлено» / «Доставлено» / «Прочитано» /
+  /// «Не отправлено · Повторить» — показывается только у своих сообщений.
   bool get showsStatus => isLocal || status == ChatMessageStatus.read;
 
   ChatMessage copyWith({ChatMessageStatus? status, String? id}) {
@@ -286,6 +293,7 @@ class ChatMessage {
       createdAt: createdAt,
       attachmentIds: attachmentIds,
       clientId: clientId,
+      deliveredAt: deliveredAt,
       status: status ?? this.status,
     );
   }
@@ -301,6 +309,7 @@ class ChatMessage {
       text: body['text']?.toString() ?? '',
       createdAt: parseDate(body['createdAt']),
       attachmentIds: stringList(body['attachmentIds']),
+      deliveredAt: parseDate(body['deliveredAt']),
     );
   }
 }

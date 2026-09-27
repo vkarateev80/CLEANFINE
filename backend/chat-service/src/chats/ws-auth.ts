@@ -2,7 +2,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { ChatType } from '@cleaning-ops/shared/types/chat';
 import type { Role } from '@cleaning-ops/shared/types/roles';
 import type { AuthUser } from '../auth/guards/roles.guard';
-import { MAX_ATTACHMENTS, MAX_MESSAGE_LENGTH } from './dto/chat.dto';
+import { MAX_ATTACHMENTS, MAX_CLIENT_MESSAGE_ID_LENGTH, MAX_MESSAGE_LENGTH } from './dto/chat.dto';
 
 /** Имя namespace WebSocket-шлюза. */
 export const CHAT_NAMESPACE = 'chat';
@@ -74,6 +74,7 @@ export interface IncomingMessagePayload {
   chatId?: unknown;
   text?: unknown;
   attachmentIds?: unknown;
+  clientMessageId?: unknown;
 }
 
 export interface IncomingReadPayload {
@@ -85,6 +86,7 @@ export interface ParsedSend {
   chatId: string;
   text: string;
   attachmentIds: string[];
+  clientMessageId?: string;
 }
 
 export interface ParsedRead {
@@ -123,7 +125,26 @@ export function parseSendPayload(
     }
     attachmentIds = rawAttachments as string[];
   }
-  return { ok: true, value: { chatId, text, attachmentIds } };
+  // Ключ идемпотентности (М6): повтор того же send с тем же ключом не создаёт
+  // дубль. Отсутствие ключа допустимо (старые клиенты) — идемпотентность не включена.
+  const rawClientMessageId = payload?.clientMessageId;
+  let clientMessageId: string | undefined;
+  if (rawClientMessageId !== undefined && rawClientMessageId !== null) {
+    if (typeof rawClientMessageId !== 'string' || rawClientMessageId.trim() === '') {
+      return { ok: false, error: 'clientMessageId должен быть непустой строкой' };
+    }
+    if (rawClientMessageId.length > MAX_CLIENT_MESSAGE_ID_LENGTH) {
+      return {
+        ok: false,
+        error: `clientMessageId длиннее ${MAX_CLIENT_MESSAGE_ID_LENGTH} символов`,
+      };
+    }
+    clientMessageId = rawClientMessageId.trim();
+  }
+  return {
+    ok: true,
+    value: { chatId, text, attachmentIds, ...(clientMessageId ? { clientMessageId } : {}) },
+  };
 }
 
 export function parseReadPayload(

@@ -251,6 +251,38 @@ void main() {
   );
 
   chatScreenTest(
+    '§11.2: своё сообщение с deliveredAt показывает «Доставлено»',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(
+        items: <ChatMessage>[
+          chatMessage(
+            id: 'm3',
+            authorId: 'me',
+            text: 'Принял',
+            deliveredAt: DateTime(2026, 9, 16, 11, 0),
+          ),
+          chatMessage(id: 'm4', authorId: 'me', text: 'В пути'),
+        ],
+      ),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      await settle(tester);
+
+      // Доставлено — серверный признак: две галочки с подписью.
+      expect(
+        tester.getSemantics(find.byKey(const Key('chat_message_status_m3'))).label,
+        contains('Доставлено'),
+      );
+      // Без deliveredAt остаётся «Отправлено» (одна галочка).
+      expect(
+        tester.getSemantics(find.byKey(const Key('chat_message_status_m4'))).label,
+        isNot(contains('Доставлено')),
+      );
+    },
+  );
+
+  chatScreenTest(
     'отметка прочтения входящего уходит в сокет один раз',
     FakeChatRepository(
       detail: chatDetailFixture(),

@@ -18,6 +18,8 @@ import { CHAT_TYPES, type ChatType } from '@cleaning-ops/shared/types/chat';
 /** Ограничения сообщения/поиска — единые для REST и WebSocket. */
 export const MAX_MESSAGE_LENGTH = 4000;
 export const MAX_ATTACHMENTS = 20;
+/** Ключ идемпотентности клиента: UUID (36) с запасом на нестандартные генераторы. */
+export const MAX_CLIENT_MESSAGE_ID_LENGTH = 100;
 export const DEFAULT_PAGE_LIMIT = 50;
 export const MAX_PAGE_LIMIT = 100;
 export const DEFAULT_SEARCH_LIMIT = 50;
@@ -74,6 +76,21 @@ export class SendMessageDto {
   @ArrayMaxSize(MAX_ATTACHMENTS)
   @IsString({ each: true })
   attachmentIds?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'Ключ идемпотентности клиента (М6): повтор с тем же ключом вернёт ' +
+      'уже сохранённое сообщение вместо создания дубля',
+    example: '9f0f5a1e-2f3d-4a5b-8c7d-1e2f3a4b5c6d',
+    maxLength: MAX_CLIENT_MESSAGE_ID_LENGTH,
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty({ message: 'clientMessageId не может быть пустым' })
+  @MaxLength(MAX_CLIENT_MESSAGE_ID_LENGTH, {
+    message: `clientMessageId длиннее ${MAX_CLIENT_MESSAGE_ID_LENGTH} символов`,
+  })
+  clientMessageId?: string;
 }
 
 export class MarkReadDto {
