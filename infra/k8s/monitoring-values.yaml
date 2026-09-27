@@ -1,0 +1,79 @@
+# Значения helm-релиза kube-prometheus-stack (B4, мониторинг k3s).
+# Установка (vps2):
+#   helm upgrade --install kps prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace -f infra/k8s/monitoring-values.yaml
+#
+# Секреты НЕ в этом файле — пароль Grafana создаётся отдельно:
+#   kubectl -n monitoring create secret generic grafana-admin \
+#     --from-literal=admin-user=admin \
+#     --from-literal=admin-password='<см. память проекта>'
+grafana:
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  # Доступ: https://cleanfine.ru/grafana/ (ingress — infra/k8s/monitoring.yaml),
+  # без смены DNS: path-based на уже выпущенном сертификате cleanfine.ru.
+  grafana.ini:
+    server:
+      root_url: https://cleanfine.ru/grafana/
+      serve_from_sub_path: true
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 2Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits: { memory: 1536Mi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          resources:
+            requests:
+              storage: 10Gi
+
+alertmanager:
+  alertmanagerSpec:
+    retention: 168h # формат AM только h/m/s (не «7d»)
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { memory: 128Mi }
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          resources:
+            requests:
+              storage: 1Gi
+
+# node-exporter/kube-state-metrics — дефолты стека (диск, CPU, поды).
+# Дашборды по умолчанию включены (node-exporter full).
+defaultRules:
+  rules:
+    alertmanager: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubeControllerManager: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubeSchedulerAlerting: true
+    kubeSchedulerRecording: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
