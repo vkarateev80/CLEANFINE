@@ -2,13 +2,18 @@
  * Генерация Prisma-клиента каждой схемы в node_modules своего сервиса.
  *
  * Схемы указывают `output = "../node_modules/.prisma/client"` — prisma пишет
- * клиент прямо в пакет сервиса, `@prisma/client` автоматически форвардит импорты
- * туда. Копирование из общего store больше не нужно.
+ * клиент в пакет сервиса. Но `@prisma/client` в изолированном node_modules
+ * pnpm — СИМЛИНК в общий store, а его default.js требует `.prisma/client/default`
+ * от СЕБЯ (то есть от store), где общего клиента нет: резолв падает.
+ * Поэтому после generate симлинк заменяется РЕАЛЬНОЙ КОПИЕЙ пакета рядом
+ * с сервисным `.prisma` (то, что раньше делал «перенос копии» и что ждёт
+ * verify: resolve должен указывать внутрь node_modules сервиса).
+ * Примечание: пути вида backend/<service>/node_modules.
  *
  * Запуск: node scripts/ci/prisma-clients.mjs
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, lstatSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,6 +34,24 @@ function generate(dir) {
     stdio: 'inherit',
     shell: process.platform === 'win32',
   });
+  ensureRealClient(dir);
+}
+
+/**
+ * Симлинк @prisma/client → общий store заменяем реальной копией в сервисе:
+ * только так `require('.prisma/client/default')` из default.js находит клиент
+ * ЭТОГО сервиса (лежит в node_modules самого сервиса: .prisma/client), а verify видит
+ * resolve внутри node_modules сервиса. Идемпотентно: реальная копия не трогается,
+ * `pnpm install` вернёт симлинк — следующий прогон снова скопирует.
+ */
+function ensureRealClient(dir) {
+  const clientDir = path.join(dir, 'node_modules', '@prisma', 'client');
+  if (!existsSync(clientDir)) return;
+  const stat = lstatSync(clientDir);
+  if (!stat.isSymbolicLink()) return;
+  const real = realpathSync(clientDir);
+  rmSync(clientDir, { recursive: true, force: true });
+  cpSync(real, clientDir, { recursive: true });
 }
 
 /** Модели из схемы сервиса — эталон для проверки. */
