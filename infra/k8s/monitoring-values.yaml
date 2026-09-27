@@ -57,6 +57,14 @@ alertmanager:
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 12h
+      # Демпферы: Watchdog/InfoInhibitor — из дефолтной конфигурации (без них
+      # оператор отклоняет конфиг); Kube*Down — шум одиночного k3s (kube-proxy,
+      # scheduler, controller-manager живут в процессе k3s, подов нет — алерты
+      # никогда не разрешатся и будут письмами каждые 12h.
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname =~ "Watchdog|InfoInhibitor|KubeProxyDown|KubeSchedulerDown|KubeControllerManagerDown"
     receivers:
       # Демпфер для подмаршрута Watchdog/InfoInhibitor из дефолтного route:
       # без него оператор отклоняет конфиг (undefined receiver "null").

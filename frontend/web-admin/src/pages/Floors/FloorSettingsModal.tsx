@@ -21,8 +21,8 @@ function parseNumber(value: string): number | null {
 }
 
 /**
- * Параметры этажа. Пустое поле масштаба означает «не менять»: API не умеет
- * обнулять `planScale` (в DTO только число > 0), поэтому пустое значение не отправляется.
+ * Параметры этажа. Пустое поле масштаба очищает `planScale`: в payload уходит
+ * `null`, сервер (UpdateFloorDto) обнуляет поле; непустое должно быть числом > 0.
  */
 export function FloorSettingsModal({
   open,
@@ -73,7 +73,8 @@ export function FloorSettingsModal({
     if (invalid || nextNumber === null) return;
 
     const payload: UpdateFloorPayload = { number: nextNumber, name: name.trim() };
-    if (nextScale !== null) payload.planScale = nextScale;
+    // null при пустом поле — очистка масштаба (М2.7, дефект «нельзя очистить»).
+    payload.planScale = nextScale;
     onSubmit(payload);
   }
 

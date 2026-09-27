@@ -212,7 +212,10 @@ export interface CreateFloorPayload {
   planScale?: number;
 }
 
-export type UpdateFloorPayload = Partial<CreateFloorPayload>;
+export type UpdateFloorPayload = Omit<Partial<CreateFloorPayload>, 'planScale'> & {
+  /** null — очистить масштаб плана (отсутствие поля — не менять). */
+  planScale?: number | null;
+};
 
 export interface CreateRoomPayload {
   name: string;

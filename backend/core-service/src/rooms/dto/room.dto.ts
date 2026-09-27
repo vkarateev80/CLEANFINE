@@ -49,7 +49,16 @@ export class UpdateRoomDto {
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(INT4_MAX) coordsY?: number;
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(INT4_MAX) coordsWidth?: number;
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(INT4_MAX) coordsHeight?: number;
-  @ApiPropertyOptional() @IsOptional() @IsString() zone?: string;
+  /**
+   * Зона уборки: `null` или `''` — очистить, отсутствие поля — не менять
+   * (пустая строка приходит из web-admin, null — из API-клиентов).
+   */
+  @ApiPropertyOptional({
+    description: 'Зона уборки; null или пустая строка — очистить',
+    example: 'A',
+    nullable: true,
+  })
+  @IsOptional() @IsString() zone?: string | null;
 
   /** null отвязывает техкарту; отсутствие поля — не менять. */
   @ApiPropertyOptional({ description: 'Техкарта помещения; null — отвязать', nullable: true })
