@@ -44,8 +44,8 @@ import '../../helpers/screen_harness.dart';
 /// `CleaningOpsApp` намеренно не поднимается: он тянет `path_provider` (кэш
 /// аватара, размер кэша) и платформенные каналы, а проверяется push, а не
 /// каркас; вместо splash/login сессия задана готовой. Push идёт без Firebase —
-/// [FakePushService]: на стенде `MockPushSender` (`push-sender.factory.ts`) при
-/// пустых `FIREBASE_*`, креды Firebase в разработке не нужны.
+/// [FakePushService]: на стенде `MockPushSender` (`notifications.module.ts`,
+/// Firebase исключён 27.09.2026), внешние креды не нужны.
 ///
 /// Уборка — внутри тела теста (`pushScreenTest`), как в `profile_page_test.dart`:
 /// `closeDatabase` в `addTearDown` не завершается, потому что к этому моменту

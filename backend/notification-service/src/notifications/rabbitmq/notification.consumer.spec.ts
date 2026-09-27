@@ -123,7 +123,7 @@ describe('NotificationConsumer', () => {
     });
   });
 
-  describe('ticket.emergency (e2e-сценарий М3.3 на мок-Firebase)', () => {
+  describe('ticket.emergency (e2e-сценарий М3.3 на мок-push)', () => {
     it('событие ticket.emergency → push залогирован + in-app записи созданы', async () => {
       const { prisma, push, consumer } = build();
       devicesFindMany(prisma);

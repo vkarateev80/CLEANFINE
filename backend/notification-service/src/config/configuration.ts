@@ -10,20 +10,7 @@ export function positiveInt(value: string | undefined, fallback: number): number
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-/** Креды Firebase, достаточные для реального FCM (иначе dev-мок, решение №3). */
-export interface FirebaseCredentials {
-  projectId: string;
-  clientEmail: string;
-  privateKey: string;
-}
-
-/**
- * Реальный FCM включается только при полном наборе кредов: в dev они пустые,
- * поэтому сервис поднимается на MockPushSender и не требует firebase-admin.
- */
-export function isFirebaseConfigured(credentials: FirebaseCredentials): boolean {
-  return Boolean(credentials.projectId && credentials.clientEmail && credentials.privateKey);
-}
+/** Креды Firebase удалены: Firebase из проекта исключён (27.09.2026). */
 
 export default () => ({
   port: positiveInt(
@@ -44,10 +31,6 @@ export default () => ({
     prefetch: positiveInt(process.env.NOTIFICATION_RABBITMQ_PREFETCH, 10),
     reconnectBaseMs: positiveInt(process.env.NOTIFICATION_RABBITMQ_RECONNECT_MS, 5_000),
   },
-  push: {
-    projectId: process.env.FIREBASE_PROJECT_ID ?? '',
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL ?? '',
-    // В .env приватный ключ хранится одной строкой с \n — возвращаем переводы строк.
-    privateKey: (process.env.FIREBASE_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
-  },
+  // Блока push больше нет: Firebase исключён из проекта (27.09.2026),
+  // канал push — только MockPushSender (провайдер PUSH_SENDER в модуле).
 });

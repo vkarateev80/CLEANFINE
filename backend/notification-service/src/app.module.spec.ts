@@ -36,7 +36,7 @@ describe('AppModule (notification-service)', () => {
     expect(moduleRef.get(NotificationsService)).toBeInstanceOf(NotificationsService);
     expect(moduleRef.get(NotificationConsumer)).toBeInstanceOf(NotificationConsumer);
 
-    // В dev FIREBASE_* пусты → обязателен мок-адаптер (решение №3).
+    // Firebase исключён из проекта (27.09.2026) → единственный адаптер — мок.
     expect(moduleRef.get(PUSH_SENDER)).toBeInstanceOf(MockPushSender);
 
     // Глобальные guard-ы объявлены через APP_GUARD: без них API остался бы открытым.
