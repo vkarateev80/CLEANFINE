@@ -274,6 +274,7 @@ ChatMessage chatMessage({
   String authorId = 'peer',
   String text = 'Прорыв трубы в санузле 101. Вода на полу.',
   DateTime? createdAt,
+  DateTime? deliveredAt,
   List<String> attachmentIds = const <String>[],
 }) {
   return ChatMessage(
@@ -282,6 +283,7 @@ ChatMessage chatMessage({
     authorId: authorId,
     text: text,
     createdAt: createdAt ?? DateTime(2026, 9, 16, 10, 5),
+    deliveredAt: deliveredAt,
     attachmentIds: attachmentIds,
   );
 }

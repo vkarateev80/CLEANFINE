@@ -473,7 +473,9 @@ class _MessageStatus extends ConsumerWidget {
             color: AppPalette.primaryLight,
           ),
         );
-      case ChatMessageStatus.read:
+      case ChatMessageStatus.delivered:
+        // Две галочки = устройство получило (серверный `deliveredAt`);
+        // прочтено отличается цветом и подписью в `readUpTo`/семантике.
         return Semantics(
           label: status.label,
           child: Icon(
@@ -481,6 +483,16 @@ class _MessageStatus extends ConsumerWidget {
             key: Key('chat_message_status_${message.id}'),
             size: 14,
             color: AppPalette.primaryLight,
+          ),
+        );
+      case ChatMessageStatus.read:
+        return Semantics(
+          label: status.label,
+          child: Icon(
+            Icons.done_all,
+            key: Key('chat_message_status_${message.id}'),
+            size: 14,
+            color: AppPalette.primary,
           ),
         );
       case ChatMessageStatus.failed:
