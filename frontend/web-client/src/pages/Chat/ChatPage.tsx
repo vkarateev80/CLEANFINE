@@ -302,6 +302,7 @@ export function ChatPage() {
                   message={message}
                   mine={message.authorId === currentUserId}
                   read={readMessageIds.has(message.id)}
+                  delivered={message.deliveredAt !== null}
                 />
               </div>
             );
@@ -355,11 +356,17 @@ function MessageBubble({
   message,
   mine,
   read,
+  delivered,
 }: {
   message: MessageView;
   mine: boolean;
   read: boolean;
+  delivered: boolean;
 }) {
+  // Три состояния (как в мобильном, chat.md §4): ✓ — отправлено,
+  // ✓✓ — доставлено (серверный deliveredAt), ✓✓ жирным — прочитано
+  // (живое событие message:read, оно же выше по приоритету).
+  const statusLabel = read ? 'Прочитано' : delivered ? 'Доставлено' : 'Отправлено';
   return (
     <div className={['flex', mine ? 'justify-end' : 'justify-start'].join(' ')}>
       <div
@@ -378,7 +385,16 @@ function MessageBubble({
           ].join(' ')}
         >
           {formatTime(message.createdAt)}
-          {mine && (read ? ' ✓✓' : ' ✓')}
+          {mine && (
+            <span
+              title={statusLabel}
+              aria-label={statusLabel}
+              data-testid={`message-status-${message.id}`}
+              className={read ? 'ml-0.5 font-semibold' : undefined}
+            >
+              {read || delivered ? ' ✓✓' : ' ✓'}
+            </span>
+          )}
         </span>
       </div>
     </div>

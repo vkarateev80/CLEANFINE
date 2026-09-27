@@ -96,7 +96,7 @@
 | Контейнер | `flex flex-1 flex-col gap-2 overflow-y-auto p-4`; при открытии — автоскролл к последнему сообщению (`scrollIntoView({ block: 'end' })`); при подгрузке истории сохраняется позиция (иначе «прыжок» вверх) |
 | Входящее (от менеджера) | пузырь слева: `max-w-[80%] rounded-2xl rounded-bl-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm` |
 | Исходящее (клиент) | пузырь справа: `max-w-[80%] rounded-2xl rounded-br-md bg-primary-500 px-3 py-2 text-sm text-white` |
-| Время | `text-[10px] text-neutral-400` (внутри пузыря снизу справа) — `font-mono`, `HH:mm`; у исходящих дополнительно галочки прочтения: `✓` — отправлено, `✓✓` — прочитано (`message:read`); цвет `text-white/70` внутри пузыря |
+| Время | `text-[10px] text-neutral-400` (внутри пузыря снизу справа) — `font-mono`, `HH:mm`; у исходящих галочки: `✓` — отправлено, `✓✓` — доставлено (`MessageView.deliveredAt`), `✓✓` жирным — прочитано (`message:read`); цвет `text-white/70` внутри пузыря, у прочитанного `font-semibold` + `title`/`aria-label` со статусом |
 | День | разделитель `mx-auto rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-500` с датой «21 сентября» (`dd.MM.yyyy`, если год не текущий) |
 | Системное сообщение | по центру, `text-xs text-neutral-500`, без пузыря: «Заявка S-1042 создана», «Исполнитель назначен» (тип `SYSTEM` из `ChatType`) |
 | Отправляется (optimistic) | пузырь сразу, `bg-primary-500/70`; при ошибке — рамка `border-danger-500` и подпись «Не отправлено · Повторить» (`Button variant="ghost" size="sm"`), сообщение остаётся в ленте до ретрая или удаления (P2) |

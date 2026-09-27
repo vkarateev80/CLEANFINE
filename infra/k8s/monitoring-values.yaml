@@ -41,8 +41,36 @@ prometheus:
               storage: 10Gi
 
 alertmanager:
+  # Канал алертов (B4): почта на reg.ru → hello@cleanfine.ru.
+  # Пароль НЕ здесь: лежит в /root/monitoring-values-secret.yaml на vps2
+  # (helm upgrade -f monitoring-values.yaml -f monitoring-values-secret.yaml).
+  # SMTP по справке reg.ru: mail.hosting.reg.ru:587 + STARTTLS, логин = адрес ящика.
+  config:
+    global:
+      smtp_smarthost: "mail.hosting.reg.ru:587"
+      smtp_from: hello@cleanfine.ru
+      smtp_auth_username: hello@cleanfine.ru
+      smtp_require_tls: true
+    route:
+      receiver: email-hello
+      group_by: [alertname, namespace]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+    receivers:
+      # Демпфер для подмаршрута Watchdog/InfoInhibitor из дефолтного route:
+      # без него оператор отклоняет конфиг (undefined receiver "null").
+      - name: "null"
+      - name: email-hello
+        email_configs:
+          - to: hello@cleanfine.ru
+            send_resolved: true
   alertmanagerSpec:
     retention: 168h # формат AM только h/m/s (не «7d»)
+    # Чарт кладёт alertmanager.config в Secret alertmanager-<crname>, но без
+    # configSecret оператор монтирует свой дефолтный -generated (receiver: null).
+    # Указываем явно — helm-секрет с SMTP становится источником конфига.
+    configSecret: alertmanager-kps-kube-prometheus-stack-alertmanager
     resources:
       requests: { cpu: 50m, memory: 64Mi }
       limits: { memory: 128Mi }
