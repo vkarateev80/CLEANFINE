@@ -24,7 +24,13 @@ function loadEnv() {
   for (const line of text.split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Z0-9_]+)=(.*)\s*$/);
     // уже заданные в окружении значения не перетираем
-    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
+    if (m && process.env[m[1]] === undefined) {
+      // снимаем обрамляющие кавычки: bash при source делает то же, наш парсер обязан
+      // повторить (иначе Prisma получает "postgresql://…" в кавычках и падает валидацией)
+      let v = m[2];
+      if (/^".*"$/.test(v) || /^'.*'$/.test(v)) v = v.slice(1, -1);
+      process.env[m[1]] = v;
+    }
   }
 }
 loadEnv();

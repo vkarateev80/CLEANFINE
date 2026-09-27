@@ -49,10 +49,18 @@ done
 # Базы девяти сервисов: имя берём из соответствующей переменной .env, чтобы список
 # не разошёлся с docker-compose и CI (там те же имена, джоба e2e).
 env_value() {
-  local key="$1" line
+  local key="$1" line val
   [ -f "$ROOT/.env" ] || return 1
-  line="$(grep -E "^${key}=" "$ROOT/.env" | head -1)" || return 1
-  printf '%s' "${line#*=}"
+  line="$(grep -E "^${key}=" "$ROOT/.env" | head -1)"
+  [ -n "$line" ] || return 1
+  val="${line#*=}"
+  # .env с обрамляющими кавычками: bash при source снимает их сам, grep — нет,
+  # и Prisma получает строку вместе с кавычками («quoted database URL»).
+  case "$val" in
+    \"*\") val="${val:1:${#val}-2}" ;;
+    \'*\') val="${val:1:${#val}-2}" ;;
+  esac
+  printf '%s' "$val"
 }
 
 db_name_from_url() {
