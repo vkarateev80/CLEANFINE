@@ -21,6 +21,7 @@ import { TechCardDetailPage } from '../pages/TechCards/TechCardDetailPage';
 import { TechCardsPage } from '../pages/TechCards/TechCardsPage';
 import { TicketDetailPage } from '../pages/Tickets/TicketDetailPage';
 import { TicketsPage } from '../pages/Tickets/TicketsPage';
+import { TemplatesPage } from '../pages/Templates/TemplatesPage';
 
 /**
  * Роли на маршрутах повторяют права API: чтение объектов доступно всем
@@ -50,6 +51,16 @@ const techCardDetail = (
 const employees = (
   <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
     <PlaceholderPage title="Сотрудники" phase="М1" />
+  </RoleGuard>
+);
+
+/*
+ * Шаблоны: библиотека демо-заготовок. Создание из шаблона дёргает те же
+ * POST, что и обычные экраны, — значит и права те же (ADMIN/SUPERVISOR).
+ */
+const templates = (
+  <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
+    <TemplatesPage />
   </RoleGuard>
 );
 
@@ -83,6 +94,8 @@ export const router = createBrowserRouter([
 
       { path: 'tech-cards', element: techCards },
       { path: 'tech-cards/:id', element: techCardDetail },
+
+      { path: 'templates', element: templates },
 
       /*
        * Заявки (М3.7): чтение доступно всем авторизованным ролям, поэтому

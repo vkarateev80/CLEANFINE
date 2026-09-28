@@ -19,6 +19,8 @@ export const ROUTES = {
   techCards: '/tech-cards',
   techCard: (id: string) => `/tech-cards/${id}`,
 
+  templates: '/templates',
+
   tickets: '/tickets',
   ticket: (id: string) => `/tickets/${id}`,
 
