@@ -63,17 +63,6 @@ function initialValues(operation?: TechOperationWithMaterials): OperationFormVal
   };
 }
 
-/** Короткая подпись чипа пресета: содержимое JSON без фигурных скобок. */
-function equipmentPresetLabel(json: string): string {
-  try {
-    const parsed = JSON.parse(json) as { items?: string[]; ppe?: string[] };
-    const parts = [...(parsed.items ?? []), ...(parsed.ppe ?? [])];
-    return parts.join(', ') || json;
-  } catch {
-    return json;
-  }
-}
-
 export function OperationFormModal({
   open,
   operation,
@@ -309,13 +298,15 @@ export function OperationFormModal({
         <Field
           label="Оборудование (JSON)"
           htmlFor={`${formId}-equipment`}
-          hint='Объект вида { "items": ["швабра"], "ppe": ["перчатки"] }. Пусто — не задано.'
+          hint='Объект вида { "items": ["швабра"], "ppe": ["перчатки"] } — выберите из списка или введите свой. Пусто — не задано.'
           error={errors.equipment}
         >
-          <Textarea
+          {/* Однострочный input: textarea не поддерживает list+datalist,
+              а JSON оборудования пишется в одну строку — как у названия операции. */}
+          <Input
             id={`${formId}-equipment`}
             data-testid="operation-equipment"
-            rows={4}
+            list={`${formId}-equipment-options`}
             spellCheck={false}
             className="font-mono text-sm"
             invalid={Boolean(errors.equipment)}
@@ -323,22 +314,11 @@ export function OperationFormModal({
             placeholder='{ "items": ["швабра", "ведро"] }'
             onChange={(event) => patch({ equipmentText: event.target.value })}
           />
-          {/* textarea не поддерживает list+datalist — пресеты вставляются кнопками. */}
-          <div className="flex flex-wrap gap-2 pt-1" data-testid="equipment-presets">
+          <datalist id={`${formId}-equipment-options`}>
             {presetValues('equipment-json').map((preset) => (
-              <Button
-                key={preset}
-                type="button"
-                variant="secondary"
-                size="sm"
-                title={preset}
-                data-testid="equipment-preset"
-                onClick={() => patch({ equipmentText: preset })}
-              >
-                {equipmentPresetLabel(preset)}
-              </Button>
+              <option key={preset} value={preset} />
             ))}
-          </div>
+          </datalist>
         </Field>
 
         <section className="flex flex-col gap-3">
