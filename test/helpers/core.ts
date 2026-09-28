@@ -13,8 +13,9 @@ import { userByRole, type FixtureUser } from './users';
  *  - file-service  (E2E_FILE_URL, :3002) — загрузка файлов и привязки.
  *
  * ВАЖНО про логин: auth-service ограничивает вход по частоте (прод-дефолт 5/мин).
- * Хелпер кэширует токен на роль на время одного воркера, поэтому весь набор делает
- * ровно 4 логина вместо десятков. Если лимит всё же поднят (штатный прогон стенда),
+ * Хелпер кэширует токен на роль на TOKEN_MAX_AGE_MS (13 мин — меньше JWT_ACCESS_TTL),
+ * поэтому набор делает один логин на роль в окно, а не десятки, и не протухает
+ * на длинных прогонах. Если лимит всё же поднят (штатный прогон стенда),
  * кэш просто экономит запросы.
  */
 
@@ -37,11 +38,18 @@ export const authHeader = (token: string): Record<string, string> => ({
 /** Окно лимита входа в auth-service (прод-дефолт: 5 попыток / 60 с). */
 const THROTTLE_WINDOW_MS = 61_000;
 
-const tokenCache = new Map<Role, Promise<string>>();
+/**
+ * Срок жизни кэша токена: меньше `JWT_ACCESS_TTL` (15m в .env) с запасом.
+ * Без этого длинный прогон (на загруженной машине — 16+ мин) продолжает
+ * ходить по протухшему access-токену и получает 401.
+ */
+const TOKEN_MAX_AGE_MS = 13 * 60_000;
+
+const tokenCache = new Map<Role, { promise: Promise<string>; createdAt: number }>();
 
 /**
- * Логин под ролью из test/fixtures/users.json; результат кэшируется на прогон,
- * поэтому весь набор делает по одному логину на роль.
+ * Логин под ролью из test/fixtures/users.json; результат кэшируется на время
+ * TOKEN_MAX_AGE_MS, поэтому набор делает по одному логину на роль на ~15 минут.
  *
  * Тонкость стенда: auth-service ограничивает вход (прод-дефолт 5/мин на IP).
  * Если квота уже израсходована (например, перед этим отработал auth-набор),
@@ -51,7 +59,7 @@ const tokenCache = new Map<Role, Promise<string>>();
  */
 export function loginAs(request: APIRequestContext, role: Role): Promise<string> {
   const cached = tokenCache.get(role);
-  if (cached) return cached;
+  if (cached && Date.now() - cached.createdAt < TOKEN_MAX_AGE_MS) return cached.promise;
 
   const promise = (async () => {
     const user = userByRole(role);
@@ -70,7 +78,7 @@ export function loginAs(request: APIRequestContext, role: Role): Promise<string>
     return ((await res.json()) as TokenPair).accessToken;
   })();
 
-  tokenCache.set(role, promise);
+  tokenCache.set(role, { promise, createdAt: Date.now() });
   return promise;
 }
 

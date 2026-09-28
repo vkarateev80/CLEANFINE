@@ -27,7 +27,7 @@ export interface PushResult {
 
 /**
  * Адаптер доставки push. Единственная точка знания о провайдере:
- * в dev — MockPushSender, в prod — FirebasePushSender (FCM).
+ * реализация в проекте одна — MockPushSender (Firebase исключён, 27.09.2026).
  */
 export interface PushSender {
   readonly name: string;

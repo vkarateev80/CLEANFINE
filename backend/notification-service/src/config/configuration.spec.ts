@@ -1,7 +1,6 @@
 import configuration, {
   DEFAULT_PORT,
   DEFAULT_RABBITMQ_URL,
-  isFirebaseConfigured,
   positiveInt,
 } from './configuration';
 
@@ -21,9 +20,6 @@ describe('configuration (notification-service)', () => {
       'NOTIFICATION_RABBITMQ_ENABLED',
       'NOTIFICATION_RABBITMQ_PREFETCH',
       'NOTIFICATION_RABBITMQ_RECONNECT_MS',
-      'FIREBASE_PROJECT_ID',
-      'FIREBASE_CLIENT_EMAIL',
-      'FIREBASE_PRIVATE_KEY',
     ]) {
       delete process.env[name];
     }
@@ -43,8 +39,7 @@ describe('configuration (notification-service)', () => {
     expect(cfg.rabbitmq.enabled).toBe(true);
     expect(cfg.rabbitmq.prefetch).toBe(10);
     expect(cfg.rabbitmq.reconnectBaseMs).toBe(5_000);
-    // Пустые FIREBASE_* — это и есть dev-режим (решение №3): мок вместо FCM.
-    expect(cfg.push).toEqual({ projectId: '', clientEmail: '', privateKey: '' });
+    // Блока push нет: Firebase исключён из проекта (27.09.2026).
   });
 
   it('переопределяется переменными окружения', () => {
@@ -55,9 +50,6 @@ describe('configuration (notification-service)', () => {
     process.env.NOTIFICATION_RABBITMQ_ENABLED = 'false';
     process.env.NOTIFICATION_RABBITMQ_PREFETCH = '25';
     process.env.NOTIFICATION_RABBITMQ_RECONNECT_MS = '1000';
-    process.env.FIREBASE_PROJECT_ID = 'cleaning-ops';
-    process.env.FIREBASE_CLIENT_EMAIL = 'svc@cleaning-ops.iam.gserviceaccount.com';
-    process.env.FIREBASE_PRIVATE_KEY = 'line1\\nline2';
 
     const cfg = configuration();
 
@@ -67,9 +59,6 @@ describe('configuration (notification-service)', () => {
     expect(cfg.rabbitmq.enabled).toBe(false);
     expect(cfg.rabbitmq.prefetch).toBe(25);
     expect(cfg.rabbitmq.reconnectBaseMs).toBe(1_000);
-    expect(cfg.push.projectId).toBe('cleaning-ops');
-    // В .env ключ хранится одной строкой: сервис обязан вернуть реальные переводы строк.
-    expect(cfg.push.privateKey).toBe('line1\nline2');
   });
 
   it('откатывается на PORT, если NOTIFICATION_SERVICE_PORT не задан', () => {
@@ -114,19 +103,4 @@ describe('positiveInt', () => {
   ])('значение %s с fallback %s → %s', (value, fallback, expected) => {
     expect(positiveInt(value as string | undefined, fallback)).toBe(expected);
   });
-});
-
-describe('isFirebaseConfigured', () => {
-  const full = { projectId: 'p', clientEmail: 'e', privateKey: 'k' };
-
-  it('полный набор кредов включает реальный FCM', () => {
-    expect(isFirebaseConfigured(full)).toBe(true);
-  });
-
-  it.each(['projectId', 'clientEmail', 'privateKey'] as const)(
-    'без %s остаётся dev-мок',
-    (missing) => {
-      expect(isFirebaseConfigured({ ...full, [missing]: '' })).toBe(false);
-    },
-  );
 });

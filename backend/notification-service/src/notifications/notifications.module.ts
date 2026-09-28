@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { PUSH_SENDER } from './push/push-sender';
-import { createPushSender } from './push/push-sender.factory';
+import { MockPushSender } from './push/mock-push.sender';
 import { NotificationConsumer } from './rabbitmq/notification.consumer';
 import { RabbitmqService } from './rabbitmq/rabbitmq.service';
 
@@ -14,10 +13,10 @@ import { RabbitmqService } from './rabbitmq/rabbitmq.service';
     RabbitmqService,
     NotificationConsumer,
     {
-      // Реализация push выбирается по конфигу: dev — мок, prod — FCM.
+      // Firebase из проекта исключён (решение владельца, 27.09.2026):
+      // единственный канал push — мок, реальная отправка не подключается.
       provide: PUSH_SENDER,
-      useFactory: (config: ConfigService) => createPushSender(config),
-      inject: [ConfigService],
+      useClass: MockPushSender,
     },
   ],
   exports: [NotificationsService],
