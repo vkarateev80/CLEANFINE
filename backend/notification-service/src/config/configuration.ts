@@ -13,10 +13,7 @@ export function positiveInt(value: string | undefined, fallback: number): number
 /** Креды Firebase удалены: Firebase из проекта исключён (27.09.2026). */
 
 export default () => ({
-  port: positiveInt(
-    process.env.NOTIFICATION_SERVICE_PORT ?? process.env.PORT,
-    DEFAULT_PORT,
-  ),
+  port: positiveInt(process.env.NOTIFICATION_SERVICE_PORT ?? process.env.PORT, DEFAULT_PORT),
   jwt: {
     // Тот же секрет, что у auth-service: токены auth действуют в notification-service.
     accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret',

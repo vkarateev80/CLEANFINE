@@ -72,7 +72,9 @@ describe('UsersController (HTTP)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }),
+    );
     await app.init();
     jwt = moduleRef.get(JwtService);
   });
@@ -93,7 +95,12 @@ describe('UsersController (HTTP)', () => {
         .set('Authorization', asAdmin())
         .expect(200);
 
-      expect(usersService.list).toHaveBeenCalledWith({ skip: 0, take: 50, role: undefined, search: undefined });
+      expect(usersService.list).toHaveBeenCalledWith({
+        skip: 0,
+        take: 50,
+        role: undefined,
+        search: undefined,
+      });
       expect(res.body.total).toBe(1);
     });
 
@@ -103,7 +110,12 @@ describe('UsersController (HTTP)', () => {
         .get('/api/users?skip=10&take=5')
         .set('Authorization', asAdmin())
         .expect(200);
-      expect(usersService.list).toHaveBeenCalledWith({ skip: 10, take: 5, role: undefined, search: undefined });
+      expect(usersService.list).toHaveBeenCalledWith({
+        skip: 10,
+        take: 5,
+        role: undefined,
+        search: undefined,
+      });
     });
 
     it('нечисловой skip → безопасный дефолт 0, а не NaN и не 500', async () => {
@@ -132,13 +144,17 @@ describe('UsersController (HTTP)', () => {
         .get('/api/users?isActive=true')
         .set('Authorization', asAdmin())
         .expect(200);
-      expect(usersService.list).toHaveBeenLastCalledWith(expect.objectContaining({ isActive: true }));
+      expect(usersService.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ isActive: true }),
+      );
 
       await request(app.getHttpServer())
         .get('/api/users?isActive=1')
         .set('Authorization', asAdmin())
         .expect(200);
-      expect(usersService.list).toHaveBeenLastCalledWith(expect.objectContaining({ isActive: false }));
+      expect(usersService.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ isActive: false }),
+      );
     });
 
     it('без токена → 401', async () => {

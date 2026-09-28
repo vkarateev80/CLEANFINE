@@ -1,15 +1,7 @@
 import { ErrorBanner, Field, Input, Select, errorMessage } from '../../components/ui';
 import type { TechCardListItem } from '../../types/core';
-import {
-  isCoordsError,
-  rectAreaHint,
-  type PlanSize,
-} from './floorPlanUtils';
-import {
-  rectFromForm,
-  type RoomFormErrors,
-  type RoomFormValues,
-} from './roomForm';
+import { isCoordsError, rectAreaHint, type PlanSize } from './floorPlanUtils';
+import { rectFromForm, type RoomFormErrors, type RoomFormValues } from './roomForm';
 
 interface RoomFormFieldsProps {
   idPrefix: string;
@@ -156,7 +148,10 @@ export function RoomFormFields({
         </Field>
       </div>
 
-      <fieldset className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3" disabled={disabled}>
+      <fieldset
+        className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3"
+        disabled={disabled}
+      >
         <legend className="px-1 text-sm text-neutral-500">Координаты, px</legend>
         {/* Четыре координаты в строку (desktop/планшет). На телефоне — по две в
             ряд: поле x/y/ширина/высота в 60 px шириной нечитаемо, а именно эта

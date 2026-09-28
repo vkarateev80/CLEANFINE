@@ -133,9 +133,7 @@ export function MessagesPage() {
       <PageHeader
         title="Сообщения"
         subtitle={
-          unreadTotal > 0
-            ? `Непрочитанных сообщений: ${unreadTotal}`
-            : 'Все сообщения прочитаны'
+          unreadTotal > 0 ? `Непрочитанных сообщений: ${unreadTotal}` : 'Все сообщения прочитаны'
         }
         actions={
           canManage ? (
@@ -365,8 +363,8 @@ export function MessagesPage() {
           {createChat.isError ? <ErrorBanner error={createChat.error} /> : null}
           {participantOptions.length === 0 ? (
             <SoftWarning>
-              Справочник сотрудников доступен ролям ADMIN и SUPERVISOR — выбрать собеседника
-              не из кого.
+              Справочник сотрудников доступен ролям ADMIN и SUPERVISOR — выбрать собеседника не из
+              кого.
             </SoftWarning>
           ) : (
             <>

@@ -23,7 +23,9 @@ export class NotificationConsumer implements OnModuleInit {
 
   onModuleInit(): void {
     for (const routingKey of NOTIFICATION_ROUTING_KEYS) {
-      this.rabbit.subscribe(EVENT_QUEUES[routingKey], routingKey, (message) => this.handle(message));
+      this.rabbit.subscribe(EVENT_QUEUES[routingKey], routingKey, (message) =>
+        this.handle(message),
+      );
     }
     this.logger.log(`Консьюмер уведомлений: очередей ${NOTIFICATION_ROUTING_KEYS.length}`);
   }
@@ -54,6 +56,8 @@ export class NotificationConsumer implements OnModuleInit {
       resolved.params,
       resolved.data,
     );
-    this.logger.log(`Событие ${message.routingKey}: уведомлено ${notified} из ${recipients.length}`);
+    this.logger.log(
+      `Событие ${message.routingKey}: уведомлено ${notified} из ${recipients.length}`,
+    );
   }
 }

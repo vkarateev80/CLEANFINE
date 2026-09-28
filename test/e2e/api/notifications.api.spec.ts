@@ -50,7 +50,10 @@ import { authHeader, bodyText, loginAs, runTag } from '../../helpers/core';
 test.describe.configure({ timeout: 180_000 });
 
 /** Объект core для аварийных заявок: уникален на прогон, уборка идёт по нему. */
-const objectId = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+const objectId = `00000000-0000-4000-8000-${runTag()
+  .replace(/[^0-9a-f]/g, '')
+  .slice(-12)
+  .padStart(12, '0')}`;
 
 test.afterEach(() => {
   flushOperationsData();
@@ -472,16 +475,16 @@ test.describe('Notifications: настройки', () => {
     ]);
 
     // Дубликаты схлопываются.
-    const duplicates = await updateNotificationSettings(
-      request,
-      ['MATERIAL_LOW', 'MATERIAL_LOW'],
-      { token: user.token },
-    );
+    const duplicates = await updateNotificationSettings(request, ['MATERIAL_LOW', 'MATERIAL_LOW'], {
+      token: user.token,
+    });
     expect(((await duplicates.json()) as NotificationSettings).disabledTypes).toEqual([
       'MATERIAL_LOW',
     ]);
 
-    const invalid = await updateNotificationSettings(request, ['NOT_A_TYPE'], { token: user.token });
+    const invalid = await updateNotificationSettings(request, ['NOT_A_TYPE'], {
+      token: user.token,
+    });
     await expectStatus(invalid, 400, 'недопустимый тип уведомления');
     expect(await bodyText(invalid)).toContain('Недопустимый тип уведомления');
 

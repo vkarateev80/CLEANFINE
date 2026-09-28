@@ -96,7 +96,12 @@ export function ClientLayout() {
             <div className="max-w-[10rem] truncate text-xs text-neutral-500">{user?.fullName}</div>
           </div>
 
-          <Button variant="ghost" size="sm" onClick={() => void handleLogout()} className="min-h-[44px]">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleLogout()}
+            className="min-h-[44px]"
+          >
             Выйти
           </Button>
         </header>

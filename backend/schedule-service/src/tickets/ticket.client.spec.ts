@@ -49,7 +49,9 @@ describe('TicketClient', () => {
 
   it('создаёт плановую заявку служебным токеном', async () => {
     const { client } = build();
-    (global.fetch as jest.Mock).mockResolvedValue(jsonResponse(201, { id: 'ticket-1', status: 'assigned' }));
+    (global.fetch as jest.Mock).mockResolvedValue(
+      jsonResponse(201, { id: 'ticket-1', status: 'assigned' }),
+    );
 
     await expect(client.createTicket(INPUT)).resolves.toEqual({ id: 'ticket-1' });
     expect(global.fetch).toHaveBeenCalledWith('http://localhost:3005/api/tickets', {
@@ -79,7 +81,9 @@ describe('TicketClient', () => {
     const { client } = build();
     (global.fetch as jest.Mock).mockResolvedValue(jsonResponse(401, {}));
 
-    await expect(client.createTicket(INPUT)).rejects.toThrow('ticket-service отклонил служебный токен');
+    await expect(client.createTicket(INPUT)).rejects.toThrow(
+      'ticket-service отклонил служебный токен',
+    );
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 

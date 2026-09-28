@@ -31,10 +31,14 @@ describe('FilesController', () => {
 
     await controller.upload(file, { kind: 'photo' }, user);
 
-    expect(files.upload).toHaveBeenCalledWith(file, { kind: 'photo' }, {
-      id: 'u1',
-      fullName: 'Админ',
-    });
+    expect(files.upload).toHaveBeenCalledWith(
+      file,
+      { kind: 'photo' },
+      {
+        id: 'u1',
+        fullName: 'Админ',
+      },
+    );
   });
 
   it('list применяет значения по умолчанию', async () => {

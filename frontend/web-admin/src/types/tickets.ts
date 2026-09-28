@@ -214,8 +214,4 @@ export const TICKET_TRANSITION_LABELS: Record<TicketStatus, string> = {
 };
 
 /** Действие перехода требует подтверждения (необратимые/«отрицательные» шаги). */
-export const TICKET_TRANSITION_CONFIRM: readonly TicketStatus[] = [
-  'rejected',
-  'closed',
-  'overdue',
-];
+export const TICKET_TRANSITION_CONFIRM: readonly TicketStatus[] = ['rejected', 'closed', 'overdue'];

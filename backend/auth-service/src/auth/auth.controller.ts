@@ -33,7 +33,10 @@ export class AuthController {
   @ApiOperation({ summary: 'Вход по email и паролю' })
   @ApiResponse({ status: 201, description: 'Пара токенов', type: TokenPairDto })
   @ApiResponse({ status: 400, description: 'Некорректное тело запроса' })
-  @ApiResponse({ status: 401, description: 'Неверный email или пароль / пользователь деактивирован' })
+  @ApiResponse({
+    status: 401,
+    description: 'Неверный email или пароль / пользователь деактивирован',
+  })
   @ApiResponse({ status: 429, description: 'Превышен лимит попыток входа' })
   async login(@Body() dto: LoginDto): Promise<TokenPairDto> {
     return this.auth.login(dto);
@@ -65,8 +68,7 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Сохранить/заменить биометрический ключ текущего пользователя (М6)',
-    description:
-      'Вызывается после первого входа по паролю. Ключ не возвращается в /me.',
+    description: 'Вызывается после первого входа по паролю. Ключ не возвращается в /me.',
   })
   @ApiResponse({ status: 201, description: 'Профиль (без biometricKey)' })
   @ApiResponse({ status: 401, description: 'Нет access-токена' })
@@ -115,7 +117,10 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'Пароль изменён' })
   @ApiResponse({ status: 400, description: 'Новый пароль короче 6 символов' })
   @ApiResponse({ status: 401, description: 'Текущий пароль неверен' })
-  async changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<void> {
     await this.auth.changePassword(user.id, dto);
   }
 

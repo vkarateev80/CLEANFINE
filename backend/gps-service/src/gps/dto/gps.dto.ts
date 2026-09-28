@@ -118,7 +118,9 @@ export class IsGeoJsonPolygonConstraint implements ValidatorConstraintInterface 
           (position: unknown) =>
             Array.isArray(position) &&
             position.length === 2 &&
-            position.every((coordinate) => typeof coordinate === 'number' && Number.isFinite(coordinate)) &&
+            position.every(
+              (coordinate) => typeof coordinate === 'number' && Number.isFinite(coordinate),
+            ) &&
             (position[0] as number) >= -180 &&
             (position[0] as number) <= 180 &&
             (position[1] as number) >= -90 &&
@@ -162,7 +164,10 @@ export class GeofenceBoundaryDto {
 
 /** Создание геозоны объекта core (М3.1: привязка геозоны к objectId). */
 export class CreateGeofenceDto {
-  @ApiProperty({ description: 'ID объекта в core-service', example: '3f1a5f9e-9a1e-4c6d-9a1e-000000000001' })
+  @ApiProperty({
+    description: 'ID объекта в core-service',
+    example: '3f1a5f9e-9a1e-4c6d-9a1e-000000000001',
+  })
   @IsUUID('4', { message: 'objectId должен быть UUID' })
   objectId!: string;
 
@@ -204,7 +209,10 @@ export class GeofenceCheckQueryDto extends CoordinatesQueryDto {}
 
 /** ?objectId= для GET /api/gps/geofences (список геозон, нужен карте админки). */
 export class GeofenceListQueryDto {
-  @ApiPropertyOptional({ description: 'Фильтр по объекту core-service', example: '3f1a5f9e-9a1e-4c6d-9a1e-000000000001' })
+  @ApiPropertyOptional({
+    description: 'Фильтр по объекту core-service',
+    example: '3f1a5f9e-9a1e-4c6d-9a1e-000000000001',
+  })
   @IsOptional()
   @IsUUID('4', { message: 'objectId должен быть UUID' })
   objectId?: string;
@@ -227,12 +235,18 @@ export class TrackHistoryQueryDto {
   @IsUUID('4', { message: 'userId должен быть UUID' })
   userId!: string;
 
-  @ApiPropertyOptional({ description: 'Начало периода (ISO 8601)', example: '2026-09-15T00:00:00.000Z' })
+  @ApiPropertyOptional({
+    description: 'Начало периода (ISO 8601)',
+    example: '2026-09-15T00:00:00.000Z',
+  })
   @IsOptional()
   @IsISO8601({}, { message: 'from должен быть датой ISO 8601' })
   from?: string;
 
-  @ApiPropertyOptional({ description: 'Конец периода (ISO 8601)', example: '2026-09-15T23:59:59.000Z' })
+  @ApiPropertyOptional({
+    description: 'Конец периода (ISO 8601)',
+    example: '2026-09-15T23:59:59.000Z',
+  })
   @IsOptional()
   @IsISO8601({}, { message: 'to должен быть датой ISO 8601' })
   to?: string;

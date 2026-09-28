@@ -120,9 +120,7 @@ export function useObjectScope(user: SessionUser | null): ObjectScope {
     return { object: own[0], reason: `ownerClientId = ${user.id}` };
   }, [debug, debugQuery.data, listQuery.data, user]);
 
-  const mismatch = Boolean(
-    requestedId && resolved.object && requestedId !== resolved.object.id,
-  );
+  const mismatch = Boolean(requestedId && resolved.object && requestedId !== resolved.object.id);
 
   let state: ScopeState;
   if (debug) {

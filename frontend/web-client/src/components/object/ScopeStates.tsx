@@ -57,8 +57,8 @@ export function ScopeErrorScreen({ error, onRetry }: { error: unknown; onRetry: 
     <div className="flex flex-col gap-3">
       <ErrorBanner error={error} onRetry={onRetry} />
       <p className="text-xs text-neutral-500">
-        Не удалось получить список объектов. Проверьте соединение — данные объекта появятся
-        после успешного запроса.
+        Не удалось получить список объектов. Проверьте соединение — данные объекта появятся после
+        успешного запроса.
       </p>
     </div>
   );

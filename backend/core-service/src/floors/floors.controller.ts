@@ -132,9 +132,7 @@ function parseScale(value?: string): number | undefined {
   if (value === undefined || value === '') return undefined;
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new BadRequestException(
-      `planScale: ожидается положительное число, получено «${value}»`,
-    );
+    throw new BadRequestException(`planScale: ожидается положительное число, получено «${value}»`);
   }
   return parsed;
 }

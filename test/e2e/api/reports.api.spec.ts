@@ -63,7 +63,9 @@ test.beforeAll(async ({ request }) => {
         break;
       }
     } catch (error) {
-      attempts.push(`${candidate} → ${error instanceof Error ? error.message.split('\n')[0] : error}`);
+      attempts.push(
+        `${candidate} → ${error instanceof Error ? error.message.split('\n')[0] : error}`,
+      );
     }
   }
   if (!API_BASE) {
@@ -510,7 +512,10 @@ test.describe('Отчёты: доступ', () => {
   test('чужой/несуществующий objectId отдаёт пустой отчёт с нулевыми итогами', async ({
     request,
   }) => {
-    const foreign = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+    const foreign = `00000000-0000-4000-8000-${runTag()
+      .replace(/[^0-9a-f]/g, '')
+      .slice(-12)
+      .padStart(12, '0')}`;
 
     const consumption = await reportApi(request, '/api/materials/reports/consumption', {
       objectId: foreign,

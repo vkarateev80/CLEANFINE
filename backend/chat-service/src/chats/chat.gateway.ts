@@ -121,13 +121,18 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     try {
       // Отправитель входит в число онлайн-получателей, поэтому его сокеты
       // исключаются из рассылки отдельно: «кроме отправителя» из устава.
-      const plan = await this.chats.sendMessage(parsed.value.chatId, {
-        text: parsed.value.text,
-        attachmentIds: parsed.value.attachmentIds,
-        ...(parsed.value.clientMessageId
-          ? { clientMessageId: parsed.value.clientMessageId }
-          : {}),
-      }, user, this.getOnlineUserIds());
+      const plan = await this.chats.sendMessage(
+        parsed.value.chatId,
+        {
+          text: parsed.value.text,
+          attachmentIds: parsed.value.attachmentIds,
+          ...(parsed.value.clientMessageId
+            ? { clientMessageId: parsed.value.clientMessageId }
+            : {}),
+        },
+        user,
+        this.getOnlineUserIds(),
+      );
 
       // Дубль по clientMessageId: получатели уже видели сообщение в первый
       // раз — повторная рассыла создала бы второй пузырь. Ack отдаём тот же.
@@ -161,9 +166,13 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       return { ok: false, error: parsed.error };
     }
     try {
-      const result = await this.chats.markRead(parsed.value.chatId, {
-        lastMessageId: parsed.value.lastMessageId,
-      }, user);
+      const result = await this.chats.markRead(
+        parsed.value.chatId,
+        {
+          lastMessageId: parsed.value.lastMessageId,
+        },
+        user,
+      );
       this.emitMessageRead(result);
       return { ok: true, readAt: result.readAt };
     } catch (error) {

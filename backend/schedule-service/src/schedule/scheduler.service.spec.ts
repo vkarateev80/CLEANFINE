@@ -177,7 +177,10 @@ describe('SchedulerService (М4.4–М4.5)', () => {
       await scheduler.runScan(NOW);
       expect(schedule.scanMissedAndAutoCheckout).toHaveBeenCalledTimes(1);
 
-      release({ missed: { scanned: 0, missed: 0, eventIds: [] }, autoCheckout: { closed: 0, eventIds: [] } });
+      release({
+        missed: { scanned: 0, missed: 0, eventIds: [] },
+        autoCheckout: { closed: 0, eventIds: [] },
+      });
       await first;
     });
   });

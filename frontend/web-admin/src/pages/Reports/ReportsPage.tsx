@@ -194,21 +194,18 @@ export function ReportsPage() {
           обёртку, чтобы на планшете и desktop вкладки остались прижатыми вправо.
         */}
         <div className="ml-auto max-md:ml-0 max-md:w-full max-md:overflow-x-auto">
-          <nav
-            className="flex flex-wrap gap-1 max-md:w-max max-md:flex-nowrap"
-            aria-label="Отчёты"
-          >
-          {TABS.map((item) => (
-            <Button
-              key={item.key}
-              variant={item.key === tab ? 'primary' : 'ghost'}
-              size="sm"
-              data-testid={`report-tab-${item.key}`}
-              onClick={() => write({ tab: item.key })}
-            >
-              {item.label}
-            </Button>
-          ))}
+          <nav className="flex flex-wrap gap-1 max-md:w-max max-md:flex-nowrap" aria-label="Отчёты">
+            {TABS.map((item) => (
+              <Button
+                key={item.key}
+                variant={item.key === tab ? 'primary' : 'ghost'}
+                size="sm"
+                data-testid={`report-tab-${item.key}`}
+                onClick={() => write({ tab: item.key })}
+              >
+                {item.label}
+              </Button>
+            ))}
           </nav>
         </div>
       </Card>

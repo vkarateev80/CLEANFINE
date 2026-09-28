@@ -43,7 +43,11 @@ describe('JwtStrategy', () => {
   describe('validate', () => {
     it('возвращает безопасный AuthUser без секретных полей', async () => {
       prisma.user.findUnique.mockResolvedValue(dbUser);
-      const result = await buildStrategy().validate({ sub: 'u1', email: dbUser.email, role: 'ADMIN' });
+      const result = await buildStrategy().validate({
+        sub: 'u1',
+        email: dbUser.email,
+        role: 'ADMIN',
+      });
 
       expect(result).toEqual({
         id: 'u1',

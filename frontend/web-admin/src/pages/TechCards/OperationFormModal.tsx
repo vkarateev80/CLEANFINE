@@ -148,7 +148,9 @@ export function OperationFormModal({
           materialId,
           unit: picked.unit,
           consumptionPerOperation:
-            row.consumptionPerOperation > 0 ? row.consumptionPerOperation : picked.defaultConsumption,
+            row.consumptionPerOperation > 0
+              ? row.consumptionPerOperation
+              : picked.defaultConsumption,
         };
       }),
     }));
@@ -408,9 +410,7 @@ export function OperationFormModal({
                           <span
                             data-testid="operation-material-name"
                             className={
-                              info.missing
-                                ? 'text-xs text-neutral-400'
-                                : 'text-xs text-neutral-500'
+                              info.missing ? 'text-xs text-neutral-400' : 'text-xs text-neutral-500'
                             }
                           >
                             {info.label}

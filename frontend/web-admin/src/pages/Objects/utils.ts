@@ -180,14 +180,10 @@ export function defaultFloorName(number: number): string {
 
 export const MAX_PLAN_BYTES = 10 * 1024 * 1024;
 
-export const PLAN_ACCEPT = '.png,.jpg,.jpeg,.pdf,.svg,image/png,image/jpeg,image/svg+xml,application/pdf';
+export const PLAN_ACCEPT =
+  '.png,.jpg,.jpeg,.pdf,.svg,image/png,image/jpeg,image/svg+xml,application/pdf';
 
-const PLAN_MIME_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/svg+xml',
-  'application/pdf',
-];
+const PLAN_MIME_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'application/pdf'];
 
 /** Форматы и лимит 10 МБ задвоены на бэкенде (file-service) — здесь, чтобы не ждать 413. */
 export function planFileError(file: File): string | null {

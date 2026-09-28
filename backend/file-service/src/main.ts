@@ -30,10 +30,9 @@ async function bootstrap(): Promise<void> {
 
   const port = Number(process.env.PORT) || 3002;
   await app.listen(port);
-   
+
   console.log(`file-service запущен: http://localhost:${port}/api`);
   if (process.env.NODE_ENV !== 'production') {
-     
     console.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
 }

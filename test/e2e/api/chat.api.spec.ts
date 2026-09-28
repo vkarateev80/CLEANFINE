@@ -138,7 +138,10 @@ test.afterAll(() => {
 
 /** Случайный UUID v4: на неизвестный id сервис обязан ответить 404, а не 400. */
 function randomUuid(): string {
-  const hex = runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0');
+  const hex = runTag()
+    .replace(/[^0-9a-f]/g, '')
+    .slice(-12)
+    .padStart(12, '0');
   return `00000000-0000-4000-8000-${hex}`;
 }
 
@@ -271,7 +274,9 @@ async function connectAuthorized(
  * Соединение БЕЗ токена: сервер обязан прислать `error` и разорвать соединение.
  * Возвращает полученный payload ошибки, чтобы тест сверил текст контракта.
  */
-async function connectUnauthorized(timeoutMs = 8_000): Promise<{ error?: unknown; connected: boolean }> {
+async function connectUnauthorized(
+  timeoutMs = 8_000,
+): Promise<{ error?: unknown; connected: boolean }> {
   const socket = newSocket(null, timeoutMs);
   let errorPayload: unknown;
   let sawConnect = false;
@@ -393,12 +398,19 @@ test.describe('Чаты: изоляция участников', () => {
 
     // Участник видит чат и его деталь.
     const operatorChats = await listMyChats(request, { role: 'OPERATOR' });
-    expect(operatorChats.map((item) => item.id), 'чат есть в списке участника').toContain(chat.id);
+    expect(
+      operatorChats.map((item) => item.id),
+      'чат есть в списке участника',
+    ).toContain(chat.id);
     const detail = await getChatOrFail(request, chat.id, { role: 'OPERATOR' });
-    expect(detail.members.map((member) => member.userId).sort()).toEqual([adminId, operatorId].sort());
+    expect(detail.members.map((member) => member.userId).sort()).toEqual(
+      [adminId, operatorId].sort(),
+    );
 
     // ADMIN (создатель) тоже видит чат.
-    expect((await listMyChats(request, { role: 'ADMIN' })).map((item) => item.id)).toContain(chat.id);
+    expect((await listMyChats(request, { role: 'ADMIN' })).map((item) => item.id)).toContain(
+      chat.id,
+    );
 
     // SUPERVISOR — посторонний для direct-чата: роли ADMIN/SUPERVISOR дают доступ только
     // к чатам object/ticket, поэтому здесь работает базовое правило «участие в ChatMember».
@@ -488,9 +500,14 @@ test.describe('Чаты: TICKET', () => {
     );
 
     // Отправка в чат заявки доступна исполнителю — чат не «только для чтения».
-    const message = await sendMessage(request, first.id, `E2E-M56 сообщение по заявке ${runTag()}`, {
-      role: 'OPERATOR',
-    });
+    const message = await sendMessage(
+      request,
+      first.id,
+      `E2E-M56 сообщение по заявке ${runTag()}`,
+      {
+        role: 'OPERATOR',
+      },
+    );
     expect(message.authorId, 'автор сообщения — исполнитель').toBe(operatorId);
   });
 });
@@ -623,20 +640,25 @@ test.describe('Чаты: история и пагинация', () => {
     );
 
     // Страница 2: строго старше курсора, без пересечений с первой.
-    const page2 = await messagesPage(request, chat.id, { before: page1.nextBefore as string, limit: 2 });
+    const page2 = await messagesPage(request, chat.id, {
+      before: page1.nextBefore as string,
+      limit: 2,
+    });
     expect(textsOf(page2.items), 'вторая страница — предыдущие два сообщения').toEqual([
       texts[1],
       texts[2],
     ]);
     expect(page2.hasMore).toBe(true);
-    expect(
-      Date.parse(page2.items[1].createdAt),
-      'страницы не пересекаются',
-    ).toBeLessThan(Date.parse(page1.items[0].createdAt));
+    expect(Date.parse(page2.items[1].createdAt), 'страницы не пересекаются').toBeLessThan(
+      Date.parse(page1.items[0].createdAt),
+    );
 
     // Страница 3 доходит до самого старого нашего сообщения; всё её содержимое строго
     // старше второй страницы (фильтр createdAt < before строгий).
-    const page3 = await messagesPage(request, chat.id, { before: page2.nextBefore as string, limit: 2 });
+    const page3 = await messagesPage(request, chat.id, {
+      before: page2.nextBefore as string,
+      limit: 2,
+    });
     expect(page3.items.at(-1)?.text, 'третья страница закрывает нашу историю').toBe(texts[0]);
     for (const item of page3.items) {
       expect(Date.parse(item.createdAt)).toBeLessThan(Date.parse(page2.items[0].createdAt));
@@ -670,8 +692,15 @@ test.describe('Чаты: отметка прочтения', () => {
     // Выравниваем состояние: читаем самое свежее сообщение чата (в нём могли быть
     // сообщения прошлых прогонов) — иначе unreadCount содержал бы их.
     const baseline = await sendMessage(request, chat.id, `E2E-M56 read baseline ${tag}`);
-    await expectStatus(await markRead(request, chat.id, baseline.id, { role: 'OPERATOR' }), 200, 'read baseline');
-    expect(await unreadCountOf(request, chat.id, { role: 'OPERATOR' }), 'после чтения непрочитанных нет').toBe(0);
+    await expectStatus(
+      await markRead(request, chat.id, baseline.id, { role: 'OPERATOR' }),
+      200,
+      'read baseline',
+    );
+    expect(
+      await unreadCountOf(request, chat.id, { role: 'OPERATOR' }),
+      'после чтения непрочитанных нет',
+    ).toBe(0);
 
     // Два новых сообщения от ADMIN — оба непрочитанные для OPERATOR.
     const first = await sendMessage(request, chat.id, `E2E-M56 read #1 ${tag}`);
@@ -694,21 +723,36 @@ test.describe('Чаты: отметка прочтения', () => {
     expect(readBody.userId).toBe(operatorId);
     expect(readBody.lastMessageId).toBe(second.id);
     expect(readBody.readAt, 'readAt = createdAt прочитанного сообщения').toBe(second.createdAt);
-    expect(await unreadCountOf(request, chat.id, { role: 'OPERATOR' }), 'unreadCount обнулился').toBe(0);
+    expect(
+      await unreadCountOf(request, chat.id, { role: 'OPERATOR' }),
+      'unreadCount обнулился',
+    ).toBe(0);
 
     // Отметка назад не откатывается: новое сообщение остаётся непрочитанным, даже если
     // следом «прочитать» более старое (иначе клиент терял бы свежие сообщения).
     const third = await sendMessage(request, chat.id, `E2E-M56 read #3 ${tag}`);
     expect(await unreadCountOf(request, chat.id, { role: 'OPERATOR' })).toBe(1);
-    await expectStatus(await markRead(request, chat.id, first.id, { role: 'OPERATOR' }), 200, 'чтение старого');
+    await expectStatus(
+      await markRead(request, chat.id, first.id, { role: 'OPERATOR' }),
+      200,
+      'чтение старого',
+    );
     expect(
       await unreadCountOf(request, chat.id, { role: 'OPERATOR' }),
       'чтение старого сообщения не скрывает новое',
     ).toBe(1);
 
     // Читаем свежее — снова ноль; повторная отметка идемпотентна.
-    await expectStatus(await markRead(request, chat.id, third.id, { role: 'OPERATOR' }), 200, 'чтение свежего');
-    await expectStatus(await markRead(request, chat.id, third.id, { role: 'OPERATOR' }), 200, 'повтор отметки');
+    await expectStatus(
+      await markRead(request, chat.id, third.id, { role: 'OPERATOR' }),
+      200,
+      'чтение свежего',
+    );
+    await expectStatus(
+      await markRead(request, chat.id, third.id, { role: 'OPERATOR' }),
+      200,
+      'повтор отметки',
+    );
     expect(await unreadCountOf(request, chat.id, { role: 'OPERATOR' })).toBe(0);
 
     // Несуществующее сообщение в своём чате — 404, а не «отметили что попало».
@@ -783,7 +827,11 @@ test.describe('Чаты: поиск', () => {
     expect(outsider.total).toBe(0);
 
     // Владелец второго чата находит СВОЁ сообщение той же подстрокой.
-    const clientFound = await searchMessages(request, { q: needle, chatId: foreignChat.id }, { role: 'CLIENT' });
+    const clientFound = await searchMessages(
+      request,
+      { q: needle, chatId: foreignChat.id },
+      { role: 'CLIENT' },
+    );
     expect(clientFound.items.map((item) => item.id)).toEqual([foreignMessage.id]);
 
     // Пустой q — 400: поиск по пустой строке вернул бы весь чат.
@@ -816,7 +864,9 @@ test.describe('Чаты: права', () => {
       'список чатов без токена',
     );
     await expectStatus(
-      await request.post(`${CHAT_URL}/api/chat/chats`, { data: { type: 'system', title: 'аноним' } }),
+      await request.post(`${CHAT_URL}/api/chat/chats`, {
+        data: { type: 'system', title: 'аноним' },
+      }),
       401,
       'создание чата без токена',
     );
@@ -858,7 +908,11 @@ test.describe('Чаты: права', () => {
     const missingChat = await getChatRaw(request, foreign);
     await expectStatus(missingChat, 404, 'деталь несуществующего чата');
     expect(await errorMessage(missingChat)).toContain('Чат не найден');
-    await expectStatus(await listMessagesRaw(request, foreign), 404, 'история несуществующего чата');
+    await expectStatus(
+      await listMessagesRaw(request, foreign),
+      404,
+      'история несуществующего чата',
+    );
     await expectStatus(
       await postMessage(request, foreign, { text: 'нет чата' }),
       404,
@@ -902,7 +956,11 @@ test.describe('Чаты: права', () => {
     );
 
     // Сообщение: пустое и слишком длинное — 400 (ограничения DTO, а не 500).
-    await expectStatus(await postMessage(request, chat.id, { text: '   ' }), 400, 'пустое сообщение');
+    await expectStatus(
+      await postMessage(request, chat.id, { text: '   ' }),
+      400,
+      'пустое сообщение',
+    );
     await expectStatus(
       await postMessage(request, chat.id, { text: 'а'.repeat(4001) }),
       400,
@@ -1084,8 +1142,7 @@ test.describe('Чаты: push оффлайн-получателю', () => {
     // теперь отсутствие записи это регресс, а не ожидаемое поведение.
     const page = await notificationsPage(request, { limit: 100 }, { token: fresh.token });
     const chatRelated = page.items.filter(
-      (item) =>
-        (item.type as string) === 'CHAT_MESSAGE' || item.payload?.['chatId'] === chat.id,
+      (item) => (item.type as string) === 'CHAT_MESSAGE' || item.payload?.['chatId'] === chat.id,
     );
     expect(
       chatRelated.length,
@@ -1122,7 +1179,9 @@ test.describe('Чаты: уборка', () => {
     // «До»: строки прогона реально лежат в БД — иначе проверка «после» ничего не значит.
     expect(before.chatIds, 'наш чат поставлен на уборку').toContain(own.id);
     expect(countChats(before.chatIds), 'чат прогона есть в БД').toBe(1);
-    expect(countMessages(before.messageIds), 'сообщения прогона есть в БД').toBe(before.messageIds.length);
+    expect(countMessages(before.messageIds), 'сообщения прогона есть в БД').toBe(
+      before.messageIds.length,
+    );
     expect(countChatDependants([own.id]), 'участники чата на месте').toEqual({
       messages: 2,
       members: 2,

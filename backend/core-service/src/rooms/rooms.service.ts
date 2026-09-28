@@ -148,9 +148,7 @@ export class RoomsService {
     }
 
     if (!plan) {
-      throw new BadRequestException(
-        'Нельзя задать координаты помещения: у этажа не загружен план',
-      );
+      throw new BadRequestException('Нельзя задать координаты помещения: у этажа не загружен план');
     }
 
     const { coordsX = 0, coordsY = 0, coordsWidth, coordsHeight } = coords;

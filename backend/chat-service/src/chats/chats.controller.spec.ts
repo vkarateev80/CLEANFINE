@@ -64,7 +64,12 @@ describe('ChatsController', () => {
 
   it('GET /chats/:id/messages передаёт курсор и лимит', async () => {
     const { controller, chats } = build();
-    chats.listMessages.mockResolvedValue({ items: [], limit: 50, hasMore: false, nextBefore: null });
+    chats.listMessages.mockResolvedValue({
+      items: [],
+      limit: 50,
+      hasMore: false,
+      nextBefore: null,
+    });
 
     await controller.listMessages('c-1', { before: '2026-01-01T09:00:00.000Z', limit: 10 }, admin);
 
@@ -123,7 +128,9 @@ describe('ChatsController', () => {
     };
     chats.markRead.mockResolvedValue(result);
 
-    await expect(controller.markRead('c-1', { lastMessageId: 'm-1' }, admin)).resolves.toEqual(result);
+    await expect(controller.markRead('c-1', { lastMessageId: 'm-1' }, admin)).resolves.toEqual(
+      result,
+    );
     expect(gateway.emitMessageRead).toHaveBeenCalledWith(result);
   });
 

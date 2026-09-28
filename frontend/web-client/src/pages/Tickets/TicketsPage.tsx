@@ -181,9 +181,7 @@ export function TicketsPage() {
       )}
 
       {!feed.hasMore && feed.items.length > 0 && (
-        <p className="text-center text-xs text-neutral-400">
-          Показано все {feed.total} заявок
-        </p>
+        <p className="text-center text-xs text-neutral-400">Показано все {feed.total} заявок</p>
       )}
 
       {/* Шторка создания. `objectId` — всегда объект клиента из сессии. */}

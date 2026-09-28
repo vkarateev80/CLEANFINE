@@ -18,7 +18,8 @@ import {
   useTicketCounts,
   useUnreadMessages,
   useUpcomingEvents,
-} from '../../api/queries';import { listTickets } from '../../api/tickets';
+} from '../../api/queries';
+import { listTickets } from '../../api/tickets';
 import { getObjectDetail } from '../../api/core';
 import { useQuery } from '@tanstack/react-query';
 import { formatDateTimeShort, formatNumber } from '../../lib/format';
@@ -95,7 +96,6 @@ export function DashboardPage() {
     ? detail.data.floors.reduce((sum, floor) => sum + floor.rooms.length, 0)
     : null;
 
-
   const archived = object?.status === 'ARCHIVED';
   const paused = object?.status === 'PAUSED';
 
@@ -119,7 +119,11 @@ export function DashboardPage() {
           Объект в архиве. Обслуживание приостановлено.
         </div>
       )}
-      {paused && <SoftWarning>Обслуживание приостановлено. Данные показаны по последнему состоянию.</SoftWarning>}
+      {paused && (
+        <SoftWarning>
+          Обслуживание приостановлено. Данные показаны по последнему состоянию.
+        </SoftWarning>
+      )}
 
       {/* ── Паспорт объекта ───────────────────────────────────────────── */}
       <Card className="p-4">
@@ -177,8 +181,8 @@ export function DashboardPage() {
 
       {completedStats.truncated && (
         <SoftWarning>
-          Выполненные заявки показаны не полностью (первые 100): цифра «Выполнено за 30 дней»
-          может быть занижена. Точный отчёт требует серверного фильтра по датам.
+          Выполненные заявки показаны не полностью (первые 100): цифра «Выполнено за 30 дней» может
+          быть занижена. Точный отчёт требует серверного фильтра по датам.
         </SoftWarning>
       )}
 
@@ -188,7 +192,10 @@ export function DashboardPage() {
         {events.isError ? (
           <ErrorBanner error={events.error} onRetry={() => void events.refetch()} />
         ) : archived ? (
-          <EmptyState title="Обслуживание приостановлено" hint="Смены по объекту в архиве не планируются." />
+          <EmptyState
+            title="Обслуживание приостановлено"
+            hint="Смены по объекту в архиве не планируются."
+          />
         ) : events.isLoading ? (
           <SkeletonList rows={2} />
         ) : upcoming.length === 0 ? (

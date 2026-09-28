@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateObjectDto, ListObjectsQueryDto, UpdateObjectDto } from './dto/object.dto';
@@ -65,7 +55,8 @@ export class ObjectsController {
   @Roles('ADMIN')
   @ApiOperation({
     summary: 'Удалить объект (только ADMIN)',
-    description: 'Каскадом удаляются этажи, помещения, маршруты и точки. Объект с активными маршрутами удалить нельзя.',
+    description:
+      'Каскадом удаляются этажи, помещения, маршруты и точки. Объект с активными маршрутами удалить нельзя.',
   })
   @ApiResponse({ status: 204, description: 'Объект удалён' })
   @ApiResponse({ status: 400, description: 'Есть активные маршруты' })

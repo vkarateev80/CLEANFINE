@@ -4,11 +4,7 @@ import { listUsers } from '../../api/users';
 import { Button, ErrorBanner, Field, Input, Select } from '../../components/ui';
 import type { SessionUser } from '../../types';
 import type { CreateObjectPayload, ObjectEntity } from '../../types/core';
-import {
-  OBJECT_STATUSES,
-  OBJECT_STATUS_LABELS,
-  type ObjectStatus,
-} from '../../types/status';
+import { OBJECT_STATUSES, OBJECT_STATUS_LABELS, type ObjectStatus } from '../../types/status';
 import { COMMON_OBJECT_TYPES, apiMessages, parseRequiredNumber } from './utils';
 
 /** Сколько CLIENT-аккаунтов подтягиваем для селекта (лимит API — 100). */

@@ -12,7 +12,9 @@ function makeContext(user: unknown): ExecutionContext {
   return { switchToHttp: () => ({ getRequest: () => ({ user }) }) } as unknown as ExecutionContext;
 }
 
-function extractFactory(decorator: ParameterDecorator): (data: unknown, ctx: ExecutionContext) => unknown {
+function extractFactory(
+  decorator: ParameterDecorator,
+): (data: unknown, ctx: ExecutionContext) => unknown {
   class Target {
     handler(_arg: unknown): void {
       /* noop */

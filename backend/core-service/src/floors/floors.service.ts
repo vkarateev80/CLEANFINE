@@ -54,8 +54,14 @@ export class FloorsService {
       where: { id },
       include: {
         object: { select: { id: true, name: true } },
-        rooms: { orderBy: { name: 'asc' }, include: { techCard: { select: { id: true, name: true } } } },
-        routes: { orderBy: { name: 'asc' }, include: { points: { orderBy: { orderIndex: 'asc' } } } },
+        rooms: {
+          orderBy: { name: 'asc' },
+          include: { techCard: { select: { id: true, name: true } } },
+        },
+        routes: {
+          orderBy: { name: 'asc' },
+          include: { points: { orderBy: { orderIndex: 'asc' } } },
+        },
       },
     });
     if (!found) {

@@ -52,7 +52,15 @@ export function SoftWarning({ children }: { children: ReactNode }) {
   );
 }
 
-export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
+export function EmptyState({
+  title,
+  hint,
+  action,
+}: {
+  title: string;
+  hint?: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-neutral-300 bg-white p-10 text-center">
       <div className="text-sm font-medium text-neutral-500">{title}</div>

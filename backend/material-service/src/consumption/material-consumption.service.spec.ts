@@ -73,14 +73,18 @@ function createMocks(options: MockOptions = {}) {
   );
 
   const materials = {
-    applyMovementWithinTransaction: jest.fn().mockResolvedValue([{ objectId: 'obj-1', quantity: 0 }]),
+    applyMovementWithinTransaction: jest
+      .fn()
+      .mockResolvedValue([{ objectId: 'obj-1', quantity: 0 }]),
   } as unknown as MaterialsService;
   const publisher = { publish: jest.fn().mockResolvedValue(true) } as unknown as EventsPublisher;
-  const core = { getObjectName: jest.fn().mockResolvedValue('БЦ «Северный»') } as unknown as CoreMaterialsClient;
+  const core = {
+    getObjectName: jest.fn().mockResolvedValue('БЦ «Северный»'),
+  } as unknown as CoreMaterialsClient;
   const resolver = {
-    getOperationMaterials: jest.fn().mockResolvedValue([
-      { materialId: 'mat-1', consumptionPerOperation: 2, unit: 'л' },
-    ]),
+    getOperationMaterials: jest
+      .fn()
+      .mockResolvedValue([{ materialId: 'mat-1', consumptionPerOperation: 2, unit: 'л' }]),
   } as unknown as OperationMaterialsResolver;
 
   const service = new MaterialConsumptionService(
@@ -218,7 +222,9 @@ describe('MaterialConsumptionService (М4.2)', () => {
     ]);
     prisma.materialMovement.create
       .mockResolvedValueOnce({ id: 'mov-1' })
-      .mockRejectedValueOnce(new Error('Недостаточно материала на объекте obj-1: остаток 0, запрошено 1'));
+      .mockRejectedValueOnce(
+        new Error('Недостаточно материала на объекте obj-1: остаток 0, запрошено 1'),
+      );
 
     const result = await service.handleOperationCompleted(EVENT);
 

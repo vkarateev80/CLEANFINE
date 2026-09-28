@@ -237,9 +237,9 @@ describe('GpsService — trackBatch (М3.1)', () => {
       service.trackBatch({ tracks: [{ lat: 1, lng: 2 }], employeeName: 'Из тела' }, operator),
     ).resolves.toMatchObject({ employeeName: 'Из тела' });
 
-    await expect(service.trackBatch({ tracks: [{ lat: 1, lng: 2 }] }, operator)).resolves.toMatchObject(
-      { employeeName: 'Иван Петров' },
-    );
+    await expect(
+      service.trackBatch({ tracks: [{ lat: 1, lng: 2 }] }, operator),
+    ).resolves.toMatchObject({ employeeName: 'Иван Петров' });
 
     await expect(
       service.trackBatch({ tracks: [{ lat: 1, lng: 2 }] }, { ...operator, fullName: '' }),
@@ -257,7 +257,16 @@ describe('GpsService — trackBatch (М3.1)', () => {
     const { service, $executeRaw } = build({ 'gps.maxBatchSize': 2 });
 
     await expect(
-      service.trackBatch({ tracks: [{ lat: 1, lng: 2 }, { lat: 1, lng: 2 }, { lat: 1, lng: 2 }] }, operator),
+      service.trackBatch(
+        {
+          tracks: [
+            { lat: 1, lng: 2 },
+            { lat: 1, lng: 2 },
+            { lat: 1, lng: 2 },
+          ],
+        },
+        operator,
+      ),
     ).rejects.toThrow('За один запрос не более 2 точек');
     expect($executeRaw).not.toHaveBeenCalled();
   });
@@ -391,7 +400,13 @@ describe('GpsService — findNearbyEmployees (М3.2)', () => {
 
     const result = await service.findNearbyEmployees(55.7558, 37.6173, 500);
 
-    expect(result).toMatchObject({ lat: 55.7558, lng: 37.6173, radiusMeters: 500, maxAgeMinutes: 5, count: 1 });
+    expect(result).toMatchObject({
+      lat: 55.7558,
+      lng: 37.6173,
+      radiusMeters: 500,
+      maxAgeMinutes: 5,
+      count: 1,
+    });
     expect(result.employees[0]).toEqual({
       userId: operator.id,
       lat: 55.756,

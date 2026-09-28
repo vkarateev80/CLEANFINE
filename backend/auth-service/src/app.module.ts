@@ -32,7 +32,10 @@ import { UsersModule } from './users/users.module';
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const ttl = positiveInt(String(config.get('throttle.ttlMs') ?? ''), DEFAULT_THROTTLE_TTL_MS);
+        const ttl = positiveInt(
+          String(config.get('throttle.ttlMs') ?? ''),
+          DEFAULT_THROTTLE_TTL_MS,
+        );
         return [
           // безымянный пресет = глобальный лимит (APP_GUARD)
           {
@@ -46,7 +49,10 @@ import { UsersModule } from './users/users.module';
           {
             name: LOGIN_THROTTLE_NAME,
             ttl,
-            limit: positiveInt(String(config.get('throttle.loginLimit') ?? ''), DEFAULT_LOGIN_THROTTLE_LIMIT),
+            limit: positiveInt(
+              String(config.get('throttle.loginLimit') ?? ''),
+              DEFAULT_LOGIN_THROTTLE_LIMIT,
+            ),
           },
         ];
       },

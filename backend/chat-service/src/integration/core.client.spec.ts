@@ -20,22 +20,30 @@ describe('CoreClient (chat-service)', () => {
   });
 
   it('подтверждает существующий объект', async () => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200 }) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200 }) as unknown as typeof fetch;
     await expect(build().objectExists('o-1')).resolves.toBe(true);
   });
 
   it('404 означает, что объекта нет', async () => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch;
     await expect(build().objectExists('ghost')).resolves.toBe(false);
   });
 
   it('прочие ошибки core-service — неизвестность (null), а не отказ', async () => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
     await expect(build().objectExists('o-1')).resolves.toBeNull();
   });
 
   it('недоступность core-service — null и без исключения', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
     await expect(build().objectExists('o-1')).resolves.toBeNull();
   });
 

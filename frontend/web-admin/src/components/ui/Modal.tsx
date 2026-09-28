@@ -134,7 +134,9 @@ export function Modal({
             ✕
           </Button>
         </div>
-        <div className="max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:p-4">{children}</div>
+        <div className="max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:p-4">
+          {children}
+        </div>
         {footer && (
           // `[&>*]:w-full` и `[&>*]:min-h-[44px]` только на телефоне: кнопки
           // становятся строками на всю ширину с тач-высотой — самый крупный таргет

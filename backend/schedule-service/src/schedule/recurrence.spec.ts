@@ -63,9 +63,9 @@ describe('recurrence', () => {
 
   describe('matchesRecurrence', () => {
     it('daily попадает на любой день', () => {
-      expect(matchesRecurrence({ frequency: 'daily', time: '08:00' }, parseDateOnly('2026-09-16'))).toBe(
-        true,
-      );
+      expect(
+        matchesRecurrence({ frequency: 'daily', time: '08:00' }, parseDateOnly('2026-09-16')),
+      ).toBe(true);
     });
 
     it('weekly Пн–Пт: среда — да, воскресенье — нет', () => {
@@ -108,9 +108,9 @@ describe('recurrence', () => {
 
   describe('normalizeRecurrence', () => {
     it('приводит корректное правило', () => {
-      expect(
-        normalizeRecurrence({ frequency: 'weekly', days: ['1', 5], time: ' 08:00 ' }),
-      ).toEqual({ frequency: 'weekly', days: [1, 5], dayOfMonth: undefined, time: ' 08:00 ' });
+      expect(normalizeRecurrence({ frequency: 'weekly', days: ['1', 5], time: ' 08:00 ' })).toEqual(
+        { frequency: 'weekly', days: [1, 5], dayOfMonth: undefined, time: ' 08:00 ' },
+      );
     });
 
     it('возвращает null на мусоре', () => {
@@ -122,7 +122,9 @@ describe('recurrence', () => {
     });
 
     it('игнорирует нечисловые дни', () => {
-      expect(normalizeRecurrence({ frequency: 'weekly', days: ['пн', '3'], time: '07:30' })).toEqual({
+      expect(
+        normalizeRecurrence({ frequency: 'weekly', days: ['пн', '3'], time: '07:30' }),
+      ).toEqual({
         frequency: 'weekly',
         days: [3],
         dayOfMonth: undefined,
@@ -131,9 +133,12 @@ describe('recurrence', () => {
     });
 
     it('читает dayOfMonth и отбрасывает нечисловой', () => {
-      expect(normalizeRecurrence({ frequency: 'monthly', dayOfMonth: '5', time: '09:00' })?.dayOfMonth).toBe(5);
       expect(
-        normalizeRecurrence({ frequency: 'monthly', dayOfMonth: 'пятое', time: '09:00' })?.dayOfMonth,
+        normalizeRecurrence({ frequency: 'monthly', dayOfMonth: '5', time: '09:00' })?.dayOfMonth,
+      ).toBe(5);
+      expect(
+        normalizeRecurrence({ frequency: 'monthly', dayOfMonth: 'пятое', time: '09:00' })
+          ?.dayOfMonth,
       ).toBeUndefined();
     });
   });

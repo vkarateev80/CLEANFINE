@@ -29,7 +29,7 @@ export interface GeofenceCheckResult {
   lng: number;
   inside: boolean;
   distanceMeters: number | null;
-  geofence: GeofenceRef & { radiusMeters: number | null } | null;
+  geofence: (GeofenceRef & { radiusMeters: number | null }) | null;
   checkedAt: string;
 }
 

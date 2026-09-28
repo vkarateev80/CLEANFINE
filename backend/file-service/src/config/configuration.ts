@@ -48,7 +48,8 @@ export default () => {
        * Базовый URL для ссылок в ответах API. В dev фронт ходит на localhost:9000,
        * в проде подставляется публичный домен/CDN через MINIO_PUBLIC_URL.
        */
-      publicUrl: process.env.MINIO_PUBLIC_URL ?? `${useSSL ? 'https' : 'http'}://${endpoint}:${port}`,
+      publicUrl:
+        process.env.MINIO_PUBLIC_URL ?? `${useSSL ? 'https' : 'http'}://${endpoint}:${port}`,
     },
     jwt: {
       accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret',

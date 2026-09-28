@@ -203,9 +203,7 @@ export class TicketsService {
         `SOS ${ticket.id}: ближние операторы не найдены (gps-service недоступен или пустой радиус)`,
       );
     } else {
-      this.logger.warn(
-        `SOS ${ticket.id}: найдено ${nearbyOperators.length} операторов поблизости`,
-      );
+      this.logger.warn(`SOS ${ticket.id}: найдено ${nearbyOperators.length} операторов поблизости`);
     }
 
     // Аддитивное расширение для notification-service: assigneeId (обычно null — SOS создаётся
@@ -284,7 +282,10 @@ export class TicketsService {
     const counts = await this.relationCounts(items.map((ticket) => ticket.id));
 
     return {
-      items: items.map((ticket) => ({ ...ticket, _count: counts.get(ticket.id) ?? EMPTY_RELATION_COUNTS })),
+      items: items.map((ticket) => ({
+        ...ticket,
+        _count: counts.get(ticket.id) ?? EMPTY_RELATION_COUNTS,
+      })),
       total,
     };
   }
@@ -580,7 +581,9 @@ export class TicketsService {
       where: { ticketId_roomId: { ticketId, roomId: roomKey } },
     });
     if (existing) {
-      this.logger.log(`Помещение ${roomKey} заявки ${ticketId} уже завершено — повтор игнорируется`);
+      this.logger.log(
+        `Помещение ${roomKey} заявки ${ticketId} уже завершено — повтор игнорируется`,
+      );
       return this.roomResult(ticket, existing, true);
     }
 
@@ -676,7 +679,10 @@ export class TicketsService {
   }
 
   /** Запоминает ожидаемое число помещений заявки (первое переданное значение). */
-  private async resolveRoomsTotal(ticket: Ticket, totalFromRequest?: number): Promise<number | null> {
+  private async resolveRoomsTotal(
+    ticket: Ticket,
+    totalFromRequest?: number,
+  ): Promise<number | null> {
     if (totalFromRequest === undefined || ticket.roomsTotal === totalFromRequest) {
       return ticket.roomsTotal;
     }
@@ -739,8 +745,7 @@ export class TicketsService {
       where: { ticketId: ticket.id },
     });
     const roomsTotal = roomsTotalOverride !== undefined ? roomsTotalOverride : ticket.roomsTotal;
-    const allRoomsCompleted =
-      roomsTotal !== null && roomsTotal > 0 && completedRooms >= roomsTotal;
+    const allRoomsCompleted = roomsTotal !== null && roomsTotal > 0 && completedRooms >= roomsTotal;
 
     if (allRoomsCompleted && !alreadyCompleted) {
       this.logger.log(

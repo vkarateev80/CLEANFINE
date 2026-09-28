@@ -184,7 +184,9 @@ describe('AuthServiceClient', () => {
         jest.setSystemTime(Date.now() + 120_000);
         await client.assertClientAccount('client-1');
 
-        const loginCalls = fetchMock.mock.calls.filter((call) => String(call[0]).includes('/login'));
+        const loginCalls = fetchMock.mock.calls.filter((call) =>
+          String(call[0]).includes('/login'),
+        );
         expect(loginCalls).toHaveLength(2);
       } finally {
         jest.useRealTimers();
@@ -294,9 +296,7 @@ describe('AuthServiceClient', () => {
         .mockResolvedValueOnce(loginResponse())
         .mockResolvedValueOnce(jsonResponse(200, safeUser({ role: 'SUPERVISOR' })));
 
-      await expect(build().assertClientAccount('client-1')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(build().assertClientAccount('client-1')).rejects.toThrow(BadRequestException);
     });
 
     it('200 с isActive=false → 400 «Аккаунт клиента деактивирован»', async () => {
@@ -372,13 +372,11 @@ describe('AuthServiceClient', () => {
     });
 
     it('не-JSON ответ → 503, а не падение', async () => {
-      fetchMock
-        .mockResolvedValueOnce(loginResponse())
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token <')),
-        } as unknown as Response);
+      fetchMock.mockResolvedValueOnce(loginResponse()).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected token <')),
+      } as unknown as Response);
 
       await expect(build().assertClientAccount('client-1')).rejects.toThrow(
         ServiceUnavailableException,
@@ -389,19 +387,17 @@ describe('AuthServiceClient', () => {
   describe('NFR-01: читаем только id/role/isActive', () => {
     it('ФИО, email и телефон не попадают ни в лог, ни в ошибки', async () => {
       const client = build();
-      fetchMock
-        .mockResolvedValueOnce(loginResponse())
-        .mockResolvedValueOnce(
-          jsonResponse(
-            200,
-            safeUser({
-              role: 'ADMIN',
-              fullName: 'Секретное ФИО',
-              email: 'secret@example.com',
-              phone: '+7 999 111-22-33',
-            }),
-          ),
-        );
+      fetchMock.mockResolvedValueOnce(loginResponse()).mockResolvedValueOnce(
+        jsonResponse(
+          200,
+          safeUser({
+            role: 'ADMIN',
+            fullName: 'Секретное ФИО',
+            email: 'secret@example.com',
+            phone: '+7 999 111-22-33',
+          }),
+        ),
+      );
 
       await expect(client.assertClientAccount('client-1')).rejects.toThrow(
         'Аккаунт не является клиентом',

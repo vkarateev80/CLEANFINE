@@ -140,8 +140,8 @@ export function NotificationsPage() {
         <Card className="flex flex-col gap-3">
           <h2 className="text-sm font-medium text-neutral-900">Типы уведомлений</h2>
           <p className="text-xs text-neutral-500">
-            Снимите галочку, чтобы отказаться от типа: уведомление не попадёт ни в интерфейс, ни
-            в push.
+            Снимите галочку, чтобы отказаться от типа: уведомление не попадёт ни в интерфейс, ни в
+            push.
           </p>
           {settings.isLoading ? (
             <LoadingBlock label="Загрузка настроек…" />

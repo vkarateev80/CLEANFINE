@@ -99,9 +99,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         this.state.lastGenerateAt = new Date().toISOString();
         this.state.lastGenerateDate = result.date;
         if (result.ticketServiceUnavailable) {
-          this.logger.error(
-            `Генерация на ${result.date} не выполнена: ticket-service недоступен`,
-          );
+          this.logger.error(`Генерация на ${result.date} не выполнена: ticket-service недоступен`);
         }
       }
     } catch (error) {

@@ -23,9 +23,9 @@ describe('JwtStrategy (chat-service)', () => {
   });
 
   it('отвергает payload без sub', () => {
-    expect(() =>
-      buildStrategy().validate({ sub: '', email: 'a@b.c', role: 'ADMIN' }),
-    ).toThrow(UnauthorizedException);
+    expect(() => buildStrategy().validate({ sub: '', email: 'a@b.c', role: 'ADMIN' })).toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('создаётся с общим секретом JWT_ACCESS_SECRET', () => {

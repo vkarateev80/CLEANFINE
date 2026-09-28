@@ -41,9 +41,7 @@ function objectName(objects: ObjectEntity[], id: string | null): string | null {
 /** Имена исполнителей строкой: уволенный сотрудник остаётся в графике по id. */
 function assigneeNames(users: SessionUser[], ids: string[]): string {
   if (ids.length === 0) return '—';
-  return ids
-    .map((id) => users.find((user) => user.id === id)?.fullName ?? shortId(id))
-    .join(', ');
+  return ids.map((id) => users.find((user) => user.id === id)?.fullName ?? shortId(id)).join(', ');
 }
 
 export function SchedulesPanel({
@@ -298,8 +296,8 @@ export function SchedulesPanel({
         message={
           <>
             График «{deleting?.name}» будет удалён вместе со сменами по нему
-            {deleting && deleting.eventsCount > 0 ? ` (${deleting.eventsCount} шт.)` : ''}.
-            Действие необратимо.
+            {deleting && deleting.eventsCount > 0 ? ` (${deleting.eventsCount} шт.)` : ''}. Действие
+            необратимо.
           </>
         }
         busy={remove.isPending}

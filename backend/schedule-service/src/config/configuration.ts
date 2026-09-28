@@ -36,9 +36,7 @@ export default () => ({
   },
   authService: {
     // schedule → auth: служебный логин для cron и создания заявок (ServiceTokenProvider).
-    baseUrl: stripTrailingSlash(
-      nonEmpty(process.env.AUTH_SERVICE_URL, 'http://localhost:3001'),
-    ),
+    baseUrl: stripTrailingSlash(nonEmpty(process.env.AUTH_SERVICE_URL, 'http://localhost:3001')),
     timeoutMs: positiveInt(process.env.AUTH_SERVICE_TIMEOUT_MS, 5_000),
     email: process.env.SERVICE_AUTH_EMAIL ?? '',
     password: process.env.SERVICE_AUTH_PASSWORD ?? '',
@@ -50,9 +48,7 @@ export default () => ({
   },
   ticketService: {
     // schedule → ticket: плановая заявка по смене (М4.4).
-    baseUrl: stripTrailingSlash(
-      nonEmpty(process.env.TICKET_SERVICE_URL, 'http://localhost:3005'),
-    ),
+    baseUrl: stripTrailingSlash(nonEmpty(process.env.TICKET_SERVICE_URL, 'http://localhost:3005')),
     timeoutMs: positiveInt(process.env.TICKET_SERVICE_TIMEOUT_MS, 5_000),
   },
   coreService: {

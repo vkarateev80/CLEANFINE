@@ -32,12 +32,11 @@ async function bootstrap(): Promise<void> {
 
   const port = Number(process.env.CHAT_SERVICE_PORT ?? process.env.PORT) || 3009;
   await app.listen(port);
-   
+
   console.log(`chat-service запущен: http://localhost:${port}/api`);
-   
+
   console.log(`WebSocket: ws://localhost:${port}/chat (namespace chat)`);
   if (process.env.NODE_ENV !== 'production') {
-     
     console.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
 }

@@ -429,7 +429,9 @@ export function FloorPlanCanvas({
             }
           />
         </div>
-        {fileError && <ErrorBanner error={new Error(fileError)} onRetry={() => onFileError(null)} />}
+        {fileError && (
+          <ErrorBanner error={new Error(fileError)} onRetry={() => onFileError(null)} />
+        )}
       </div>
     );
   }
@@ -458,7 +460,12 @@ export function FloorPlanCanvas({
   }
 
   const contentSize = natural ?? FALLBACK_SIZE;
-  const cursor = dragging || spaceHeld ? 'cursor-grabbing' : addMode && canEdit ? 'cursor-crosshair' : 'cursor-default';
+  const cursor =
+    dragging || spaceHeld
+      ? 'cursor-grabbing'
+      : addMode && canEdit
+        ? 'cursor-crosshair'
+        : 'cursor-default';
 
   return (
     <div
@@ -572,7 +579,9 @@ export function FloorPlanCanvas({
                       role="presentation"
                       aria-hidden="true"
                       data-testid="room-resize-handle"
-                      onPointerDown={(event) => handleResizePointerDown(event, room.id, corner, rect)}
+                      onPointerDown={(event) =>
+                        handleResizePointerDown(event, room.id, corner, rect)
+                      }
                       className={[
                         // Планшет 768–1023: маркер крупнее (14 px ≈ h-3.5) — на нём
                         // рисование и ресайз остаются доступными, и требование

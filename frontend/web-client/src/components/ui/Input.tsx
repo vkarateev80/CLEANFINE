@@ -113,7 +113,10 @@ export function Checkbox({ label, className, ...props }: CheckboxProps) {
     <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
       <input
         type="checkbox"
-        className={['h-4 w-4 rounded border-neutral-300 text-primary-500 focus:ring-primary-500', className ?? ''].join(' ')}
+        className={[
+          'h-4 w-4 rounded border-neutral-300 text-primary-500 focus:ring-primary-500',
+          className ?? '',
+        ].join(' ')}
         {...props}
       />
       {label}

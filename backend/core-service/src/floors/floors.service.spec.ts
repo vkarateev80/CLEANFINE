@@ -261,9 +261,17 @@ describe('FloorsService', () => {
   describe('attachPlan', () => {
     it('привязывает URL плана, масштаб и размеры', async () => {
       prisma.floor.findUnique.mockResolvedValue(floorFixture);
-      prisma.floor.update.mockResolvedValue({ ...floorFixture, planImageUrl: 'http://minio/plan.png' });
+      prisma.floor.update.mockResolvedValue({
+        ...floorFixture,
+        planImageUrl: 'http://minio/plan.png',
+      });
 
-      const dto = { planImageUrl: 'http://minio/plan.png', planScale: 0.05, planWidth: 1200, planHeight: 800 };
+      const dto = {
+        planImageUrl: 'http://minio/plan.png',
+        planScale: 0.05,
+        planWidth: 1200,
+        planHeight: 800,
+      };
       await service.attachPlan('floor-1', dto);
 
       expect(prisma.floor.update).toHaveBeenCalledWith({
@@ -297,7 +305,10 @@ describe('FloorsService', () => {
         width: 1200,
         height: 800,
       });
-      prisma.floor.update.mockResolvedValue({ ...floorFixture, planImageUrl: 'http://minio/plan.png' });
+      prisma.floor.update.mockResolvedValue({
+        ...floorFixture,
+        planImageUrl: 'http://minio/plan.png',
+      });
 
       const file = multerFile();
       await service.uploadPlan('floor-1', file, 'token-abc', 0.05);
@@ -399,7 +410,9 @@ describe('FloorsService', () => {
       expect(authError.message).toBe('Недопустимый формат файла');
 
       fileService.uploadPlan.mockRejectedValue(new PlanUploadError('Токен истёк', 401));
-      const expired = await service.uploadPlan('floor-1', multerFile(), 'token').catch((error) => error);
+      const expired = await service
+        .uploadPlan('floor-1', multerFile(), 'token')
+        .catch((error) => error);
       expect(expired.getStatus()).toBe(401);
       expect(expired.message).toBe('Токен истёк');
 

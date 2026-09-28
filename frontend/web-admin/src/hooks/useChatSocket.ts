@@ -2,12 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { markChatRead, sendChatMessage } from '../api/chat';
 import { useAuthStore } from '../stores/authStore';
-import type {
-  ChatAck,
-  ChatMessage,
-  ChatMessageReadEvent,
-  SendMessagePayload,
-} from '../types/chat';
+import type { ChatAck, ChatMessage, ChatMessageReadEvent, SendMessagePayload } from '../types/chat';
 
 /**
  * WebSocket-канал чата (М5.3) поверх chat-service: namespace `/chat`

@@ -60,7 +60,8 @@ export function useNotificationSettings() {
 export function useUpdateNotificationSettings() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (disabledTypes: NotificationType[]) => updateNotificationSettings({ disabledTypes }),
+    mutationFn: (disabledTypes: NotificationType[]) =>
+      updateNotificationSettings({ disabledTypes }),
     onSuccess: (settings) => {
       queryClient.setQueryData(['notification-settings'], settings);
     },

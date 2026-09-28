@@ -12,12 +12,7 @@ import { Table, TableMessageRow, TBody, Td, Th, THead, Tr } from '../../componen
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
 import { ROUTES } from '../../router/routes';
 import { OperationFormModal } from './OperationFormModal';
-import {
-  materialsLabel,
-  operationsLabel,
-  roomsLabel,
-  sumMinutes,
-} from './techCardHelpers';
+import { materialsLabel, operationsLabel, roomsLabel, sumMinutes } from './techCardHelpers';
 import {
   useAddOperation,
   useDeleteOperation,
@@ -366,8 +361,8 @@ export function TechCardDetailPage() {
               Сумма времени операций используется как рекомендуемая оценка точки маршрута.
             </span>
             <span className="text-sm text-neutral-500">
-              Итого по операциям:{' '}
-              <span className="font-mono text-neutral-900">{localTotal}</span> мин
+              Итого по операциям: <span className="font-mono text-neutral-900">{localTotal}</span>{' '}
+              мин
             </span>
           </div>
         </Card>
@@ -411,9 +406,7 @@ export function TechCardDetailPage() {
                       >
                         {room.name}
                       </Link>
-                      <span className="ml-2 text-xs text-neutral-400">
-                        {room.floor.name}
-                      </span>
+                      <span className="ml-2 text-xs text-neutral-400">{room.floor.name}</span>
                     </li>
                   ))}
                 </ul>
@@ -524,9 +517,7 @@ function OperationRow({
             {operation.name}
           </span>
           {operation.description && (
-            <span className="block truncate text-xs text-neutral-500">
-              {operation.description}
-            </span>
+            <span className="block truncate text-xs text-neutral-500">{operation.description}</span>
           )}
         </button>
 
@@ -550,9 +541,13 @@ function OperationRow({
             <span className="text-neutral-300">—</span>
           )}
 
-          <span className="text-xs text-neutral-500">{materialsLabel(operation.materials.length)}</span>
+          <span className="text-xs text-neutral-500">
+            {materialsLabel(operation.materials.length)}
+          </span>
 
-          <span className="font-mono text-sm text-neutral-900">{operation.estimatedTimeMin} мин</span>
+          <span className="font-mono text-sm text-neutral-900">
+            {operation.estimatedTimeMin} мин
+          </span>
         </div>
 
         {canEdit && (
@@ -608,7 +603,8 @@ function OperationRow({
         <div className="flex flex-col gap-3 rounded-lg bg-neutral-50 p-3">
           <div className="flex flex-wrap gap-4 text-xs text-neutral-500">
             <span>
-              Время: <span className="font-mono text-neutral-900">{operation.estimatedTimeMin}</span> мин
+              Время:{' '}
+              <span className="font-mono text-neutral-900">{operation.estimatedTimeMin}</span> мин
             </span>
             <span>Фотоотчёт: {operation.requiresPhoto ? 'да' : 'нет'}</span>
             <span>QR: {operation.requiresQr ? 'да' : 'нет'}</span>

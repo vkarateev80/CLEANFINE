@@ -3,7 +3,10 @@ import type { ServiceTokenProvider } from './service-token.provider';
 import type { ConfigService } from '@nestjs/config';
 
 /** Ответ notification-service: сводка `{ delivered }` (эндпоинт chat-message). */
-function jsonResponse(body: unknown, status = 200): { ok: boolean; status: number; json: () => Promise<unknown> } {
+function jsonResponse(
+  body: unknown,
+  status = 200,
+): { ok: boolean; status: number; json: () => Promise<unknown> } {
   return { ok: status >= 200 && status < 300, status, json: async () => body };
 }
 
@@ -93,9 +96,9 @@ describe('NotificationPushClient (chat-service)', () => {
   it('возвращает число доставленных из сводки, а не размер списка получателей', async () => {
     // Часть получателей могла отключить тип CHAT_MESSAGE в настройках, поэтому
     // delivered меньше числа id в запросе — берём именно ответ сервиса.
-    global.fetch = jest.fn().mockResolvedValue(
-      jsonResponse({ delivered: 1 }),
-    ) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse({ delivered: 1 })) as unknown as typeof fetch;
     const { client } = buildClient();
 
     await expect(
@@ -138,7 +141,9 @@ describe('NotificationPushClient (chat-service)', () => {
   );
 
   it('недоступный notification-service не ломает отправку сообщения', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
     const { client } = buildClient();
 
     await expect(

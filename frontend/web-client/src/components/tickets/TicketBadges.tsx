@@ -90,7 +90,9 @@ export function TicketCard({ ticket }: { ticket: TicketListItem }) {
       <p className="text-xs text-neutral-500">{ticketMeta(ticket)}</p>
 
       {overdue && (
-        <p className="text-xs text-danger-600">Просрочена с {formatDateTimeShort(ticket.overdueAt)}</p>
+        <p className="text-xs text-danger-600">
+          Просрочена с {formatDateTimeShort(ticket.overdueAt)}
+        </p>
       )}
 
       {ticket.assigneeId && <p className="text-xs text-neutral-400">Исполнитель назначен</p>}

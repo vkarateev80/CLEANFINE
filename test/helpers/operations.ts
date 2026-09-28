@@ -43,7 +43,7 @@ const DB = {
     process.env.E2E_NOTIFICATIONS_DB ??
     dbNameFromUrl(process.env.NOTIFICATION_DATABASE_URL) ??
     'cleaning_ops_notifications',
-} as const;/** Стабильный UUID объекта core для «оперативных» заявок и геозон (объект создавать не нужно). */
+} as const; /** Стабильный UUID объекта core для «оперативных» заявок и геозон (объект создавать не нужно). */
 export const OPERATIONS_OBJECT_ID =
   process.env.E2E_OPERATIONS_OBJECT_ID ?? '00000000-0000-4000-8000-0000000000aa';
 
@@ -80,7 +80,10 @@ export const GEOFENCE_NEARBY_OUTSIDE = { lat: 55.7585, lng: 37.6173 };
  * `index` разводит площадки тестов внутри прогона, а база 55.80/37.70 уводит набор от
  * «шумных» координат центра (55.7558/37.6173), где могли осесть чужие геозоны.
  */
-export function uniqueGeofenceCell(index = 0, seed = runTag()): {
+export function uniqueGeofenceCell(
+  index = 0,
+  seed = runTag(),
+): {
   boundary: typeof GEOFENCE_BOUNDARY;
   inside: { lat: number; lng: number };
   outside: { lat: number; lng: number };
@@ -125,7 +128,9 @@ export function userIdFromToken(accessToken: string): string {
   if (!payload) {
     throw new Error('Не удалось прочитать payload access-токена');
   }
-  const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { sub?: string };
+  const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+    sub?: string;
+  };
   if (!decoded.sub) {
     throw new Error('В access-токене нет sub (id пользователя)');
   }
@@ -679,11 +684,7 @@ export function completeTicketOperation(
 // ---------------------------------------------------------------------------
 
 export type NotificationType =
-  | 'NEW_TICKET'
-  | 'EMERGENCY'
-  | 'TICKET_OVERDUE'
-  | 'GEOFENCE_EXIT'
-  | 'MATERIAL_LOW';
+  'NEW_TICKET' | 'EMERGENCY' | 'TICKET_OVERDUE' | 'GEOFENCE_EXIT' | 'MATERIAL_LOW';
 
 export interface Device {
   id: string;
@@ -963,7 +964,12 @@ export function cleanupAuthUsers(input: {
       DB.auth,
       `SELECT coalesce(string_agg(id::text, ','), '') FROM users WHERE email LIKE ${likePrefixLiteral(prefix)}`,
     );
-    dropByIds(raw.split(',').map((value) => value.trim()).filter(Boolean));
+    dropByIds(
+      raw
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    );
   }
 
   return removed;
@@ -1061,7 +1067,9 @@ export function cleanupOperationsData(input: {
   const deviceTokens = [...(input.deviceTokens ?? [])];
   if (deviceTokens.length > 0) {
     const list = deviceTokens.map(literal).join(', ');
-    removed.devices = affectedRows(psql(DB.notifications, `DELETE FROM devices WHERE token IN (${list})`));
+    removed.devices = affectedRows(
+      psql(DB.notifications, `DELETE FROM devices WHERE token IN (${list})`),
+    );
   }
 
   // Устройства пользователя удаляются целиком: тесты регистрируют токены под свежих
@@ -1069,7 +1077,9 @@ export function cleanupOperationsData(input: {
   const deviceUsers = [...(input.deviceUsers ?? [])];
   if (deviceUsers.length > 0) {
     const list = deviceUsers.map(literal).join(', ');
-    removed.devices += affectedRows(psql(DB.notifications, `DELETE FROM devices WHERE "userId" IN (${list})`));
+    removed.devices += affectedRows(
+      psql(DB.notifications, `DELETE FROM devices WHERE "userId" IN (${list})`),
+    );
   }
 
   const notificationIds = [...(input.notificationIds ?? [])];
@@ -1097,7 +1107,10 @@ export function cleanupOperationsData(input: {
         ? input.notificationSinceAll.toISOString()
         : input.notificationSinceAll;
     removed.notifications += affectedRows(
-      psql(DB.notifications, `DELETE FROM notifications WHERE "createdAt" >= ${literal(since)}::timestamp`),
+      psql(
+        DB.notifications,
+        `DELETE FROM notifications WHERE "createdAt" >= ${literal(since)}::timestamp`,
+      ),
     );
   }
 
@@ -1299,10 +1312,16 @@ class OperationsTracker {
       // objectId — text-колонка Prisma (camelCase, без @map) и НЕ uuid-тип: приведение не нужно.
       const scope = `"objectId" = ${literal(objectId)}`;
       safe('assignments по objectId', () =>
-        psql(DB.tickets, `DELETE FROM ticket_assignments WHERE "ticketId" IN (SELECT id FROM tickets WHERE ${scope})`),
+        psql(
+          DB.tickets,
+          `DELETE FROM ticket_assignments WHERE "ticketId" IN (SELECT id FROM tickets WHERE ${scope})`,
+        ),
       );
       safe('comments по objectId', () =>
-        psql(DB.tickets, `DELETE FROM ticket_comments WHERE "ticketId" IN (SELECT id FROM tickets WHERE ${scope})`),
+        psql(
+          DB.tickets,
+          `DELETE FROM ticket_comments WHERE "ticketId" IN (SELECT id FROM tickets WHERE ${scope})`,
+        ),
       );
       safe('operations по objectId', () =>
         psql(
@@ -1328,7 +1347,9 @@ class OperationsTracker {
         psql(DB.tickets, `DELETE FROM ticket_operation_completions WHERE "ticketId" IN (${list})`),
       );
       safe('tickets по id', () => {
-        removedTickets += affectedRows(psql(DB.tickets, `DELETE FROM tickets WHERE id IN (${list})`));
+        removedTickets += affectedRows(
+          psql(DB.tickets, `DELETE FROM tickets WHERE id IN (${list})`),
+        );
       });
     }
 
@@ -1338,14 +1359,22 @@ class OperationsTracker {
         deviceTokens: this.deviceTokens,
         deviceUsers: this.deviceUsers,
         notificationIds: this.notifications,
-        notificationScopes: [...this.notificationScopes].map(([userId, since]) => ({ userId, since })),
+        notificationScopes: [...this.notificationScopes].map(([userId, since]) => ({
+          userId,
+          since,
+        })),
         notificationSinceAll: this.runStartedAt,
         trackUsers: [...this.trackScopes].map(([userId, since]) => ({ userId, since })),
         userIds: this.userIds,
       });
       // Уборка gps/уведомлений идёт «по областям», а не по id, поэтому полезно видеть
       // в выводе, сколько строк реально снято: молчаливый ноль — признак расхождения схемы.
-      if (result.tracks > 0 || result.geofences > 0 || result.devices > 0 || result.notifications > 0) {
+      if (
+        result.tracks > 0 ||
+        result.geofences > 0 ||
+        result.devices > 0 ||
+        result.notifications > 0
+      ) {
         console.log(
           `[operations] уборка: треков ${result.tracks}, геозон ${result.geofences}, устройств ${result.devices}, уведомлений ${result.notifications}`,
         );

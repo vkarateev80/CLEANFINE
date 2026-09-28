@@ -52,7 +52,10 @@ export class CreateChatDto {
   @IsNotEmpty()
   ticketId?: string;
 
-  @ApiPropertyOptional({ description: 'Название чата (для object/system)', example: 'Офис на Ленина' })
+  @ApiPropertyOptional({
+    description: 'Название чата (для object/system)',
+    example: 'Офис на Ленина',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -128,7 +131,10 @@ export class ListMessagesQueryDto {
 }
 
 export class SearchMessagesQueryDto {
-  @ApiProperty({ description: 'Строка поиска по тексту (регистронезависимо, ILIKE)', example: 'заявка' })
+  @ApiProperty({
+    description: 'Строка поиска по тексту (регистронезависимо, ILIKE)',
+    example: 'заявка',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Укажите строку поиска' })
   @MaxLength(200)

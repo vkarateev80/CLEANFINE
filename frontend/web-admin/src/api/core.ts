@@ -209,7 +209,9 @@ export function addRoutePoint(
   roomId: string,
   estimatedTimeMin?: number,
 ): Promise<RoutePointEntity> {
-  return apiClient.post(`/routes/${routeId}/points`, { roomId, estimatedTimeMin }).then((r) => r.data);
+  return apiClient
+    .post(`/routes/${routeId}/points`, { roomId, estimatedTimeMin })
+    .then((r) => r.data);
 }
 
 /**
@@ -241,7 +243,9 @@ export interface ListTechCardsQuery extends PageQuery {
   search?: string;
 }
 
-export function listTechCards(query: ListTechCardsQuery = {}): Promise<Paginated<TechCardListItem>> {
+export function listTechCards(
+  query: ListTechCardsQuery = {},
+): Promise<Paginated<TechCardListItem>> {
   return apiClient.get('/tech-cards', { params: query }).then((r) => r.data);
 }
 

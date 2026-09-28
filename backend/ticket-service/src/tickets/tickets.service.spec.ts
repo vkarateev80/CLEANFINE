@@ -29,7 +29,12 @@ interface PrismaMock {
   };
   ticketAssignment: { create: jest.Mock; groupBy: jest.Mock };
   ticketComment: { create: jest.Mock; groupBy: jest.Mock };
-  ticketOperationCompletion: { create: jest.Mock; findUnique: jest.Mock; count: jest.Mock; groupBy: jest.Mock };
+  ticketOperationCompletion: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    count: jest.Mock;
+    groupBy: jest.Mock;
+  };
   ticketRoomCompletion: { create: jest.Mock; findUnique: jest.Mock; count: jest.Mock };
   $transaction: jest.Mock;
 }
@@ -164,7 +169,9 @@ describe('TicketsService (М3.4–М3.6)', () => {
     });
 
     it('внеплановая заявка с приоритетом high и координатами', async () => {
-      prisma.ticket.create.mockResolvedValue(ticketFixture({ type: 'unscheduled', priority: 'high' }));
+      prisma.ticket.create.mockResolvedValue(
+        ticketFixture({ type: 'unscheduled', priority: 'high' }),
+      );
 
       await service.create(
         {
@@ -191,7 +198,11 @@ describe('TicketsService (М3.4–М3.6)', () => {
     });
 
     it('создание сразу с исполнителем (schedule-service): assigned, дедлайн прибытия, история, ticket.assigned', async () => {
-      const created = ticketFixture({ status: 'assigned', assigneeId: 'u-op', reactionDeadline: null });
+      const created = ticketFixture({
+        status: 'assigned',
+        assigneeId: 'u-op',
+        reactionDeadline: null,
+      });
       prisma.ticket.create.mockResolvedValue(created);
 
       await service.create(
@@ -242,7 +253,8 @@ describe('TicketsService (М3.4–М3.6)', () => {
         { type: 'planned', objectId: 'obj-1', description: 'Уборка', assigneeId: 'u-op' },
         USER,
       );
-      const assigned = prisma.ticket.create.mock.calls[1][0].data as Prisma.TicketUncheckedCreateInput;
+      const assigned = prisma.ticket.create.mock.calls[1][0]
+        .data as Prisma.TicketUncheckedCreateInput;
       expect(assigned.arrivalDeadline).toEqual(new Date('2026-01-01T10:15:00.000Z'));
     });
   });
@@ -324,7 +336,9 @@ describe('TicketsService (М3.4–М3.6)', () => {
     });
 
     it('радиус поиска из запроса доходит до gps-service', async () => {
-      prisma.ticket.create.mockResolvedValue(ticketFixture({ type: 'emergency', priority: 'critical' }));
+      prisma.ticket.create.mockResolvedValue(
+        ticketFixture({ type: 'emergency', priority: 'critical' }),
+      );
 
       await service.createEmergency({ ...dto, radiusM: 300 }, USER, 'token');
 
@@ -342,7 +356,12 @@ describe('TicketsService (М3.4–М3.6)', () => {
       await expect(service.list({})).resolves.toEqual({ items: [], total: 0 });
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: {}, skip: 0, take: 50, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
+        expect.objectContaining({
+          where: {},
+          skip: 0,
+          take: 50,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        }),
       );
       expect(prisma.ticket.count).toHaveBeenCalledWith({ where: {} });
     });
@@ -383,9 +402,7 @@ describe('TicketsService (М3.4–М3.6)', () => {
 
       await service.list({ take: 500 });
 
-      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 100 }),
-      );
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 100 }));
     });
 
     /*
@@ -465,14 +482,18 @@ describe('TicketsService (М3.4–М3.6)', () => {
       prisma.ticket.count.mockResolvedValue(1);
 
       // По описанию: подстрока в середине слова.
-      prisma.ticket.findMany.mockResolvedValue([ticketFixture({ description: 'Влажная уборка холла' })]);
+      prisma.ticket.findMany.mockResolvedValue([
+        ticketFixture({ description: 'Влажная уборка холла' }),
+      ]);
       await expect(service.list({ search: 'уборк' })).resolves.toEqual({
         items: [expect.objectContaining({ description: 'Влажная уборка холла' })],
         total: 1,
       });
 
       // По id: короткий id заявки копируют из селекта/адреса.
-      prisma.ticket.findMany.mockResolvedValue([ticketFixture({ id: 'a1b2c3d4-0000-4000-8000-000000000001' })]);
+      prisma.ticket.findMany.mockResolvedValue([
+        ticketFixture({ id: 'a1b2c3d4-0000-4000-8000-000000000001' }),
+      ]);
       const byId = await service.list({ search: 'a1b2c3d4' });
       expect(byId.items).toHaveLength(1);
       expect(byId.items[0].id).toBe('a1b2c3d4-0000-4000-8000-000000000001');
@@ -718,7 +739,9 @@ describe('TicketsService (М3.4–М3.6)', () => {
           acceptedAt: new Date('2026-01-01T09:00:00.000Z'),
         }),
       );
-      prisma.ticket.update.mockResolvedValue(ticketFixture({ status: 'assigned', assigneeId: 'u-new' }));
+      prisma.ticket.update.mockResolvedValue(
+        ticketFixture({ status: 'assigned', assigneeId: 'u-new' }),
+      );
 
       await service.assign('t-1', { assigneeId: 'u-new' }, USER);
 
@@ -806,7 +829,9 @@ describe('TicketsService (М3.4–М3.6)', () => {
         },
       });
       expect(prisma.ticketOperationCompletion.findUnique).toHaveBeenCalledWith({
-        where: { ticketId_operationId_roomId: { ticketId: 't-1', operationId: 'op-1', roomId: '' } },
+        where: {
+          ticketId_operationId_roomId: { ticketId: 't-1', operationId: 'op-1', roomId: '' },
+        },
       });
       expect(publisher.publish).toHaveBeenCalledWith(ROUTING_KEYS.TICKET_OPERATION_COMPLETED, {
         operationId: 'op-1',
@@ -937,12 +962,7 @@ describe('TicketsService (М3.4–М3.6)', () => {
       prisma.ticketOperationCompletion.count.mockResolvedValue(2);
       prisma.ticket.update.mockResolvedValue(ticketFixture({ operationsTotal: 2 }));
 
-      const result = await service.completeOperation(
-        't-1',
-        'op-2',
-        { totalOperations: 2 },
-        USER,
-      );
+      const result = await service.completeOperation('t-1', 'op-2', { totalOperations: 2 }, USER);
 
       expect(prisma.ticket.update).toHaveBeenCalledWith({
         where: { id: 't-1' },

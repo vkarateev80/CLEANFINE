@@ -111,8 +111,15 @@ interface SortableRowProps {
 }
 
 function SortableRow({ id, index, total, disabled, onMove, children }: SortableRowProps) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
-    useSortable({ id, disabled });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled });
 
   return (
     <li
@@ -142,7 +149,9 @@ function SortableRow({ id, index, total, disabled, onMove, children }: SortableR
         ⠿
       </button>
 
-      <span className="w-6 shrink-0 text-right font-mono text-xs text-neutral-500">{index + 1}</span>
+      <span className="w-6 shrink-0 text-right font-mono text-xs text-neutral-500">
+        {index + 1}
+      </span>
 
       <div className="min-w-0 flex-1">{children}</div>
 

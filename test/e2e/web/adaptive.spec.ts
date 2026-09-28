@@ -63,11 +63,16 @@ async function collect(
 
 test.describe('каркас по контрольным ширинам', () => {
   for (const width of SHELL_WIDTHS) {
-    test(`/dashboard на ${width}px: каркас и отсутствие переполнения`, async ({ browser, adaptiveStorage }) => {
+    test(`/dashboard на ${width}px: каркас и отсутствие переполнения`, async ({
+      browser,
+      adaptiveStorage,
+    }) => {
       const { context, page } = await openPage(browser, adaptiveStorage, width, '/dashboard');
       try {
         const { scrollWidth, innerWidth } = await horizontalOverflow(page);
-        expect(scrollWidth, `горизонтальное переполнение на ${width}px`).toBeLessThanOrEqual(innerWidth);
+        expect(scrollWidth, `горизонтальное переполнение на ${width}px`).toBeLessThanOrEqual(
+          innerWidth,
+        );
         // <768 — скрытый сайдбар/бургер+drawer/нижняя навигация из 5 слотов,
         // 768–1023 — рейка ровно 64 px, ≥1024 — сайдбар ровно 240 px (§3).
         await expectShell(page, width);
@@ -103,19 +108,37 @@ test.describe('горизонтальное переполнение на мар
 });
 
 test.describe('карточный режим списков', () => {
-  test(`телефон ${PHONE_WIDTH}px: card-list видим, responsive-table скрыт`, async ({ browser, adaptiveStorage }) => {
-    const bad = await collect(browser, adaptiveStorage, PHONE_WIDTH, LIST_ROUTES, async (route, page) => {
-      const mode = await listMode(page, true);
-      return mode.status === 'mismatch' ? `${route}: ${mode.detail}` : null;
-    });
+  test(`телефон ${PHONE_WIDTH}px: card-list видим, responsive-table скрыт`, async ({
+    browser,
+    adaptiveStorage,
+  }) => {
+    const bad = await collect(
+      browser,
+      adaptiveStorage,
+      PHONE_WIDTH,
+      LIST_ROUTES,
+      async (route, page) => {
+        const mode = await listMode(page, true);
+        return mode.status === 'mismatch' ? `${route}: ${mode.detail}` : null;
+      },
+    );
     expect(bad, 'списки в карточном режиме на телефоне').toEqual([]);
   });
 
-  test(`desktop ${DESKTOP_WIDTH}px: responsive-table видим, card-list скрыт`, async ({ browser, adaptiveStorage }) => {
-    const bad = await collect(browser, adaptiveStorage, DESKTOP_WIDTH, LIST_ROUTES, async (route, page) => {
-      const mode = await listMode(page, false);
-      return mode.status === 'mismatch' ? `${route}: ${mode.detail}` : null;
-    });
+  test(`desktop ${DESKTOP_WIDTH}px: responsive-table видим, card-list скрыт`, async ({
+    browser,
+    adaptiveStorage,
+  }) => {
+    const bad = await collect(
+      browser,
+      adaptiveStorage,
+      DESKTOP_WIDTH,
+      LIST_ROUTES,
+      async (route, page) => {
+        const mode = await listMode(page, false);
+        return mode.status === 'mismatch' ? `${route}: ${mode.detail}` : null;
+      },
+    );
     expect(bad, 'списки в табличном режиме на desktop').toEqual([]);
   });
 
@@ -159,7 +182,9 @@ test.describe('несуществующий путь', () => {
   }) => {
     const bad: string[] = [];
     for (const width of [PHONE_WIDTH, TABLET_WIDTH, DESKTOP_WIDTH]) {
-      const { context, page } = await openPage(browser, adaptiveStorage, width, NOT_FOUND_PATH, { shell: false });
+      const { context, page } = await openPage(browser, adaptiveStorage, width, NOT_FOUND_PATH, {
+        shell: false,
+      });
       try {
         await expect(page.getByText('Страница не найдена')).toBeVisible();
         await expect(page.getByRole('link', { name: 'На дашборд' })).toBeVisible();
@@ -187,15 +212,22 @@ test.describe('тач-таргеты', () => {
 });
 
 test.describe('модалки', () => {
-  test(`телефон ${PHONE_WIDTH}px: модалка на весь экран, футер достижим`, async ({ browser, adaptiveStorage }) => {
+  test(`телефон ${PHONE_WIDTH}px: модалка на весь экран, футер достижим`, async ({
+    browser,
+    adaptiveStorage,
+  }) => {
     const { context, page } = await openPage(browser, adaptiveStorage, PHONE_WIDTH, '/dashboard');
     try {
       const dialog = await openTechCardModal(page);
       const viewport = page.viewportSize();
       const box = await dialog.boundingBox();
       expect(box, 'модалка отрисована').not.toBeNull();
-      expect(Math.round(box!.width), 'ширина модалки на телефоне').toBeGreaterThanOrEqual(viewport!.width - 2);
-      expect(Math.round(box!.height), 'высота модалки на телефоне').toBeGreaterThanOrEqual(viewport!.height - 2);
+      expect(Math.round(box!.width), 'ширина модалки на телефоне').toBeGreaterThanOrEqual(
+        viewport!.width - 2,
+      );
+      expect(Math.round(box!.height), 'высота модалки на телефоне').toBeGreaterThanOrEqual(
+        viewport!.height - 2,
+      );
 
       // Футер достижим без прокрутки страницы: кнопка сохранения и «Отмена» целиком
       // внутри вьюпорта и не мельче 44 px (§5.1, §6).
@@ -203,8 +235,10 @@ test.describe('модалки', () => {
         const button = dialog.getByRole('button', { name });
         await expect(button).toBeVisible();
         const buttonBox = await button.boundingBox();
-        expect(Math.round(buttonBox!.y + buttonBox!.height), `низ кнопки «${name}» в вьюпорте`)
-          .toBeLessThanOrEqual(viewport!.height);
+        expect(
+          Math.round(buttonBox!.y + buttonBox!.height),
+          `низ кнопки «${name}» в вьюпорте`,
+        ).toBeLessThanOrEqual(viewport!.height);
         expect(Math.round(buttonBox!.height), `высота кнопки «${name}»`).toBeGreaterThanOrEqual(44);
       }
     } finally {
@@ -212,7 +246,10 @@ test.describe('модалки', () => {
     }
   });
 
-  test(`desktop ${DESKTOP_WIDTH}px: модалка прежняя центрированная`, async ({ browser, adaptiveStorage }) => {
+  test(`desktop ${DESKTOP_WIDTH}px: модалка прежняя центрированная`, async ({
+    browser,
+    adaptiveStorage,
+  }) => {
     const { context, page } = await openPage(browser, adaptiveStorage, DESKTOP_WIDTH, '/dashboard');
     try {
       const dialog = await openTechCardModal(page);

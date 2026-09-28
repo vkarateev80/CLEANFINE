@@ -610,7 +610,9 @@ export class ScheduleService {
     }
 
     if (eventIds.length > 0 || candidates.length > 0) {
-      this.logger.warn(`Неявки: зафиксировано ${eventIds.length} из ${candidates.length} проверенных`);
+      this.logger.warn(
+        `Неявки: зафиксировано ${eventIds.length} из ${candidates.length} проверенных`,
+      );
     }
     return { scanned: candidates.length, missed: eventIds.length, eventIds };
   }
@@ -737,9 +739,7 @@ export class ScheduleService {
    */
   private shiftPlannedDurationMs(recurrence: RecurrenceRule): number {
     const minutes =
-      recurrence.durationMin ??
-      this.config.get<number>('schedule.defaultShiftMinutes') ??
-      480;
+      recurrence.durationMin ?? this.config.get<number>('schedule.defaultShiftMinutes') ?? 480;
     return minutes * 60_000;
   }
 
@@ -789,9 +789,7 @@ export class ScheduleService {
         // 502 из GpsClient уже содержит нужный текст и статус — не подменяем на 503.
         throw error;
       }
-      this.logger.error(
-        `Проверка геозоны для ${userId} завершилась ошибкой: ${describe(error)}`,
-      );
+      this.logger.error(`Проверка геозоны для ${userId} завершилась ошибкой: ${describe(error)}`);
       throw geofenceUnavailable();
     }
   }
@@ -879,8 +877,8 @@ export class ScheduleService {
     }
     return views.map((view) => ({
       ...view,
-      objectName: view.objectId ? objectNames.get(view.objectId) ?? null : null,
-      routeName: view.routeId ? routeNames.get(view.routeId) ?? null : null,
+      objectName: view.objectId ? (objectNames.get(view.objectId) ?? null) : null,
+      routeName: view.routeId ? (routeNames.get(view.routeId) ?? null) : null,
     }));
   }
 }

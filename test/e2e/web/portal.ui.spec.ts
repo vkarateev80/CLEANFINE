@@ -380,11 +380,7 @@ test('AC-06: два CLIENT с одинаковым fullName видят кажд�
   createdObjectIds.add(secondObject.id);
 
   // API-контроль: фильтр по ownerClientId отдаёт каждому ровно свой объект.
-  const firstList = await core(
-    request,
-    'get',
-    `/api/objects?ownerClientId=${first.id}&take=100`,
-  );
+  const firstList = await core(request, 'get', `/api/objects?ownerClientId=${first.id}&take=100`);
   const firstIds = ((await firstList.json()) as { items: Array<{ id: string }> }).items.map(
     (item) => item.id,
   );
@@ -475,9 +471,10 @@ test('М5.4: /reports отдаёт числовой итог расхода ма
     { objectId: object.id, from: today, to: today },
     { role: 'CLIENT' },
   );
-  expect(report.rows.map((row) => row.materialId), 'расход виден в отчёте сервиса').toContain(
-    material.id,
-  );
+  expect(
+    report.rows.map((row) => row.materialId),
+    'расход виден в отчёте сервиса',
+  ).toContain(material.id);
 
   await loginClient(page);
   await page.goto(`${PORTAL_URL}/reports?tab=materials&from=${today}&to=${today}`);
@@ -528,9 +525,10 @@ test('М5.4: сообщение из портала остаётся в лент
   // Второй участник (менеджер) видит сообщение через REST chat-service — то есть оно
   // реально сохранено сервером, а не только отрисовано оптимистично в портале.
   const seenByManager = await searchMessages(request, { q: reply, chatId: chat.id });
-  expect(seenByManager.items.map((item) => item.text), 'менеджер видит ответ клиента').toContain(
-    reply,
-  );
+  expect(
+    seenByManager.items.map((item) => item.text),
+    'менеджер видит ответ клиента',
+  ).toContain(reply);
   expect(
     seenByManager.items.find((item) => item.text === reply)?.authorId,
     'автор — клиент портала',
@@ -642,9 +640,10 @@ test('М5.6: клиент создаёт заявку в портале, мен�
     { q: answer, chatId: ticketChat.id },
     { role: 'CLIENT' },
   );
-  expect(asClient.items.map((item) => item.text), 'ответ менеджера доступен клиенту').toContain(
-    answer,
-  );
+  expect(
+    asClient.items.map((item) => item.text),
+    'ответ менеджера доступен клиенту',
+  ).toContain(answer);
   expect(
     asClient.items.find((item) => item.text === answer)?.authorId,
     'автор ответа — менеджер',
@@ -703,10 +702,14 @@ test('уборка: объект, заявка, чат и материал пр�
     (await tickets(request, 'get', `/api/tickets/${created.id}`, { role: 'ADMIN' })).status(),
     'заявка прогона удалена',
   ).toBe(404);
-  expect(
-    planningCounts({ materialIds: [material.id] }),
-    'материал прогона удалён',
-  ).toEqual({ schedules: 0, events: 0, materials: 0, stocks: 0, movements: 0, consumed: 0 });
+  expect(planningCounts({ materialIds: [material.id] }), 'материал прогона удалён').toEqual({
+    schedules: 0,
+    events: 0,
+    materials: 0,
+    stocks: 0,
+    movements: 0,
+    consumed: 0,
+  });
   expect(
     (await core(request, 'get', `/api/objects/${object.id}`)).status(),
     'объект прогона удалён',

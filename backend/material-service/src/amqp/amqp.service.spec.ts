@@ -5,11 +5,7 @@ jest.mock('amqplib', () => ({ connect: jest.fn() }));
 
 // Тот же мок-модуль, что и в сервисе подключения: connect подменён фабрикой выше.
 import * as amqp from 'amqplib';
-import {
-  AmqpConnectionService,
-  describeError,
-  safeHost,
-} from './amqp-connection.service';
+import { AmqpConnectionService, describeError, safeHost } from './amqp-connection.service';
 import { EventsPublisher } from './events.publisher';
 
 const connectMock = amqp.connect as unknown as jest.Mock;
@@ -64,8 +60,12 @@ describe('AmqpConnectionService (М4.2)', () => {
 
     expect(connectMock).not.toHaveBeenCalled();
     await expect(service.getChannel()).resolves.toBe(channel);
-    expect(connectMock).toHaveBeenCalledWith('amqp://admin:secret@localhost:5672', { timeout: 1000 });
-    expect(channel.assertExchange).toHaveBeenCalledWith(EVENTS_EXCHANGE, 'topic', { durable: true });
+    expect(connectMock).toHaveBeenCalledWith('amqp://admin:secret@localhost:5672', {
+      timeout: 1000,
+    });
+    expect(channel.assertExchange).toHaveBeenCalledWith(EVENTS_EXCHANGE, 'topic', {
+      durable: true,
+    });
 
     await service.onModuleDestroy();
   });

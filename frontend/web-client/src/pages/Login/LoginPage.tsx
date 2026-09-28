@@ -189,9 +189,7 @@ export function LoginPage() {
         Войти
       </Button>
 
-      <p className="text-center text-xs text-neutral-500">
-        Забыли пароль? Обратитесь к менеджеру.
-      </p>
+      <p className="text-center text-xs text-neutral-500">Забыли пароль? Обратитесь к менеджеру.</p>
     </form>
   );
 }

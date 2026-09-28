@@ -34,10 +34,21 @@ export class UsersController {
   @Roles('ADMIN', 'SUPERVISOR')
   @ApiOperation({ summary: 'Список сотрудников (ADMIN, SUPERVISOR)' })
   @ApiQuery({ name: 'skip', required: false, type: Number, example: 0 })
-  @ApiQuery({ name: 'take', required: false, type: Number, example: 50, description: 'максимум 100' })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    type: Number,
+    example: 50,
+    description: 'максимум 100',
+  })
   @ApiQuery({ name: 'role', required: false, enum: ROLE_VALUES })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'по ФИО, email или телефону' })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'по ФИО, email или телефону',
+  })
   @ApiResponse({ status: 200, description: 'Постраничный список: { items, total }' })
   @ApiResponse({ status: 401, description: 'Нет или невалидный access-токен' })
   @ApiResponse({ status: 403, description: 'Роль не ADMIN/SUPERVISOR' })
@@ -95,7 +106,8 @@ export class UsersController {
   @Roles('ADMIN')
   @ApiOperation({
     summary: 'Мягкая деактивация сотрудника (только ADMIN)',
-    description: 'Пользователь не удаляется: ставится isActive=false и отзываются все refresh-токены.',
+    description:
+      'Пользователь не удаляется: ставится isActive=false и отзываются все refresh-токены.',
   })
   @ApiResponse({ status: 204, description: 'Сотрудник деактивирован' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })

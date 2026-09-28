@@ -1,16 +1,17 @@
 import { JwtService } from '@nestjs/jwt';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ChatGateway } from './chat.gateway';
-import {
-  authenticateSocket,
-  parseReadPayload,
-  parseSendPayload,
-} from './ws-auth';
+import { authenticateSocket, parseReadPayload, parseSendPayload } from './ws-auth';
 import { MAX_MESSAGE_LENGTH } from './dto/chat.dto';
 import type { ChatsService, DeliveryPlan, MarkReadResult } from './chats.service';
 import type { AuthUser } from '../auth/guards/roles.guard';
 
-const admin: AuthUser = { id: 'u-admin', email: 'admin@cleaning-ops.com', role: 'ADMIN', fullName: '' };
+const admin: AuthUser = {
+  id: 'u-admin',
+  email: 'admin@cleaning-ops.com',
+  role: 'ADMIN',
+  fullName: '',
+};
 const _operator: AuthUser = {
   id: 'u-oper',
   email: 'operator@cleaning-ops.com',
@@ -120,7 +121,10 @@ describe('ChatGateway', () => {
 
       await gateway.handleConnection(socket as never);
 
-      expect(socket.emit).toHaveBeenCalledWith('error', expect.objectContaining({ message: expect.any(String) }));
+      expect(socket.emit).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ message: expect.any(String) }),
+      );
       expect(socket.disconnect).toHaveBeenCalledWith(true);
       expect(gateway.isOnline('u-admin')).toBe(false);
     });
@@ -221,7 +225,11 @@ describe('ChatGateway', () => {
       expect(ack).toEqual({ ok: true, message: expect.objectContaining({ id: 'msg-1' }) });
       // Онлайн-получатель в своей комнате, отправитель исключён.
       expect(server.emits).toEqual([
-        { room: 'user:u-oper', event: 'message:new', payload: expect.objectContaining({ id: 'msg-1' }) },
+        {
+          room: 'user:u-oper',
+          event: 'message:new',
+          payload: expect.objectContaining({ id: 'msg-1' }),
+        },
       ]);
       // В расчёт оффлайна уходит снимок онлайн-карты.
       expect(chats.sendMessage.mock.calls[0][2]).toEqual(admin);
@@ -263,9 +271,7 @@ describe('ChatGateway', () => {
     });
 
     it('переносит 403 сервиса в ack со статусом', async () => {
-      chats.sendMessage.mockRejectedValue(
-        new ForbiddenException('Вы не участник этого чата'),
-      );
+      chats.sendMessage.mockRejectedValue(new ForbiddenException('Вы не участник этого чата'));
 
       const ack = await gateway.handleMessageSend(socket as never, {
         chatId: 'c-foreign',
@@ -403,9 +409,10 @@ describe('parseSendPayload / parseReadPayload', () => {
       ok: false,
       error: 'Сообщение не может быть пустым',
     });
-    expect(
-      parseSendPayload({ chatId: 'c-1', text: 'x'.repeat(MAX_MESSAGE_LENGTH + 1) }),
-    ).toEqual({ ok: false, error: `Сообщение длиннее ${MAX_MESSAGE_LENGTH} символов` });
+    expect(parseSendPayload({ chatId: 'c-1', text: 'x'.repeat(MAX_MESSAGE_LENGTH + 1) })).toEqual({
+      ok: false,
+      error: `Сообщение длиннее ${MAX_MESSAGE_LENGTH} символов`,
+    });
     expect(parseSendPayload({ chatId: 'c-1', text: 'a', attachmentIds: [1] })).toEqual({
       ok: false,
       error: 'attachmentIds должен быть массивом строк',

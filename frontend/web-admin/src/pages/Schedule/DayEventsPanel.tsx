@@ -135,11 +135,7 @@ export function DayEventsPanel({
    * Показывать её вместо пересказа на клиенте важно: клиент не может знать про
    * до-созданные заявки после сбоя ticket-service.
    */
-  const notice = generation
-    ? generationSummary(generation)
-    : missed
-      ? missedSummary(missed)
-      : null;
+  const notice = generation ? generationSummary(generation) : missed ? missedSummary(missed) : null;
 
   /**
    * Колонки смен дня: `cell` — прежняя ячейка таблицы, `card` — роль в карточке
@@ -200,7 +196,7 @@ export function DayEventsPanel({
       cardLabel: 'Объект',
       cell: (event) =>
         event.objectId ? (
-          objectNames.get(event.objectId) ?? shortId(event.objectId)
+          (objectNames.get(event.objectId) ?? shortId(event.objectId))
         ) : (
           <span className="text-neutral-400">без объекта</span>
         ),
@@ -213,9 +209,9 @@ export function DayEventsPanel({
       cardLabel: 'Исполнитель',
       cell: (event) =>
         event.userId ? (
-          userNames.get(event.userId) ?? (
+          (userNames.get(event.userId) ?? (
             <span className="font-mono text-xs">{shortId(event.userId)}</span>
-          )
+          ))
         ) : (
           <span className="text-neutral-400">не назначен</span>
         ),
@@ -340,7 +336,11 @@ export function DayEventsPanel({
             >
               Прогнать неявки
             </Button>
-            <Button variant="ghost" className="max-lg:min-h-[44px] max-md:w-full" onClick={onToggleScheduler}>
+            <Button
+              variant="ghost"
+              className="max-lg:min-h-[44px] max-md:w-full"
+              onClick={onToggleScheduler}
+            >
               Состояние планировщика
             </Button>
           </div>

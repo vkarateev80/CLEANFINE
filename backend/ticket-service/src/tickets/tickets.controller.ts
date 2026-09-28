@@ -38,7 +38,10 @@ export class TicketsController {
       'Доступна всем аутентифицированным ролям (SOS отправляет оператор с мобильного). ' +
       'Недоступность gps-service не мешает созданию заявки: список ближних операторов будет пустым.',
   })
-  @ApiResponse({ status: 201, description: 'Заявка создана; nearbyOperators — найденные операторы' })
+  @ApiResponse({
+    status: 201,
+    description: 'Заявка создана; nearbyOperators — найденные операторы',
+  })
   async createEmergency(
     @Body() dto: EmergencyTicketDto,
     @CurrentUser() user: AuthUser,
@@ -110,7 +113,10 @@ export class TicketsController {
       'roomId входит в ключ — одна техкарта на несколько помещений маршрута. ' +
       'Если операция требует фото (requiresPhoto), без photoUrl — 400.',
   })
-  @ApiResponse({ status: 201, description: 'Операция зафиксирована (alreadyCompleted при повторе)' })
+  @ApiResponse({
+    status: 201,
+    description: 'Операция зафиксирована (alreadyCompleted при повторе)',
+  })
   async completeOperation(
     @Param('id') id: string,
     @Param('operationId') operationId: string,

@@ -152,7 +152,13 @@ export async function listMyChats(
 /** POST /api/chat/chats — создание чата (ответ как есть). */
 export function postChat(
   request: APIRequestContext,
-  data: { type: ChatType; participantIds?: string[]; objectId?: string; ticketId?: string; title?: string },
+  data: {
+    type: ChatType;
+    participantIds?: string[];
+    objectId?: string;
+    ticketId?: string;
+    title?: string;
+  },
   options: ChatApiOptions = {},
 ): Promise<APIResponse> {
   return chatApi(request, 'post', '/api/chat/chats', { ...options, data });
@@ -462,13 +468,21 @@ export function countMessages(ids: Iterable<string>): number {
 }
 
 /** Сколько сообщений/участников осталось у перечисленных чатов. */
-export function countChatDependants(chatIds: Iterable<string>): { messages: number; members: number } {
+export function countChatDependants(chatIds: Iterable<string>): {
+  messages: number;
+  members: number;
+} {
   const list = [...chatIds];
   if (list.length === 0) return { messages: 0, members: 0 };
   const scope = list.map(literal).join(', ');
   return {
-    messages: Number(chatSqlValue(`SELECT COUNT(*)::text FROM "Message" WHERE "chatId" IN (${scope})`)) || 0,
-    members: Number(chatSqlValue(`SELECT COUNT(*)::text FROM "ChatMember" WHERE "chatId" IN (${scope})`)) || 0,
+    messages:
+      Number(chatSqlValue(`SELECT COUNT(*)::text FROM "Message" WHERE "chatId" IN (${scope})`)) ||
+      0,
+    members:
+      Number(
+        chatSqlValue(`SELECT COUNT(*)::text FROM "ChatMember" WHERE "chatId" IN (${scope})`),
+      ) || 0,
   };
 }
 
@@ -550,7 +564,7 @@ class ChatTracker {
 
     try {
       const counts = deleteCounts(runSqlFile(statements.join('\n')));
-      const at = (index: number): number => (index >= 0 ? counts[index] ?? 0 : 0);
+      const at = (index: number): number => (index >= 0 ? (counts[index] ?? 0) : 0);
       removed.messages = at(indexes.byId) + at(indexes.byChat);
       removed.members = at(indexes.members);
       removed.chats = at(indexes.chats);

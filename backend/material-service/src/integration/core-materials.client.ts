@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  OperationMaterials,
-  RoomRef,
-  TechCardRef,
-} from './operation-materials';
+import { OperationMaterials, RoomRef, TechCardRef } from './operation-materials';
 import { ServiceTokenProvider } from './service-token.provider';
 
 /** Ответ core-service на `GET /api/objects/:id` (для читаемого material.low). */
@@ -63,10 +59,7 @@ export class CoreMaterialsClient {
    * Материалы операции техкарты: помещение → техкарта → операция → materials[].
    * null — цепочка оборвалась (нет roomId/techCardId, нет операции, сервис недоступен).
    */
-  async getOperationMaterials(
-    roomId: string,
-    operationId: string,
-  ): Promise<OperationMaterials> {
+  async getOperationMaterials(roomId: string, operationId: string): Promise<OperationMaterials> {
     const room = await this.getRoom(roomId);
     if (!room) {
       return null;

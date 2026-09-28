@@ -175,8 +175,7 @@ export class CompleteOperationDto {
   photoUrl?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Операция требует фото (requiresPhoto в техкарте core): без photoUrl будет 400',
+    description: 'Операция требует фото (requiresPhoto в техкарте core): без photoUrl будет 400',
   })
   @IsOptional()
   requiresPhoto?: boolean;
@@ -215,25 +214,44 @@ export class CompleteRoomDto {
 /** Список заявок с фильтрами и пагинацией (М3.4). */
 export class ListTicketsQueryDto {
   @ApiPropertyOptional({ description: 'Пропустить записей', example: 0 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(0) skip?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  skip?: number;
 
   @ApiPropertyOptional({ description: 'Взять записей (максимум 100)', example: 50 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) take?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  take?: number;
 
   @ApiPropertyOptional({ description: 'Фильтр по статусу', enum: TICKET_STATUSES })
-  @IsOptional() @IsIn(TICKET_STATUSES) status?: TicketStatus;
+  @IsOptional()
+  @IsIn(TICKET_STATUSES)
+  status?: TicketStatus;
 
   @ApiPropertyOptional({ description: 'Фильтр по типу', enum: TICKET_TYPES })
-  @IsOptional() @IsIn(TICKET_TYPES) type?: (typeof TICKET_TYPES)[number];
+  @IsOptional()
+  @IsIn(TICKET_TYPES)
+  type?: (typeof TICKET_TYPES)[number];
 
   @ApiPropertyOptional({ description: 'Фильтр по приоритету', enum: TICKET_PRIORITIES })
-  @IsOptional() @IsIn(TICKET_PRIORITIES) priority?: TicketPriority;
+  @IsOptional()
+  @IsIn(TICKET_PRIORITIES)
+  priority?: TicketPriority;
 
   @ApiPropertyOptional({ description: 'Фильтр по объекту' })
-  @IsOptional() @IsString() objectId?: string;
+  @IsOptional()
+  @IsString()
+  objectId?: string;
 
   @ApiPropertyOptional({ description: 'Фильтр по исполнителю' })
-  @IsOptional() @IsString() assigneeId?: string;
+  @IsOptional()
+  @IsString()
+  assigneeId?: string;
 
   /**
    * Поиск по тексту заявки (М4.3): в модалке движения материала нужна конкретная
@@ -244,5 +262,7 @@ export class ListTicketsQueryDto {
     description: 'Поиск по id, описанию и объекту (без учёта регистра)',
     example: 'влажная уборка',
   })
-  @IsOptional() @IsString() search?: string;
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

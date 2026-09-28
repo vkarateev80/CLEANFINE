@@ -1,0 +1,7 @@
+# Генерируемые каталоги — не форматируем (и не чекаем).
+**/dist/**
+node_modules
+.pnpm-store
+**/test-results/**
+**/playwright-report/**
+coverage

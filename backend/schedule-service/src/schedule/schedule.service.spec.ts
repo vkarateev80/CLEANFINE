@@ -129,9 +129,11 @@ function build(configValues: Record<string, unknown> = {}) {
   } as unknown as jest.Mocked<TicketClient>;
 
   const gps = {
-    checkGeofence: jest
-      .fn()
-      .mockResolvedValue({ inside: true, distanceMeters: 12, geofence: { id: 'gf-1', objectId: OBJECT_ID, name: 'Офис', radiusMeters: 100 } }),
+    checkGeofence: jest.fn().mockResolvedValue({
+      inside: true,
+      distanceMeters: 12,
+      geofence: { id: 'gf-1', objectId: OBJECT_ID, name: 'Офис', radiusMeters: 100 },
+    }),
   } as unknown as jest.Mocked<GpsClient>;
 
   const core = {
@@ -193,15 +195,17 @@ describe('ScheduleService (М4.4–М4.5)', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
 
       await expect(
-        service.create({ name: 'Месяц', recurrence: { frequency: 'monthly', time: '08:00' }, assignees: [USER] }),
+        service.create({
+          name: 'Месяц',
+          recurrence: { frequency: 'monthly', time: '08:00' },
+          assignees: [USER],
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('list отдаёт графики с числом смен', async () => {
       const { service, prisma } = build();
-      prisma.schedule.findMany.mockResolvedValue([
-        { ...scheduleFixture(), _count: { events: 3 } },
-      ]);
+      prisma.schedule.findMany.mockResolvedValue([{ ...scheduleFixture(), _count: { events: 3 } }]);
 
       const result = await service.list();
 
@@ -344,7 +348,9 @@ describe('ScheduleService (М4.4–М4.5)', () => {
     it('weekly Пн–Пт: в воскресенье смен нет, в среду есть', async () => {
       const { service, prisma } = build();
       prisma.schedule.findMany.mockResolvedValue([
-        scheduleFixture({ recurrence: { frequency: 'weekly', days: [1, 2, 3, 4, 5], time: '08:00' } }),
+        scheduleFixture({
+          recurrence: { frequency: 'weekly', days: [1, 2, 3, 4, 5], time: '08:00' },
+        }),
       ]);
       prisma.scheduleEvent.create.mockResolvedValue(eventFixture());
 
@@ -370,7 +376,9 @@ describe('ScheduleService (М4.4–М4.5)', () => {
 
     it('битое правило повторения не роняет проход и попадает в errors', async () => {
       const { service, prisma } = build();
-      prisma.schedule.findMany.mockResolvedValue([scheduleFixture({ recurrence: { time: '08:00' } })]);
+      prisma.schedule.findMany.mockResolvedValue([
+        scheduleFixture({ recurrence: { time: '08:00' } }),
+      ]);
 
       const result = await service.generateForDate('2026-09-16', NOW);
 
@@ -494,7 +502,12 @@ describe('ScheduleService (М4.4–М4.5)', () => {
         }),
       );
 
-      const result = await service.checkIn(USER, { scheduleId: SCHEDULE_ID, lat: 55.75, lng: 37.61 }, 'user-token', NOW);
+      const result = await service.checkIn(
+        USER,
+        { scheduleId: SCHEDULE_ID, lat: 55.75, lng: 37.61 },
+        'user-token',
+        NOW,
+      );
 
       expect(gps.checkGeofence).toHaveBeenCalledWith(USER, 55.75, 37.61, 'user-token');
       expect(prisma.scheduleEvent.update).toHaveBeenCalledWith({
@@ -528,7 +541,12 @@ describe('ScheduleService (М4.4–М4.5)', () => {
         eventFixture({ status: ScheduleEventStatus.CHECKED_IN, checkInAt: NOW }),
       );
 
-      const result = await service.checkIn(USER, { scheduleId: SCHEDULE_ID, lat: 55.75, lng: 37.61 }, undefined, NOW);
+      const result = await service.checkIn(
+        USER,
+        { scheduleId: SCHEDULE_ID, lat: 55.75, lng: 37.61 },
+        undefined,
+        NOW,
+      );
 
       expect(gps.checkGeofence).not.toHaveBeenCalled();
       expect(prisma.scheduleEvent.update).not.toHaveBeenCalled();
@@ -594,13 +612,20 @@ describe('ScheduleService (М4.4–М4.5)', () => {
     it('закрывает открытую смену с координатами', async () => {
       const { service, prisma } = build();
       prisma.scheduleEvent.findFirst.mockResolvedValue(
-        eventFixture({ status: ScheduleEventStatus.CHECKED_IN, checkInAt: new Date('2026-09-16T08:05:00.000Z') }),
+        eventFixture({
+          status: ScheduleEventStatus.CHECKED_IN,
+          checkInAt: new Date('2026-09-16T08:05:00.000Z'),
+        }),
       );
       prisma.scheduleEvent.update.mockResolvedValue(
         eventFixture({ status: ScheduleEventStatus.CHECKED_OUT, checkOutAt: NOW }),
       );
 
-      const result = await service.checkOut(USER, { scheduleId: SCHEDULE_ID, lat: 55.75, lng: 37.61 }, NOW);
+      const result = await service.checkOut(
+        USER,
+        { scheduleId: SCHEDULE_ID, lat: 55.75, lng: 37.61 },
+        NOW,
+      );
 
       expect(result.status).toBe(ScheduleEventStatus.CHECKED_OUT);
       expect(prisma.scheduleEvent.update).toHaveBeenCalledWith({
@@ -620,12 +645,16 @@ describe('ScheduleService (М4.4–М4.5)', () => {
       prisma.scheduleEvent.findFirst.mockResolvedValue(
         eventFixture({ status: ScheduleEventStatus.CHECKED_IN, checkInAt: NOW }),
       );
-      prisma.scheduleEvent.update.mockResolvedValue(eventFixture({ status: ScheduleEventStatus.CHECKED_OUT }));
+      prisma.scheduleEvent.update.mockResolvedValue(
+        eventFixture({ status: ScheduleEventStatus.CHECKED_OUT }),
+      );
 
       await service.checkOut(USER, { scheduleId: SCHEDULE_ID }, NOW);
 
       expect(prisma.scheduleEvent.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ checkOutLat: null, checkOutLng: null }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ checkOutLat: null, checkOutLng: null }),
+        }),
       );
     });
 
@@ -734,7 +763,10 @@ describe('ScheduleService (М4.4–М4.5)', () => {
     it('закрывает смену CHECKED_IN после таймаута с пометкой причины', async () => {
       const { service, prisma } = build({ 'schedule.autoCheckoutMinutes': 15 });
       prisma.scheduleEvent.findMany.mockResolvedValue([
-        eventFixture({ status: ScheduleEventStatus.CHECKED_IN, checkInAt: new Date('2026-09-16T08:01:00.000Z') }),
+        eventFixture({
+          status: ScheduleEventStatus.CHECKED_IN,
+          checkInAt: new Date('2026-09-16T08:01:00.000Z'),
+        }),
       ]);
 
       const result = await service.autoCheckout(NOW);
@@ -774,7 +806,9 @@ describe('ScheduleService (М4.4–М4.5)', () => {
     it('сначала закрывает зависшие смены, затем фиксирует неявки', async () => {
       const { service, prisma } = build();
       prisma.scheduleEvent.findMany
-        .mockResolvedValueOnce([eventFixture({ id: 'hung', status: ScheduleEventStatus.CHECKED_IN, checkInAt: NOW })])
+        .mockResolvedValueOnce([
+          eventFixture({ id: 'hung', status: ScheduleEventStatus.CHECKED_IN, checkInAt: NOW }),
+        ])
         .mockResolvedValueOnce([eventFixture({ id: 'missed' })]);
 
       const result = await service.scanMissedAndAutoCheckout('2026-09-16', NOW);
@@ -877,7 +911,9 @@ describe('ScheduleService (М4.4–М4.5)', () => {
       const { service, prisma } = build();
       prisma.schedule.findUnique.mockResolvedValue(scheduleFixture());
       prisma.scheduleEvent.findMany
-        .mockResolvedValueOnce([eventFixture({ id: 'hung', status: ScheduleEventStatus.CHECKED_IN, checkInAt: NOW })])
+        .mockResolvedValueOnce([
+          eventFixture({ id: 'hung', status: ScheduleEventStatus.CHECKED_IN, checkInAt: NOW }),
+        ])
         .mockResolvedValueOnce([eventFixture({ id: 'missed' })]);
 
       const result = await service.scanMissedAndAutoCheckout('2026-09-16', NOW, {
@@ -900,7 +936,9 @@ describe('ScheduleService (М4.4–М4.5)', () => {
         status: 404,
         message: 'Смена не найдена',
       });
-      await expect(service.checkMissed(undefined, NOW, { scheduleId: 'nope' })).rejects.toMatchObject({
+      await expect(
+        service.checkMissed(undefined, NOW, { scheduleId: 'nope' }),
+      ).rejects.toMatchObject({
         status: 404,
         message: 'График не найден',
       });
@@ -999,7 +1037,9 @@ describe('ScheduleService (М4.4–М4.5)', () => {
 
     it('listEvents с битой датой → 400', async () => {
       const { service } = build();
-      await expect(service.listEvents({ date: 'вчера' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.listEvents({ date: 'вчера' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('listMyEvents по умолчанию — сегодняшний день', async () => {

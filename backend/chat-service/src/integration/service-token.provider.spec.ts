@@ -72,7 +72,9 @@ describe('ServiceTokenProvider (chat-service)', () => {
   });
 
   it('переживает недоступность auth-service', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
     await expect(new ServiceTokenProvider(configMock()).getToken()).resolves.toBeNull();
   });
 

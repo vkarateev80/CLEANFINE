@@ -61,17 +61,26 @@ export class CreateOperationDto {
   name!: string;
 
   @ApiPropertyOptional({ description: 'Порядок выполнения; по умолчанию — в конец', example: 0 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(INT4_MAX) orderIndex?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(INT4_MAX)
+  orderIndex?: number;
 
   @ApiPropertyOptional({ description: 'Описание операции' })
-  @IsOptional() @IsString() description?: string;
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @ApiPropertyOptional({
     description: 'Оборудование и инвентарь (произвольный JSON); null — сбросить',
     example: { items: ['швабра', 'ведро'], ppe: ['перчатки'] },
     nullable: true,
   })
-  @IsOptional() @IsObject() equipment?: Record<string, unknown> | null;
+  @IsOptional()
+  @IsObject()
+  equipment?: Record<string, unknown> | null;
 
   @ApiProperty({ description: 'Нормативное время операции, мин', example: 10 })
   @Type(() => Number)
@@ -81,35 +90,59 @@ export class CreateOperationDto {
   estimatedTimeMin!: number;
 
   @ApiPropertyOptional({ description: 'Требуется фотоотчёт', example: true })
-  @IsOptional() @IsBoolean() requiresPhoto?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  requiresPhoto?: boolean;
 
   @ApiPropertyOptional({ description: 'Требуется сканирование QR', example: false })
-  @IsOptional() @IsBoolean() requiresQr?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  requiresQr?: boolean;
 
   @ApiPropertyOptional({ description: 'Материалы операции', type: () => [OperationMaterialDto] })
-  @IsOptional() @IsArray() materials?: OperationMaterialDto[];
+  @IsOptional()
+  @IsArray()
+  materials?: OperationMaterialDto[];
 }
 
 export class UpdateOperationDto {
   @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
-  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(INT4_MAX) orderIndex?: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(INT4_MAX)
+  orderIndex?: number;
   @ApiPropertyOptional({ description: 'Описание операции' })
-  @IsOptional() @IsString() description?: string;
+  @IsOptional()
+  @IsString()
+  description?: string;
 
   @ApiPropertyOptional({
     description: 'Оборудование и инвентарь (произвольный JSON); null — сбросить',
     example: { items: ['швабра', 'ведро'], ppe: ['перчатки'] },
     nullable: true,
   })
-  @IsOptional() @IsObject() equipment?: Record<string, unknown> | null;
+  @IsOptional()
+  @IsObject()
+  equipment?: Record<string, unknown> | null;
 
-  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(INT4_MAX) estimatedTimeMin?: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(INT4_MAX)
+  estimatedTimeMin?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() requiresPhoto?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() requiresQr?: boolean;
 
   /** Полная замена списка материалов операции. */
   @ApiPropertyOptional({ type: () => [OperationMaterialDto] })
-  @IsOptional() @IsArray() materials?: OperationMaterialDto[];
+  @IsOptional()
+  @IsArray()
+  materials?: OperationMaterialDto[];
 }
 
 /**

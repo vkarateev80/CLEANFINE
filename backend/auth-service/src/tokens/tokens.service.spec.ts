@@ -26,10 +26,12 @@ describe('TokensService', () => {
     },
   };
   const jwt = {
-    signAsync: jest.fn().mockImplementation(
-      async (payload: { sub: string; jti?: string }, opts: { expiresIn?: string }) =>
-        `${opts.expiresIn ?? 'none'}:${payload.sub}:${payload.jti ?? 'no-jti'}`,
-    ),
+    signAsync: jest
+      .fn()
+      .mockImplementation(
+        async (payload: { sub: string; jti?: string }, opts: { expiresIn?: string }) =>
+          `${opts.expiresIn ?? 'none'}:${payload.sub}:${payload.jti ?? 'no-jti'}`,
+      ),
   };
   const config = {
     get: jest.fn((k: string): string | undefined => {
@@ -95,7 +97,9 @@ describe('TokensService', () => {
 
     it('падает обратно на 30 дней при невалидном TTL', async () => {
       const thirtyDays = 30 * 24 * 60 * 60 * 1000;
-      config.get.mockImplementation((key: string) => (key === 'jwt.refreshTtl' ? 'тридцать дней' : 'secret'));
+      config.get.mockImplementation((key: string) =>
+        key === 'jwt.refreshTtl' ? 'тридцать дней' : 'secret',
+      );
 
       const before = Date.now();
       await service.generatePair(user);
@@ -110,7 +114,10 @@ describe('TokensService', () => {
       prisma.refreshToken.findUnique.mockResolvedValue(storedRefresh);
       const pair = await service.rotate('refresh-1');
       expect(prisma.refreshToken.update).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'rt1' }, data: expect.objectContaining({ revokedAt: expect.any(Date) }) }),
+        expect.objectContaining({
+          where: { id: 'rt1' },
+          data: expect.objectContaining({ revokedAt: expect.any(Date) }),
+        }),
       );
       expect(pair.refreshToken).toBeDefined();
     });

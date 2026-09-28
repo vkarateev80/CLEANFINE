@@ -1,6 +1,10 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { createObject, deleteObject, runTag } from '../../helpers/core';
-import { flushOperationsData, sqlAvailable, sweepOrphanNotifications } from '../../helpers/operations';
+import {
+  flushOperationsData,
+  sqlAvailable,
+  sweepOrphanNotifications,
+} from '../../helpers/operations';
 import {
   createMaterial,
   createMovement,
@@ -118,7 +122,10 @@ test('вкладки переключаются и сохраняются в que
 
   // По умолчанию открыт справочник, и лишнего параметра в ссылке нет.
   await expect(page.getByTestId('materials-search')).toBeVisible({ timeout: 20_000 });
-  expect(new URL(page.url()).searchParams.get('tab'), 'справочник — вкладка по умолчанию').toBeNull();
+  expect(
+    new URL(page.url()).searchParams.get('tab'),
+    'справочник — вкладка по умолчанию',
+  ).toBeNull();
 
   // Каждая вкладка пишет свой `tab` и монтирует свою панель.
   await page.getByTestId('materials-tab-stocks').click();

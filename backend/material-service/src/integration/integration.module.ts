@@ -22,11 +22,6 @@ import { TicketsClient } from './tickets.client';
     // Резолвер отдаётся по токену-абстракции: консьюмер не зависит от REST-реализации.
     { provide: OPERATION_MATERIALS_RESOLVER, useExisting: ApiOperationMaterialsResolver },
   ],
-  exports: [
-    ServiceTokenProvider,
-    TicketsClient,
-    CoreMaterialsClient,
-    OPERATION_MATERIALS_RESOLVER,
-  ],
+  exports: [ServiceTokenProvider, TicketsClient, CoreMaterialsClient, OPERATION_MATERIALS_RESOLVER],
 })
 export class IntegrationModule {}

@@ -140,11 +140,7 @@ export class ChatsController {
   @ApiResponse({ status: 200, description: '{ chatId, userId, lastMessageId, readAt }' })
   @ApiResponse({ status: 403, description: 'Вы не участник этого чата' })
   @ApiResponse({ status: 404, description: 'Чат или сообщение не найдены' })
-  async markRead(
-    @Param('id') id: string,
-    @Body() dto: MarkReadDto,
-    @CurrentUser() user: AuthUser,
-  ) {
+  async markRead(@Param('id') id: string, @Body() dto: MarkReadDto, @CurrentUser() user: AuthUser) {
     const result = await this.chats.markRead(id, dto, user);
     this.gateway.emitMessageRead(result);
     return result;

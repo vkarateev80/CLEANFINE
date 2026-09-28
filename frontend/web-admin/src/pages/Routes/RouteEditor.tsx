@@ -160,7 +160,8 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
       if (!fresh) return current;
       return current.map((entry) => {
         const edited = inputToTime(entry.time) !== (entry.point.estimatedTimeMin ?? null);
-        const serverPoint = route.points.find((point) => point.id === entry.point.id) ?? entry.point;
+        const serverPoint =
+          route.points.find((point) => point.id === entry.point.id) ?? entry.point;
         return {
           point: serverPoint,
           time: edited ? entry.time : timeToInput(serverPoint.estimatedTimeMin),
@@ -170,7 +171,11 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
   }, [route, routeQuery.dataUpdatedAt]);
 
   useEffect(() => {
-    if (route && selectedPointId !== null && !route.points.some((point) => point.id === selectedPointId)) {
+    if (
+      route &&
+      selectedPointId !== null &&
+      !route.points.some((point) => point.id === selectedPointId)
+    ) {
       setSelectedPointId(null);
     }
   }, [route, selectedPointId]);
@@ -200,9 +205,11 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
   // чтобы «Итого» не прыгало на каждом нажатии клавиши при вводе числа.
   const localTotal = draft.reduce((sum, entry) => {
     const parsed = inputToTime(entry.time);
-    return sum + (typeof parsed === 'number' ? parsed : serverTimes.get(entry.point.id) ?? 0);
+    return sum + (typeof parsed === 'number' ? parsed : (serverTimes.get(entry.point.id) ?? 0));
   }, 0);
-  const savedTotal = sumDraftTime(draft.map((entry) => timeToInput(serverTimes.get(entry.point.id) ?? null)));
+  const savedTotal = sumDraftTime(
+    draft.map((entry) => timeToInput(serverTimes.get(entry.point.id) ?? null)),
+  );
 
   const reorderMutation = useMutation({
     mutationFn: (ids: string[]) => reorderRoutePoints(routeId, ids),
@@ -311,7 +318,11 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
     });
   }
 
-  function handleAddRoom(room: RoomEntity, estimatedTimeMin: number | undefined, afterId: string | null) {
+  function handleAddRoom(
+    room: RoomEntity,
+    estimatedTimeMin: number | undefined,
+    afterId: string | null,
+  ) {
     addMutation.mutate(
       { roomId: room.id, estimatedTimeMin },
       {
@@ -385,7 +396,8 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
     return <LoadingBlock label="Загрузка маршрута…" />;
   }
 
-  const objectName = objectsQuery.data?.items.find((item) => item.id === scope.objectId)?.name ?? null;
+  const objectName =
+    objectsQuery.data?.items.find((item) => item.id === scope.objectId)?.name ?? null;
   const planObjectId = scope.objectId ?? objectId;
 
   const insertOptions = draft.map((entry, index) => ({
@@ -466,7 +478,10 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
       )}
 
       {deletePointMutation.isError && (
-        <ErrorBanner error={deletePointMutation.error} onRetry={() => deletePointMutation.reset()} />
+        <ErrorBanner
+          error={deletePointMutation.error}
+          onRetry={() => deletePointMutation.reset()}
+        />
       )}
 
       {/* Переключатель «Точки / План» — только ниже `lg` (на desktop видны обе
@@ -496,7 +511,9 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <RoutePointsPanel
-          className={['lg:w-[26rem] lg:shrink-0', tab === 'plan' ? 'hidden lg:flex' : 'flex'].join(' ')}
+          className={['lg:w-[26rem] lg:shrink-0', tab === 'plan' ? 'hidden lg:flex' : 'flex'].join(
+            ' ',
+          )}
           points={draft.map<RoutePointDraft>((entry) => ({
             id: entry.point.id,
             room: entry.point.room,
@@ -507,7 +524,9 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
           onChangeTime={(pointId, value) => {
             setTimeError((current) => (current?.pointId === pointId ? null : current));
             setDraft((current) =>
-              current.map((entry) => (entry.point.id === pointId ? { ...entry, time: value } : entry)),
+              current.map((entry) =>
+                entry.point.id === pointId ? { ...entry, time: value } : entry,
+              ),
             );
           }}
           onReorder={handleReorder}
@@ -521,7 +540,11 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
           saveError={reorderMutation.error}
           timeError={timeError}
           actionError={
-            addMutation.isError ? errorMessage(addMutation.error) : updateRouteMutation.isError ? errorMessage(updateRouteMutation.error) : null
+            addMutation.isError
+              ? errorMessage(addMutation.error)
+              : updateRouteMutation.isError
+                ? errorMessage(updateRouteMutation.error)
+                : null
           }
           serverTotal={savedTotal}
           localTotal={localTotal}
@@ -625,7 +648,13 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
       >
         <div className="flex flex-col gap-4">
           {updateRouteMutation.isError && <ErrorBanner error={updateRouteMutation.error} />}
-          <Field label="Название" htmlFor="route-rename-name" required error={renameError} hint="3–80 символов">
+          <Field
+            label="Название"
+            htmlFor="route-rename-name"
+            required
+            error={renameError}
+            hint="3–80 символов"
+          >
             <Input
               id="route-rename-name"
               data-testid="route-rename-input"

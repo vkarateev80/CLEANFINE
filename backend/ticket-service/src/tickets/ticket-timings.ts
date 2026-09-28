@@ -76,7 +76,12 @@ export function timingUpdatesFor(
     case 'verified':
       return { verifiedAt: now };
     case 'closed':
-      return { closedAt: now, reactionDeadline: null, arrivalDeadline: null, completionDeadline: null };
+      return {
+        closedAt: now,
+        reactionDeadline: null,
+        arrivalDeadline: null,
+        completionDeadline: null,
+      };
     case 'overdue':
       return {
         overdueAt: now,

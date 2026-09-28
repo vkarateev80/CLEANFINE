@@ -9,14 +9,15 @@
   "packageManager": "pnpm@8.0.0",
   "scripts": {
     "build:shared": "pnpm --filter @cleaning-ops/shared build",
-    "build": "pnpm build:shared && pnpm -r build --if-present",
+    "build": "pnpm build:shared && pnpm -r --if-present build",
     "lint": "eslint \"backend/*/src/**/*.{ts,tsx}\" \"frontend/*/src/**/*.{ts,tsx}\" \"shared/{types,constants,utils}/**/*.{ts,tsx}\" --max-warnings 0",
     "lint:fix": "pnpm lint -- --fix",
-    "typecheck": "pnpm --filter @cleaning-ops/shared typecheck && pnpm -r typecheck --if-present",
-    "test": "pnpm -r test --if-present",
-    "test:e2e": "pnpm -r test:e2e --if-present",
+    "typecheck": "pnpm --filter @cleaning-ops/shared typecheck && pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "pnpm -r --if-present test:e2e",
     "prisma:clients": "node scripts/ci/prisma-clients.mjs",
-    "format:check": "prettier --check package.json pnpm-workspace.yaml .prettierrc shared/package.json shared/tsconfig.json \"shared/types/**/*.ts\" \"shared/constants/**/*.ts\""
+    "format:check": "prettier --check package.json pnpm-workspace.yaml .prettierrc eslint.config.mjs \"backend/**/*.{ts,tsx}\" \"frontend/**/*.{ts,tsx}\" \"shared/**/*.{ts,tsx}\" \"test/**/*.{ts,tsx}\" \"scripts/**/*.{mjs,js}\"",
+    "format:write": "prettier --write package.json pnpm-workspace.yaml .prettierrc eslint.config.mjs \"backend/**/*.{ts,tsx}\" \"frontend/**/*.{ts,tsx}\" \"shared/**/*.{ts,tsx}\" \"test/**/*.{ts,tsx}\" \"scripts/**/*.{mjs,js}\""
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.18.0",

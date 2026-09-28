@@ -1,15 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsIn,
-  IsInt,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 import { OBJECT_STATUSES, type ObjectStatus } from '@cleaning-ops/shared/types/core';
 
 /** Верхняя граница int4 в PostgreSQL: Prisma упадёт 500 на записи большего значения. */
@@ -95,7 +86,13 @@ export class UpdateObjectDto {
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber() lng?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() type?: string;
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber() totalArea?: number;
-  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(INT4_MAX) floorsCount?: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(INT4_MAX)
+  floorsCount?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() clientName?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() clientContact?: string;
 
@@ -114,24 +111,41 @@ export class UpdateObjectDto {
     description: 'Id аккаунта заказчика (CLIENT); null — снять привязку',
     nullable: true,
   })
-  @IsOptional() @IsString() ownerClientId?: string | null;
+  @IsOptional()
+  @IsString()
+  ownerClientId?: string | null;
 }
 
 export class ListObjectsQueryDto {
   @ApiPropertyOptional({ description: 'Пропустить записей', example: 0 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(0) skip?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  skip?: number;
 
   @ApiPropertyOptional({ description: 'Взять записей (максимум 100)', example: 50 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) take?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  take?: number;
 
   @ApiPropertyOptional({ description: 'Фильтр по статусу', enum: OBJECT_STATUSES })
-  @IsOptional() @IsIn(OBJECT_STATUSES) status?: ObjectStatus;
+  @IsOptional()
+  @IsIn(OBJECT_STATUSES)
+  status?: ObjectStatus;
 
   @ApiPropertyOptional({ description: 'Фильтр по типу', example: 'business-center' })
-  @IsOptional() @IsString() type?: string;
+  @IsOptional()
+  @IsString()
+  type?: string;
 
   @ApiPropertyOptional({ description: 'Поиск по названию, адресу и заказчику' })
-  @IsOptional() @IsString() search?: string;
+  @IsOptional()
+  @IsString()
+  search?: string;
 
   /**
    * Фильтр списка по владельцу (точное совпадение id аккаунта).
@@ -139,5 +153,7 @@ export class ListObjectsQueryDto {
    * эндпоинт по-прежнему отдаёт объекты любому аутентифицированному пользователю.
    */
   @ApiPropertyOptional({ description: 'Фильтр по владельцу (точное совпадение id аккаунта)' })
-  @IsOptional() @IsString() ownerClientId?: string;
+  @IsOptional()
+  @IsString()
+  ownerClientId?: string;
 }

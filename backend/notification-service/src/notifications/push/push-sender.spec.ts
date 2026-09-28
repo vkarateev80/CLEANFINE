@@ -13,7 +13,10 @@ describe('isWellFormedToken', () => {
 
 describe('toPushData', () => {
   it('оставляет строки строками и сериализует числа', () => {
-    expect(toPushData({ ticketId: 't-1', quantity: 3 })).toEqual({ ticketId: 't-1', quantity: '3' });
+    expect(toPushData({ ticketId: 't-1', quantity: 3 })).toEqual({
+      ticketId: 't-1',
+      quantity: '3',
+    });
   });
 
   it('выбрасывает пустые значения', () => {

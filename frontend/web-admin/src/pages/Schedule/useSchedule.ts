@@ -82,8 +82,7 @@ export function useObjectOptions() {
 export function useRouteOptions(objectId: string) {
   return useQuery({
     queryKey: ['schedule-route-options', objectId],
-    queryFn: () =>
-      listAllRoutes({ take: MAX_TAKE, ...(objectId === '' ? {} : { objectId }) }),
+    queryFn: () => listAllRoutes({ take: MAX_TAKE, ...(objectId === '' ? {} : { objectId }) }),
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -235,7 +235,12 @@ export function MaterialFormModal({
             />
           </Field>
 
-          <Field label="Цена за единицу, ₽" htmlFor="material-cost" required error={errors.costPerUnit}>
+          <Field
+            label="Цена за единицу, ₽"
+            htmlFor="material-cost"
+            required
+            error={errors.costPerUnit}
+          >
             <Input
               id="material-cost"
               data-testid="material-cost"

@@ -120,13 +120,17 @@ describe('TicketsController', () => {
   it('роуты и RBAC объявлены там, где ожидает API-контракт', () => {
     expect(Reflect.getMetadata(PATH_METADATA, TicketsController)).toBe('api/tickets');
     expect(Reflect.getMetadata(METHOD_METADATA, controller.create)).toBe(RequestMethod.POST);
-    expect(Reflect.getMetadata(METHOD_METADATA, controller.createEmergency)).toBe(RequestMethod.POST);
+    expect(Reflect.getMetadata(METHOD_METADATA, controller.createEmergency)).toBe(
+      RequestMethod.POST,
+    );
     expect(Reflect.getMetadata(METHOD_METADATA, controller.list)).toBe(RequestMethod.GET);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.getById)).toBe(RequestMethod.GET);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.changeStatus)).toBe(RequestMethod.PATCH);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.assign)).toBe(RequestMethod.POST);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.addComment)).toBe(RequestMethod.POST);
-    expect(Reflect.getMetadata(METHOD_METADATA, controller.completeOperation)).toBe(RequestMethod.POST);
+    expect(Reflect.getMetadata(METHOD_METADATA, controller.completeOperation)).toBe(
+      RequestMethod.POST,
+    );
     expect(Reflect.getMetadata(METHOD_METADATA, controller.completeRoom)).toBe(RequestMethod.POST);
 
     expect(Reflect.getMetadata(PATH_METADATA, controller.createEmergency)).toBe('emergency');

@@ -29,10 +29,7 @@ describe('GpsClient (ticket-service)', () => {
 
   it('возвращает ближних операторов и пробрасывает токен пользователя', async () => {
     fetchMock.mockResolvedValue(
-      jsonResponse([
-        { userId: 'u-1', distanceMeters: 120 },
-        { id: 'u-2' },
-      ]),
+      jsonResponse([{ userId: 'u-1', distanceMeters: 120 }, { id: 'u-2' }]),
     );
     const client = new GpsClient(createConfig());
 
@@ -67,7 +64,9 @@ describe('GpsClient (ticket-service)', () => {
   it('понимает обёртки employees/data и отбрасывает мусорные элементы', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ employees: [{ userId: 'u-1' }] }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ data: [{ userId: 'u-2' }] }));
-    fetchMock.mockResolvedValueOnce(jsonResponse([null, 'строка', { userId: '' }, { userId: 'u-3' }]));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse([null, 'строка', { userId: '' }, { userId: 'u-3' }]),
+    );
     const client = new GpsClient(createConfig());
 
     await expect(client.findNearbyEmployees(1, 2)).resolves.toEqual([
@@ -126,7 +125,9 @@ describe('GpsClient (ticket-service)', () => {
 
   it('дефолты применяются, если конфиг пуст', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ userId: 'ignored' }));
-    const client = new GpsClient({ get: jest.fn().mockReturnValue(undefined) } as unknown as ConfigService);
+    const client = new GpsClient({
+      get: jest.fn().mockReturnValue(undefined),
+    } as unknown as ConfigService);
 
     await expect(client.findNearbyEmployees(1, 2)).resolves.toEqual([]);
     expect(fetchMock.mock.calls[0][0]).toContain('http://localhost:3004/api/gps/employees/nearby');

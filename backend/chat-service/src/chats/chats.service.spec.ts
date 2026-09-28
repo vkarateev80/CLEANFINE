@@ -12,7 +12,12 @@ import type { ChatPushRequest, ChatPushNotifier } from '../integration/notificat
 import type { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../auth/guards/roles.guard';
 
-const admin: AuthUser = { id: 'u-admin', email: 'admin@cleaning-ops.com', role: 'ADMIN', fullName: '' };
+const admin: AuthUser = {
+  id: 'u-admin',
+  email: 'admin@cleaning-ops.com',
+  role: 'ADMIN',
+  fullName: '',
+};
 const supervisor: AuthUser = {
   id: 'u-super',
   email: 'supervisor@cleaning-ops.com',
@@ -147,13 +152,25 @@ describe('ChatsService', () => {
     it('сортирует чаты по последнему сообщению и считает непрочитанные', async () => {
       prisma.chatMember.findMany.mockResolvedValue([
         { chatId: 'c-1', lastReadAt: null, chat: chatRow({ id: 'c-1' }) },
-        { chatId: 'c-2', lastReadAt: new Date('2026-01-01T09:00:00.000Z'), chat: chatRow({ id: 'c-2', type: 'ticket' }) },
+        {
+          chatId: 'c-2',
+          lastReadAt: new Date('2026-01-01T09:00:00.000Z'),
+          chat: chatRow({ id: 'c-2', type: 'ticket' }),
+        },
       ]);
       prisma.message.findMany
         // Первый вызов — последние сообщения по всем чатам.
         .mockResolvedValueOnce([
-          messageRow({ id: 'm-c1', chatId: 'c-1', createdAt: new Date('2026-01-01T09:30:00.000Z') }),
-          messageRow({ id: 'm-c2', chatId: 'c-2', createdAt: new Date('2026-01-01T09:45:00.000Z') }),
+          messageRow({
+            id: 'm-c1',
+            chatId: 'c-1',
+            createdAt: new Date('2026-01-01T09:30:00.000Z'),
+          }),
+          messageRow({
+            id: 'm-c2',
+            chatId: 'c-2',
+            createdAt: new Date('2026-01-01T09:45:00.000Z'),
+          }),
         ])
         // Второй — непрочитанные (по OR-условиям).
         .mockResolvedValueOnce([{ chatId: 'c-1' }, { chatId: 'c-1' }]);
@@ -200,15 +217,16 @@ describe('ChatsService', () => {
         chatRow({
           members: [
             memberRow({ userId: 'u-admin' }),
-            memberRow({ id: 'm-2', userId: 'u-oper', joinedAt: new Date('2026-01-01T10:00:01.000Z') }),
+            memberRow({
+              id: 'm-2',
+              userId: 'u-oper',
+              joinedAt: new Date('2026-01-01T10:00:01.000Z'),
+            }),
           ],
         }),
       );
 
-      const chat = await service.createChat(
-        { type: 'direct', participantIds: ['u-oper'] },
-        admin,
-      );
+      const chat = await service.createChat({ type: 'direct', participantIds: ['u-oper'] }, admin);
 
       expect(chat.members.map((member) => member.userId)).toEqual(['u-admin', 'u-oper']);
       const createArg = prisma.chat.create.mock.calls[0][0];
@@ -234,7 +252,11 @@ describe('ChatsService', () => {
     it('не считает диалог существующим, если участников больше двух', async () => {
       prisma.chat.findFirst.mockResolvedValue({
         ...chatRow(),
-        members: [memberRow(), memberRow({ id: 'm-2', userId: 'u-oper' }), memberRow({ id: 'm-3', userId: 'u-x' })],
+        members: [
+          memberRow(),
+          memberRow({ id: 'm-2', userId: 'u-oper' }),
+          memberRow({ id: 'm-3', userId: 'u-x' }),
+        ],
       });
       prisma.chat.create.mockResolvedValue({
         ...chatRow(),
@@ -281,7 +303,9 @@ describe('ChatsService', () => {
     });
 
     it('повторное создание возвращает существующий чат по ticketId (идемпотентность)', async () => {
-      prisma.chat.findUnique.mockResolvedValueOnce(chatRow({ id: 'c-9', type: 'ticket', ticketId: 't-1' }));
+      prisma.chat.findUnique.mockResolvedValueOnce(
+        chatRow({ id: 'c-9', type: 'ticket', ticketId: 't-1' }),
+      );
       tickets.getParticipants.mockResolvedValue({
         id: 't-1',
         objectId: 'o-1',
@@ -347,12 +371,10 @@ describe('ChatsService', () => {
 
     it('гонка create (P2002) возвращает уже созданный чат', async () => {
       // Первый findUnique — проверка «чат уже есть» (null), второй — разбор гонки.
-      prisma.chat.findUnique
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          ...chatRow({ id: 'c-12', type: 'ticket', ticketId: 't-3' }),
-          members: [memberRow({ chatId: 'c-12' })],
-        });
+      prisma.chat.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        ...chatRow({ id: 'c-12', type: 'ticket', ticketId: 't-3' }),
+        members: [memberRow({ chatId: 'c-12' })],
+      });
       tickets.getParticipants.mockResolvedValue(null);
       prisma.chat.create.mockRejectedValue({ code: 'P2002' });
 
@@ -430,7 +452,9 @@ describe('ChatsService', () => {
     });
 
     it('существующий чат объекта: возвращает его и добавляет вызывающего', async () => {
-      prisma.chat.findFirst.mockResolvedValueOnce(chatRow({ id: 'c-22', type: 'object', objectId: 'o-1' }));
+      prisma.chat.findFirst.mockResolvedValueOnce(
+        chatRow({ id: 'c-22', type: 'object', objectId: 'o-1' }),
+      );
       prisma.chatMember.upsert.mockResolvedValue({});
       prisma.chat.findUniqueOrThrow.mockResolvedValue({
         ...chatRow({ id: 'c-22', type: 'object', objectId: 'o-1' }),
@@ -447,12 +471,10 @@ describe('ChatsService', () => {
     });
 
     it('гонка create объекта (P2002) → существующий чат', async () => {
-      prisma.chat.findFirst
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          ...chatRow({ id: 'c-23', type: 'object', objectId: 'o-3' }),
-          members: [memberRow({ chatId: 'c-23' })],
-        });
+      prisma.chat.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        ...chatRow({ id: 'c-23', type: 'object', objectId: 'o-3' }),
+        members: [memberRow({ chatId: 'c-23' })],
+      });
       core.objectExists.mockResolvedValue(true);
       prisma.chat.create.mockRejectedValue({ code: 'P2002' });
 
@@ -678,30 +700,28 @@ describe('ChatsService', () => {
 
   describe('sendMessage', () => {
     beforeEach(() => {
-      prisma.chat.findUnique.mockResolvedValue(
-        chatRow({ type: 'direct', title: 'Диалог' }),
-      );
+      prisma.chat.findUnique.mockResolvedValue(chatRow({ type: 'direct', title: 'Диалог' }));
       prisma.chatMember.findUnique.mockResolvedValue({ id: 'm-1' });
     });
 
     it('несуществующий чат → 404', async () => {
       prisma.chat.findUnique.mockResolvedValue(null);
-      await expect(
-        service.sendMessage('ghost', { text: 'привет' }, admin),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.sendMessage('ghost', { text: 'привет' }, admin)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('чужой чат → 403', async () => {
       prisma.chatMember.findUnique.mockResolvedValue(null);
-      await expect(
-        service.sendMessage('c-1', { text: 'привет' }, operator),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.sendMessage('c-1', { text: 'привет' }, operator)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
 
     it('пустой текст (пробелы) → 400', async () => {
-      await expect(
-        service.sendMessage('c-1', { text: '   ' }, admin),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.sendMessage('c-1', { text: '   ' }, admin)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('сохраняет сообщение и считает оффлайн-получателей', async () => {
@@ -953,9 +973,7 @@ describe('ChatsService', () => {
 
   describe('search', () => {
     it('пустая строка → 400', async () => {
-      await expect(service.search({ q: '   ' }, admin)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(service.search({ q: '   ' }, admin)).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('без участия в чатах ничего не ищет', async () => {
@@ -983,9 +1001,9 @@ describe('ChatsService', () => {
 
     it('чужой chatId → 403 (а не пустой результат)', async () => {
       prisma.chatMember.findMany.mockResolvedValue([{ chatId: 'c-1' }]);
-      await expect(
-        service.search({ q: 'заявка', chatId: 'c-foreign' }, operator),
-      ).rejects.toThrow('Вы не участник этого чата');
+      await expect(service.search({ q: 'заявка', chatId: 'c-foreign' }, operator)).rejects.toThrow(
+        'Вы не участник этого чата',
+      );
     });
 
     it('свой chatId ограничивает область поиска и лимит', async () => {

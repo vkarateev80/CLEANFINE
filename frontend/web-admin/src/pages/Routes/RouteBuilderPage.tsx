@@ -72,7 +72,10 @@ export function RouteBuilderPage() {
           <div className="mt-1 text-xs text-neutral-400">
             Конструктор маршрутов доступен ролям «Администратор» и «Бригадир».
           </div>
-          <Link to={ROUTES.dashboard} className="mt-3 inline-block text-sm text-primary-600 hover:underline">
+          <Link
+            to={ROUTES.dashboard}
+            className="mt-3 inline-block text-sm text-primary-600 hover:underline"
+          >
             На дашборд
           </Link>
         </div>

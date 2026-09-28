@@ -101,7 +101,9 @@ async function listAll(token, path) {
   let skip = 0;
   for (;;) {
     const separator = path.includes('?') ? '&' : '?';
-    const page = await request('GET', `${path}${separator}skip=${skip}&take=${PAGE_SIZE}`, { token });
+    const page = await request('GET', `${path}${separator}skip=${skip}&take=${PAGE_SIZE}`, {
+      token,
+    });
     const batch = Array.isArray(page?.items) ? page.items : [];
     items.push(...batch);
     const total = typeof page?.total === 'number' ? page.total : items.length;
@@ -114,7 +116,9 @@ async function listAll(token, path) {
 
 async function main() {
   console.log(`Стенд: ${API_BASE_URL}`);
-  console.log(`Режим: ${DRY_RUN ? 'DRY-RUN (изменения не применяются, добавьте --commit)' : 'ПРИМЕНЕНИЕ ИЗМЕНЕНИЙ (--commit)'}`);
+  console.log(
+    `Режим: ${DRY_RUN ? 'DRY-RUN (изменения не применяются, добавьте --commit)' : 'ПРИМЕНЕНИЕ ИЗМЕНЕНИЙ (--commit)'}`,
+  );
   console.log('');
 
   const token = await login(ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -126,7 +130,9 @@ async function main() {
 
   const objects = await listAll(token, '/api/objects');
   const unbound = objects.filter((object) => (object?.ownerClientId ?? null) === null);
-  console.log(`Объектов всего: ${objects.length}; без привязки (ownerClientId=null): ${unbound.length}`);
+  console.log(
+    `Объектов всего: ${objects.length}; без привязки (ownerClientId=null): ${unbound.length}`,
+  );
   console.log('');
 
   const applied = [];
@@ -190,7 +196,9 @@ async function main() {
   for (const { object, candidates } of ambiguous) {
     console.log(`  «${object.name}» (id=${object.id})  clientName=«${object.clientName}»`);
     for (const candidate of candidates) {
-      console.log(`      кандидат: ${candidate.fullName} <${candidate.email}> (id=${candidate.id})`);
+      console.log(
+        `      кандидат: ${candidate.fullName} <${candidate.email}> (id=${candidate.id})`,
+      );
     }
   }
 
@@ -221,7 +229,9 @@ async function main() {
     `Итог: ${DRY_RUN ? 'к привязке' : 'привязано'} ${applied.length}, неоднозначных ${ambiguous.length}, без совпадений ${unmatched.length}, пропущено ${skipped.length}, ошибок ${failed.length}.`,
   );
   if (DRY_RUN && applied.length > 0) {
-    console.log('Изменения НЕ применены. Повторите с --commit, чтобы привязать перечисленные объекты.');
+    console.log(
+      'Изменения НЕ применены. Повторите с --commit, чтобы привязать перечисленные объекты.',
+    );
   }
 
   if (failed.length > 0) {

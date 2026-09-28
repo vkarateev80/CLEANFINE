@@ -47,7 +47,10 @@ import { bodyText, loginAs, runTag } from '../../helpers/core';
 test.describe.configure({ timeout: 180_000 });
 
 /** Свой объект core на прогон: уборка «по объекту» не задевает чужие заявки. */
-const objectId = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+const objectId = `00000000-0000-4000-8000-${runTag()
+  .replace(/[^0-9a-f]/g, '')
+  .slice(-12)
+  .padStart(12, '0')}`;
 
 /** Начало прогона: нижняя граница для уведомлений, созданных этим набором. */
 const runStartedAt = new Date();
@@ -181,7 +184,10 @@ test.describe('Tickets: создание и чтение', () => {
       'плохой priority',
     );
     // type=emergency — валидное значение enum, просто таких заявок под этим объектом нет.
-    expect(((await (await listTickets(request, { objectId, type: 'emergency' })).json()) as TicketList).total).toBe(0);
+    expect(
+      ((await (await listTickets(request, { objectId, type: 'emergency' })).json()) as TicketList)
+        .total,
+    ).toBe(0);
   });
 
   test('без токена → 401, несуществующая заявка → 404', async ({ request }) => {
@@ -253,7 +259,13 @@ test.describe('Tickets: state machine', () => {
     const ticket = await trackTicket(request, { objectId, description: `E2E отказы ${runTag()}` });
 
     // new может уйти только в assigned или rejected: закрыть/завершить нельзя.
-    for (const status of ['closed', 'completed', 'verified', 'in_progress', 'paused'] as TicketStatus[]) {
+    for (const status of [
+      'closed',
+      'completed',
+      'verified',
+      'in_progress',
+      'paused',
+    ] as TicketStatus[]) {
       const res = await patchTicketStatus(request, ticket.id, status);
       await expectStatus(res, 400, `new → ${status}`);
       expect(await bodyText(res)).toContain('Invalid status transition');
@@ -280,7 +292,10 @@ test.describe('Tickets: state machine', () => {
 
 test.describe('Tickets: назначение и комментарии', () => {
   test('назначение исполнителя пишет историю и переводит в assigned', async ({ request }) => {
-    const ticket = await trackTicket(request, { objectId, description: `E2E назначение ${runTag()}` });
+    const ticket = await trackTicket(request, {
+      objectId,
+      description: `E2E назначение ${runTag()}`,
+    });
     const operatorId = await loginIdAs(request, 'OPERATOR');
     const supervisorId = await loginIdAs(request, 'SUPERVISOR');
 
@@ -310,7 +325,10 @@ test.describe('Tickets: назначение и комментарии', () => {
   });
 
   test('комментарий добавляется в деталь заявки; пустой текст → 400', async ({ request }) => {
-    const ticket = await trackTicket(request, { objectId, description: `E2E комментарии ${runTag()}` });
+    const ticket = await trackTicket(request, {
+      objectId,
+      description: `E2E комментарии ${runTag()}`,
+    });
     const text = `Осмотр завершён ${runTag()}`;
 
     const created = await addTicketComment(request, ticket.id, text);
@@ -344,7 +362,10 @@ test.describe('Tickets: операции техкарты', () => {
   test('завершение операции идемпотентно: второй вызов alreadyCompleted=true', async ({
     request,
   }) => {
-    const ticket = await trackTicket(request, { objectId, description: `E2E операции ${runTag()}` });
+    const ticket = await trackTicket(request, {
+      objectId,
+      description: `E2E операции ${runTag()}`,
+    });
     const operationId = '11111111-1111-4111-8111-111111111111';
 
     const first = await completeTicketOperation(request, ticket.id, operationId, {
@@ -455,7 +476,10 @@ test.describe('Tickets: RBAC по фактическим правилам кон
   test('назначение и смена статуса: OPERATOR не назначает, но двигает статус', async ({
     request,
   }) => {
-    const ticket = await trackTicket(request, { objectId, description: `E2E RBAC ops ${runTag()}` });
+    const ticket = await trackTicket(request, {
+      objectId,
+      description: `E2E RBAC ops ${runTag()}`,
+    });
     const operator = await loginAs(request, 'OPERATOR');
     const operatorId = await loginIdAs(request, 'OPERATOR');
     const supervisor = await loginAs(request, 'SUPERVISOR');

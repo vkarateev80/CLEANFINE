@@ -8,7 +8,10 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 
 export class ExternalServiceUnavailableException extends HttpException {
-  constructor(message: string, readonly service: string) {
+  constructor(
+    message: string,
+    readonly service: string,
+  ) {
     super(message, HttpStatus.BAD_GATEWAY);
   }
 }

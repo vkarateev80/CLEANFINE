@@ -157,7 +157,10 @@ describe('RabbitmqService', () => {
       'cleaning-ops.events.dlq',
       'ticket.created',
     );
-    expect(channel.consume).toHaveBeenCalledWith('notification.ticket.created', expect.any(Function));
+    expect(channel.consume).toHaveBeenCalledWith(
+      'notification.ticket.created',
+      expect.any(Function),
+    );
     expect(service.subscribedQueues).toEqual(['notification.ticket.created']);
   });
 
@@ -171,7 +174,9 @@ describe('RabbitmqService', () => {
     service.subscribe('notification.geofence.exit', 'geofence.exit', jest.fn());
     await flush();
 
-    expect(channel.assertQueue).toHaveBeenCalledWith('notification.geofence.exit', { durable: true });
+    expect(channel.assertQueue).toHaveBeenCalledWith('notification.geofence.exit', {
+      durable: true,
+    });
   });
 
   it('повторная подписка на ту же очередь игнорируется', async () => {
@@ -260,9 +265,7 @@ describe('RabbitmqService', () => {
       jest.useFakeTimers();
       const channel = createChannel();
       const connection = createConnection(channel);
-      connectMock
-        .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-        .mockResolvedValue(connection);
+      connectMock.mockRejectedValueOnce(new Error('ECONNREFUSED')).mockResolvedValue(connection);
       const service = new RabbitmqService(defaultConfig());
 
       service.onModuleInit();

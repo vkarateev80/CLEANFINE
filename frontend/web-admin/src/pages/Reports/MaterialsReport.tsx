@@ -225,7 +225,9 @@ export function MaterialsReport({
                 </div>
                 <ResponsiveTable<ConsumptionItem>
                   items={[...rows, { total: true }]}
-                  getKey={(item) => (isTotal(item) ? '__total' : `${item.objectId}-${item.materialId}`)}
+                  getKey={(item) =>
+                    isTotal(item) ? '__total' : `${item.objectId}-${item.materialId}`
+                  }
                   columns={columns}
                   rowClassName={(item) => (isTotal(item) ? 'bg-neutral-50 font-medium' : '')}
                 />

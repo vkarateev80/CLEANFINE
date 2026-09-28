@@ -19,13 +19,30 @@ export const DESKTOP_WIDTH = 1366;
 
 /** Маршруты без параметров (PRD §7). Заведомо несуществующий путь — отдельной проверкой. */
 export const ROUTES = [
-  '/dashboard', '/objects', '/tickets', '/tech-cards', '/routes', '/map',
-  '/materials', '/schedule', '/reports', '/messages', '/notifications', '/employees',
+  '/dashboard',
+  '/objects',
+  '/tickets',
+  '/tech-cards',
+  '/routes',
+  '/map',
+  '/materials',
+  '/schedule',
+  '/reports',
+  '/messages',
+  '/notifications',
+  '/employees',
 ];
 export const NOT_FOUND_PATH = '/no-such-page-404-check';
 
 /** Списки на `ResponsiveTable` (ADR-002). `/reports` отдельно: на пустом стенде списка нет. */
-export const LIST_ROUTES = ['/objects', '/tickets', '/tech-cards', '/materials', '/schedule', '/map'];
+export const LIST_ROUTES = [
+  '/objects',
+  '/tickets',
+  '/tech-cards',
+  '/materials',
+  '/schedule',
+  '/map',
+];
 export const REPORTS_PATH = '/reports';
 
 type Storage = Awaited<ReturnType<BrowserContext['storageState']>>;
@@ -76,7 +93,9 @@ export async function openPage(
  */
 export async function waitForShell(page: Page) {
   try {
-    await page.locator('[data-testid="admin-sidebar"]').waitFor({ state: 'attached', timeout: 45_000 });
+    await page
+      .locator('[data-testid="admin-sidebar"]')
+      .waitFor({ state: 'attached', timeout: 45_000 });
   } catch (error) {
     const reason = page.url().includes('/login')
       ? 'стенд вернул экран входа: сессия из storageState не принята'
@@ -116,7 +135,9 @@ export async function expectShell(page: Page, width: number) {
   const box = await sidebar.boundingBox();
   const expected = width < 1024 ? 64 : 240;
   if (Math.round(box?.width ?? 0) !== expected) {
-    throw new Error(`${width}px: ширина сайдбара ${Math.round(box?.width ?? 0)}, ожидалось ${expected}`);
+    throw new Error(
+      `${width}px: ширина сайдбара ${Math.round(box?.width ?? 0)}, ожидалось ${expected}`,
+    );
   }
   if (await burger.isVisible()) throw new Error(`${width}px: бургер видим`);
   if (await bottomNav.isVisible()) throw new Error(`${width}px: нижняя навигация видима`);
@@ -130,7 +151,9 @@ export interface ListMode {
 
 /** Пункт 3 контракта: карточки на телефоне (`<768`), таблица на планшете и desktop. */
 export async function listMode(page: Page, phone: boolean): Promise<ListMode> {
-  const container = page.locator('[data-testid="responsive-table"], [data-testid="card-list"]').first();
+  const container = page
+    .locator('[data-testid="responsive-table"], [data-testid="card-list"]')
+    .first();
   const table = page.locator('[data-testid="responsive-table"]').first();
   const cards = page.locator('[data-testid="card-list"]').first();
   // Панели `/materials`, `/schedule`, `/reports` догружаются чанком после каркаса.
@@ -142,7 +165,10 @@ export async function listMode(page: Page, phone: boolean): Promise<ListMode> {
     const tables = await page.locator('main table').count();
     return tables === 0
       ? { status: 'no-data', detail: 'список не отрисован: на стенде нет данных' }
-      : { status: 'mismatch', detail: 'есть <table>, но нет контейнера responsive-table/card-list' };
+      : {
+          status: 'mismatch',
+          detail: 'есть <table>, но нет контейнера responsive-table/card-list',
+        };
   }
   if ((await table.count()) === 0 || (await cards.count()) === 0) {
     return { status: 'mismatch', detail: 'в DOM только одно из двух представлений списка' };
@@ -169,12 +195,16 @@ export async function touchTargetViolations(page: Page): Promise<string[]> {
   return page.evaluate(
     ({ selector, min }) => {
       const describe = (el: Element) => {
-        const label = (el.getAttribute('aria-label') ?? el.textContent ?? '').replace(/\s+/g, ' ').trim();
+        const label = (el.getAttribute('aria-label') ?? el.textContent ?? '')
+          .replace(/\s+/g, ' ')
+          .trim();
         const id = el.getAttribute('data-testid');
         return `${el.tagName.toLowerCase()}${id ? `[data-testid="${id}"]` : ''} «${label.slice(0, 30)}»`;
       };
       const scopes = ['main', 'header', '[data-testid="bottom-nav"]'];
-      const nodes = scopes.flatMap((scope) => Array.from(document.querySelectorAll(`${scope} ${selector}`)));
+      const nodes = scopes.flatMap((scope) =>
+        Array.from(document.querySelectorAll(`${scope} ${selector}`)),
+      );
       const violations: string[] = [];
       for (const el of nodes) {
         const rect = el.getBoundingClientRect();
@@ -188,8 +218,14 @@ export async function touchTargetViolations(page: Page): Promise<string[]> {
         const dx = Math.max(min, box.width) / 2 - 1;
         const dy = Math.max(min, box.height) / 2 - 1;
         const points: Array<[number, number]> = [
-          [cx - dx, cy - dy], [cx + dx, cy - dy], [cx - dx, cy + dy], [cx + dx, cy + dy],
-          [cx, cy - dy], [cx, cy + dy], [cx - dx, cy], [cx + dx, cy],
+          [cx - dx, cy - dy],
+          [cx + dx, cy - dy],
+          [cx - dx, cy + dy],
+          [cx + dx, cy + dy],
+          [cx, cy - dy],
+          [cx, cy + dy],
+          [cx - dx, cy],
+          [cx + dx, cy],
         ];
         const covered = points.some(([x, y]) => {
           if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
@@ -200,7 +236,8 @@ export async function touchTargetViolations(page: Page): Promise<string[]> {
           const wrapper = 'label, button, a, [role="button"], [role="checkbox"], [role="tab"]';
           return hit.matches(wrapper) && hit.contains(el);
         });
-        if (!covered) violations.push(`${describe(el)} ${Math.round(rect.width)}×${Math.round(rect.height)}`);
+        if (!covered)
+          violations.push(`${describe(el)} ${Math.round(rect.width)}×${Math.round(rect.height)}`);
       }
       return violations;
     },

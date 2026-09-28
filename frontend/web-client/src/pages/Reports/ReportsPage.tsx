@@ -193,7 +193,9 @@ export function ReportsPage() {
         </div>
 
         <p
-          className={['mt-2 text-xs', validation.ok ? 'text-neutral-400' : 'text-danger-600'].join(' ')}
+          className={['mt-2 text-xs', validation.ok ? 'text-neutral-400' : 'text-danger-600'].join(
+            ' ',
+          )}
           data-testid="portal-report-period-hint"
         >
           {validation.ok ? 'Максимум 366 дней' : validation.message}
@@ -358,7 +360,12 @@ function SummaryTab({
         <StatTile label="Заявок создано" value={createdCount} loading={loading} />
         <StatTile label="Выполнено" value={doneCount} loading={loading} />
         <StatTile label="Смен проведено" value={completedShifts} loading={loading} />
-        <StatTile label="Неявок" value={missedShifts} loading={loading} negative={missedShifts > 0} />
+        <StatTile
+          label="Неявок"
+          value={missedShifts}
+          loading={loading}
+          negative={missedShifts > 0}
+        />
       </div>
 
       {/*
@@ -471,7 +478,9 @@ function CleaningTab({
   counts: { total: number; completed: number; missed: number };
 }) {
   if (isError) {
-    return <ErrorBanner error={new Error('Не удалось загрузить смены за период')} onRetry={onRetry} />;
+    return (
+      <ErrorBanner error={new Error('Не удалось загрузить смены за период')} onRetry={onRetry} />
+    );
   }
   if (loading) {
     return (
@@ -483,7 +492,9 @@ function CleaningTab({
     );
   }
   if (events.length === 0) {
-    return <EmptyState title="Смен в периоде нет" hint="Проверьте период или обратитесь к менеджеру." />;
+    return (
+      <EmptyState title="Смен в периоде нет" hint="Проверьте период или обратитесь к менеджеру." />
+    );
   }
 
   return (
@@ -675,7 +686,13 @@ function MaterialsTab({
 function downloadCsv(rows: MaterialConsumptionRow[], period: Period, objectName: string): void {
   const header = ['Материал', 'Единица', 'Израсходовано', 'Операций', 'Стоимость'];
   const lines = rows.map((row) =>
-    [row.name, row.unit, String(row.consumedQuantity), String(row.operationsCount), String(row.cost)]
+    [
+      row.name,
+      row.unit,
+      String(row.consumedQuantity),
+      String(row.operationsCount),
+      String(row.cost),
+    ]
       .map((value) => `"${value.replace(/"/g, '""')}"`)
       .join(';'),
   );

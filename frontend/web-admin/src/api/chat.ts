@@ -48,10 +48,7 @@ export function listChatMessages(
 }
 
 /** REST-фолбэк отправки: сохраняет сообщение и рассылает `message:new` онлайн-участникам. */
-export function sendChatMessage(
-  chatId: string,
-  payload: SendMessagePayload,
-): Promise<ChatMessage> {
+export function sendChatMessage(chatId: string, payload: SendMessagePayload): Promise<ChatMessage> {
   return apiClient.post(`/chat/chats/${chatId}/messages`, payload).then((r) => r.data);
 }
 

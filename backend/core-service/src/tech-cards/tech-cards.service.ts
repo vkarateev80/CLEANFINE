@@ -154,9 +154,7 @@ export class TechCardsService {
           ...(dto.equipment !== undefined
             ? {
                 equipment:
-                  dto.equipment === null
-                    ? Prisma.DbNull
-                    : (dto.equipment as Prisma.InputJsonValue),
+                  dto.equipment === null ? Prisma.DbNull : (dto.equipment as Prisma.InputJsonValue),
               }
             : {}),
           estimatedTimeMin: dto.estimatedTimeMin,
@@ -198,9 +196,7 @@ export class TechCardsService {
     const existingIds = new Set(existing.map((op) => op.id));
     const foreign = dto.operationIds.filter((id) => !existingIds.has(id));
     if (foreign.length > 0) {
-      throw new BadRequestException(
-        `Операции не принадлежат техкарте: ${foreign.join(', ')}`,
-      );
+      throw new BadRequestException(`Операции не принадлежат техкарте: ${foreign.join(', ')}`);
     }
     if (dto.operationIds.length !== existing.length) {
       throw new BadRequestException(

@@ -2,7 +2,11 @@ import { RequestMethod } from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { Test } from '@nestjs/testing';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
-import { FloorRoutesController, RoutePointsController, RoutesController } from './routes.controller';
+import {
+  FloorRoutesController,
+  RoutePointsController,
+  RoutesController,
+} from './routes.controller';
 import { RoutesService } from './routes.service';
 
 /** Справочник статусов маршрута приходит из workspace-пакета, которого нет в node_modules. */

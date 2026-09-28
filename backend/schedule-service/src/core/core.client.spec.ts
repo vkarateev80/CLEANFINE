@@ -40,7 +40,9 @@ describe('CoreClient', () => {
 
   it('читает name из плоского ответа служебным токеном', async () => {
     const { client, tokens } = build();
-    (global.fetch as jest.Mock).mockResolvedValue(jsonResponse(200, { id: 'obj-1', name: 'БЦ Ромашка' }));
+    (global.fetch as jest.Mock).mockResolvedValue(
+      jsonResponse(200, { id: 'obj-1', name: 'БЦ Ромашка' }),
+    );
 
     await expect(client.getObjectName('obj-1')).resolves.toBe('БЦ Ромашка');
     expect(tokens.getAccessToken).toHaveBeenCalled();

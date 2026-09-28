@@ -1,9 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
-import {
-  cleanupAuthUsers,
-  countAuthUsers,
-  sqlAvailable,
-} from '../../helpers/operations';
+import { cleanupAuthUsers, countAuthUsers, sqlAvailable } from '../../helpers/operations';
 import { userByRole, type FixtureUser } from '../../helpers/users';
 
 /**
@@ -157,8 +153,16 @@ test.describe('Auth: вертикаль входа', () => {
     expect(logout.status(), await logout.text()).toBe(204);
 
     // обе ранее выданные сессии недействительны
-    expect((await request.post('/api/auth/refresh', { data: { refreshToken: t1.refreshToken } })).status()).toBe(401);
-    expect((await request.post('/api/auth/refresh', { data: { refreshToken: t2.refreshToken } })).status()).toBe(401);
+    expect(
+      (
+        await request.post('/api/auth/refresh', { data: { refreshToken: t1.refreshToken } })
+      ).status(),
+    ).toBe(401);
+    expect(
+      (
+        await request.post('/api/auth/refresh', { data: { refreshToken: t2.refreshToken } })
+      ).status(),
+    ).toBe(401);
   });
 
   test('logout с конкретным refreshToken отзывает только его', async ({ request }) => {
@@ -179,8 +183,16 @@ test.describe('Auth: вертикаль входа', () => {
     expect(logout.status()).toBe(204);
 
     // отозван именно t1, а вторая сессия продолжает работать
-    expect((await request.post('/api/auth/refresh', { data: { refreshToken: t1.refreshToken } })).status()).toBe(401);
-    expect((await request.post('/api/auth/refresh', { data: { refreshToken: t2.refreshToken } })).status()).toBe(201);
+    expect(
+      (
+        await request.post('/api/auth/refresh', { data: { refreshToken: t1.refreshToken } })
+      ).status(),
+    ).toBe(401);
+    expect(
+      (
+        await request.post('/api/auth/refresh', { data: { refreshToken: t2.refreshToken } })
+      ).status(),
+    ).toBe(201);
   });
 });
 
@@ -202,7 +214,12 @@ test.describe('Auth: RBAC', () => {
 
     const create = await request.post('/api/users', {
       headers: { Authorization: `Bearer ${token}` },
-      data: { email: `rbac-${Date.now()}@cleaning-ops.com`, password: 'test1234', fullName: 'RBAC', role: 'OPERATOR' },
+      data: {
+        email: `rbac-${Date.now()}@cleaning-ops.com`,
+        password: 'test1234',
+        fullName: 'RBAC',
+        role: 'OPERATOR',
+      },
     });
     expect(create.status()).toBe(403);
   });

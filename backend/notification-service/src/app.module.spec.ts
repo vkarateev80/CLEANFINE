@@ -23,7 +23,11 @@ describe('AppModule (notification-service)', () => {
   it('собирается целиком: guard-ы, консьюмер, push-адаптер и сервис уведомлений', async () => {
     const prismaMock = { $connect: jest.fn(), $disconnect: jest.fn() };
     // RabbitMQ подменяется: реального брокера в unit-тесте нет и быть не должно.
-    const rabbitMock = { subscribe: jest.fn(), onModuleInit: jest.fn(), onModuleDestroy: jest.fn() };
+    const rabbitMock = {
+      subscribe: jest.fn(),
+      onModuleInit: jest.fn(),
+      onModuleDestroy: jest.fn(),
+    };
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)

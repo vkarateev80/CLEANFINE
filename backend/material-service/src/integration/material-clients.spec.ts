@@ -53,7 +53,9 @@ describe('TicketsClient (цепочка М4.2, шаг 1)', () => {
     });
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost:3005/api/tickets/t-1',
-      expect.objectContaining({ headers: { Accept: 'application/json', Authorization: 'Bearer token-1' } }),
+      expect.objectContaining({
+        headers: { Accept: 'application/json', Authorization: 'Bearer token-1' },
+      }),
     );
   });
 
@@ -87,7 +89,9 @@ describe('TicketsClient (цепочка М4.2, шаг 1)', () => {
     const client = new TicketsClient(createConfig(), createTokens());
     await expect(client.getTicket('t-1')).resolves.toBeNull();
 
-    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
     await expect(client.getTicket('t-1')).resolves.toBeNull();
   });
 
@@ -119,7 +123,9 @@ describe('CoreMaterialsClient (цепочка М4.2, шаги 2–3)', () => {
   it('помещение без техкарты → null (списывать нечего)', async () => {
     global.fetch = jest
       .fn()
-      .mockResolvedValue(jsonResponse(200, { id: 'room-1', techCardId: null })) as unknown as typeof fetch;
+      .mockResolvedValue(
+        jsonResponse(200, { id: 'room-1', techCardId: null }),
+      ) as unknown as typeof fetch;
     const client = new CoreMaterialsClient(createConfig(), createTokens());
 
     await expect(client.getOperationMaterials('room-1', 'op-1')).resolves.toBeNull();
@@ -133,8 +139,14 @@ describe('CoreMaterialsClient (цепочка М4.2, шаги 2–3)', () => {
         jsonResponse(200, {
           id: 'card-1',
           operations: [
-            { id: 'op-1', materials: [{ materialId: 'mat-1', consumptionPerOperation: 2, unit: 'л' }] },
-            { id: 'op-2', materials: [{ materialId: 'mat-2', consumptionPerOperation: 1, unit: 'шт' }] },
+            {
+              id: 'op-1',
+              materials: [{ materialId: 'mat-1', consumptionPerOperation: 2, unit: 'л' }],
+            },
+            {
+              id: 'op-2',
+              materials: [{ materialId: 'mat-2', consumptionPerOperation: 1, unit: 'шт' }],
+            },
           ],
         }),
       );
@@ -172,7 +184,9 @@ describe('CoreMaterialsClient (цепочка М4.2, шаги 2–3)', () => {
     global.fetch = jest
       .fn()
       .mockResolvedValueOnce(jsonResponse(200, { id: 'room-1', techCardId: 'card-1' }))
-      .mockResolvedValueOnce(jsonResponse(200, { id: 'card-1', operations: [{ id: 'op-9' }] })) as unknown as typeof fetch;
+      .mockResolvedValueOnce(
+        jsonResponse(200, { id: 'card-1', operations: [{ id: 'op-9' }] }),
+      ) as unknown as typeof fetch;
     const client = new CoreMaterialsClient(createConfig(), createTokens());
 
     await expect(client.getOperationMaterials('room-1', 'op-1')).resolves.toBeNull();
@@ -189,7 +203,9 @@ describe('CoreMaterialsClient (цепочка М4.2, шаги 2–3)', () => {
       .mockResolvedValueOnce(jsonResponse(500, {})) as unknown as typeof fetch;
     await expect(client.getOperationMaterials('room-1', 'op-1')).resolves.toBeNull();
 
-    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
     await expect(client.getOperationMaterials('room-1', 'op-1')).resolves.toBeNull();
   });
 
@@ -201,7 +217,9 @@ describe('CoreMaterialsClient (цепочка М4.2, шаги 2–3)', () => {
       // 1) 401 на помещение, 2) повтор с новым токеном, 3) техкарта
       .mockResolvedValueOnce(jsonResponse(401, {}))
       .mockResolvedValueOnce(jsonResponse(200, { id: 'room-1', techCardId: 'card-1' }))
-      .mockResolvedValueOnce(jsonResponse(200, { id: 'card-1', operations: [{ id: 'op-1', materials: [] }] })) as unknown as typeof fetch;
+      .mockResolvedValueOnce(
+        jsonResponse(200, { id: 'card-1', operations: [{ id: 'op-1', materials: [] }] }),
+      ) as unknown as typeof fetch;
     const client = new CoreMaterialsClient(createConfig(), tokens);
 
     await expect(client.getOperationMaterials('room-1', 'op-1')).resolves.toEqual([]);
@@ -216,7 +234,9 @@ describe('CoreMaterialsClient (цепочка М4.2, шаги 2–3)', () => {
   it('название объекта для material.low и без токена', async () => {
     global.fetch = jest
       .fn()
-      .mockResolvedValue(jsonResponse(200, { id: 'obj-1', name: 'БЦ «Северный»' })) as unknown as typeof fetch;
+      .mockResolvedValue(
+        jsonResponse(200, { id: 'obj-1', name: 'БЦ «Северный»' }),
+      ) as unknown as typeof fetch;
     const client = new CoreMaterialsClient(createConfig(), createTokens());
     await expect(client.getObjectName('obj-1')).resolves.toBe('БЦ «Северный»');
 

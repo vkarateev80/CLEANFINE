@@ -60,7 +60,9 @@ export function deleteMaterial(id: string): Promise<void> {
  * `Boolean('false') === true` — то есть `onlyLow=false` в query-строке включил бы
  * фильтр «ниже порога» вместо того, чтобы его выключить.
  */
-export function listStocks(query: StocksQuery = {}): Promise<{ items: StockView[]; total: number }> {
+export function listStocks(
+  query: StocksQuery = {},
+): Promise<{ items: StockView[]; total: number }> {
   return apiClient
     .get('/materials/stocks', {
       params: {

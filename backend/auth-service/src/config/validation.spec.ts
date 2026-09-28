@@ -41,7 +41,9 @@ describe('validateEnv', () => {
     });
 
     it('падает, если секрет не строка', () => {
-      expect(() => validateEnv({ ...prodEnv, JWT_ACCESS_SECRET: 12345 })).toThrow(/должен быть строкой/);
+      expect(() => validateEnv({ ...prodEnv, JWT_ACCESS_SECRET: 12345 })).toThrow(
+        /должен быть строкой/,
+      );
     });
   });
 
@@ -54,7 +56,9 @@ describe('validateEnv', () => {
     });
 
     it('допускает dev-значения по умолчанию', () => {
-      expect(validateEnv({ NODE_ENV: 'development', JWT_ACCESS_SECRET: 'dev-access-secret' })).toBeDefined();
+      expect(
+        validateEnv({ NODE_ENV: 'development', JWT_ACCESS_SECRET: 'dev-access-secret' }),
+      ).toBeDefined();
     });
   });
 
@@ -68,13 +72,15 @@ describe('validateEnv', () => {
     });
 
     it('проверяет и JWT_REFRESH_TTL в dev-режиме', () => {
-      expect(() => validateEnv({ NODE_ENV: 'development', JWT_REFRESH_TTL: 'тридцать дней' })).toThrow(
-        /JWT_REFRESH_TTL/,
-      );
+      expect(() =>
+        validateEnv({ NODE_ENV: 'development', JWT_REFRESH_TTL: 'тридцать дней' }),
+      ).toThrow(/JWT_REFRESH_TTL/);
     });
   });
 
   it('собирает все проблемы в одно сообщение', () => {
-    expect(() => validateEnv({ NODE_ENV: 'production' })).toThrow(/JWT_ACCESS_SECRET[\s\S]*DATABASE_URL/);
+    expect(() => validateEnv({ NODE_ENV: 'production' })).toThrow(
+      /JWT_ACCESS_SECRET[\s\S]*DATABASE_URL/,
+    );
   });
 });

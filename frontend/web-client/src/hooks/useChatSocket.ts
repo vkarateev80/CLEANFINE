@@ -93,29 +93,27 @@ export function useChatSocket(enabled: boolean): UseChatSocketResult {
           reject(new Error('Нет соединения с сервером чата'));
           return;
         }
-        socket
-          .timeout(10_000)
-          .emit(
-            'message:send',
-            // clientMessageId — ключ идемпотентности (М6): фолбэк на REST после
-            // таймаута с тем же ключом не создаёт дубль.
-            {
-              chatId,
-              text,
-              ...(clientMessageId ? { clientMessageId } : {}),
-            },
-            (timeoutError: Error | null, response: WsAck<{ message: MessageView }>) => {
-              if (timeoutError) {
-                reject(new Error('Сервер не подтвердил отправку сообщения'));
-                return;
-              }
-              if (!response || response.ok !== true) {
-                reject(new Error(response?.error ?? 'Не удалось отправить сообщение'));
-                return;
-              }
-              resolve(response.message);
-            },
-          );
+        socket.timeout(10_000).emit(
+          'message:send',
+          // clientMessageId — ключ идемпотентности (М6): фолбэк на REST после
+          // таймаута с тем же ключом не создаёт дубль.
+          {
+            chatId,
+            text,
+            ...(clientMessageId ? { clientMessageId } : {}),
+          },
+          (timeoutError: Error | null, response: WsAck<{ message: MessageView }>) => {
+            if (timeoutError) {
+              reject(new Error('Сервер не подтвердил отправку сообщения'));
+              return;
+            }
+            if (!response || response.ok !== true) {
+              reject(new Error(response?.error ?? 'Не удалось отправить сообщение'));
+              return;
+            }
+            resolve(response.message);
+          },
+        );
       });
     },
     [],

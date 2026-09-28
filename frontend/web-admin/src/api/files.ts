@@ -53,10 +53,7 @@ export function attachFile(
   return apiClient.post(`/files/${id}/attach`, { entityType, entityId }).then((r) => r.data);
 }
 
-export function listAttachments(
-  entityType: EntityTypeName,
-  entityId: string,
-): Promise<FileView[]> {
+export function listAttachments(entityType: EntityTypeName, entityId: string): Promise<FileView[]> {
   return apiClient.get(`/files/attachments/${entityType}/${entityId}`).then((r) => r.data);
 }
 

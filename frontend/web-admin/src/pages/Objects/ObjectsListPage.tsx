@@ -204,9 +204,7 @@ export function ObjectsListPage() {
 
   const saveMutation = useMutation({
     mutationFn: (payload: CreateObjectPayload) =>
-      modal?.kind === 'edit'
-        ? updateObject(modal.object.id, payload)
-        : createObject(payload),
+      modal?.kind === 'edit' ? updateObject(modal.object.id, payload) : createObject(payload),
     onSuccess: async () => {
       if (modal?.kind === 'edit') {
         await queryClient.invalidateQueries({ queryKey: ['object', modal.object.id] });
@@ -507,9 +505,7 @@ export function ObjectsListPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() =>
-                updateParams({ search: null, status: null, type: null, skip: null })
-              }
+              onClick={() => updateParams({ search: null, status: null, type: null, skip: null })}
             >
               Сбросить
               <span className="ml-2 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
@@ -526,9 +522,7 @@ export function ObjectsListPage() {
         )}
       </Card>
 
-      {query.isError && (
-        <ErrorBanner error={query.error} onRetry={() => void query.refetch()} />
-      )}
+      {query.isError && <ErrorBanner error={query.error} onRetry={() => void query.refetch()} />}
 
       {/*
         Частичный успех: сохранение прошло, а список не обновился (например, упал refetch).

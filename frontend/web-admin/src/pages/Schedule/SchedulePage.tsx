@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Input, PageHeader } from '../../components/ui';
-import {
-  useCanManageSchedule,
-  useIsScheduleAdmin,
-} from '../../hooks/usePermissions';
+import { useCanManageSchedule, useIsScheduleAdmin } from '../../hooks/usePermissions';
 import { useAuthStore } from '../../stores/authStore';
 import { DayEventsPanel } from './DayEventsPanel';
 import { MyEventsPanel } from './MyEventsPanel';
@@ -228,7 +225,10 @@ export function SchedulePage() {
           onRetry={() => void dayEvents.refetch()}
           onParamChange={write}
           generate={{ mutate: (date) => generate.mutate(date), isPending: generate.isPending }}
-          checkMissed={{ mutate: (date) => checkMissed.mutate(date), isPending: checkMissed.isPending }}
+          checkMissed={{
+            mutate: (date) => checkMissed.mutate(date),
+            isPending: checkMissed.isPending,
+          }}
           generateError={generate.isError ? generate.error : null}
           checkMissedError={checkMissed.isError ? checkMissed.error : null}
           generation={generate.isSuccess ? generate.data : null}
@@ -237,9 +237,7 @@ export function SchedulePage() {
           schedulerOpen={schedulerOpen}
           schedulerPending={schedulerOpen && scheduler.isLoading}
           schedulerError={schedulerOpen && scheduler.isError ? scheduler.error : null}
-          onToggleScheduler={() =>
-            write({ dayScheduler: schedulerOpen ? null : '1' })
-          }
+          onToggleScheduler={() => write({ dayScheduler: schedulerOpen ? null : '1' })}
         />
       )}
 
@@ -265,8 +263,8 @@ export function SchedulePage() {
       )}
 
       <p className="text-xs text-neutral-400">
-        Время в графиках и сменах — UTC: schedule-service хранит расписание без привязки к
-        локальной зоне объекта, поэтому «08:00» означает 08:00 UTC.
+        Время в графиках и сменах — UTC: schedule-service хранит расписание без привязки к локальной
+        зоне объекта, поэтому «08:00» означает 08:00 UTC.
       </p>
     </div>
   );

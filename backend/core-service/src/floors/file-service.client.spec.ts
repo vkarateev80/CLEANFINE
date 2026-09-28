@@ -50,13 +50,20 @@ describe('FileServiceClient', () => {
     it('успешная загрузка: multipart в bucket plans + привязка файла к этажу', async () => {
       fetchMock
         .mockResolvedValueOnce(
-          jsonResponse(201, { id: 'file-1', url: 'http://minio/plans/1.png', originalName: 'plan.png' }),
+          jsonResponse(201, {
+            id: 'file-1',
+            url: 'http://minio/plans/1.png',
+            originalName: 'plan.png',
+          }),
         )
         .mockResolvedValueOnce(jsonResponse(200, {}));
 
       const client = makeClient({ 'fileService.baseUrl': 'http://files:3002' });
       const file = multerFile();
-      const result = await client.uploadPlan(file, 'token-abc', { floorId: 'floor-1', planScale: 0.05 });
+      const result = await client.uploadPlan(file, 'token-abc', {
+        floorId: 'floor-1',
+        planScale: 0.05,
+      });
 
       const [uploadUrl, uploadInit] = fetchMock.mock.calls[0];
       expect(uploadUrl).toBe('http://files:3002/api/files/upload');
@@ -106,7 +113,9 @@ describe('FileServiceClient', () => {
         )
         .mockResolvedValueOnce(jsonResponse(200, {}));
 
-      const result = await makeClient().uploadPlan(multerFile(), 'token-abc', { floorId: 'floor-1' });
+      const result = await makeClient().uploadPlan(multerFile(), 'token-abc', {
+        floorId: 'floor-1',
+      });
 
       expect(result.width).toBe(1200);
       expect(result.height).toBe(800);
@@ -114,7 +123,9 @@ describe('FileServiceClient', () => {
 
     it('без конфига использует дефолтный адрес file-service', async () => {
       // Дефолт нужен для локального запуска без .env — регресс здесь ломает dev-стенд.
-      fetchMock.mockResolvedValueOnce(jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }));
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }),
+      );
 
       await makeClient().uploadPlan(multerFile(), 'token', { floorId: 'floor-1' });
 
@@ -122,7 +133,9 @@ describe('FileServiceClient', () => {
     });
 
     it('обрезает слэши в конце базового URL, чтобы не получить //api/files/upload', async () => {
-      fetchMock.mockResolvedValueOnce(jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }));
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }),
+      );
 
       await makeClient({ 'fileService.baseUrl': 'http://files:3002///' }).uploadPlan(
         multerFile(),
@@ -135,7 +148,9 @@ describe('FileServiceClient', () => {
 
     it('пустой baseUrl из env не ломает URL (пустая строка остаётся пустой)', async () => {
       // Пустая строка — это значение из env, дефолт подставляется только для undefined.
-      fetchMock.mockResolvedValueOnce(jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }));
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }),
+      );
 
       await makeClient({ 'fileService.baseUrl': '' }).uploadPlan(multerFile(), 'token', {
         floorId: 'floor-1',
@@ -146,7 +161,9 @@ describe('FileServiceClient', () => {
 
     it('использует настроенный timeout из конфига', async () => {
       const timeoutSpy = jest.spyOn(AbortSignal, 'timeout');
-      fetchMock.mockResolvedValueOnce(jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }));
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }),
+      );
 
       await makeClient({
         'fileService.baseUrl': 'http://files:3002',
@@ -159,7 +176,9 @@ describe('FileServiceClient', () => {
 
     it('без настройки timeout берёт дефолтные 15 секунд', async () => {
       const timeoutSpy = jest.spyOn(AbortSignal, 'timeout');
-      fetchMock.mockResolvedValueOnce(jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }));
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(201, { id: 'file-1', url: 'http://minio/1.png' }),
+      );
 
       await makeClient({ 'fileService.baseUrl': 'http://files:3002' }).uploadPlan(
         multerFile(),
@@ -175,12 +194,12 @@ describe('FileServiceClient', () => {
       fetchMock.mockResolvedValue(jsonResponse(400, { message: 'Файл слишком большой' }));
 
       const client = makeClient({ 'fileService.baseUrl': 'http://files:3002' });
-      await expect(client.uploadPlan(multerFile(), 'token', { floorId: 'floor-1' })).rejects.toThrow(
-        PlanUploadError,
-      );
-      await expect(client.uploadPlan(multerFile(), 'token', { floorId: 'floor-1' })).rejects.toThrow(
-        'Файл слишком большой',
-      );
+      await expect(
+        client.uploadPlan(multerFile(), 'token', { floorId: 'floor-1' }),
+      ).rejects.toThrow(PlanUploadError);
+      await expect(
+        client.uploadPlan(multerFile(), 'token', { floorId: 'floor-1' }),
+      ).rejects.toThrow('Файл слишком большой');
 
       // Статус нужен вызывающему сервису, чтобы отличить 401 от 400.
       const error = (await client
@@ -261,9 +280,13 @@ describe('FileServiceClient', () => {
         )
         .mockResolvedValueOnce(jsonResponse(200, {}));
 
-      const result = await makeClient().uploadPlan(multerFile({ originalname: 'my-plan.png' }), 'token', {
-        floorId: 'floor-1',
-      });
+      const result = await makeClient().uploadPlan(
+        multerFile({ originalname: 'my-plan.png' }),
+        'token',
+        {
+          floorId: 'floor-1',
+        },
+      );
 
       expect(result.originalName).toBe('my-plan.png');
     });
@@ -277,9 +300,7 @@ describe('FileServiceClient', () => {
         makeClient().uploadPlan(multerFile(), 'token', { floorId: 'floor-1' }),
       ).resolves.toEqual(expect.objectContaining({ url: 'http://minio/1.png' }));
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        'Не удалось привязать файл file-1 к этажу floor-1: 404',
-      );
+      expect(warnSpy).toHaveBeenCalledWith('Не удалось привязать файл file-1 к этажу floor-1: 404');
     });
 
     it('сетевая ошибка привязки не отменяет успешную загрузку', async () => {

@@ -497,10 +497,9 @@ export function FloorPlanPage() {
         data-testid="floor-drawing-hint"
         className="rounded-lg bg-neutral-100 px-4 py-3 text-xs text-neutral-600 md:hidden"
       >
-        Рисование рамкой и правка помещения за углы с телефона недоступны: палец закрывает
-        маркер. Помещение создаётся и правится кнопкой «Указать координаты» — координаты
-        x / y / ширина / высота вводятся вручную, а план остаётся доступен для просмотра
-        (зум, сдвиг, «Вписать»).
+        Рисование рамкой и правка помещения за углы с телефона недоступны: палец закрывает маркер.
+        Помещение создаётся и правится кнопкой «Указать координаты» — координаты x / y / ширина /
+        высота вводятся вручную, а план остаётся доступен для просмотра (зум, сдвиг, «Вписать»).
       </div>
       {floor && !canEdit && (
         <SoftWarning>
@@ -606,9 +605,7 @@ export function FloorPlanPage() {
               isAdmin={isAdmin}
               busy={updateRoomMutation.isPending}
               error={updateRoomError}
-              onSubmit={(values) =>
-                updateRoomMutation.mutate({ roomId: selectedRoom.id, values })
-              }
+              onSubmit={(values) => updateRoomMutation.mutate({ roomId: selectedRoom.id, values })}
               onDelete={() => setDeleteTarget(selectedRoom.id)}
               onClose={closeDrawer}
             />
@@ -652,9 +649,7 @@ export function FloorPlanPage() {
           planScale={floor.planScale}
           busy={planMutation.isPending || attachPlanMutation.isPending}
           error={planError}
-          onSubmit={(file, scale) =>
-            planMutation.mutate({ file, scale: scale ?? undefined })
-          }
+          onSubmit={(file, scale) => planMutation.mutate({ file, scale: scale ?? undefined })}
           onAttachUrl={(url, scale) =>
             attachPlanMutation.mutate({ url, scale: scale ?? undefined })
           }

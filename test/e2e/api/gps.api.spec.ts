@@ -49,7 +49,10 @@ import { bodyText, loginAs, runTag } from '../../helpers/core';
 test.describe.configure({ timeout: 180_000 });
 
 /** Уникальный объект core на прогон: используется как привязка геозон и фильтр списка. */
-const objectId = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+const objectId = `00000000-0000-4000-8000-${runTag()
+  .replace(/[^0-9a-f]/g, '')
+  .slice(-12)
+  .padStart(12, '0')}`;
 
 test.afterEach(() => {
   flushOperationsData();
@@ -82,7 +85,9 @@ test.describe('GPS: batch приёма точек', () => {
     const at = (offsetMs: number): string => new Date(started + offsetMs).toISOString();
     await resetTrackState(request, { at: new Date(started) });
 
-    const single = await sendTracks(request, { tracks: [{ ...cell.inside, timestamp: at(1_000) }] });
+    const single = await sendTracks(request, {
+      tracks: [{ ...cell.inside, timestamp: at(1_000) }],
+    });
     expect(single.accepted).toBe(1);
     expect(single.userId).toBeTruthy();
     expect(single.lastPointAt).toBeTruthy();
@@ -181,10 +186,9 @@ test.describe('GPS: геозоны', () => {
     const admin = await loginAs(request, 'ADMIN');
 
     // objectId — обязательный UUID v4: строка и «нулевой» UUID v0 отсекаются валидацией.
-    const badFilter = await request.get(
-      `${GPS_URL}/api/gps/geofences?objectId=not-an-object`,
-      { headers: { Authorization: `Bearer ${admin}` } },
-    );
+    const badFilter = await request.get(`${GPS_URL}/api/gps/geofences?objectId=not-an-object`, {
+      headers: { Authorization: `Bearer ${admin}` },
+    });
     await expectStatus(badFilter, 400, 'фильтр по не-UUID');
     expect(await bodyText(badFilter)).toContain('objectId должен быть UUID');
 
@@ -282,7 +286,11 @@ test.describe('GPS: геозоны', () => {
     expect(found?.distanceMeters).toBeLessThanOrEqual(500);
 
     // Радиус 1 м — сотрудник уже не попадает (проверяем сам фильтр, а не только «нашёлся»).
-    const tight = await nearbyEmployees(request, { lat: base.lat + 0.01, lng: base.lng }, { radius: 1 });
+    const tight = await nearbyEmployees(
+      request,
+      { lat: base.lat + 0.01, lng: base.lng },
+      { radius: 1 },
+    );
     expect(tight.employees.some((employee) => employee.userId === supervisorId)).toBe(false);
   });
 
@@ -392,9 +400,7 @@ test.describe('GPS: геозоны', () => {
     for (const track of windowed.tracks) {
       expect(Date.parse(track.timestamp)).toBeGreaterThanOrEqual(windowFrom.getTime());
     }
-    expect(windowed.tracks.map((track) => track.timestamp)).not.toContain(
-      beforeFrom.toISOString(),
-    );
+    expect(windowed.tracks.map((track) => track.timestamp)).not.toContain(beforeFrom.toISOString());
     // Точки отдаются по возрастанию timestamp.
     const timestamps = windowed.tracks.map((track) => Date.parse(track.timestamp));
     expect(timestamps).toEqual([...timestamps].sort((left, right) => left - right));
@@ -469,8 +475,8 @@ test.describe('GPS: уборка', () => {
 
     // «После»: ни одной строки прогона не осталось — ни трека, ни геозоны.
     expect(countTracks(track.userId, since, idsBefore), 'треки прогона удалены').toBe(0);
-    expect((await listGeofences(request, { objectId })).geofences.map((item) => item.id)).not.toContain(
-      geofence.id,
-    );
+    expect(
+      (await listGeofences(request, { objectId })).geofences.map((item) => item.id),
+    ).not.toContain(geofence.id);
   });
 });

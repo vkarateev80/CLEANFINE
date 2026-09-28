@@ -63,7 +63,10 @@ describe('NotificationsService', () => {
 
   beforeEach(() => {
     prisma = createPrismaMock();
-    push = { name: 'mock', send: jest.fn().mockResolvedValue({ successCount: 1, failureCount: 0, invalidTokens: [] }) };
+    push = {
+      name: 'mock',
+      send: jest.fn().mockResolvedValue({ successCount: 1, failureCount: 0, invalidTokens: [] }),
+    };
     service = new NotificationsService(
       prisma as unknown as PrismaService,
       push as unknown as PushSender,
@@ -81,7 +84,12 @@ describe('NotificationsService', () => {
       const args = prisma.device.upsert.mock.calls[0][0];
       // upsert по token: повторная регистрация того же устройства не создаёт дубликат.
       expect(args.where).toEqual({ token: VALID_TOKEN });
-      expect(args.create).toMatchObject({ userId: 'u-1', token: VALID_TOKEN, platform: 'android', isActive: true });
+      expect(args.create).toMatchObject({
+        userId: 'u-1',
+        token: VALID_TOKEN,
+        platform: 'android',
+        isActive: true,
+      });
       expect(args.update).toMatchObject({ userId: 'u-1', platform: 'android', isActive: true });
       expect(args.create.lastSeenAt).toBeInstanceOf(Date);
     });
@@ -125,7 +133,9 @@ describe('NotificationsService', () => {
       expect(args.take).toBe(5);
       // readAt: null — фильтр непрочитанных на уровне БД, а не в памяти.
       expect(args.where).toEqual({ userId: 'u-1', readAt: null });
-      expect(prisma.notification.count).toHaveBeenLastCalledWith({ where: { userId: 'u-1', readAt: null } });
+      expect(prisma.notification.count).toHaveBeenLastCalledWith({
+        where: { userId: 'u-1', readAt: null },
+      });
     });
 
     it('ограничивает размер страницы сверху', async () => {
@@ -151,7 +161,9 @@ describe('NotificationsService', () => {
 
       await expect(service.markRead('u-1', 'n-1')).resolves.toBe(updated);
       // Ищем по паре (id, userId): чужие уведомления недоступны.
-      expect(prisma.notification.findFirst).toHaveBeenCalledWith({ where: { id: 'n-1', userId: 'u-1' } });
+      expect(prisma.notification.findFirst).toHaveBeenCalledWith({
+        where: { id: 'n-1', userId: 'u-1' },
+      });
       expect(prisma.notification.update.mock.calls[0][0].data.readAt).toBeInstanceOf(Date);
     });
 
@@ -240,7 +252,12 @@ describe('NotificationsService', () => {
     it('без активных устройств сохраняет только in-app запись', async () => {
       prisma.notification.create.mockResolvedValue(notificationOf());
 
-      await service.notifyUser('u-1', 'NEW_TICKET', { ticketDescription: 'Помыть 3 этаж' }, { ticketId: 't-1' });
+      await service.notifyUser(
+        'u-1',
+        'NEW_TICKET',
+        { ticketDescription: 'Помыть 3 этаж' },
+        { ticketId: 't-1' },
+      );
 
       expect(push.send).not.toHaveBeenCalled();
       expect(prisma.notification.create.mock.calls[0][0].data).toMatchObject({
@@ -272,7 +289,11 @@ describe('NotificationsService', () => {
     it('деактивирует устройство с невалидным токеном', async () => {
       prisma.device.findMany.mockResolvedValue([{ token: VALID_TOKEN }, { token: 'bad-token' }]);
       prisma.notification.create.mockResolvedValue(notificationOf());
-      push.send.mockResolvedValue({ successCount: 1, failureCount: 1, invalidTokens: ['bad-token'] });
+      push.send.mockResolvedValue({
+        successCount: 1,
+        failureCount: 1,
+        invalidTokens: ['bad-token'],
+      });
 
       await service.notifyUser('u-1', 'GEOFENCE_EXIT', { employeeName: 'Иванов' });
 
@@ -295,10 +316,11 @@ describe('NotificationsService', () => {
 
   describe('notifyUsers', () => {
     it('отбрасывает дубликаты и пустые id, считает только созданные записи', async () => {
-      prisma.notificationPreference.findUnique.mockImplementation(({ where }: { where: { userId: string } }) =>
-        Promise.resolve(
-          where.userId === 'u-2' ? { userId: 'u-2', disabledTypes: ['NEW_TICKET'] } : null,
-        ),
+      prisma.notificationPreference.findUnique.mockImplementation(
+        ({ where }: { where: { userId: string } }) =>
+          Promise.resolve(
+            where.userId === 'u-2' ? { userId: 'u-2', disabledTypes: ['NEW_TICKET'] } : null,
+          ),
       );
       prisma.notification.create.mockResolvedValue(notificationOf());
 

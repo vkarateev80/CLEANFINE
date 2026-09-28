@@ -54,8 +54,7 @@ export function sumMinutes(operations: Array<{ estimatedTimeMin: number }>): num
  * очистить значение через API нельзя — отправка поля просто пропускается.
  */
 export type EquipmentParse =
-  | { ok: true; value: Record<string, unknown> | undefined }
-  | { ok: false; error: string };
+  { ok: true; value: Record<string, unknown> | undefined } | { ok: false; error: string };
 
 export function parseEquipmentInput(raw: string): EquipmentParse {
   const trimmed = raw.trim();

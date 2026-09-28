@@ -198,7 +198,12 @@ export function ScheduleFormModal({
 
     const dayOfMonth = values.dayOfMonth.trim() === '' ? undefined : Number(values.dayOfMonth);
     if (values.frequency === 'monthly') {
-      if (dayOfMonth === undefined || !Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31) {
+      if (
+        dayOfMonth === undefined ||
+        !Number.isInteger(dayOfMonth) ||
+        dayOfMonth < 1 ||
+        dayOfMonth > 31
+      ) {
         next.dayOfMonth = 'Число месяца — целое от 1 до 31';
       }
     }
@@ -223,13 +228,15 @@ export function ScheduleFormModal({
       // Объект очищается ЯВНЫМ `null`: в `UpdateScheduleDto` отсутствие поля
       // означает «не менять», поэтому пустая строка не убрала бы привязку. На
       // создании поле просто не отправляем — колонка и так пустая.
-      ...(values.objectId === '' ? (schedule ? { objectId: null } : {}) : { objectId: values.objectId }),
+      ...(values.objectId === ''
+        ? schedule
+          ? { objectId: null }
+          : {}
+        : { objectId: values.objectId }),
       // Маршрут уходит в запрос ТОЛЬКО если селект трогали. Пустое значение не
       // отправляется вовсе: сброс привязки — это осознанный выбор пункта «Без
       // маршрута», который кодируется `null` (отсутствие поля = «не менять»).
-      ...(routeTouched
-        ? { routeId: values.routeId === '' ? null : values.routeId }
-        : {}),
+      ...(routeTouched ? { routeId: values.routeId === '' ? null : values.routeId } : {}),
     };
 
     save.mutate(payload);
@@ -244,9 +251,7 @@ export function ScheduleFormModal({
   }
 
   /** Исполнитель, которого нет в справочнике (уволен/деактивирован): снять отметку нельзя, но и молча потерять его нельзя. */
-  const unknownAssignees = values.assignees.filter(
-    (id) => !users.some((user) => user.id === id),
-  );
+  const unknownAssignees = values.assignees.filter((id) => !users.some((user) => user.id === id));
 
   const routeItems = routes.data?.items ?? [];
   /** Привязка графика: могла не попасть в выборку (другой объект, за пределами сотни). */
@@ -415,8 +420,10 @@ export function ScheduleFormModal({
           {unknownAssignees.length > 0 && (
             <SoftWarning>
               В графике есть исполнители, которых нет в активном справочнике:{' '}
-              <span className="font-mono">{unknownAssignees.map((id) => id.slice(0, 8)).join(', ')}</span>.
-              Они сохранятся, если не снимать отметку.
+              <span className="font-mono">
+                {unknownAssignees.map((id) => id.slice(0, 8)).join(', ')}
+              </span>
+              . Они сохранятся, если не снимать отметку.
             </SoftWarning>
           )}
           {errors.assignees && <span className="text-xs text-danger-600">{errors.assignees}</span>}
@@ -480,8 +487,8 @@ export function ScheduleFormModal({
 
         {currentRouteMissing && values.objectId !== '' && (
           <SoftWarning>
-            Маршрут графика не найден среди маршрутов выбранного объекта — сохранится как есть,
-            пока вы не выберете другой.
+            Маршрут графика не найден среди маршрутов выбранного объекта — сохранится как есть, пока
+            вы не выберете другой.
           </SoftWarning>
         )}
       </div>
