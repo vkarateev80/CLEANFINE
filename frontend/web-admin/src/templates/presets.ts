@@ -112,7 +112,7 @@ export const PRESET_LIBRARIES: Record<PresetId, PresetLibrary> = {
   'material-units': {
     id: 'material-units',
     label: 'Единицы измерения',
-    values: ['л', 'мл', 'кг', 'шт'],
+    values: ['л', 'мл', 'г', 'кг', 'шт', 'уп'],
   },
   'material-suppliers': {
     id: 'material-suppliers',

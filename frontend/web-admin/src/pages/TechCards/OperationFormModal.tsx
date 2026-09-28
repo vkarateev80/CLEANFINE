@@ -43,8 +43,6 @@ export interface OperationFormModalProps {
   onSubmit: (payload: CreateOperationPayload) => Promise<void>;
 }
 
-const UNIT_OPTIONS = ['шт', 'мл', 'л', 'г', 'кг', 'уп'];
-
 function initialValues(operation?: TechOperationWithMaterials): OperationFormValues {
   if (!operation) return emptyOperationForm();
   return {
@@ -481,7 +479,7 @@ export function OperationFormModal({
           )}
 
           <datalist id={`${formId}-units`}>
-            {UNIT_OPTIONS.map((unit) => (
+            {presetValues('material-units').map((unit) => (
               <option key={unit} value={unit} />
             ))}
           </datalist>
