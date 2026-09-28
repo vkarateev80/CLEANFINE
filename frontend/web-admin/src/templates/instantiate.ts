@@ -7,7 +7,13 @@ import {
   createTechCard,
   listRooms,
 } from '../api/core';
-import type { ObjectTemplate, RouteTemplate, TechCardTemplate } from './library';
+import { createMaterial } from '../api/materials';
+import type {
+  MaterialSetTemplate,
+  ObjectTemplate,
+  RouteTemplate,
+  TechCardTemplate,
+} from './library';
 
 /**
  * Разворачивание шаблона в реальные сущности через штатные API.
@@ -102,4 +108,32 @@ export async function createRouteFromTemplate(
     await addRoutePoint(route.id, point.roomId, point.estimatedTimeMin);
   }
   return route.id;
+}
+
+/**
+ * Набор материалов: каждая позиция создаётся отдельным POST. Позиции
+ * независимы — упавшая запись (например, дубль названия) не срывает остальные;
+ * если что-то не создалось, возвращается понятная ошибка со списком,
+ * а созданные позиции не откатываются (справочник идемпотентен к осмотру).
+ */
+export async function createMaterialSetFromTemplate(
+  template: MaterialSetTemplate,
+): Promise<number> {
+  let created = 0;
+  const failures: string[] = [];
+  for (const item of template.items) {
+    try {
+      await createMaterial(item);
+      created += 1;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      failures.push(`${item.name}: ${message}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(
+      `Создано ${created} из ${template.items.length}. Не создалось — ${failures.join('; ')}`,
+    );
+  }
+  return created;
 }

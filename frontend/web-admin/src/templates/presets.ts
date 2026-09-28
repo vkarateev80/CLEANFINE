@@ -21,7 +21,8 @@ export type PresetId =
   | 'material-names'
   | 'material-units'
   | 'material-suppliers'
-  | 'operation-names';
+  | 'operation-names'
+  | 'equipment-json';
 
 export interface PresetLibrary {
   id: PresetId;
@@ -130,6 +131,17 @@ export const PRESET_LIBRARIES: Record<PresetId, PresetLibrary> = {
       'Полить растения',
       'Убрать санитарную зону',
       'Заправить пост уборки',
+    ],
+  },
+  'equipment-json': {
+    id: 'equipment-json',
+    label: 'Оборудование (JSON)',
+    values: [
+      '{ "items": ["швабра", "ведро"], "ppe": ["перчатки"] }',
+      '{ "items": ["пылесос"], "ppe": ["маска"] }',
+      '{ "items": ["салфетки", "скребок"], "ppe": ["перчатки"] }',
+      '{ "items": ["мешки для мусора"], "ppe": ["перчатки", "маска"] }',
+      '{ "ppe": ["перчатки"] }',
     ],
   },
 };

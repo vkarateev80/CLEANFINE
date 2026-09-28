@@ -63,6 +63,17 @@ function initialValues(operation?: TechOperationWithMaterials): OperationFormVal
   };
 }
 
+/** Короткая подпись чипа пресета: содержимое JSON без фигурных скобок. */
+function equipmentPresetLabel(json: string): string {
+  try {
+    const parsed = JSON.parse(json) as { items?: string[]; ppe?: string[] };
+    const parts = [...(parsed.items ?? []), ...(parsed.ppe ?? [])];
+    return parts.join(', ') || json;
+  } catch {
+    return json;
+  }
+}
+
 export function OperationFormModal({
   open,
   operation,
@@ -312,6 +323,22 @@ export function OperationFormModal({
             placeholder='{ "items": ["швабра", "ведро"] }'
             onChange={(event) => patch({ equipmentText: event.target.value })}
           />
+          {/* textarea не поддерживает list+datalist — пресеты вставляются кнопками. */}
+          <div className="flex flex-wrap gap-2 pt-1" data-testid="equipment-presets">
+            {presetValues('equipment-json').map((preset) => (
+              <Button
+                key={preset}
+                type="button"
+                variant="secondary"
+                size="sm"
+                title={preset}
+                data-testid="equipment-preset"
+                onClick={() => patch({ equipmentText: preset })}
+              >
+                {equipmentPresetLabel(preset)}
+              </Button>
+            ))}
+          </div>
         </Field>
 
         <section className="flex flex-col gap-3">

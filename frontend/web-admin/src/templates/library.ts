@@ -1,19 +1,21 @@
+import type { CreateMaterialPayload } from '../types/materials';
 import type { CreateObjectPayload } from '../types/core';
 
 /**
  * Библиотека шаблонов (раздел «Шаблоны», `/templates`).
  *
  * Шаблон — это описанная в коде «заготовка» реальной сущности: техкарты
- * с набором операций, маршрута с планом точек или объекта с типовой
- * этажностью. Кнопка «Создать из шаблона» разворачивает заготовку через
- * штатные POST-эндпоинты (`instantiate.ts`), поэтому на сервере появляются
- * обычные сущности — никакого отдельного хранения шаблонов и отдельного API.
+ * с набором операций, маршрута с планом точек, объекта с типовой этажностью
+ * или набора материалов справочника. Кнопка «Создать из шаблона» разворачивает
+ * заготовку через штатные POST-эндпоинты (`instantiate.ts`), поэтому на сервере
+ * появляются обычные сущности — никакого отдельного хранения шаблонов
+ * и отдельного API.
  *
  * Данные статические и служат демо-контентом по всем категориям: правки здесь
  * видны всем без миграций; свои заготовки команды могут добавлять коммитом.
  */
 
-export type TemplateCategoryId = 'tech-cards' | 'routes' | 'objects';
+export type TemplateCategoryId = 'tech-cards' | 'routes' | 'objects' | 'materials';
 
 export interface TemplateCategory {
   id: TemplateCategoryId;
@@ -67,12 +69,25 @@ export interface ObjectTemplate {
   clientDefaults: { clientName: string; clientContact: string };
 }
 
-export type LibraryTemplate = TechCardTemplate | RouteTemplate | ObjectTemplate;
+/** Одна позиция набора материалов — payload создания без трансформаций. */
+export type MaterialSetItem = CreateMaterialPayload;
+
+export interface MaterialSetTemplate {
+  id: string;
+  category: 'materials';
+  name: string;
+  description: string;
+  items: MaterialSetItem[];
+}
+
+export type LibraryTemplate =
+  TechCardTemplate | RouteTemplate | ObjectTemplate | MaterialSetTemplate;
 
 export const TEMPLATE_CATEGORIES: TemplateCategory[] = [
   { id: 'tech-cards', label: 'Техкарты', icon: '🧾' },
   { id: 'routes', label: 'Маршруты', icon: '🗺️' },
   { id: 'objects', label: 'Объекты', icon: '🏢' },
+  { id: 'materials', label: 'Материалы', icon: '📦' },
 ];
 
 export const TEMPLATE_LIBRARY: LibraryTemplate[] = [
@@ -192,11 +207,94 @@ export const TEMPLATE_LIBRARY: LibraryTemplate[] = [
     },
     clientDefaults: { clientName: 'ООО «Клиент-демо»', clientContact: 'demo@example.com' },
   },
+
+  // ----------------------------------------------------------------- материалы
+  {
+    id: 'ms-office-chem',
+    category: 'materials',
+    name: 'Химия для офиса',
+    description: 'Базовый набор моющих и дезинфицирующих средств для дневной уборки.',
+    items: [
+      {
+        name: 'Мыльный раствор',
+        unit: 'л',
+        defaultConsumption: 0.05,
+        minStockThreshold: 5,
+        costPerUnit: 320.5,
+        supplier: 'ООО «Химторг»',
+      },
+      {
+        name: 'Средство для стекла',
+        unit: 'л',
+        defaultConsumption: 0.02,
+        minStockThreshold: 3,
+        costPerUnit: 280,
+        supplier: 'ООО «Химторг»',
+      },
+      {
+        name: 'Универсальное дезинфицирующее средство',
+        unit: 'л',
+        defaultConsumption: 0.03,
+        minStockThreshold: 4,
+        costPerUnit: 450,
+        supplier: 'ООО «Химторг»',
+      },
+      {
+        name: 'Салфетки микрофибры',
+        unit: 'шт',
+        defaultConsumption: 2,
+        minStockThreshold: 20,
+        costPerUnit: 45,
+        supplier: 'ТД «Клининг-Снаб»',
+      },
+    ],
+  },
+  {
+    id: 'ms-post-supplies',
+    category: 'materials',
+    name: 'Расходники поста уборки',
+    description: 'Расходники и инвентарь поста: мешки, перчатки, порошок, швабра.',
+    items: [
+      {
+        name: 'Мешки для мусора',
+        unit: 'шт',
+        defaultConsumption: 5,
+        minStockThreshold: 50,
+        costPerUnit: 12,
+        supplier: 'ТД «Клининг-Снаб»',
+      },
+      {
+        name: 'Перчатки латексные',
+        unit: 'шт',
+        defaultConsumption: 1,
+        minStockThreshold: 30,
+        costPerUnit: 35,
+        supplier: 'ТД «Клининг-Снаб»',
+      },
+      {
+        name: 'Порошок для чистки',
+        unit: 'кг',
+        defaultConsumption: 0.1,
+        minStockThreshold: 10,
+        costPerUnit: 190,
+        supplier: 'ООО «Химторг»',
+      },
+      {
+        name: 'Швабра',
+        unit: 'шт',
+        defaultConsumption: 0,
+        minStockThreshold: 2,
+        costPerUnit: 650,
+        supplier: 'ТД «Клининг-Снаб»',
+      },
+    ],
+  },
 ];
 
 export function templatesByCategory(category: 'tech-cards'): TechCardTemplate[];
 export function templatesByCategory(category: 'routes'): RouteTemplate[];
 export function templatesByCategory(category: 'objects'): ObjectTemplate[];
+export function templatesByCategory(category: 'materials'): MaterialSetTemplate[];
 export function templatesByCategory(category: TemplateCategoryId | 'all'): LibraryTemplate[];
 export function templatesByCategory(category: TemplateCategoryId | 'all'): LibraryTemplate[] {
   if (category === 'all') return TEMPLATE_LIBRARY;
@@ -220,6 +318,16 @@ export function templateSummary(template: LibraryTemplate): string[] {
         `${template.preset.totalArea} м²`,
         template.preset.type,
       ];
+    case 'materials': {
+      const supplier = template.items[0]?.supplier;
+      const uniform =
+        supplier !== undefined &&
+        supplier !== '' &&
+        template.items.every((item) => item.supplier === supplier);
+      return uniform
+        ? [`${template.items.length} позиций`, supplier]
+        : [`${template.items.length} позиций`];
+    }
   }
 }
 

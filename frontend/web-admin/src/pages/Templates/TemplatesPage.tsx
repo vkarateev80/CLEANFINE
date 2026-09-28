@@ -16,6 +16,7 @@ import {
   type TemplateCategoryId,
 } from '../../templates/library';
 import {
+  createMaterialSetFromTemplate,
   createObjectFromTemplate,
   createRouteFromTemplate,
   createTechCardFromTemplate,
@@ -88,37 +89,51 @@ export function TemplatesPage() {
   async function handleCreate() {
     if (!createTarget) return;
     const name = nameDraft.trim();
-    if (!name) {
+    // Набор материалов — не одна сущность: имя шаблона ей не нужно.
+    if (createTarget.category !== 'materials' && !name) {
       setError(new Error('Укажите название'));
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      if (createTarget.category === 'tech-cards') {
-        const id = await createTechCardFromTemplate(createTarget, name);
-        setCreateTarget(null);
-        navigate(ROUTES.techCard(id));
-      } else if (createTarget.category === 'objects') {
-        const id = await createObjectFromTemplate(
-          createTarget,
-          name,
-          clientNameDraft.trim(),
-          clientContactDraft.trim(),
-        );
-        setCreateTarget(null);
-        await queryClient.invalidateQueries({ queryKey: ['objects'] });
-        navigate(ROUTES.object(id));
-      } else {
-        if (!routeFloorId) {
-          setError(new Error('Выберите объект и этаж'));
-          setBusy(false);
-          return;
+      switch (createTarget.category) {
+        case 'tech-cards': {
+          const id = await createTechCardFromTemplate(createTarget, name);
+          setCreateTarget(null);
+          navigate(ROUTES.techCard(id));
+          break;
         }
-        const id = await createRouteFromTemplate(createTarget, routeFloorId, name);
-        setCreateTarget(null);
-        await queryClient.invalidateQueries({ queryKey: ['routes'] });
-        navigate(ROUTES.route(id));
+        case 'objects': {
+          const id = await createObjectFromTemplate(
+            createTarget,
+            name,
+            clientNameDraft.trim(),
+            clientContactDraft.trim(),
+          );
+          setCreateTarget(null);
+          await queryClient.invalidateQueries({ queryKey: ['objects'] });
+          navigate(ROUTES.object(id));
+          break;
+        }
+        case 'materials': {
+          await createMaterialSetFromTemplate(createTarget);
+          setCreateTarget(null);
+          await queryClient.invalidateQueries({ queryKey: ['materials'] });
+          navigate(ROUTES.materials);
+          break;
+        }
+        case 'routes': {
+          if (!routeFloorId) {
+            setError(new Error('Выберите объект и этаж'));
+            break;
+          }
+          const id = await createRouteFromTemplate(createTarget, routeFloorId, name);
+          setCreateTarget(null);
+          await queryClient.invalidateQueries({ queryKey: ['routes'] });
+          navigate(ROUTES.route(id));
+          break;
+        }
       }
       await queryClient.invalidateQueries({ queryKey: ['tech-cards'] });
     } catch (err) {
@@ -252,13 +267,33 @@ export function TemplatesPage() {
       >
         {createTarget && (
           <div className="flex flex-col gap-4">
-            <Field label="Название" htmlFor="template-name" required>
-              <Input
-                id="template-name"
-                value={nameDraft}
-                onChange={(event) => setNameDraft(event.target.value)}
-              />
-            </Field>
+            {createTarget.category !== 'materials' && (
+              <Field label="Название" htmlFor="template-name" required>
+                <Input
+                  id="template-name"
+                  value={nameDraft}
+                  onChange={(event) => setNameDraft(event.target.value)}
+                />
+              </Field>
+            )}
+
+            {createTarget.category === 'materials' && (
+              <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-sm">
+                <div className="font-medium text-neutral-800">
+                  Будет создано позиций: {createTarget.items.length}
+                </div>
+                <ul className="flex flex-col gap-1 text-neutral-600">
+                  {createTarget.items.map((item) => (
+                    <li key={item.name} className="flex justify-between gap-3">
+                      <span>{item.name}</span>
+                      <span className="shrink-0 text-neutral-400">
+                        {item.defaultConsumption} {item.unit}/оп. · {item.costPerUnit} ₽
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {createTarget.category === 'objects' && (
               <>
@@ -379,6 +414,32 @@ function TemplatePreviewBody({ template }: { template: LibraryTemplate }) {
             </li>
           ))}
         </ol>
+      </div>
+    );
+  }
+
+  if (template.category === 'materials') {
+    return (
+      <div className="flex flex-col gap-3" data-testid="template-preview-body">
+        <p className="break-words text-sm text-neutral-500">{template.description}</p>
+        <ul className="flex flex-col gap-2">
+          {template.items.map((item) => (
+            <li
+              key={item.name}
+              className="flex items-start justify-between gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm"
+            >
+              <span className="text-neutral-800">
+                {item.name}
+                <span className="ml-2 text-xs text-neutral-400">
+                  норма {item.defaultConsumption} {item.unit} · порог {item.minStockThreshold}
+                </span>
+              </span>
+              <span className="shrink-0 text-neutral-500">
+                {item.costPerUnit} ₽/{item.unit}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }

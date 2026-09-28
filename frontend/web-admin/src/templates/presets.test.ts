@@ -23,6 +23,7 @@ describe('библиотеки пресетов полей', () => {
       'material-units',
       'material-suppliers',
       'operation-names',
+      'equipment-json',
     ] as PresetId[]) {
       expect(PRESET_LIBRARIES[id]).toBeDefined();
     }

@@ -51,6 +51,21 @@ describe('библиотека шаблонов', () => {
     }
   });
 
+  it('материалы: наборы с валидными позициями', () => {
+    const sets = templatesByCategory('materials');
+    expect(sets.length).toBeGreaterThanOrEqual(2);
+    for (const set of sets) {
+      expect(set.items.length).toBeGreaterThan(0);
+      for (const item of set.items) {
+        expect(item.name.trim()).not.toBe('');
+        expect(item.unit.trim()).not.toBe('');
+        expect(item.defaultConsumption).toBeGreaterThanOrEqual(0);
+        expect(item.minStockThreshold).toBeGreaterThanOrEqual(0);
+        expect(item.costPerUnit).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
   it('сводка для карточек считается', () => {
     const card = findTemplate('tc-office');
     expect(card).toBeDefined();
