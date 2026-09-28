@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createMaterial, updateMaterial } from '../../api/materials';
 import { Button, ErrorBanner, Field, Input, Modal } from '../../components/ui';
+import { presetValues } from '../../templates/presets';
 import type { CreateMaterialPayload, MaterialEntity } from '../../types/materials';
 import { parseRequiredNumber } from './materialsHelpers';
 
@@ -173,11 +174,17 @@ export function MaterialFormModal({
             <Input
               id="material-name"
               data-testid="material-name"
+              list="material-name-options"
               value={values.name}
               invalid={Boolean(errors.name)}
               placeholder="Средство для мытья полов"
               onChange={(event) => update('name', event.target.value)}
             />
+            <datalist id="material-name-options">
+              {presetValues('material-names').map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
           </Field>
 
           <Field
@@ -190,11 +197,17 @@ export function MaterialFormModal({
             <Input
               id="material-unit"
               data-testid="material-unit"
+              list="material-unit-options"
               value={values.unit}
               invalid={Boolean(errors.unit)}
               placeholder="л"
               onChange={(event) => update('unit', event.target.value)}
             />
+            <datalist id="material-unit-options">
+              {presetValues('material-units').map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
           </Field>
 
           <Field
@@ -261,10 +274,16 @@ export function MaterialFormModal({
             <Input
               id="material-supplier"
               data-testid="material-supplier"
+              list="material-supplier-options"
               value={values.supplier}
               placeholder="ООО «Химторг»"
               onChange={(event) => update('supplier', event.target.value)}
             />
+            <datalist id="material-supplier-options">
+              {presetValues('material-suppliers').map((option) => (
+                <option key={option} value={option} />
+              ))}
+            </datalist>
           </Field>
         </div>
       </div>

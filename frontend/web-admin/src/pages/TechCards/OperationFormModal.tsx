@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { ErrorBanner, errorMessage } from '../../components/ui/Feedback';
 import { Checkbox, Field, Input, Select, Textarea } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { presetValues } from '../../templates/presets';
 import { Table, TBody, Td, Th, THead, Tr } from '../../components/ui/Table';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { apiStatus, shortId } from '../Materials/materialsHelpers';
@@ -237,11 +238,17 @@ export function OperationFormModal({
           <Input
             id={`${formId}-name`}
             data-testid="operation-name"
+            list={`${formId}-name-options`}
             value={values.name}
             invalid={Boolean(errors.name)}
             placeholder="Например, «Нанести чистящее средство»"
             onChange={(event) => patch({ name: event.target.value })}
           />
+          <datalist id={`${formId}-name-options`}>
+            {presetValues('operation-names').map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </Field>
 
         <Field label="Описание" htmlFor={`${formId}-description`} hint="До 1000 символов">

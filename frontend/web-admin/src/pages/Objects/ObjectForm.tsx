@@ -5,7 +5,8 @@ import { Button, ErrorBanner, Field, Input, Select } from '../../components/ui';
 import type { SessionUser } from '../../types';
 import type { CreateObjectPayload, ObjectEntity } from '../../types/core';
 import { OBJECT_STATUSES, OBJECT_STATUS_LABELS, type ObjectStatus } from '../../types/status';
-import { COMMON_OBJECT_TYPES, apiMessages, parseRequiredNumber } from './utils';
+import { presetValues } from '../../templates/presets';
+import { apiMessages, parseRequiredNumber } from './utils';
 
 /** Сколько CLIENT-аккаунтов подтягиваем для селекта (лимит API — 100). */
 const CLIENT_ACCOUNTS_TAKE = 100;
@@ -289,7 +290,7 @@ export function ObjectForm({
           label="Тип объекта"
           htmlFor="object-type"
           required
-          hint="Справочник типов ещё не утверждён — можно ввести своё значение"
+          hint="Библиотека типов — подсказка; можно ввести своё значение"
           error={fieldErrors.type}
         >
           <Input
@@ -301,7 +302,7 @@ export function ObjectForm({
             onChange={(event) => update('type', event.target.value)}
           />
           <datalist id="object-type-options">
-            {COMMON_OBJECT_TYPES.map((type) => (
+            {presetValues('object-types').map((type) => (
               <option key={type} value={type} />
             ))}
           </datalist>
