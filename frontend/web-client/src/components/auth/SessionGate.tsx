@@ -7,7 +7,10 @@ import { useAuthStore } from '../../stores/authStore';
 /** Скелетон проверки сессии: держит высоту, чтобы вёрстка не «прыгала» на телефоне. */
 function SessionSkeleton() {
   return (
-    <div className="mx-auto flex max-w-screen-md flex-col gap-4 p-4" data-testid="portal-session-loading">
+    <div
+      className="mx-auto flex max-w-screen-md flex-col gap-4 p-4"
+      data-testid="portal-session-loading"
+    >
       <div className="h-6 w-2/3 animate-pulse rounded-md bg-neutral-200" />
       <div className="h-24 animate-pulse rounded-xl bg-neutral-200" />
       <div className="grid grid-cols-2 gap-3">

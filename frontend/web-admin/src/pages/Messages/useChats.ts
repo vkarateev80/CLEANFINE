@@ -72,9 +72,7 @@ export function useChatMessages(chatId: string | null) {
  * страницы — от старых к новым, поэтому разворачиваем САМИ страницы, а не
  * сообщения (иначе переписка перемешалась бы).
  */
-export function flattenMessages(
-  data: InfiniteData<ChatMessagesPage> | undefined,
-): ChatMessage[] {
+export function flattenMessages(data: InfiniteData<ChatMessagesPage> | undefined): ChatMessage[] {
   if (!data) return [];
   const list: ChatMessage[] = [];
   for (let index = data.pages.length - 1; index >= 0; index -= 1) {
@@ -84,10 +82,7 @@ export function flattenMessages(
 }
 
 /** Дописывает сообщение в самый свежий край кэша, если его там ещё нет (идемпотентно). */
-export function appendMessageToCache(
-  queryClient: QueryClient,
-  message: ChatMessage,
-): void {
+export function appendMessageToCache(queryClient: QueryClient, message: ChatMessage): void {
   queryClient.setQueryData<InfiniteData<ChatMessagesPage>>(
     chatMessagesKey(message.chatId),
     (data) => {
@@ -165,10 +160,7 @@ export function useChatUserNames(): SessionUser[] | undefined {
 }
 
 /** Имя сотрудника по id; null — если справочник недоступен (роль без прав). */
-export function chatUserName(
-  users: SessionUser[] | undefined,
-  id: string,
-): string | null {
+export function chatUserName(users: SessionUser[] | undefined, id: string): string | null {
   return users?.find((user) => user.id === id)?.fullName ?? null;
 }
 
@@ -206,7 +198,9 @@ export function useChatByReference(kind: 'ticket' | 'object', refId: string | un
       if (existing) return getChat(existing.id);
       if (!canCreate) return null;
       return createChat(
-        kind === 'ticket' ? { type: 'ticket', ticketId: refId } : { type: 'object', objectId: refId },
+        kind === 'ticket'
+          ? { type: 'ticket', ticketId: refId }
+          : { type: 'object', objectId: refId },
       );
     },
   });

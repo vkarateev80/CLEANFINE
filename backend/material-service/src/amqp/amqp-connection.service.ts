@@ -97,7 +97,9 @@ export class AmqpConnectionService implements OnModuleDestroy {
     if (this.closing || this.channelLostListeners.size === 0) {
       return;
     }
-    this.logger.warn(`RabbitMQ: ${reason} — оповещаю консьюмеров (${this.channelLostListeners.size})`);
+    this.logger.warn(
+      `RabbitMQ: ${reason} — оповещаю консьюмеров (${this.channelLostListeners.size})`,
+    );
     for (const listener of this.channelLostListeners) {
       try {
         listener();

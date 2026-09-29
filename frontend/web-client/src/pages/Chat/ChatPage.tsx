@@ -4,12 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState, ErrorBanner, SoftWarning, errorMessage } from '../../components/ui/Feedback';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { useAuthStore } from '../../stores/authStore';
-import {
-  useAutoScroll,
-  useChatHistory,
-  useChatResolution,
-  useSendMessage,
-} from './useChat';
+import { useAutoScroll, useChatHistory, useChatResolution, useSendMessage } from './useChat';
 import { formatDate, formatTime } from '../../lib/format';
 import type { MessageView } from '../../types/chat';
 
@@ -255,7 +250,12 @@ export function ChatPage() {
         data-testid="portal-chat-thread"
       >
         {history.hasMore && (
-          <Button variant="ghost" size="sm" className="mx-auto" onClick={() => void history.loadOlder()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mx-auto"
+            onClick={() => void history.loadOlder()}
+          >
             Загрузить историю
           </Button>
         )}

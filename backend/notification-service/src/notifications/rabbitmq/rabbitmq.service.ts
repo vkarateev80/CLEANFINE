@@ -185,7 +185,11 @@ export class RabbitmqService implements OnModuleInit, OnModuleDestroy {
     // DLQ той же routing key: nack(requeue=false) сам по себе сообщение теряет,
     // если очередь не привязана к dead-letter exchange (дефект «DLX/DLQ не привязаны»).
     await channel.assertQueue(dlqName(subscription.queue), { durable: true });
-    await channel.bindQueue(dlqName(subscription.queue), EVENTS_EXCHANGE_DLQ, subscription.routingKey);
+    await channel.bindQueue(
+      dlqName(subscription.queue),
+      EVENTS_EXCHANGE_DLQ,
+      subscription.routingKey,
+    );
     await channel.consume(subscription.queue, (message) => {
       void this.dispatch(channel, subscription, message);
     });
@@ -227,12 +231,10 @@ export class RabbitmqService implements OnModuleInit, OnModuleDestroy {
       // Явная публикация в DLQ + ack: nack(requeue=false) без dead-letter-exchange
       // на очереди просто отбрасывает сообщение. Так событие сохраняется для разбора.
       try {
-        channel.publish(
-          EVENTS_EXCHANGE_DLQ,
-          subscription.routingKey,
-          message.content,
-          { contentType: 'application/json', persistent: true },
-        );
+        channel.publish(EVENTS_EXCHANGE_DLQ, subscription.routingKey, message.content, {
+          contentType: 'application/json',
+          persistent: true,
+        });
         channel.ack(message);
       } catch (publishError) {
         // Канал закрылся: сообщение останется unacked и вернётся после переподключения.

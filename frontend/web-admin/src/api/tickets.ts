@@ -47,7 +47,9 @@ export function createTicket(payload: CreateTicketPayload): Promise<TicketEntity
 }
 
 /** SOS: приоритет `critical` всегда, ответ содержит `nearbyOperators`. */
-export function createEmergencyTicket(payload: EmergencyTicketPayload): Promise<EmergencyTicketResult> {
+export function createEmergencyTicket(
+  payload: EmergencyTicketPayload,
+): Promise<EmergencyTicketResult> {
   return apiClient.post('/tickets/emergency', payload).then((r) => r.data);
 }
 
@@ -65,7 +67,10 @@ export function assignTicket(id: string, assigneeId: string): Promise<TicketEnti
   return apiClient.post(`/tickets/${id}/assign`, { assigneeId }).then((r) => r.data);
 }
 
-export function addTicketComment(id: string, payload: CreateCommentPayload): Promise<TicketCommentEntity> {
+export function addTicketComment(
+  id: string,
+  payload: CreateCommentPayload,
+): Promise<TicketCommentEntity> {
   return apiClient.post(`/tickets/${id}/comments`, payload).then((r) => r.data);
 }
 

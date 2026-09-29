@@ -27,7 +27,11 @@ export interface AddPointModalProps {
   error: unknown;
   onRetryRooms: () => void;
   onClose: () => void;
-  onSubmit: (payload: { roomId: string; estimatedTimeMin: number | undefined; afterId: string | null }) => void;
+  onSubmit: (payload: {
+    roomId: string;
+    estimatedTimeMin: number | undefined;
+    afterId: string | null;
+  }) => void;
 }
 
 export function AddPointModal({
@@ -182,7 +186,9 @@ export function AddPointModal({
         )}
 
         {filtered.length === 0 && rooms.length > 0 && (
-          <div className="text-xs text-neutral-400">По запросу «{debouncedSearch}» помещений не найдено.</div>
+          <div className="text-xs text-neutral-400">
+            По запросу «{debouncedSearch}» помещений не найдено.
+          </div>
         )}
 
         <Field
@@ -204,8 +210,16 @@ export function AddPointModal({
           />
         </Field>
 
-        <Field label="Позиция" htmlFor="add-point-after" hint="Точка встанет в конец или сразу после выбранной">
-          <Select id="add-point-after" value={afterId} onChange={(event) => setAfterId(event.target.value)}>
+        <Field
+          label="Позиция"
+          htmlFor="add-point-after"
+          hint="Точка встанет в конец или сразу после выбранной"
+        >
+          <Select
+            id="add-point-after"
+            value={afterId}
+            onChange={(event) => setAfterId(event.target.value)}
+          >
             <option value="">в конец маршрута</option>
             {insertOptions.map((option) => (
               <option key={option.id} value={option.id}>

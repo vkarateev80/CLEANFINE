@@ -25,15 +25,15 @@ describe('JwtStrategy (gps-service)', () => {
     it('преобразует payload токена в AuthUser', () => {
       const { strategy } = build('secret');
 
-      expect(strategy.validate({ sub: 'u1', email: 'admin@cleaning-ops.com', role: 'ADMIN' })).toEqual(
-        {
-          id: 'u1',
-          email: 'admin@cleaning-ops.com',
-          role: 'ADMIN',
-          // Имя в токене не передаётся: клиент присылает его в теле batch-запроса.
-          fullName: '',
-        },
-      );
+      expect(
+        strategy.validate({ sub: 'u1', email: 'admin@cleaning-ops.com', role: 'ADMIN' }),
+      ).toEqual({
+        id: 'u1',
+        email: 'admin@cleaning-ops.com',
+        role: 'ADMIN',
+        // Имя в токене не передаётся: клиент присылает его в теле batch-запроса.
+        fullName: '',
+      });
     });
 
     it('payload без sub → UnauthorizedException', () => {

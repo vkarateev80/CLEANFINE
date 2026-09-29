@@ -13,10 +13,7 @@ import type { ChatType } from '@cleaning-ops/shared/types/chat';
 import type { Role } from '@cleaning-ops/shared/types/roles';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../auth/guards/roles.guard';
-import {
-  CHAT_PUSH_NOTIFIER,
-  type ChatPushNotifier,
-} from '../integration/notification-push.client';
+import { CHAT_PUSH_NOTIFIER, type ChatPushNotifier } from '../integration/notification-push.client';
 import { CoreClient } from '../integration/core.client';
 import { TicketClient } from '../integration/ticket.client';
 import {
@@ -412,9 +409,7 @@ export class ChatsService {
         }
         // P2002 без object-чата на месте — данные противоречат инварианту
         // «objectId только у object-чата». Это 409 с понятным текстом, а не 500.
-        throw new ConflictException(
-          'Объектный чат не создан: objectId занят чатом другого типа',
-        );
+        throw new ConflictException('Объектный чат не создан: objectId занят чатом другого типа');
       }
       throw error;
     }
@@ -782,9 +777,7 @@ export class ChatsService {
 
   private assertStaff(type: ChatType, user: AuthUser): void {
     if (!STAFF_ROLES.includes(user.role)) {
-      throw new ForbiddenException(
-        `Создавать ${type}-чаты может только ADMIN или SUPERVISOR`,
-      );
+      throw new ForbiddenException(`Создавать ${type}-чаты может только ADMIN или SUPERVISOR`);
     }
   }
 
@@ -798,7 +791,11 @@ export class ChatsService {
   }
 
   /** Досинхронизирует участников ticket-чата с текущей заявкой. */
-  private async syncTicketMembers(chatId: string, ticketId: string, creatorId: string): Promise<void> {
+  private async syncTicketMembers(
+    chatId: string,
+    ticketId: string,
+    creatorId: string,
+  ): Promise<void> {
     const participants = await this.tickets.getParticipants(ticketId);
     if (participants === null) {
       return;
@@ -880,8 +877,6 @@ export class ChatsService {
 /** Prisma-уникальность (P2002): используется для идемпотентности создания чата. */
 export function isUniqueViolation(error: unknown): boolean {
   return (
-    typeof error === 'object' &&
-    error !== null &&
-    (error as { code?: string }).code === 'P2002'
+    typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002'
   );
 }

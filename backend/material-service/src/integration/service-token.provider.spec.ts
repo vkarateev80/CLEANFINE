@@ -74,7 +74,11 @@ describe('ServiceTokenProvider (М4.2)', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
     const provider = new ServiceTokenProvider(createConfig());
 
-    const tokens = await Promise.all([provider.getToken(), provider.getToken(), provider.getToken()]);
+    const tokens = await Promise.all([
+      provider.getToken(),
+      provider.getToken(),
+      provider.getToken(),
+    ]);
 
     expect(new Set(tokens).size).toBe(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -91,7 +95,9 @@ describe('ServiceTokenProvider (М4.2)', () => {
   });
 
   it('недоступный auth-service → null без исключения', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
     const provider = new ServiceTokenProvider(createConfig());
     await expect(provider.getToken()).resolves.toBeNull();
   });
@@ -108,7 +114,9 @@ describe('ServiceTokenProvider (М4.2)', () => {
   });
 
   it('непрозрачный токен кэшируется на fallback-TTL', async () => {
-    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, { accessToken: 'opaque-token' }));
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(200, { accessToken: 'opaque-token' }));
     global.fetch = fetchMock as unknown as typeof fetch;
     const provider = new ServiceTokenProvider(createConfig());
 

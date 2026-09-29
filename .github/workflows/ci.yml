@@ -99,14 +99,16 @@ jobs:
 
       # Фронтенды в этой джобе не собирались вообще: ошибка типов в web-admin
       # или в портале всплывала только на шаге e2e или не всплывала совсем.
-      - name: Typecheck + build frontends (web-admin, web-client)
+      # Тесты: у web-admin есть vitest (web-client пока без test-скрипта —
+      # --if-present его пропускает).
+      - name: Typecheck + build + test frontends (web-admin, web-client)
         shell: bash
         run: |
           set -euo pipefail
           for dir in frontend/*/; do
             if [ -f "$dir/package.json" ]; then
               echo "== $dir =="
-              (cd "$dir" && pnpm typecheck && pnpm build)
+              (cd "$dir" && pnpm typecheck && pnpm build && pnpm test --if-present)
             fi
           done
 

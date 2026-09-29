@@ -1,7 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { deleteFile, deleteObject, deleteTechCard, file, getRouteDetail, loginAs, core } from '../../helpers/core';
+import {
+  deleteFile,
+  deleteObject,
+  deleteTechCard,
+  file,
+  getRouteDetail,
+  loginAs,
+  core,
+} from '../../helpers/core';
 import { flushChatData, trackObjectChatsOf } from '../../helpers/chat';
 import { userByRole } from '../../helpers/users';
 
@@ -51,7 +59,11 @@ let createdTechCardId: string | null = null;
 test.afterEach(async ({ request }) => {
   if (createdObjectId && createdFloorId) {
     // План лежит в file-service и каскадом core не удаляется.
-    const attachmentsRes = await file(request, 'get', `/api/files/attachments/FLOOR_PLAN/${createdFloorId}`);
+    const attachmentsRes = await file(
+      request,
+      'get',
+      `/api/files/attachments/FLOOR_PLAN/${createdFloorId}`,
+    );
     if (attachmentsRes.status() === 200) {
       const attachments = (await attachmentsRes.json()) as Array<{ id: string }>;
       for (const attachment of attachments) {
@@ -117,7 +129,11 @@ async function ensureAddMode(page: Page) {
   }
 }
 
-async function drawRoom(page: Page, rect: { x: number; y: number; w: number; h: number }, name: string) {
+async function drawRoom(
+  page: Page,
+  rect: { x: number; y: number; w: number; h: number },
+  name: string,
+) {
   await ensureAddMode(page);
 
   const layer = page.getByTestId('plan-click-layer');
@@ -131,7 +147,9 @@ async function drawRoom(page: Page, rect: { x: number; y: number; w: number; h: 
   await page.mouse.up();
 
   const form = page.getByTestId('room-create-form');
-  await expect(form, 'рамка по плану должна открыть форму помещения').toBeVisible({ timeout: 15_000 });
+  await expect(form, 'рамка по плану должна открыть форму помещения').toBeVisible({
+    timeout: 15_000,
+  });
   await form.getByLabel('Название').fill(name);
   await form.getByLabel('Площадь').fill('24.5');
   await form.getByLabel('Тип помещения').fill('office');
@@ -219,7 +237,11 @@ test('М2.7: объект → этаж → план → помещения → �
   // id помещений нужны, чтобы выбирать их в селекте добавления точки.
   const roomsRes = await core(request, 'get', `/api/floors/${floorId}/rooms`);
   expect(roomsRes.status(), `список помещений: ${await roomsRes.text()}`).toBe(200);
-  const rooms = (await roomsRes.json()) as Array<{ id: string; name: string; coordsX: number | null }>;
+  const rooms = (await roomsRes.json()) as Array<{
+    id: string;
+    name: string;
+    coordsX: number | null;
+  }>;
   expect(rooms).toHaveLength(3);
   // Координаты проставлены именно кликом по плану, а не вручную.
   for (const room of rooms) {
@@ -319,7 +341,9 @@ test('М2.7: техкарта — операция создаётся и пер�
   };
   expect(card.totalEstimatedTimeMin).toBe(20);
   expect(card.operations.map((op) => op.orderIndex)).toEqual([0, 1]);
-  expect(card.operations[0].name, 'первой стала операция, сдвинутая вниз').toBe('Протереть поверхность');
+  expect(card.operations[0].name, 'первой стала операция, сдвинутая вниз').toBe(
+    'Протереть поверхность',
+  );
 
   await deleteTechCard(request, cardId);
 });

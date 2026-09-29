@@ -205,9 +205,7 @@ describe('TechCardsService', () => {
     it('нет техкарты → NotFoundException', async () => {
       prisma.techCard.findUnique.mockResolvedValue(null);
 
-      await expect(service.update('missing', { name: 'X' })).rejects.toThrow(
-        'Техкарта не найдена',
-      );
+      await expect(service.update('missing', { name: 'X' })).rejects.toThrow('Техкарта не найдена');
       expect(prisma.techCard.update).not.toHaveBeenCalled();
     });
   });
@@ -372,9 +370,7 @@ describe('TechCardsService', () => {
     it('нет техкарты → NotFoundException, операция не создаётся', async () => {
       prisma.techCard.findUnique.mockResolvedValue(null);
 
-      await expect(service.addOperation('missing', baseDto)).rejects.toThrow(
-        'Техкарта не найдена',
-      );
+      await expect(service.addOperation('missing', baseDto)).rejects.toThrow('Техкарта не найдена');
       expect(prisma.techOperation.create).not.toHaveBeenCalled();
     });
   });
@@ -423,7 +419,9 @@ describe('TechCardsService', () => {
     });
 
     it('equipment: объект записывается в updateOperation', async () => {
-      await service.updateOperation('op-1', { equipment: { items: ['швабра'], ppe: ['перчатки'] } });
+      await service.updateOperation('op-1', {
+        equipment: { items: ['швабра'], ppe: ['перчатки'] },
+      });
 
       expect(prisma.techOperation.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -435,11 +433,7 @@ describe('TechCardsService', () => {
     });
 
     it('смена orderIndex запускает перестановку с плотной нумерацией', async () => {
-      prisma.techOperation.findMany.mockResolvedValue([
-        operationFixture,
-        operationB,
-        operationC,
-      ]);
+      prisma.techOperation.findMany.mockResolvedValue([operationFixture, operationB, operationC]);
 
       await service.updateOperation('op-1', { orderIndex: 2 });
 
@@ -652,9 +646,9 @@ describe('TechCardsService', () => {
       prisma.techCard.findUnique.mockResolvedValue(cardFixture);
       prisma.techOperation.findMany.mockResolvedValue([operationFixture, operationB]);
 
-      await expect(
-        service.reorderOperations('tc-1', { operationIds: ['op-1'] }),
-      ).rejects.toThrow('Передан неполный список операций: в техкарте 2, передано 1');
+      await expect(service.reorderOperations('tc-1', { operationIds: ['op-1'] })).rejects.toThrow(
+        'Передан неполный список операций: в техкарте 2, передано 1',
+      );
     });
 
     it('дубликат id → BadRequestException (сервис защищается и без @ArrayUnique)', async () => {

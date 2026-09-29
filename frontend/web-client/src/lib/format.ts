@@ -76,14 +76,16 @@ export function daysBetween(from: string, to: string): number {
 
 /** Разделитель разрядов узким пробелом: `12 400`. */
 export function formatNumber(value: number, fractionDigits = 0): string {
-  return new Intl.NumberFormat('ru-RU', {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-    useGrouping: true,
-  })
-    .format(value)
-    // Intl в русской локали ставит неразрывный пробел; для mono-подписи удобнее узкий.
-    .replace(/\u00A0/g, '\u202F');
+  return (
+    new Intl.NumberFormat('ru-RU', {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+      useGrouping: true,
+    })
+      .format(value)
+      // Intl в русской локали ставит неразрывный пробел; для mono-подписи удобнее узкий.
+      .replace(/\u00A0/g, '\u202F')
+  );
 }
 
 /** Сумма с валютой: `1 240,50 ₽`. */

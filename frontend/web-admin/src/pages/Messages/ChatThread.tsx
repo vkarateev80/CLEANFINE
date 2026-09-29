@@ -154,13 +154,16 @@ export function ChatThread({
           <>
             {room.hasMore && (
               <p className="text-center text-xs text-neutral-400">
-                {room.loadingOlder ? 'Загрузка истории…' : 'Прокрутите вверх, чтобы загрузить историю'}
+                {room.loadingOlder
+                  ? 'Загрузка истории…'
+                  : 'Прокрутите вверх, чтобы загрузить историю'}
               </p>
             )}
             <ul className="flex flex-col gap-3">
               {messages.map((message) => {
                 const mine = room.currentUserId !== null && message.authorId === room.currentUserId;
-                const author = chatUserName(room.users, message.authorId) ?? message.authorId.slice(0, 8);
+                const author =
+                  chatUserName(room.users, message.authorId) ?? message.authorId.slice(0, 8);
                 return (
                   <li
                     key={message.id}

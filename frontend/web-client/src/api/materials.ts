@@ -1,10 +1,5 @@
 import { apiClient } from './client';
-import type {
-  ConsumptionReport,
-  ReportQuery,
-  StocksQuery,
-  StockView,
-} from '../types/materials';
+import type { ConsumptionReport, ReportQuery, StocksQuery, StockView } from '../types/materials';
 
 /**
  * Клиент material-service (:3007 через прокси `/api/materials`). Портал читает
@@ -27,7 +22,9 @@ export function getConsumptionReport(query: ReportQuery = {}): Promise<Consumpti
  * `onlyLow=false` в query-строке включил бы фильтр вместо того, чтобы выключить
  * его (то же решение, что в `web-admin/src/api/materials.ts`).
  */
-export function listStocks(query: StocksQuery = {}): Promise<{ items: StockView[]; total: number }> {
+export function listStocks(
+  query: StocksQuery = {},
+): Promise<{ items: StockView[]; total: number }> {
   return apiClient
     .get('/materials/stocks', {
       params: {

@@ -23,7 +23,13 @@ export interface FloorPlanPoint {
 
 export interface FloorPlanPanelProps {
   /** Этаж из списка этажей объекта: нужен для `planScale`, которого нет в `RouteDetail`. */
-  floor: { id: string; name: string; number: number; planImageUrl: string | null; planScale: number | null } | null;
+  floor: {
+    id: string;
+    name: string;
+    number: number;
+    planImageUrl: string | null;
+    planScale: number | null;
+  } | null;
   /** Пока список этажей не загружен — подпись и картинка берутся из `RouteDetail.floor`. */
   floorFallback: { id: string; name: string; number: number; planImageUrl: string | null };
   points: FloorPlanPoint[];
@@ -91,7 +97,9 @@ export function FloorPlanPanel({
   const selectedRoomId = points.find((point) => point.id === selectedPointId)?.room.id ?? null;
 
   function zoomBy(delta: number) {
-    setZoom((current) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number((current + delta).toFixed(2)))));
+    setZoom((current) =>
+      Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number((current + delta).toFixed(2)))),
+    );
   }
 
   function handleWheel(event: WheelEvent<HTMLDivElement>) {
@@ -120,7 +128,12 @@ export function FloorPlanPanel({
   }
 
   return (
-    <div className={['rounded-xl border border-neutral-200 bg-white p-4 shadow-sm', className ?? ''].join(' ')}>
+    <div
+      className={[
+        'rounded-xl border border-neutral-200 bg-white p-4 shadow-sm',
+        className ?? '',
+      ].join(' ')}
+    >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xs font-medium text-neutral-500">
           План этажа
@@ -129,10 +142,20 @@ export function FloorPlanPanel({
         {planImageUrl !== null && (
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-neutral-400">{Math.round(zoom * 100)}%</span>
-            <Button variant="ghost" size="sm" onClick={() => zoomBy(-0.1)} aria-label="Уменьшить масштаб">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => zoomBy(-0.1)}
+              aria-label="Уменьшить масштаб"
+            >
               −
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => zoomBy(0.1)} aria-label="Увеличить масштаб">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => zoomBy(0.1)}
+              aria-label="Увеличить масштаб"
+            >
               +
             </Button>
             <Button
@@ -203,9 +226,15 @@ export function FloorPlanPanel({
                   type="button"
                   disabled={disabled || inRoute}
                   onClick={() => onAddRoom(room)}
-                  title={inRoute ? `${room.name} — уже в маршруте` : `Добавить «${room.name}» в конец маршрута`}
+                  title={
+                    inRoute
+                      ? `${room.name} — уже в маршруте`
+                      : `Добавить «${room.name}» в конец маршрута`
+                  }
                   aria-label={
-                    inRoute ? `Помещение ${room.name} уже в маршруте` : `Добавить помещение ${room.name}`
+                    inRoute
+                      ? `Помещение ${room.name} уже в маршруте`
+                      : `Добавить помещение ${room.name}`
                   }
                   className={[
                     'absolute rounded-sm border transition-colors',
@@ -243,7 +272,7 @@ export function FloorPlanPanel({
                     // планшете расширяется псевдоэлементом до ~44 px. `relative`
                     // здесь не нужен: кнопка уже `absolute`, то есть служит
                     // содержащим блоком для своего `after`.
-                    'max-lg:after:absolute max-lg:after:-inset-2.5 max-lg:after:content-[\'\']',
+                    "max-lg:after:absolute max-lg:after:-inset-2.5 max-lg:after:content-['']",
                     selected
                       ? 'border-primary-600 bg-primary-600 text-white'
                       : withoutTechCard
@@ -260,7 +289,9 @@ export function FloorPlanPanel({
         </div>
       )}
 
-      {roomsError !== null && <ErrorBanner error={roomsError} onRetry={onRetryRooms} className="mt-3" />}
+      {roomsError !== null && (
+        <ErrorBanner error={roomsError} onRetry={onRetryRooms} className="mt-3" />
+      )}
 
       {planImageUrl !== null && roomsLoading && (
         <div className="mt-3 text-xs text-neutral-400">Загрузка помещений этажа…</div>
@@ -290,7 +321,9 @@ export function FloorPlanPanel({
 
       <div className="mt-3 flex flex-col gap-1">
         {points.length === 0 && (
-          <div className="text-xs text-neutral-400">В маршруте нет точек — на плане нет маркеров.</div>
+          <div className="text-xs text-neutral-400">
+            В маршруте нет точек — на плане нет маркеров.
+          </div>
         )}
         {points.map((point, index) => (
           <button
@@ -310,7 +343,9 @@ export function FloorPlanPanel({
             <span className="font-mono">({index + 1})</span>
             <span className="min-w-0 flex-1 truncate">
               {point.room.name}
-              {!hasCoords(point.room) && <span className="ml-1 text-warning-600">нет координат</span>}
+              {!hasCoords(point.room) && (
+                <span className="ml-1 text-warning-600">нет координат</span>
+              )}
             </span>
             <span className="font-mono">
               {point.estimatedTimeMin.trim() === '' ? '—' : point.estimatedTimeMin} мин

@@ -24,16 +24,29 @@ const INT4_MAX = 2147483647;
  */
 export class ListRoutesQueryDto {
   @ApiPropertyOptional({ description: 'Пропустить записей', example: 0 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(0) skip?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  skip?: number;
 
   @ApiPropertyOptional({ description: 'Взять записей (максимум 100)', example: 50 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) take?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  take?: number;
 
   @ApiPropertyOptional({ description: 'Фильтр по объекту: маршруты всех его этажей' })
-  @IsOptional() @IsUUID() objectId?: string;
+  @IsOptional()
+  @IsUUID()
+  objectId?: string;
 
   @ApiPropertyOptional({ description: 'Фильтр по этажу' })
-  @IsOptional() @IsUUID() floorId?: string;
+  @IsOptional()
+  @IsUUID()
+  floorId?: string;
 }
 
 export class CreateRouteDto {
@@ -58,12 +71,22 @@ export class AddRoutePointDto {
   roomId!: string;
 
   @ApiPropertyOptional({ description: 'Нормативное время на точку, мин', example: 8 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(INT4_MAX) estimatedTimeMin?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(INT4_MAX)
+  estimatedTimeMin?: number;
 }
 
 export class UpdateRoutePointDto {
   @ApiPropertyOptional({ description: 'Нормативное время на точку, мин', example: 10 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(INT4_MAX) estimatedTimeMin?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(INT4_MAX)
+  estimatedTimeMin?: number;
 }
 
 /**

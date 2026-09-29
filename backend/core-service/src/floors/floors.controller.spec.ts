@@ -121,7 +121,12 @@ describe('FloorItemController (операции над этажом)', () => {
 
       await controller.uploadPlan('floor-1', multerFile(), 'token', '');
 
-      expect(floorsMock.uploadPlan).toHaveBeenCalledWith('floor-1', expect.anything(), 'token', undefined);
+      expect(floorsMock.uploadPlan).toHaveBeenCalledWith(
+        'floor-1',
+        expect.anything(),
+        'token',
+        undefined,
+      );
     });
 
     it('отсутствующий planScale (multipart без поля) → undefined', async () => {
@@ -129,7 +134,12 @@ describe('FloorItemController (операции над этажом)', () => {
 
       await controller.uploadPlan('floor-1', multerFile(), 'token', undefined);
 
-      expect(floorsMock.uploadPlan).toHaveBeenCalledWith('floor-1', expect.anything(), 'token', undefined);
+      expect(floorsMock.uploadPlan).toHaveBeenCalledWith(
+        'floor-1',
+        expect.anything(),
+        'token',
+        undefined,
+      );
     });
 
     it('нечисловой planScale → BadRequestException, а не тихий undefined', async () => {
@@ -160,7 +170,9 @@ describe('FloorItemController (операции над этажом)', () => {
   });
 
   it('роуты, RBAC и лимиты объявлены по контракту', () => {
-    expect(Reflect.getMetadata(PATH_METADATA, FloorsController)).toBe('api/objects/:objectId/floors');
+    expect(Reflect.getMetadata(PATH_METADATA, FloorsController)).toBe(
+      'api/objects/:objectId/floors',
+    );
     expect(Reflect.getMetadata(PATH_METADATA, FloorItemController)).toBe('api/floors');
 
     expect(Reflect.getMetadata(METHOD_METADATA, controller.uploadPlan)).toBe(RequestMethod.POST);

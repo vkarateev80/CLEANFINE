@@ -26,7 +26,12 @@ describe('AuthService', () => {
   let service: AuthService;
   const prisma = {
     user: { findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
-    refreshToken: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+    refreshToken: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
   };
   const tokens = {
     generatePair: jest.fn(),
@@ -51,7 +56,10 @@ describe('AuthService', () => {
   describe('login', () => {
     it('должен вернуть пару токенов при верном пароле', async () => {
       prisma.user.findUnique.mockResolvedValue(activeUser);
-      const result = await service.login({ email: 'admin@cleaning-ops.com', password: 'secret123' });
+      const result = await service.login({
+        email: 'admin@cleaning-ops.com',
+        password: 'secret123',
+      });
       expect(result.accessToken).toBe('a1');
       expect(tokens.generatePair).toHaveBeenCalledWith(activeUser);
     });
@@ -87,9 +95,9 @@ describe('AuthService', () => {
 
     it('должен бросать при неверном PIN', async () => {
       prisma.user.findFirst.mockResolvedValue(activeUser);
-      await expect(service.pinLogin({ email: 'admin@cleaning-ops.com', pinCode: '9999' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.pinLogin({ email: 'admin@cleaning-ops.com', pinCode: '9999' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -111,7 +119,10 @@ describe('AuthService', () => {
     it('должен менять пароль и отзывать токены при верном текущем пароле', async () => {
       prisma.user.findUnique.mockResolvedValue(activeUser);
       prisma.user.update.mockResolvedValue(activeUser);
-      await service.changePassword('u1', { currentPassword: 'secret123', newPassword: 'new-secret-123' });
+      await service.changePassword('u1', {
+        currentPassword: 'secret123',
+        newPassword: 'new-secret-123',
+      });
       expect(prisma.user.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'u1' },
@@ -142,23 +153,25 @@ describe('AuthService', () => {
 
     it('должен бросать при неверном текущем пароле и не менять PIN', async () => {
       prisma.user.findUnique.mockResolvedValue(activeUser);
-      await expect(service.changePin('u1', { currentPassword: 'wrong', newPin: '5678' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.changePin('u1', { currentPassword: 'wrong', newPin: '5678' }),
+      ).rejects.toThrow(UnauthorizedException);
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
     it('должен бросать, если пользователь не найден', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
-      await expect(service.changePin('ghost', { currentPassword: 'x', newPin: '5678' })).rejects.toThrow(
-        'Текущий пароль указан неверно',
-      );
+      await expect(
+        service.changePin('ghost', { currentPassword: 'x', newPin: '5678' }),
+      ).rejects.toThrow('Текущий пароль указан неверно');
     });
   });
 
   describe('pinLogin — валидация входа', () => {
     it('должен бросать, если не указаны ни email, ни телефон', async () => {
-      await expect(service.pinLogin({ pinCode: '1234' })).rejects.toThrow('Укажите email или телефон');
+      await expect(service.pinLogin({ pinCode: '1234' })).rejects.toThrow(
+        'Укажите email или телефон',
+      );
       expect(prisma.user.findFirst).not.toHaveBeenCalled();
     });
 
@@ -187,12 +200,16 @@ describe('AuthService', () => {
 
     it('должен бросать, если пользователь без PIN (не 500)', async () => {
       prisma.user.findFirst.mockResolvedValue({ ...activeUser, pinCode: null });
-      await expect(service.pinLogin({ email: activeUser.email, pinCode: '1234' })).rejects.toThrow('Неверный PIN');
+      await expect(service.pinLogin({ email: activeUser.email, pinCode: '1234' })).rejects.toThrow(
+        'Неверный PIN',
+      );
     });
 
     it('должен бросать, если пользователь не найден', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
-      await expect(service.pinLogin({ email: 'nobody@x.y', pinCode: '1234' })).rejects.toThrow('Неверный PIN');
+      await expect(service.pinLogin({ email: 'nobody@x.y', pinCode: '1234' })).rejects.toThrow(
+        'Неверный PIN',
+      );
     });
   });
 
@@ -212,7 +229,11 @@ describe('AuthService', () => {
     });
 
     it('должен бросать для деактивированного пользователя', async () => {
-      prisma.user.findFirst.mockResolvedValue({ ...activeUser, biometricKey: 'key-1', isActive: false });
+      prisma.user.findFirst.mockResolvedValue({
+        ...activeUser,
+        biometricKey: 'key-1',
+        isActive: false,
+      });
       await expect(service.biometricLogin({ biometricKey: 'key-1' })).rejects.toThrow(
         'Биометрический ключ не распознан',
       );
@@ -259,9 +280,9 @@ describe('AuthService', () => {
 
     it('не должен выдавать токены деактивированному пользователю', async () => {
       prisma.user.findUnique.mockResolvedValue({ ...activeUser, isActive: false });
-      await expect(service.login({ email: activeUser.email, password: 'secret123' })).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login({ email: activeUser.email, password: 'secret123' }),
+      ).rejects.toThrow(UnauthorizedException);
       expect(tokens.generatePair).not.toHaveBeenCalled();
     });
   });

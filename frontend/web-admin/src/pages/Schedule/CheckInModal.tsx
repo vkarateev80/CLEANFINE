@@ -80,7 +80,10 @@ export function CheckInModal({
       const parsedLat = Number(lat.replace(',', '.'));
       const parsedLng = Number(lng.replace(',', '.'));
       const coords: Coords | null =
-        Number.isFinite(parsedLat) && Number.isFinite(parsedLng) && lat.trim() !== '' && lng.trim() !== ''
+        Number.isFinite(parsedLat) &&
+        Number.isFinite(parsedLng) &&
+        lat.trim() !== '' &&
+        lng.trim() !== ''
           ? { lat: parsedLat, lng: parsedLng }
           : null;
       if (mode === 'check-in') {
@@ -96,7 +99,9 @@ export function CheckInModal({
       await queryClient.invalidateQueries({ queryKey: ['schedule'] });
       const action = mode === 'check-in' ? 'Приход отмечен' : 'Уход отмечен';
       const at = mode === 'check-in' ? updated.checkInAt : updated.checkOutAt;
-      onDone(`${action}: ${updated.scheduleName}, план ${utcTimeOf(updated.plannedStart)} UTC${at ? `, отметка ${utcTimeOf(at)} UTC` : ''}.`);
+      onDone(
+        `${action}: ${updated.scheduleName}, план ${utcTimeOf(updated.plannedStart)} UTC${at ? `, отметка ${utcTimeOf(at)} UTC` : ''}.`,
+      );
     },
   });
 
@@ -105,7 +110,12 @@ export function CheckInModal({
     const parsedLat = Number(lat.replace(',', '.'));
     const parsedLng = Number(lng.replace(',', '.'));
     if (mode === 'check-in') {
-      if (lat.trim() === '' || lng.trim() === '' || !Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) {
+      if (
+        lat.trim() === '' ||
+        lng.trim() === '' ||
+        !Number.isFinite(parsedLat) ||
+        !Number.isFinite(parsedLng)
+      ) {
         setManualError('Широта и долгота обязательны для отметки прихода');
         return;
       }
@@ -145,8 +155,8 @@ export function CheckInModal({
       <div className="flex flex-col gap-4">
         <SoftWarning>
           Отметка ставится <b>за вас</b> («{event.scheduleName}», план{' '}
-          {utcTimeOf(event.plannedStart)} UTC): сервис берёт пользователя из токена, отметить
-          смену за другого сотрудника через админку нельзя.
+          {utcTimeOf(event.plannedStart)} UTC): сервис берёт пользователя из токена, отметить смену
+          за другого сотрудника через админку нельзя.
         </SoftWarning>
 
         {failure ? <ErrorBanner error={failure} /> : null}
@@ -166,8 +176,8 @@ export function CheckInModal({
 
         {position.kind === 'ready' && (
           <p className="text-xs text-neutral-500">
-            Координаты получены {position.source === 'gps' ? 'от браузера' : 'вручную'}. Изменить можно
-            прямо здесь.
+            Координаты получены {position.source === 'gps' ? 'от браузера' : 'вручную'}. Изменить
+            можно прямо здесь.
           </p>
         )}
 

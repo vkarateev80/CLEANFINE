@@ -149,9 +149,7 @@ export function normalizeRecurrence(value: unknown): RecurrenceRule | null {
     return null;
   }
   const days = Array.isArray(record.days)
-    ? record.days
-        .map((item) => Math.trunc(Number(item)))
-        .filter((item) => Number.isFinite(item))
+    ? record.days.map((item) => Math.trunc(Number(item))).filter((item) => Number.isFinite(item))
     : undefined;
   const dayOfMonth =
     record.dayOfMonth === undefined || record.dayOfMonth === null

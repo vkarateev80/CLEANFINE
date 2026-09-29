@@ -163,7 +163,7 @@ export function MyEventsPanel({
       cardLabel: 'Объект',
       cell: (event) =>
         event.objectId ? (
-          objectNames.get(event.objectId) ?? shortId(event.objectId)
+          (objectNames.get(event.objectId) ?? shortId(event.objectId))
         ) : (
           <span className="text-neutral-400">без объекта</span>
         ),
@@ -214,11 +214,7 @@ export function MyEventsPanel({
          */
         <div className="flex flex-wrap justify-end gap-2">
           <TableOnlyTestId id={`my-select-${event.id}`}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onParamChange({ myEvent: event.id })}
-            >
+            <Button variant="ghost" size="sm" onClick={() => onParamChange({ myEvent: event.id })}>
               {event.id === selectedId ? 'Выбрана' : 'Выбрать'}
             </Button>
           </TableOnlyTestId>
@@ -309,9 +305,10 @@ export function MyEventsPanel({
       </Card>
 
       <p className="text-xs text-neutral-500">
-        Отметка ставится только за себя{currentUserId ? ` (вы: ${userNames.get(currentUserId) ?? currentUserId})` : ''}:
-        сервис берёт пользователя из токена. Выберите строку смены, затем нажмите «Отметить приход»
-        или «Отметить уход».
+        Отметка ставится только за себя
+        {currentUserId ? ` (вы: ${userNames.get(currentUserId) ?? currentUserId})` : ''}: сервис
+        берёт пользователя из токена. Выберите строку смены, затем нажмите «Отметить приход» или
+        «Отметить уход».
       </p>
 
       {notice && (
@@ -331,7 +328,9 @@ export function MyEventsPanel({
         <ErrorBanner error={error} onRetry={onRetry} />
       ) : (
         <>
-          {isRefetchError && <SoftWarning>Смены могут быть неактуальны — обновите страницу.</SoftWarning>}
+          {isRefetchError && (
+            <SoftWarning>Смены могут быть неактуальны — обновите страницу.</SoftWarning>
+          )}
 
           {isLoading ? (
             <LoadingBlock label="Читаем ваши смены…" />

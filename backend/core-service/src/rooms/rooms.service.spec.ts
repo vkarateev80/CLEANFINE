@@ -208,20 +208,20 @@ describe('RoomsService', () => {
     it('coordsX за пределами плана → BadRequestException с размерами плана', async () => {
       prisma.floor.findUnique.mockResolvedValue(floorWithPlan);
 
-      await expect(service.create('floor-1', { ...baseDto, coordsX: 2000, coordsY: 5 })).rejects.toThrow(
-        'Координаты (2000, 5) выходят за размеры плана 1000×1000',
-      );
+      await expect(
+        service.create('floor-1', { ...baseDto, coordsX: 2000, coordsY: 5 }),
+      ).rejects.toThrow('Координаты (2000, 5) выходят за размеры плана 1000×1000');
     });
 
     it('coordsY за пределами плана → BadRequestException', async () => {
       prisma.floor.findUnique.mockResolvedValue(floorWithPlan);
 
-      await expect(service.create('floor-1', { ...baseDto, coordsX: 5, coordsY: 2000 })).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(service.create('floor-1', { ...baseDto, coordsX: 5, coordsY: 2000 })).rejects.toThrow(
-        'Координаты (5, 2000) выходят за размеры плана 1000×1000',
-      );
+      await expect(
+        service.create('floor-1', { ...baseDto, coordsX: 5, coordsY: 2000 }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.create('floor-1', { ...baseDto, coordsX: 5, coordsY: 2000 }),
+      ).rejects.toThrow('Координаты (5, 2000) выходят за размеры плана 1000×1000');
     });
 
     it('область выходит за ширину плана → BadRequestException с арифметикой', async () => {
@@ -248,9 +248,9 @@ describe('RoomsService', () => {
       prisma.floor.findUnique.mockResolvedValue(floorWithSizedPlan);
       prisma.room.create.mockResolvedValue(roomFixture);
 
-      await expect(service.create('floor-1', { ...baseDto, coordsX: 1100, coordsY: 700 })).resolves.toBe(
-        roomFixture,
-      );
+      await expect(
+        service.create('floor-1', { ...baseDto, coordsX: 1100, coordsY: 700 }),
+      ).resolves.toBe(roomFixture);
     });
 
     it('реальные размеры: координаты за границей плана → 400 с размером плана', async () => {
@@ -333,9 +333,9 @@ describe('RoomsService', () => {
       prisma.floor.findUnique.mockResolvedValue(floorWithPlan);
       prisma.techCard.findUnique.mockResolvedValue(null);
 
-      await expect(service.create('floor-1', { ...baseDto, techCardId: 'missing' })).rejects.toThrow(
-        'Техкарта не найдена',
-      );
+      await expect(
+        service.create('floor-1', { ...baseDto, techCardId: 'missing' }),
+      ).rejects.toThrow('Техкарта не найдена');
       expect(prisma.room.create).not.toHaveBeenCalled();
     });
   });

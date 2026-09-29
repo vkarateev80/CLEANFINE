@@ -90,7 +90,10 @@ async function trackObject(request: APIRequestContext, name: string) {
 
 /** Случайный UUID v4: DTO стенда требуют именно v4, иначе 400 вместо 404. */
 function randomUuid(): string {
-  const hex = runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0');
+  const hex = runTag()
+    .replace(/[^0-9a-f]/g, '')
+    .slice(-12)
+    .padStart(12, '0');
   return `00000000-0000-4000-8000-${hex}`;
 }
 
@@ -131,7 +134,10 @@ test('check-missed с eventId обрабатывает ровно указанн
   // Генерация сужена scheduleId: чужие графики стенда смен на эту дату не получают.
   const generated = await postGenerateScoped(request, { date, scheduleId: schedule.id });
   await expectStatus(generated, 201, 'генерация по одному графику');
-  expect(((await generated.json()) as GenerationResult).shiftsCreated, 'два исполнителя → две смены').toBe(2);
+  expect(
+    ((await generated.json()) as GenerationResult).shiftsCreated,
+    'два исполнителя → две смены',
+  ).toBe(2);
 
   const events = await listScheduleEvents(request, { date, objectId: object.id });
   expect(events, 'на дату созданы ровно две смены нашего графика').toHaveLength(2);

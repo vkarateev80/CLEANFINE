@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { ErrorBanner, errorMessage } from '../../components/ui/Feedback';
 import { Checkbox, Field, Input, Select, Textarea } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
+import { presetValues } from '../../templates/presets';
 import { Table, TBody, Td, Th, THead, Tr } from '../../components/ui/Table';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { apiStatus, shortId } from '../Materials/materialsHelpers';
@@ -41,8 +42,6 @@ export interface OperationFormModalProps {
   onClose: () => void;
   onSubmit: (payload: CreateOperationPayload) => Promise<void>;
 }
-
-const UNIT_OPTIONS = ['шт', 'мл', 'л', 'г', 'кг', 'уп'];
 
 function initialValues(operation?: TechOperationWithMaterials): OperationFormValues {
   if (!operation) return emptyOperationForm();
@@ -148,7 +147,9 @@ export function OperationFormModal({
           materialId,
           unit: picked.unit,
           consumptionPerOperation:
-            row.consumptionPerOperation > 0 ? row.consumptionPerOperation : picked.defaultConsumption,
+            row.consumptionPerOperation > 0
+              ? row.consumptionPerOperation
+              : picked.defaultConsumption,
         };
       }),
     }));
@@ -235,11 +236,17 @@ export function OperationFormModal({
           <Input
             id={`${formId}-name`}
             data-testid="operation-name"
+            list={`${formId}-name-options`}
             value={values.name}
             invalid={Boolean(errors.name)}
             placeholder="Например, «Нанести чистящее средство»"
             onChange={(event) => patch({ name: event.target.value })}
           />
+          <datalist id={`${formId}-name-options`}>
+            {presetValues('operation-names').map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </Field>
 
         <Field label="Описание" htmlFor={`${formId}-description`} hint="До 1000 символов">
@@ -289,13 +296,15 @@ export function OperationFormModal({
         <Field
           label="Оборудование (JSON)"
           htmlFor={`${formId}-equipment`}
-          hint='Объект вида { "items": ["швабра"], "ppe": ["перчатки"] }. Пусто — не задано.'
+          hint='Объект вида { "items": ["швабра"], "ppe": ["перчатки"] } — выберите из списка или введите свой. Пусто — не задано.'
           error={errors.equipment}
         >
-          <Textarea
+          {/* Однострочный input: textarea не поддерживает list+datalist,
+              а JSON оборудования пишется в одну строку — как у названия операции. */}
+          <Input
             id={`${formId}-equipment`}
             data-testid="operation-equipment"
-            rows={4}
+            list={`${formId}-equipment-options`}
             spellCheck={false}
             className="font-mono text-sm"
             invalid={Boolean(errors.equipment)}
@@ -303,6 +312,11 @@ export function OperationFormModal({
             placeholder='{ "items": ["швабра", "ведро"] }'
             onChange={(event) => patch({ equipmentText: event.target.value })}
           />
+          <datalist id={`${formId}-equipment-options`}>
+            {presetValues('equipment-json').map((preset) => (
+              <option key={preset} value={preset} />
+            ))}
+          </datalist>
         </Field>
 
         <section className="flex flex-col gap-3">
@@ -408,9 +422,7 @@ export function OperationFormModal({
                           <span
                             data-testid="operation-material-name"
                             className={
-                              info.missing
-                                ? 'text-xs text-neutral-400'
-                                : 'text-xs text-neutral-500'
+                              info.missing ? 'text-xs text-neutral-400' : 'text-xs text-neutral-500'
                             }
                           >
                             {info.label}
@@ -467,7 +479,7 @@ export function OperationFormModal({
           )}
 
           <datalist id={`${formId}-units`}>
-            {UNIT_OPTIONS.map((unit) => (
+            {presetValues('material-units').map((unit) => (
               <option key={unit} value={unit} />
             ))}
           </datalist>

@@ -34,7 +34,9 @@ export function FloorSettingsModal({
 }: FloorSettingsModalProps) {
   const [number, setNumber] = useState(String(floor.number));
   const [name, setName] = useState(floor.name);
-  const [planScale, setPlanScale] = useState(floor.planScale === null ? '' : String(floor.planScale));
+  const [planScale, setPlanScale] = useState(
+    floor.planScale === null ? '' : String(floor.planScale),
+  );
   const [numberError, setNumberError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [scaleError, setScaleError] = useState<string | null>(null);
@@ -95,7 +97,12 @@ export function FloorSettingsModal({
         </>
       }
     >
-      <form id={FORM_ID} data-testid="floor-edit-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form
+        id={FORM_ID}
+        data-testid="floor-edit-form"
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-4"
+      >
         {Boolean(error) && <ErrorBanner error={error} />}
 
         <Field label="Номер этажа" htmlFor="floor-number" required error={numberError}>

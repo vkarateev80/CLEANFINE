@@ -20,11 +20,7 @@ import {
   type CreateMovementResult,
   type MovementType,
 } from '../../types/materials';
-import {
-  TICKET_STATUS_LABELS,
-  TICKET_TYPE_LABELS,
-  type TicketListItem,
-} from '../../types/tickets';
+import { TICKET_STATUS_LABELS, TICKET_TYPE_LABELS, type TicketListItem } from '../../types/tickets';
 import { apiStatus, formatQuantity, parseRequiredNumber, shortId } from './materialsHelpers';
 import { useMaterialsList, useObjectOptions, useStocks, useTicketOptions } from './useMaterials';
 
@@ -266,7 +262,9 @@ export function MovementModal({
           <ErrorBanner
             error={
               forbidden
-                ? new Error('Недостаточно прав: движение материалов доступно ADMIN, SUPERVISOR и OPERATOR')
+                ? new Error(
+                    'Недостаточно прав: движение материалов доступно ADMIN, SUPERVISOR и OPERATOR',
+                  )
                 : failure
             }
           />
@@ -441,8 +439,8 @@ export function MovementModal({
         */}
         {isConsuming && tickets.isError && (
           <p className="text-xs text-neutral-500" data-testid="movement-ticket-error">
-            Список заявок не загрузился: {errorMessage(tickets.error)}. Движение можно провести
-            без привязки — заявка только уточняет историю.
+            Список заявок не загрузился: {errorMessage(tickets.error)}. Движение можно провести без
+            привязки — заявка только уточняет историю.
           </p>
         )}
 

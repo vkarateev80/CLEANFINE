@@ -23,4 +23,3 @@ export const WS_URL = import.meta.env.VITE_WS_URL ?? '';
 
 /** Путь socket.io: штатный. Вынесен отдельно, чтобы его не задавали в двух местах. */
 export const WS_PATH = '/socket.io';
-

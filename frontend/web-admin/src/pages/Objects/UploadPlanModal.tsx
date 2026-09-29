@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
-import {
-  Button,
-  ErrorBanner,
-  Field,
-  Input,
-  Spinner,
-} from '../../components/ui';
+import { Button, ErrorBanner, Field, Input, Spinner } from '../../components/ui';
 import type { FloorEntity } from '../../types/core';
 import {
   PLAN_ACCEPT,
@@ -29,7 +23,13 @@ export interface UploadPlanModalProps {
  * Загрузка плана: drag-and-drop + выбор файла. Файл уходит одним multipart-запросом
  * в core-service, поэтому отдельно «выбрать и загрузить в file-service» не нужно.
  */
-export function UploadPlanModal({ floor, saving, error, onSubmit, onCancel }: UploadPlanModalProps) {
+export function UploadPlanModal({
+  floor,
+  saving,
+  error,
+  onSubmit,
+  onCancel,
+}: UploadPlanModalProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [scale, setScale] = useState(floor.planScale === null ? '' : String(floor.planScale));
@@ -148,11 +148,7 @@ export function UploadPlanModal({ floor, saving, error, onSubmit, onCancel }: Up
         />
       )}
 
-      <Field
-        label="Масштаб плана, м/пкс"
-        htmlFor="upload-plan-scale"
-        hint={scaleHint}
-      >
+      <Field label="Масштаб плана, м/пкс" htmlFor="upload-plan-scale" hint={scaleHint}>
         <Input
           id="upload-plan-scale"
           type="number"

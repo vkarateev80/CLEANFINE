@@ -29,7 +29,5 @@ function compact(params: Record<string, string | undefined>): Record<string, str
  * (см. `pages/Reports/useReportsData.ts`). Фильтр `date` — «YYYY-MM-DD».
  */
 export function listEvents(query: ListEventsQuery = {}): Promise<ScheduleEventEntity[]> {
-  return apiClient
-    .get('/schedule/events', { params: compact({ ...query }) })
-    .then((r) => r.data);
+  return apiClient.get('/schedule/events', { params: compact({ ...query }) }).then((r) => r.data);
 }

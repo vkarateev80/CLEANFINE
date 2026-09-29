@@ -69,9 +69,7 @@ export class TicketClient {
         return second.ticket;
       }
       throw new TicketCreationError(
-        second.kind === 'unauthorized'
-          ? 'ticket-service отклонил служебный токен'
-          : second.message,
+        second.kind === 'unauthorized' ? 'ticket-service отклонил служебный токен' : second.message,
         second.kind !== 'unauthorized',
       );
     }
@@ -85,7 +83,9 @@ export class TicketClient {
     input: CreateTicketInput,
     token: string,
   ): Promise<
-    { kind: 'ok'; ticket: CreatedTicket } | { kind: 'unauthorized' } | { kind: 'failed'; message: string }
+    | { kind: 'ok'; ticket: CreatedTicket }
+    | { kind: 'unauthorized' }
+    | { kind: 'failed'; message: string }
   > {
     const url = `${this.baseUrl}/api/tickets`;
     let response: Response;
@@ -130,7 +130,10 @@ export class TicketClient {
   async isAvailable(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/api/tickets?take=1`, {
-        headers: { Accept: 'application/json', Authorization: `Bearer ${await this.tokens.getAccessToken()}` },
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${await this.tokens.getAccessToken()}`,
+        },
         signal: AbortSignal.timeout(this.timeoutMs),
       });
       return response.status < 500;

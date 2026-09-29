@@ -33,10 +33,9 @@ async function bootstrap(): Promise<void> {
   // Порт берём из конфига: он читает NOTIFICATION_SERVICE_PORT (fallback PORT → 3006).
   const port = app.get(ConfigService).get<number>('port') ?? DEFAULT_PORT;
   await app.listen(port);
-   
+
   console.log(`notification-service запущен: http://localhost:${port}/api`);
   if (process.env.NODE_ENV !== 'production') {
-     
     console.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
 }

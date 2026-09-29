@@ -14,7 +14,14 @@ import {
   type ResponsiveColumn,
 } from '../../components/ui';
 import { useCanMoveMaterials } from '../../hooks/usePermissions';
-import { StockLevelBadge, apiStatus, formatMoney, formatQuantity, shortId, useParamWriter } from './materialsHelpers';
+import {
+  StockLevelBadge,
+  apiStatus,
+  formatMoney,
+  formatQuantity,
+  shortId,
+  useParamWriter,
+} from './materialsHelpers';
 import type { StockView } from '../../types/materials';
 import type { MovementPreset } from './MovementModal';
 import { useObjectOptions, useStocks } from './useMaterials';
@@ -80,9 +87,7 @@ export function StocksPanel({ onMove }: { onMove: (preset: MovementPreset) => vo
         <>
           <TableOnlyTestId id={`stock-row-${stock.materialId}`}>
             <span
-              className={
-                stock.belowThreshold ? 'block text-danger-600' : 'block text-neutral-900'
-              }
+              className={stock.belowThreshold ? 'block text-danger-600' : 'block text-neutral-900'}
             >
               {stock.material.name}
             </span>
@@ -225,8 +230,7 @@ export function StocksPanel({ onMove }: { onMove: (preset: MovementPreset) => vo
         />
 
         <span className="ml-auto font-mono text-xs text-neutral-500 max-md:ml-0">
-          позиций {total} · ниже порога {belowCount} · стоимость остатка{' '}
-          {formatMoney(stockValue)} ₽
+          позиций {total} · ниже порога {belowCount} · стоимость остатка {formatMoney(stockValue)} ₽
         </span>
       </Card>
 

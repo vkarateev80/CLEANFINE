@@ -21,9 +21,7 @@ describe('NotificationsController', () => {
     markRead: jest.fn(),
     notifyChatMessage: jest.fn(),
   };
-  const controller = new NotificationsController(
-    notifications as unknown as NotificationsService,
-  );
+  const controller = new NotificationsController(notifications as unknown as NotificationsService);
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -56,7 +54,10 @@ describe('NotificationsController', () => {
   it('отдаёт и обновляет настройки подписок', async () => {
     const dto: UpdateSettingsDto = { disabledTypes: ['MATERIAL_LOW'] };
     notifications.getSettings.mockResolvedValue({ userId: 'u-1', disabledTypes: [] });
-    notifications.updateSettings.mockResolvedValue({ userId: 'u-1', disabledTypes: ['MATERIAL_LOW'] });
+    notifications.updateSettings.mockResolvedValue({
+      userId: 'u-1',
+      disabledTypes: ['MATERIAL_LOW'],
+    });
 
     await controller.getSettings(user);
     await controller.updateSettings(user, dto);
@@ -89,14 +90,16 @@ describe('NotificationsController', () => {
   it('внутренний push сообщения чата доступен только ADMIN/SUPERVISOR', () => {
     // Без @Roles эндпоинт был бы открыт любому аутентифицированному пользователю,
     // а он умеет слать уведомления произвольным получателям.
-    expect(Reflect.getMetadata(ROLES_KEY, NotificationsController.prototype.pushChatMessage)).toEqual(
-      ['ADMIN', 'SUPERVISOR'],
-    );
+    expect(
+      Reflect.getMetadata(ROLES_KEY, NotificationsController.prototype.pushChatMessage),
+    ).toEqual(['ADMIN', 'SUPERVISOR']);
   });
 
   it('пользовательские эндпоинты не ограничены ролями (только своим JWT)', () => {
     for (const method of ['registerDevice', 'list', 'getSettings', 'updateSettings'] as const) {
-      expect(Reflect.getMetadata(ROLES_KEY, NotificationsController.prototype[method])).toBeUndefined();
+      expect(
+        Reflect.getMetadata(ROLES_KEY, NotificationsController.prototype[method]),
+      ).toBeUndefined();
     }
   });
 });

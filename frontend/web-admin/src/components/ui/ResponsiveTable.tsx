@@ -125,7 +125,11 @@ export function ResponsiveTable<T>({
               // Скелетон помечен отдельным хуком: `data-testid="card"` остаётся
               // ровно у настоящих карточек, иначе счёт карточек в e2e ловил бы
               // ещё и плейсхолдеры (если проверка ждёт `card`, но не ждёт загрузки).
-              <div key={`skeleton-${index}`} data-testid={`${CARD_TESTID}-skeleton`} className="animate-pulse">
+              <div
+                key={`skeleton-${index}`}
+                data-testid={`${CARD_TESTID}-skeleton`}
+                className="animate-pulse"
+              >
                 <CardShell>
                   <div className="h-4 w-40 rounded bg-neutral-200" />
                   <div className="mt-3 h-3 w-24 rounded bg-neutral-100" />
@@ -341,7 +345,9 @@ function CardRow<T>({ item, columns, onRowClick, testId, className }: CardRowPro
 
 /** Оболочка скелетон-карточки: повторяет рамку настоящей карточки. */
 function CardShell({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">{children}</div>;
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">{children}</div>
+  );
 }
 
 /** Раскладывает колонки по ролям в карточке; колонки без роли в карточку не попадают. */

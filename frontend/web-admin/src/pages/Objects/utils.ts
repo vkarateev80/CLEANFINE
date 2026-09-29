@@ -99,27 +99,6 @@ export function mapboxToken(): string | undefined {
 }
 
 /**
- * Распространённые типы объектов. Справочник ещё не утверждён (`Object.type` —
- * свободная строка), поэтому это подсказки в `<datalist>`, а не закрытый список.
- */
-export const COMMON_OBJECT_TYPES = [
-  'Бизнес-центр',
-  'Торговый центр',
-  'Офис',
-  'Склад',
-  'Производство',
-  'Школа',
-  'Больница',
-  'Гостиница',
-  'Жилой комплекс',
-  'Магазин',
-  'Аэропорт',
-  'Вокзал',
-  'Спортивный комплекс',
-  'Бизнес-парк',
-] as const;
-
-/**
  * Как показывать заказчика объекта (карточка и список).
  *
  * Привязка — единственный авторитетный признак доступа заказчика к объекту
@@ -180,14 +159,10 @@ export function defaultFloorName(number: number): string {
 
 export const MAX_PLAN_BYTES = 10 * 1024 * 1024;
 
-export const PLAN_ACCEPT = '.png,.jpg,.jpeg,.pdf,.svg,image/png,image/jpeg,image/svg+xml,application/pdf';
+export const PLAN_ACCEPT =
+  '.png,.jpg,.jpeg,.pdf,.svg,image/png,image/jpeg,image/svg+xml,application/pdf';
 
-const PLAN_MIME_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/svg+xml',
-  'application/pdf',
-];
+const PLAN_MIME_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'application/pdf'];
 
 /** Форматы и лимит 10 МБ задвоены на бэкенде (file-service) — здесь, чтобы не ждать 413. */
 export function planFileError(file: File): string | null {

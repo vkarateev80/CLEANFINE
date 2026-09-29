@@ -67,11 +67,7 @@ export function MaterialsPage() {
     );
   }
 
-  function handleMovementDone(
-    result: CreateMovementResult,
-    materialName: string,
-    unit: string,
-  ) {
+  function handleMovementDone(result: CreateMovementResult, materialName: string, unit: string) {
     const movementType = MOVEMENT_TYPE_LABELS[result.movement.type];
     const balances = result.stocks
       .map((stock) => {

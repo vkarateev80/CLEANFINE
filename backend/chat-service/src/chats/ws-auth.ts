@@ -56,7 +56,10 @@ export async function authenticateSocket(
   }
 }
 
-function extractToken(handshake: { auth?: unknown; query?: Record<string, unknown> }): string | null {
+function extractToken(handshake: {
+  auth?: unknown;
+  query?: Record<string, unknown>;
+}): string | null {
   if (typeof handshake.auth === 'object' && handshake.auth !== null) {
     const token = (handshake.auth as { token?: unknown }).token;
     if (typeof token === 'string' && token !== '') {
@@ -151,8 +154,7 @@ export function parseReadPayload(
   payload: IncomingReadPayload,
 ): { ok: true; value: ParsedRead } | { ok: false; error: string } {
   const chatId = typeof payload?.chatId === 'string' ? payload.chatId : '';
-  const lastMessageId =
-    typeof payload?.lastMessageId === 'string' ? payload.lastMessageId : '';
+  const lastMessageId = typeof payload?.lastMessageId === 'string' ? payload.lastMessageId : '';
   if (chatId === '' || lastMessageId === '') {
     return { ok: false, error: 'Укажите chatId и lastMessageId' };
   }

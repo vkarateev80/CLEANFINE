@@ -129,7 +129,10 @@ export function TicketCreateSheet({ open, objectId, onClose, onCreated }: Ticket
     if (busy) return;
     // Шторка не закрывается молча, если текст уже набран: на телефоне случайный
     // тап по оверлею стирал бы набранное (tickets.md п. 7.1).
-    if (description.trim() !== '' && !window.confirm('Отменить заявку? Введённый текст будет потерян.')) {
+    if (
+      description.trim() !== '' &&
+      !window.confirm('Отменить заявку? Введённый текст будет потерян.')
+    ) {
       return;
     }
     reset();
@@ -180,7 +183,10 @@ export function TicketCreateSheet({ open, objectId, onClose, onCreated }: Ticket
         className="relative flex max-h-[85dvh] w-full flex-col overflow-y-auto rounded-t-2xl bg-white shadow-xl lg:max-w-lg lg:rounded-xl"
       >
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-neutral-200 bg-white px-4 pt-3">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-neutral-300 lg:hidden" aria-hidden="true" />
+          <div
+            className="mx-auto mb-3 h-1 w-10 rounded-full bg-neutral-300 lg:hidden"
+            aria-hidden="true"
+          />
           <h2 className="mb-3 text-base font-medium text-neutral-900">Новая заявка</h2>
           <Button
             type="button"
@@ -200,11 +206,7 @@ export function TicketCreateSheet({ open, objectId, onClose, onCreated }: Ticket
             label="Что случилось?"
             required
             error={fieldError}
-            hint={
-              !fieldError
-                ? 'Чем точнее опишете, тем быстрее приедет исполнитель'
-                : undefined
-            }
+            hint={!fieldError ? 'Чем точнее опишете, тем быстрее приедет исполнитель' : undefined}
           >
             <Textarea
               ref={textareaRef}

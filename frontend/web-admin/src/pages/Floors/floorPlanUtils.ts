@@ -150,12 +150,7 @@ export function moveRect(origin: Rect, dx: number, dy: number, plan: PlanSize): 
 }
 
 /** Растягивание за угол: противоположный угол остаётся на месте. */
-export function resizeRect(
-  origin: Rect,
-  corner: Corner,
-  point: Point,
-  plan: PlanSize,
-): Rect {
+export function resizeRect(origin: Rect, corner: Corner, point: Point, plan: PlanSize): Rect {
   const isLeft = corner === 'nw' || corner === 'sw';
   const isTop = corner === 'nw' || corner === 'ne';
   const anchorX = isLeft ? origin.x + origin.width : origin.x;
@@ -237,10 +232,7 @@ export function filterAndSortRooms(
   return result;
 }
 
-export function distinctRoomValues(
-  rooms: RoomWithTechCard[],
-  key: 'zone' | 'floorType',
-): string[] {
+export function distinctRoomValues(rooms: RoomWithTechCard[], key: 'zone' | 'floorType'): string[] {
   const values = new Set<string>();
   rooms.forEach((room) => {
     const value = key === 'zone' ? room.zone : room.floorType;
@@ -259,7 +251,10 @@ function csvCell(value: string): string {
 }
 
 function fileSafe(value: string): string {
-  const cleaned = value.trim().replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
+  const cleaned = value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .replace(/\s+/g, '_');
   return cleaned === '' ? 'план' : cleaned;
 }
 

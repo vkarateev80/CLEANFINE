@@ -269,9 +269,7 @@ describe('RoutesService', () => {
 
       await service.list({ take: 5 });
 
-      expect(prisma.route.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 5 }),
-      );
+      expect(prisma.route.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5 }));
     });
   });
 
@@ -284,7 +282,9 @@ describe('RoutesService', () => {
       expect(prisma.route.findUnique).toHaveBeenCalledWith({
         where: { id: 'route-1' },
         include: {
-          floor: { select: { id: true, objectId: true, name: true, number: true, planImageUrl: true } },
+          floor: {
+            select: { id: true, objectId: true, name: true, number: true, planImageUrl: true },
+          },
           points: {
             orderBy: { orderIndex: 'asc' },
             include: {
@@ -572,9 +572,10 @@ describe('RoutesService', () => {
   describe('reorderPoints', () => {
     it('переставляет точки и возвращает их в новом порядке', async () => {
       prisma.route.findUnique.mockResolvedValue(routeFixture);
-      prisma.routePoint.findMany
-        .mockResolvedValueOnce([pointA, pointB])
-        .mockResolvedValueOnce([{ ...pointB, orderIndex: 0 }, { ...pointA, orderIndex: 1 }]);
+      prisma.routePoint.findMany.mockResolvedValueOnce([pointA, pointB]).mockResolvedValueOnce([
+        { ...pointB, orderIndex: 0 },
+        { ...pointA, orderIndex: 1 },
+      ]);
       prisma.routePoint.update.mockResolvedValue({});
 
       const result = await service.reorderPoints('route-1', { pointIds: ['point-b', 'point-a'] });
@@ -651,9 +652,9 @@ describe('RoutesService', () => {
     it('нет маршрута → NotFoundException', async () => {
       prisma.route.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.reorderPoints('missing', { pointIds: ['point-a'] }),
-      ).rejects.toThrow('Маршрут не найден');
+      await expect(service.reorderPoints('missing', { pointIds: ['point-a'] })).rejects.toThrow(
+        'Маршрут не найден',
+      );
     });
 
     it('маршрут без точек и пустой список: транзакция проходит вхолостую', async () => {
@@ -670,7 +671,11 @@ describe('RoutesService', () => {
   describe('sumEstimatedTime', () => {
     it('суммирует время, считая null нулём', () => {
       expect(
-        sumEstimatedTime([{ estimatedTimeMin: 5 }, { estimatedTimeMin: null }, { estimatedTimeMin: 10 }]),
+        sumEstimatedTime([
+          { estimatedTimeMin: 5 },
+          { estimatedTimeMin: null },
+          { estimatedTimeMin: 10 },
+        ]),
       ).toBe(15);
     });
 

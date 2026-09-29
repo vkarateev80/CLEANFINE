@@ -24,10 +24,7 @@ async function bootstrap(): Promise<void> {
           'Access-токен передаётся заголовком `Authorization: Bearer <token>`.',
       )
       .setVersion('0.1.0')
-      .addBearerAuth(
-        { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-        'access-token',
-      )
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'access-token')
       .addTag('auth', 'Вход, обновление токенов, профиль')
       .addTag('users', 'Сотрудники (ADMIN/SUPERVISOR)')
       .build();
@@ -40,10 +37,9 @@ async function bootstrap(): Promise<void> {
 
   const port = Number(process.env.PORT) || 3001;
   await app.listen(port);
-   
+
   console.log(`auth-service запущен: http://localhost:${port}/api`);
   if (process.env.NODE_ENV !== 'production') {
-     
     console.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
 }

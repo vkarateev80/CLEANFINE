@@ -54,7 +54,10 @@ export function CatalogPanel({ onMove }: { onMove: (preset: MovementPreset) => v
 
   const [searchInput, setSearchInput] = useState(search);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
-  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder }>({ key: 'name', order: 'asc' });
+  const [sort, setSort] = useState<{ key: SortKey; order: SortOrder }>({
+    key: 'name',
+    order: 'asc',
+  });
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<MaterialEntity | null>(null);
   const [deleting, setDeleting] = useState<MaterialListItem | null>(null);

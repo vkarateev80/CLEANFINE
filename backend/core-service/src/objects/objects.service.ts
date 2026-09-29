@@ -15,9 +15,7 @@ import type { CreateObjectDto, ListObjectsQueryDto, UpdateObjectDto } from './dt
  * значению (`dto.ownerClientId === undefined`) не различила бы эти случаи и
  * затирала бы привязку при обычном редактировании названия объекта.
  */
-type OwnerClientIdInput =
-  | { present: false }
-  | { present: true; value: string | null };
+type OwnerClientIdInput = { present: false } | { present: true; value: string | null };
 
 function readOwnerClientId(dto: CreateObjectDto | UpdateObjectDto): OwnerClientIdInput {
   if (!('ownerClientId' in dto)) {

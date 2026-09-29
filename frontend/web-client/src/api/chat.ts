@@ -39,7 +39,11 @@ export function listMessages(chatId: string, limit = 50): Promise<MessagesPage> 
 }
 
 /** Подгрузка истории вверх по курсору `before` (createdAt самого старого сообщения страницы). */
-export function listMessagesBefore(chatId: string, before: string, limit = 50): Promise<MessagesPage> {
+export function listMessagesBefore(
+  chatId: string,
+  before: string,
+  limit = 50,
+): Promise<MessagesPage> {
   return apiClient
     .get(`/chat/chats/${chatId}/messages`, { params: { before, limit } })
     .then((r) => r.data);

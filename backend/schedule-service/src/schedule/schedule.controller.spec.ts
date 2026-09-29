@@ -3,7 +3,12 @@ import { ScheduleController } from './schedule.controller';
 import type { ScheduleService } from './schedule.service';
 import type { SchedulerService } from './scheduler.service';
 
-const USER = { id: 'user-1', email: 'op@cleaning-ops.com', role: 'OPERATOR', fullName: '' } as AuthUser;
+const USER = {
+  id: 'user-1',
+  email: 'op@cleaning-ops.com',
+  role: 'OPERATOR',
+  fullName: '',
+} as AuthUser;
 
 function build() {
   const schedule = {
@@ -80,7 +85,11 @@ describe('ScheduleController', () => {
   it('check-in передаёт пользователя, DTO и проброшенный токен', async () => {
     const { controller, schedule } = build();
 
-    await controller.checkIn(USER, { scheduleId: 'schedule-1', lat: 55.75, lng: 37.61 }, 'user-token');
+    await controller.checkIn(
+      USER,
+      { scheduleId: 'schedule-1', lat: 55.75, lng: 37.61 },
+      'user-token',
+    );
 
     expect(schedule.checkIn).toHaveBeenCalledWith(
       USER.id,

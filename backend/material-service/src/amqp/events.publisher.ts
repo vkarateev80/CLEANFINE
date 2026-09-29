@@ -28,9 +28,7 @@ export class EventsPublisher {
       this.logger.log(`Событие ${routingKey} → ${EVENTS_EXCHANGE}`);
       return sent;
     } catch (error) {
-      this.logger.warn(
-        `Не удалось опубликовать ${routingKey}: ${describeError(error)}`,
-      );
+      this.logger.warn(`Не удалось опубликовать ${routingKey}: ${describeError(error)}`);
       await this.amqp.reset();
       return false;
     }

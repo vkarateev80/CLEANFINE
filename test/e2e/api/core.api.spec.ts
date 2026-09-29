@@ -388,11 +388,7 @@ test.describe('Core: сквозной цикл объекта', () => {
     expect(await bodyText(noPlan)).toContain('план');
 
     // файл, который core загрузил сам, виден во вложениях этажа
-    const attachments = await file(
-      request,
-      'get',
-      `/api/files/attachments/FLOOR_PLAN/${floor.id}`,
-    );
+    const attachments = await file(request, 'get', `/api/files/attachments/FLOOR_PLAN/${floor.id}`);
     expect(attachments.status(), await bodyText(attachments)).toBe(200);
     const filesOfFloor = (await attachments.json()) as { id: string; url: string }[];
     expect(filesOfFloor.map((f) => f.url)).toContain(withPlan.planImageUrl);
@@ -573,9 +569,9 @@ test.describe('Core: негативные кейсы', () => {
     const object = await createObject(request, { name: `E2E без плана ${runTag()}` });
     trackObject(object.id);
     const floor = await createFloor(request, object.id, { number: 1 });
-    expect((await (await core(request, 'get', `/api/floors/${floor.id}`)).json()).planImageUrl).toBe(
-      null,
-    );
+    expect(
+      (await (await core(request, 'get', `/api/floors/${floor.id}`)).json()).planImageUrl,
+    ).toBe(null);
 
     const withCoords = await core(request, 'post', `/api/floors/${floor.id}/rooms`, {
       data: {
@@ -613,8 +609,14 @@ test.describe('Core: негативные кейсы', () => {
       const roomA = await createRoom(request, floor.id, { name: 'A' });
       const roomB = await createRoom(request, floor.id, { name: 'B' });
       const route = await createRoute(request, floor.id, { name: `Маршрут ${runTag()}` });
-      const pointA = await addRoutePoint(request, route.id, { roomId: roomA.id, estimatedTimeMin: 5 });
-      const pointB = await addRoutePoint(request, route.id, { roomId: roomB.id, estimatedTimeMin: 5 });
+      const pointA = await addRoutePoint(request, route.id, {
+        roomId: roomA.id,
+        estimatedTimeMin: 5,
+      });
+      const pointB = await addRoutePoint(request, route.id, {
+        roomId: roomB.id,
+        estimatedTimeMin: 5,
+      });
 
       const incomplete = await core(request, 'patch', `/api/routes/${route.id}/reorder`, {
         data: { pointIds: [pointA.id] },
@@ -717,14 +719,24 @@ test.describe('Core: негативные кейсы', () => {
     });
     expect(badEnum.status(), await bodyText(badEnum)).toBe(400);
 
-    const badFloorNumber = await core(request, 'post', '/api/objects/00000000-0000-0000-0000-000000000000/floors', {
-      data: { number: 500, name: 'Этаж' },
-    });
+    const badFloorNumber = await core(
+      request,
+      'post',
+      '/api/objects/00000000-0000-0000-0000-000000000000/floors',
+      {
+        data: { number: 500, name: 'Этаж' },
+      },
+    );
     expect(badFloorNumber.status(), await bodyText(badFloorNumber)).toBe(400);
 
-    const badPointTime = await core(request, 'post', '/api/routes/00000000-0000-0000-0000-000000000000/points', {
-      data: { roomId: '00000000-0000-0000-0000-000000000000', estimatedTimeMin: 0 },
-    });
+    const badPointTime = await core(
+      request,
+      'post',
+      '/api/routes/00000000-0000-0000-0000-000000000000/points',
+      {
+        data: { roomId: '00000000-0000-0000-0000-000000000000', estimatedTimeMin: 0 },
+      },
+    );
     expect(badPointTime.status(), await bodyText(badPointTime)).toBe(400);
   });
 
@@ -898,8 +910,12 @@ test.describe('Core: плоский список маршрутов', () => {
     const foreignFloor = await createFloor(request, foreignObject.id, { number: 1 });
 
     const firstRoute = await createRoute(request, firstFloor.id, { name: `Маршрут 1 ${runTag()}` });
-    const secondRoute = await createRoute(request, firstFloor.id, { name: `Маршрут 2 ${runTag()}` });
-    const thirdRoute = await createRoute(request, secondFloor.id, { name: `Маршрут 3 ${runTag()}` });
+    const secondRoute = await createRoute(request, firstFloor.id, {
+      name: `Маршрут 2 ${runTag()}`,
+    });
+    const thirdRoute = await createRoute(request, secondFloor.id, {
+      name: `Маршрут 3 ${runTag()}`,
+    });
     const foreignRoute = await createRoute(request, foreignFloor.id, {
       name: `Чужой маршрут ${runTag()}`,
     });
@@ -910,9 +926,10 @@ test.describe('Core: плоский список маршрутов', () => {
     expect(byObject.items.map((item) => item.id).sort()).toEqual(
       [firstRoute.id, secondRoute.id, thirdRoute.id].sort(),
     );
-    expect(byObject.items.map((item) => item.id), 'маршрут чужого объекта не подмешан').not.toContain(
-      foreignRoute.id,
-    );
+    expect(
+      byObject.items.map((item) => item.id),
+      'маршрут чужого объекта не подмешан',
+    ).not.toContain(foreignRoute.id);
     expect(byObject.items.every((item) => item.objectId === object.id)).toBe(true);
     expect(byObject.items.find((item) => item.id === firstRoute.id)?.pointsCount).toBe(0);
 
@@ -992,7 +1009,10 @@ test.describe('Core: привязка объекта к аккаунту зак�
 
     const list = await core(request, 'get', `/api/objects?ownerClientId=${client.id}&take=100`);
     expect(list.status()).toBe(200);
-    const page = (await list.json()) as { items: Array<{ id: string; ownerClientId: string | null }>; total: number };
+    const page = (await list.json()) as {
+      items: Array<{ id: string; ownerClientId: string | null }>;
+      total: number;
+    };
     expect(page.items.map((item) => item.id)).toContain(object.id);
     // Фильтр точный: чужой ownerClientId в выдачу не попадает.
     for (const item of page.items) {
@@ -1027,7 +1047,9 @@ test.describe('Core: привязка объекта к аккаунту зак�
     expect(ids).not.toContain(unbound.id);
   });
 
-  test('AC-фильтр: ownerClientId комбинируется с search и status через AND', async ({ request }) => {
+  test('AC-фильтр: ownerClientId комбинируется с search и status через AND', async ({
+    request,
+  }) => {
     const client = await makeClient(request, 'and');
     const marker = runTag();
     const target = await createObject(request, {
@@ -1046,7 +1068,10 @@ test.describe('Core: привязка объекта к аккаунту зак�
       'get',
       `/api/objects?ownerClientId=${client.id}&search=${encodeURIComponent(`AND цель ${marker}`)}&take=100`,
     );
-    const page = (await res.json()) as { items: Array<{ id: string; name: string }>; total: number };
+    const page = (await res.json()) as {
+      items: Array<{ id: string; name: string }>;
+      total: number;
+    };
 
     expect(page.items.map((item) => item.id)).toEqual([target.id]);
   });
@@ -1157,10 +1182,14 @@ test.describe('Core: привязка объекта к аккаунту зак�
     expect(((await cleared.json()) as { ownerClientId: string | null }).ownerClientId).toBeNull();
 
     const afterClear = await core(request, 'get', `/api/objects/${object.id}`);
-    expect(((await afterClear.json()) as { ownerClientId: string | null }).ownerClientId).toBeNull();
+    expect(
+      ((await afterClear.json()) as { ownerClientId: string | null }).ownerClientId,
+    ).toBeNull();
   });
 
-  test('AC-07: PATCH несуществующим аккаунтом → 400 и привязка не меняется', async ({ request }) => {
+  test('AC-07: PATCH несуществующим аккаунтом → 400 и привязка не меняется', async ({
+    request,
+  }) => {
     const client = await makeClient(request, 'patch-bad');
     const object = await createObject(request, {
       name: `E2E PATCH чужой id ${runTag()}`,
@@ -1222,7 +1251,11 @@ test.describe('Core: идемпотентность', () => {
     expect((await core(request, 'get', `/api/routes/${route.id}`)).status()).toBe(404);
 
     // объект не попал в общий список (архивации не требуется: маршрутов в ACTIVE нет)
-    const list = await core(request, 'get', `/api/objects?search=${encodeURIComponent(object.name)}`);
+    const list = await core(
+      request,
+      'get',
+      `/api/objects?search=${encodeURIComponent(object.name)}`,
+    );
     expect(list.status()).toBe(200);
     expect(((await list.json()) as { total: number }).total).toBe(0);
   });

@@ -1,9 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma, Route, RoutePoint } from '@prisma/client';
-import {
-  canTransitionRoute,
-  type RouteStatus,
-} from '@cleaning-ops/shared/types/core';
+import { canTransitionRoute, type RouteStatus } from '@cleaning-ops/shared/types/core';
 import { PrismaService } from '../prisma/prisma.service';
 import type {
   AddRoutePointDto,
@@ -100,7 +97,9 @@ export class RoutesService {
     const route = await this.prisma.route.findUnique({
       where: { id },
       include: {
-        floor: { select: { id: true, objectId: true, name: true, number: true, planImageUrl: true } },
+        floor: {
+          select: { id: true, objectId: true, name: true, number: true, planImageUrl: true },
+        },
         points: {
           orderBy: { orderIndex: 'asc' },
           include: {

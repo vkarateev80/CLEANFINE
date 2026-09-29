@@ -68,7 +68,9 @@ describe('TicketClient (chat-service)', () => {
   });
 
   it('недоступность ticket-service даёт null и не бросает ошибку', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
+    global.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch;
     const { client } = build();
     await expect(client.getParticipants('t-1')).resolves.toBeNull();
   });

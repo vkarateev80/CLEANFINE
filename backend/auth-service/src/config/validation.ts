@@ -8,7 +8,13 @@
  */
 
 /** Значения-заглушки из .env.example — в prod недопустимы. */
-const PLACEHOLDERS = ['change-me', 'change-me-access', 'change-me-refresh', 'dev-access-secret', 'dev-refresh-secret'];
+const PLACEHOLDERS = [
+  'change-me',
+  'change-me-access',
+  'change-me-refresh',
+  'dev-access-secret',
+  'dev-refresh-secret',
+];
 
 /** Минимальная длина JWT-секрета (256 бит в base64 ≈ 43 символа). */
 const MIN_SECRET_LENGTH = 32;
@@ -28,7 +34,6 @@ export function validateEnv(env: Record<string, unknown>): Record<string, unknow
       if (isProd) {
         problems.push(`${key} не задан`);
       } else {
-         
         console.warn(`[config] ${key} не задан — используется dev-значение по умолчанию`);
       }
       continue;
@@ -57,7 +62,9 @@ export function validateEnv(env: Record<string, unknown>): Record<string, unknow
   for (const key of ['JWT_ACCESS_TTL', 'JWT_REFRESH_TTL']) {
     const value = env[key];
     if (value !== undefined && !TTL_PATTERN.test(String(value))) {
-      problems.push(`${key} имеет недопустимый формат: "${String(value)}" (ожидается 15m, 30d, 3600 …)`);
+      problems.push(
+        `${key} имеет недопустимый формат: "${String(value)}" (ожидается 15m, 30d, 3600 …)`,
+      );
     }
   }
 

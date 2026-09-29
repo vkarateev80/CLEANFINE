@@ -135,13 +135,14 @@ export function useUnreadNotifications(enabled = true) {
 
 /** Сортировка заявок «свежие сверху»: серверного `orderBy` в контракте нет. */
 export function sortTicketsByDate(items: TicketListItem[]): TicketListItem[] {
-  return items
-    .slice()
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  return items.slice().sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 }
 
 /** Ближайшие смены: только будущие и не завершённые, отсортированы по `plannedStart`. */
-export function upcomingShifts(events: ScheduleEventEntity[], nowIso: string): ScheduleEventEntity[] {
+export function upcomingShifts(
+  events: ScheduleEventEntity[],
+  nowIso: string,
+): ScheduleEventEntity[] {
   return events
     .filter((event) => event.status === 'PLANNED' || event.status === 'CHECKED_IN')
     .filter((event) => event.plannedStart >= nowIso)
@@ -150,7 +151,10 @@ export function upcomingShifts(events: ScheduleEventEntity[], nowIso: string): S
 }
 
 /** Ближайшая смена объекта либо `null` — для паспорта и KPI-плитки главной. */
-export function nextShift(events: ScheduleEventEntity[], nowIso: string): ScheduleEventEntity | null {
+export function nextShift(
+  events: ScheduleEventEntity[],
+  nowIso: string,
+): ScheduleEventEntity | null {
   return upcomingShifts(events, nowIso)[0] ?? null;
 }
 

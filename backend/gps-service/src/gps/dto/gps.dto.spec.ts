@@ -123,7 +123,17 @@ describe('CreateGeofenceDto', () => {
 
     const nonNumeric = await errorsOf(CreateGeofenceDto, {
       objectId,
-      boundary: { type: 'Polygon', coordinates: [[['a', 55.7558], [1, 2], [3, 4], [5, 6]]] },
+      boundary: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            ['a', 55.7558],
+            [1, 2],
+            [3, 4],
+            [5, 6],
+          ],
+        ],
+      },
     });
     expect(JSON.stringify(nonNumeric)).toContain('GeoJSON-полигоном');
   });

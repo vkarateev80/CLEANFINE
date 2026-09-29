@@ -73,13 +73,19 @@ describe('MaterialsConsumer (М4.2)', () => {
   it('объявляет очередь, DLQ и биндит routing key ticket.operation.completed', async () => {
     const channel = createChannel();
     const amqp = createAmqpMock(channel);
-    const consumption = { handleOperationCompleted: jest.fn().mockResolvedValue({ status: 'consumed' }) };
+    const consumption = {
+      handleOperationCompleted: jest.fn().mockResolvedValue({ status: 'consumed' }),
+    };
     const consumer = new MaterialsConsumer(amqp, createConfig(), consumption as never);
 
     await expect(consumer.start()).resolves.toBe(true);
 
-    expect(channel.assertExchange).toHaveBeenCalledWith(EVENTS_EXCHANGE_DLQ, 'topic', { durable: true });
-    expect(channel.assertQueue).toHaveBeenCalledWith('material.ticket.operation.completed', { durable: true });
+    expect(channel.assertExchange).toHaveBeenCalledWith(EVENTS_EXCHANGE_DLQ, 'topic', {
+      durable: true,
+    });
+    expect(channel.assertQueue).toHaveBeenCalledWith('material.ticket.operation.completed', {
+      durable: true,
+    });
     expect(channel.bindQueue).toHaveBeenCalledWith(
       'material.ticket.operation.completed',
       'cleaning-ops.events',
@@ -153,7 +159,9 @@ describe('MaterialsConsumer (М4.2)', () => {
     await consumer.start();
 
     const handler = channel.consume.mock.calls[0][1] as ConsumeHandler;
-    handler({ content: Buffer.from('не json', 'utf8') } as unknown as import('amqplib').ConsumeMessage);
+    handler({
+      content: Buffer.from('не json', 'utf8'),
+    } as unknown as import('amqplib').ConsumeMessage);
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(consumption.handleOperationCompleted).not.toHaveBeenCalled();
@@ -259,8 +267,9 @@ describe('MaterialsConsumer (М4.2)', () => {
     const consumer = new MaterialsConsumer(amqp, createConfig(), consumption as never);
     await consumer.start();
 
-    await expect(consumer.process(createMessage({ operationId: 'op-1', ticketId: 't-1', objectId: 'o-1' })))
-      .resolves.toBeUndefined();
+    await expect(
+      consumer.process(createMessage({ operationId: 'op-1', ticketId: 't-1', objectId: 'o-1' })),
+    ).resolves.toBeUndefined();
   });
 
   it('сообщение подтверждается на канале доставки, даже если поле ещё пусто (М7.3)', async () => {
@@ -294,13 +303,26 @@ describe('MaterialsConsumer (М4.2)', () => {
 
 describe('parseEvent / attemptsOf', () => {
   it('parseEvent принимает только полный контракт', () => {
-    expect(parseEvent(Buffer.from(JSON.stringify({ operationId: 'op', ticketId: 't', objectId: 'o' })))).toEqual({
+    expect(
+      parseEvent(Buffer.from(JSON.stringify({ operationId: 'op', ticketId: 't', objectId: 'o' }))),
+    ).toEqual({
       operationId: 'op',
       ticketId: 't',
       objectId: 'o',
       completedAt: expect.any(String),
     });
-    expect(parseEvent(Buffer.from(JSON.stringify({ operationId: 'op', ticketId: 't', objectId: 'o', completedAt: '2026-01-02T10:00:00.000Z' })))).toEqual({
+    expect(
+      parseEvent(
+        Buffer.from(
+          JSON.stringify({
+            operationId: 'op',
+            ticketId: 't',
+            objectId: 'o',
+            completedAt: '2026-01-02T10:00:00.000Z',
+          }),
+        ),
+      ),
+    ).toEqual({
       operationId: 'op',
       ticketId: 't',
       objectId: 'o',
@@ -309,14 +331,25 @@ describe('parseEvent / attemptsOf', () => {
     expect(parseEvent(Buffer.from('null'))).toBeNull();
     expect(parseEvent(Buffer.from('[1,2]'))).toBeNull();
     expect(parseEvent(Buffer.from(JSON.stringify({ operationId: 'op' })))).toBeNull();
-    expect(parseEvent(Buffer.from(JSON.stringify({ operationId: '', ticketId: 't', objectId: 'o' })))).toBeNull();
-    expect(parseEvent(Buffer.from(JSON.stringify({ operationId: 1, ticketId: 't', objectId: 'o' })))).toBeNull();
+    expect(
+      parseEvent(Buffer.from(JSON.stringify({ operationId: '', ticketId: 't', objectId: 'o' }))),
+    ).toBeNull();
+    expect(
+      parseEvent(Buffer.from(JSON.stringify({ operationId: 1, ticketId: 't', objectId: 'o' }))),
+    ).toBeNull();
   });
 
   it('attemptsOf считает доставки по x-death, иначе по redelivered', () => {
     const base = { properties: { headers: {} }, fields: { redelivered: false } };
     expect(attemptsOf(base as never)).toBe(1);
-    expect(attemptsOf({ properties: { headers: {} }, fields: { redelivered: true } } as never)).toBe(2);
-    expect(attemptsOf({ properties: { headers: { 'x-death': [{ count: 2 }, { count: 3 }] } }, fields: {} } as never)).toBe(6);
+    expect(
+      attemptsOf({ properties: { headers: {} }, fields: { redelivered: true } } as never),
+    ).toBe(2);
+    expect(
+      attemptsOf({
+        properties: { headers: { 'x-death': [{ count: 2 }, { count: 3 }] } },
+        fields: {},
+      } as never),
+    ).toBe(6);
   });
 });

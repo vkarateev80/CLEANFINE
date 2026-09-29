@@ -557,7 +557,10 @@ export async function listMaterials(
   request: APIRequestContext,
   query: { skip?: number; take?: number; search?: string } = {},
   options: ApiOptions = {},
-): Promise<{ items: Array<Material & { _count: { stocks: number; movements: number } }>; total: number }> {
+): Promise<{
+  items: Array<Material & { _count: { stocks: number; movements: number } }>;
+  total: number;
+}> {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined) params.set(key, String(value));
@@ -802,20 +805,36 @@ export function planningCounts(input: { scheduleIds?: string[]; materialIds?: st
   const materialList = idList(materials);
 
   return {
-    schedules: scalar(psql(DB.schedule, `SELECT COUNT(*) FROM "Schedule" WHERE id IN (${scheduleList})`)),
-    events: scalar(
-      psql(DB.schedule, `SELECT COUNT(*) FROM "ScheduleEvent" WHERE "scheduleId" IN (${scheduleList})`),
+    schedules: scalar(
+      psql(DB.schedule, `SELECT COUNT(*) FROM "Schedule" WHERE id IN (${scheduleList})`),
     ),
-    materials: scalar(psql(DB.materials, `SELECT COUNT(*) FROM "Material" WHERE id IN (${materialList})`)),
+    events: scalar(
+      psql(
+        DB.schedule,
+        `SELECT COUNT(*) FROM "ScheduleEvent" WHERE "scheduleId" IN (${scheduleList})`,
+      ),
+    ),
+    materials: scalar(
+      psql(DB.materials, `SELECT COUNT(*) FROM "Material" WHERE id IN (${materialList})`),
+    ),
     stocks: scalar(
-      psql(DB.materials, `SELECT COUNT(*) FROM "MaterialStock" WHERE "materialId" IN (${materialList})`),
+      psql(
+        DB.materials,
+        `SELECT COUNT(*) FROM "MaterialStock" WHERE "materialId" IN (${materialList})`,
+      ),
     ),
     movements: scalar(
-      psql(DB.materials, `SELECT COUNT(*) FROM "MaterialMovement" WHERE "materialId" IN (${materialList})`),
+      psql(
+        DB.materials,
+        `SELECT COUNT(*) FROM "MaterialMovement" WHERE "materialId" IN (${materialList})`,
+      ),
     ),
     // Служебная таблица идемпотентности автосписания: FK на Material нет, каскад её не уносит.
     consumed: scalar(
-      psql(DB.materials, `SELECT COUNT(*) FROM "ConsumedOperation" WHERE "materialId" IN (${materialList})`),
+      psql(
+        DB.materials,
+        `SELECT COUNT(*) FROM "ConsumedOperation" WHERE "materialId" IN (${materialList})`,
+      ),
     ),
   };
 }

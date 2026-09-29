@@ -1,9 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { CoreClient } from './core.client';
-import {
-  CHAT_PUSH_NOTIFIER,
-  NotificationPushClient,
-} from './notification-push.client';
+import { CHAT_PUSH_NOTIFIER, NotificationPushClient } from './notification-push.client';
 import { ServiceTokenProvider } from './service-token.provider';
 import { TicketClient } from './ticket.client';
 

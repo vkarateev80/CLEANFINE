@@ -49,7 +49,10 @@ describe('GpsClient', () => {
 
     expect(global.fetch).toHaveBeenCalledWith(
       'http://localhost:3004/api/gps/geofences/user-1/check?lat=55.75&lng=37.61',
-      { headers: { Accept: 'application/json', Authorization: 'Bearer user-token' }, signal: expect.anything() },
+      {
+        headers: { Accept: 'application/json', Authorization: 'Bearer user-token' },
+        signal: expect.anything(),
+      },
     );
     expect(result).toEqual({
       inside: true,

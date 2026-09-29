@@ -1,15 +1,8 @@
 import { ErrorBanner, Field, Input, Select, errorMessage } from '../../components/ui';
+import { presetValues } from '../../templates/presets';
 import type { TechCardListItem } from '../../types/core';
-import {
-  isCoordsError,
-  rectAreaHint,
-  type PlanSize,
-} from './floorPlanUtils';
-import {
-  rectFromForm,
-  type RoomFormErrors,
-  type RoomFormValues,
-} from './roomForm';
+import { isCoordsError, rectAreaHint, type PlanSize } from './floorPlanUtils';
+import { rectFromForm, type RoomFormErrors, type RoomFormValues } from './roomForm';
 
 interface RoomFormFieldsProps {
   idPrefix: string;
@@ -63,6 +56,12 @@ export function RoomFormFields({
   const areaHint = rectAreaHint(rect, planScale);
   const coordsServerError = isCoordsError(serverError) ? errorMessage(serverError) : null;
   const listId = `${idPrefix}-floor-types`;
+  // Тип помещения: уже встречавшиеся на этаже значения + библиотека
+  // (виды помещений и покрытия) — единый datalist без дублей.
+  const typeOptions = [
+    ...new Set([...floorTypeOptions, ...presetValues('room-types', 'floor-coverings')]),
+  ];
+  const zoneListId = `${idPrefix}-zones`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -105,7 +104,13 @@ export function RoomFormFields({
           />
         </Field>
 
-        <Field label="Тип помещения" htmlFor={`${idPrefix}-type`} required error={errors.floorType}>
+        <Field
+          label="Тип помещения"
+          htmlFor={`${idPrefix}-type`}
+          required
+          error={errors.floorType}
+          hint="Виды помещения и покрытия из библиотеки — или своё значение"
+        >
           <Input
             id={`${idPrefix}-type`}
             name="floorType"
@@ -116,7 +121,7 @@ export function RoomFormFields({
             onChange={(event) => onChange({ floorType: event.target.value })}
           />
           <datalist id={listId}>
-            {floorTypeOptions.map((option) => (
+            {typeOptions.map((option) => (
               <option key={option} value={option} />
             ))}
           </datalist>
@@ -126,11 +131,17 @@ export function RoomFormFields({
           <Input
             id={`${idPrefix}-zone`}
             name="zone"
+            list={zoneListId}
             value={values.zone}
             placeholder="zone-a"
             disabled={disabled}
             onChange={(event) => onChange({ zone: event.target.value })}
           />
+          <datalist id={zoneListId}>
+            {presetValues('zones').map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </Field>
 
         <Field label="Техкарта" htmlFor={`${idPrefix}-tech-card`}>
@@ -156,7 +167,10 @@ export function RoomFormFields({
         </Field>
       </div>
 
-      <fieldset className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3" disabled={disabled}>
+      <fieldset
+        className="flex flex-col gap-2 rounded-lg border border-neutral-200 p-3"
+        disabled={disabled}
+      >
         <legend className="px-1 text-sm text-neutral-500">Координаты, px</legend>
         {/* Четыре координаты в строку (desktop/планшет). На телефоне — по две в
             ряд: поле x/y/ширина/высота в 60 px шириной нечитаемо, а именно эта

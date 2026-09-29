@@ -168,7 +168,8 @@ export function ObjectDetailPage() {
     [detail],
   );
   const allRoutes = useMemo(
-    () => (detail?.floors ?? []).flatMap((floor) => floor.routes.map((route) => ({ floor, route }))),
+    () =>
+      (detail?.floors ?? []).flatMap((floor) => floor.routes.map((route) => ({ floor, route }))),
     [detail],
   );
 
@@ -205,8 +206,15 @@ export function ObjectDetailPage() {
   });
 
   const planMutation = useMutation({
-    mutationFn: ({ floorId, file, planScale }: { floorId: string; file: File; planScale?: number }) =>
-      uploadFloorPlan(floorId, file, planScale),
+    mutationFn: ({
+      floorId,
+      file,
+      planScale,
+    }: {
+      floorId: string;
+      file: File;
+      planScale?: number;
+    }) => uploadFloorPlan(floorId, file, planScale),
     onSuccess: () => {
       invalidateFloors();
       setModal(null);
@@ -421,9 +429,7 @@ export function ObjectDetailPage() {
       key: 'name',
       header: 'Название',
       thClassName: 'min-w-[180px]',
-      cell: (floor) => (
-        <TableOnlyTestId id={`floor-row-${floor.id}`}>{floor.name}</TableOnlyTestId>
-      ),
+      cell: (floor) => <TableOnlyTestId id={`floor-row-${floor.id}`}>{floor.name}</TableOnlyTestId>,
       cellClassName: 'text-sm font-medium text-neutral-900',
       card: 'title',
     },
@@ -619,9 +625,7 @@ export function ObjectDetailPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         breadcrumbs={
-          <Breadcrumbs
-            items={[{ label: 'Объекты', to: ROUTES.objects }, { label: detail.name }]}
-          />
+          <Breadcrumbs items={[{ label: 'Объекты', to: ROUTES.objects }, { label: detail.name }]} />
         }
         title={detail.name}
         subtitle={<ObjectStatusBadge status={detail.status} />}
@@ -640,9 +644,7 @@ export function ObjectDetailPage() {
         <div className="grid grid-cols-1 gap-x-8 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
           <DetailRow label="Тип">{detail.type}</DetailRow>
           <DetailRow label="Общая площадь">
-            <span className="font-mono">
-              {formatNumber(detail.totalArea)} м²
-            </span>
+            <span className="font-mono">{formatNumber(detail.totalArea)} м²</span>
           </DetailRow>
           <DetailRow label="Этажей (заявлено)">
             <span className="font-mono">{formatInteger(declaredFloors)}</span>
@@ -658,7 +660,10 @@ export function ObjectDetailPage() {
           <DetailRow label="Клиент">{detail.clientName}</DetailRow>
           <DetailRow label="Контакт клиента">
             {contact ? (
-              <a className="text-primary-600 hover:underline max-lg:inline-flex max-lg:items-center max-lg:min-h-[44px]" href={contact.href}>
+              <a
+                className="text-primary-600 hover:underline max-lg:inline-flex max-lg:items-center max-lg:min-h-[44px]"
+                href={contact.href}
+              >
                 {contact.label}
               </a>
             ) : (
@@ -841,9 +846,7 @@ export function ObjectDetailPage() {
             error={floorMutation.error}
             onDirtyChange={setFormDirty}
             onCancel={requestCloseForm}
-            onSubmit={(payload) =>
-              floorMutation.mutate({ floorId: modal.floor?.id, payload })
-            }
+            onSubmit={(payload) => floorMutation.mutate({ floorId: modal.floor?.id, payload })}
           />
         )}
       </Modal>

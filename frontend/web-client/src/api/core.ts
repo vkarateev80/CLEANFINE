@@ -1,10 +1,5 @@
 import { apiClient } from './client';
-import type {
-  ObjectDetail,
-  ObjectEntity,
-  PageQuery,
-  Paginated,
-} from '../types/core';
+import type { ObjectDetail, ObjectEntity, PageQuery, Paginated } from '../types/core';
 
 /**
  * Клиент core-service (:3003 через прокси `/api/objects`). Портал заказчика

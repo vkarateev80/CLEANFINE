@@ -6,11 +6,7 @@ import {
   EVENTS_EXCHANGE_DLQ,
   ROUTING_KEYS,
 } from '@cleaning-ops/shared/constants/events';
-import {
-  AmqpChannel,
-  AmqpConnectionService,
-  describeError,
-} from '../amqp/amqp-connection.service';
+import { AmqpChannel, AmqpConnectionService, describeError } from '../amqp/amqp-connection.service';
 import {
   MaterialConsumptionService,
   TicketOperationCompletedEvent,
@@ -97,9 +93,17 @@ export class MaterialsConsumer implements OnModuleInit, OnModuleDestroy {
 
       await channel.assertExchange(EVENTS_EXCHANGE_DLQ, 'topic', { durable: true });
       await channel.assertQueue(CONSUMPTION_QUEUE, { durable: true });
-      await channel.bindQueue(CONSUMPTION_QUEUE, EVENTS_EXCHANGE, ROUTING_KEYS.TICKET_OPERATION_COMPLETED);
+      await channel.bindQueue(
+        CONSUMPTION_QUEUE,
+        EVENTS_EXCHANGE,
+        ROUTING_KEYS.TICKET_OPERATION_COMPLETED,
+      );
       await channel.assertQueue(CONSUMPTION_DLQ, { durable: true });
-      await channel.bindQueue(CONSUMPTION_DLQ, EVENTS_EXCHANGE_DLQ, ROUTING_KEYS.TICKET_OPERATION_COMPLETED);
+      await channel.bindQueue(
+        CONSUMPTION_DLQ,
+        EVENTS_EXCHANGE_DLQ,
+        ROUTING_KEYS.TICKET_OPERATION_COMPLETED,
+      );
 
       // Канал запоминаем ДО подписки: доставка может начаться в том же кадре
       // сокета, что и consume-ok (так приходит накопленная очередь после
@@ -125,7 +129,9 @@ export class MaterialsConsumer implements OnModuleInit, OnModuleDestroy {
       );
       return true;
     } catch (error) {
-      this.logger.warn(`Не удалось поднять консьюмер ${CONSUMPTION_QUEUE}: ${describeError(error)}`);
+      this.logger.warn(
+        `Не удалось поднять консьюмер ${CONSUMPTION_QUEUE}: ${describeError(error)}`,
+      );
       await this.amqp.reset();
       this.channel = null;
       this.scheduleRetry();

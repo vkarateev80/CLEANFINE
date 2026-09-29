@@ -208,7 +208,9 @@ export class MaterialConsumptionService {
     this.logger.warn(
       `Материал ${material.name} ниже порога на объекте ${objectId}: ` +
         `${quantity} < ${material.minStockThreshold}` +
-        (published ? ' — material.low опубликовано' : ' — материал ниже порога, событие не опубликовано'),
+        (published
+          ? ' — material.low опубликовано'
+          : ' — материал ниже порога, событие не опубликовано'),
     );
   }
 }
@@ -217,9 +219,7 @@ export class MaterialConsumptionService {
  * Расход на операцию. Ноль/отрицательное значение — не списываем (не откатываем
  * всю операцию из-за одной некорректной строки техкарты).
  */
-export function consumptionQuantity(material: {
-  consumptionPerOperation: number;
-}): number | null {
+export function consumptionQuantity(material: { consumptionPerOperation: number }): number | null {
   const value = material.consumptionPerOperation;
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
     return null;

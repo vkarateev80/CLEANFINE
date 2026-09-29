@@ -7,11 +7,7 @@ import { ErrorBanner } from '../../components/ui/Feedback';
 import { Field, Input } from '../../components/ui/Input';
 import { ConfirmDialog, Modal } from '../../components/ui/Modal';
 import { Pagination } from '../../components/ui/Pagination';
-import {
-  ResponsiveTable,
-  TableOnlyTestId,
-  type ResponsiveColumn,
-} from '../../components/ui';
+import { ResponsiveTable, TableOnlyTestId, type ResponsiveColumn } from '../../components/ui';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
 import { ROUTES } from '../../router/routes';
@@ -230,8 +226,7 @@ export function TechCardsPage() {
 
       {!canEdit && (
         <p className="rounded-lg bg-neutral-100 px-4 py-3 text-sm text-neutral-600">
-          Режим просмотра: создание, переименование и удаление доступны ролям
-          ADMIN и SUPERVISOR.
+          Режим просмотра: создание, переименование и удаление доступны ролям ADMIN и SUPERVISOR.
         </p>
       )}
 
@@ -310,8 +305,8 @@ export function TechCardsPage() {
       </Card>
 
       <p className="text-xs text-neutral-500">
-        Итоговое время техкарты — сумма нормативного времени операций; на экране
-        техкарты оно используется как рекомендуемая оценка точки маршрута.
+        Итоговое время техкарты — сумма нормативного времени операций; на экране техкарты оно
+        используется как рекомендуемая оценка точки маршрута.
       </p>
 
       <NameDialog
@@ -356,8 +351,8 @@ function deleteMessage(card: TechCardListItem | undefined) {
   }
   return (
     <>
-      Техкарта «{card.name}» будет удалена. Она отвязана от{' '}
-      {roomsLabel(card._count.rooms)} (техкарта не выбрана), {operations} удалятся.
+      Техкарта «{card.name}» будет удалена. Она отвязана от {roomsLabel(card._count.rooms)}{' '}
+      (техкарта не выбрана), {operations} удалятся.
       <span className="mt-2 block text-warning-600">
         Помещения сохранятся, но останутся без техкарты — их нужно назначить заново.
       </span>

@@ -62,7 +62,10 @@ export interface Crumb {
 
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
   return (
-    <nav className="flex flex-wrap items-center gap-1 text-xs text-neutral-500" aria-label="Навигация">
+    <nav
+      className="flex flex-wrap items-center gap-1 text-xs text-neutral-500"
+      aria-label="Навигация"
+    >
       {items.map((item, index) => (
         <span key={`${item.label}-${index}`} className="flex items-center gap-1">
           {index > 0 && <span className="text-neutral-300">/</span>}

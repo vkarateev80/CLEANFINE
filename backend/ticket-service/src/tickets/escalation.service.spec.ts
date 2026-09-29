@@ -11,7 +11,9 @@ function createConfig(values: Record<string, unknown> = {}): ConfigService {
     'escalation.newToAcceptMin': 5,
     'escalation.enabled': true,
   };
-  return { get: jest.fn((key: string) => ({ ...base, ...values })[key]) } as unknown as ConfigService;
+  return {
+    get: jest.fn((key: string) => ({ ...base, ...values })[key]),
+  } as unknown as ConfigService;
 }
 
 describe('EscalationService (М3.5)', () => {
@@ -107,9 +109,7 @@ describe('EscalationService (М3.5)', () => {
     it('повторный вход во время незавершённого прохода пропускается', async () => {
       let release: ((value: unknown) => void) | undefined;
       prisma.ticket.findMany.mockImplementation((args: { where: { status?: unknown } }) =>
-        args.where.status === 'new'
-          ? Promise.resolve([{ id: 't-new' }])
-          : Promise.resolve([]),
+        args.where.status === 'new' ? Promise.resolve([{ id: 't-new' }]) : Promise.resolve([]),
       );
       tickets.escalateUnaccepted
         // Первый проход «зависает» на переходе — имитируем долгий вызов.

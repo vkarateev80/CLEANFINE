@@ -30,10 +30,12 @@ describe('NOTIFICATION_TEMPLATES (М3.3, п.3)', () => {
 
 describe('renderText', () => {
   it('подставляет параметры', () => {
-    expect(renderText('Заявка {ticketId} просрочена на {minutes} минут', {
-      ticketId: 't-1',
-      minutes: 15,
-    })).toBe('Заявка t-1 просрочена на 15 минут');
+    expect(
+      renderText('Заявка {ticketId} просрочена на {minutes} минут', {
+        ticketId: 't-1',
+        minutes: 15,
+      }),
+    ).toBe('Заявка t-1 просрочена на 15 минут');
   });
 
   it('отсутствующий параметр превращается в пустую строку, а не в "{param}"', () => {
@@ -73,9 +75,9 @@ describe('renderTemplate', () => {
   });
 
   it('рендерит MATERIAL_LOW и GEOFENCE_EXIT', () => {
-    expect(
-      renderTemplate('MATERIAL_LOW', { materialName: 'Мыло', objectName: 'Офис' }).body,
-    ).toBe('Мыло на объекте Офис ниже порога');
+    expect(renderTemplate('MATERIAL_LOW', { materialName: 'Мыло', objectName: 'Офис' }).body).toBe(
+      'Мыло на объекте Офис ниже порога',
+    );
     expect(renderTemplate('GEOFENCE_EXIT', { employeeName: 'Иванов' }).body).toBe(
       'Иванов покинул территорию объекта',
     );
@@ -104,9 +106,7 @@ describe('renderTemplate', () => {
   it('рендерит CHAT_MESSAGE готовыми заголовком и текстом от chat-service', () => {
     // chat-service присылает title (название чата) и body (превью сообщения)
     // во внутренний эндпоинт — шаблон обязан подставить именно их.
-    expect(
-      renderTemplate('CHAT_MESSAGE', { title: 'Чат по заявке T-1', body: 'Привет' }),
-    ).toEqual({
+    expect(renderTemplate('CHAT_MESSAGE', { title: 'Чат по заявке T-1', body: 'Привет' })).toEqual({
       type: 'CHAT_MESSAGE',
       title: 'Чат по заявке T-1',
       body: 'Привет',
@@ -120,11 +120,8 @@ describe('isNotificationType', () => {
     expect(isNotificationType('EMERGENCY')).toBe(true);
   });
 
-  it.each([['emergency'], ['UNKNOWN'], [42], [undefined]])(
-    'отвергает значение %s',
-    (value) => {
-      // Настройки подписок и payload из брокера проходят через эту проверку.
-      expect(isNotificationType(value)).toBe(false);
-    },
-  );
+  it.each([['emergency'], ['UNKNOWN'], [42], [undefined]])('отвергает значение %s', (value) => {
+    // Настройки подписок и payload из брокера проходят через эту проверку.
+    expect(isNotificationType(value)).toBe(false);
+  });
 });

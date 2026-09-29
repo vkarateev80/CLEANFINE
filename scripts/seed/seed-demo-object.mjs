@@ -47,13 +47,13 @@ const OWNER = {
 const OBJECT = {
   name: 'БЦ «Ромашка»',
   address: 'г. Москва, ул. Ленинградская, 15',
-  lat: 55.7851,          // Москва, район Аэропорт (правдоподобные координаты)
+  lat: 55.7851, // Москва, район Аэропорт (правдоподобные координаты)
   lng: 37.5582,
-  type: 'Бизнес-центр',  // из COMMON_OBJECT_TYPES (подсказки админской формы)
+  type: 'Бизнес-центр', // из COMMON_OBJECT_TYPES (подсказки админской формы)
   totalArea: 12500.5,
   floorsCount: 9,
-  clientName: 'ООО «Ромашка»',   // ключ привязки портала — ровно как fullName владельца
-  clientContact: OWNER.email,    // тот же email владельца
+  clientName: 'ООО «Ромашка»', // ключ привязки портала — ровно как fullName владельца
+  clientContact: OWNER.email, // тот же email владельца
 };
 
 // PIN владельца для мобильного входа (у остальных демо-пользователей 1234–4567).
@@ -112,10 +112,19 @@ async function login(email, password) {
 
 /** Поиск пользователя по email: GET /api/users?search=<email>. */
 async function findUser(token, email) {
-  const { data } = await request('GET', `/api/users?search=${encodeURIComponent(email)}&take=100`, { token });
+  const { data } = await request('GET', `/api/users?search=${encodeURIComponent(email)}&take=100`, {
+    token,
+  });
   const items = Array.isArray(data?.items) ? data.items : [];
   const wanted = email.trim().toLowerCase();
-  return items.find((user) => String(user?.email ?? '').trim().toLowerCase() === wanted) ?? null;
+  return (
+    items.find(
+      (user) =>
+        String(user?.email ?? '')
+          .trim()
+          .toLowerCase() === wanted,
+    ) ?? null
+  );
 }
 
 /**
@@ -124,7 +133,11 @@ async function findUser(token, email) {
  */
 async function findObjectByName(token, name) {
   // take ≤ 100 (валидатор ListObjectsQueryDto).
-  const { data } = await request('GET', `/api/objects?search=${encodeURIComponent(name)}&take=100`, { token });
+  const { data } = await request(
+    'GET',
+    `/api/objects?search=${encodeURIComponent(name)}&take=100`,
+    { token },
+  );
   const items = Array.isArray(data?.items) ? data.items : [];
   return items.find((object) => object?.name === name) ?? null;
 }
@@ -138,10 +151,14 @@ async function main() {
   // --- 1) Пользователь-владелец -------------------------------------------------
   let owner = await findUser(adminToken, OWNER.email);
   if (owner) {
-    console.log(`пользователь уже есть: ${owner.email} (${owner.role}) — id=${owner.id}, не создаю`);
+    console.log(
+      `пользователь уже есть: ${owner.email} (${owner.role}) — id=${owner.id}, не создаю`,
+    );
     const sameName = owner.fullName === OWNER.fullName;
     if (!sameName) {
-      console.log(`  внимание: fullName в базе «${owner.fullName}», ожидалось «${OWNER.fullName}» — правлю`);
+      console.log(
+        `  внимание: fullName в базе «${owner.fullName}», ожидалось «${OWNER.fullName}» — правлю`,
+      );
       await request('PATCH', `/api/users/${owner.id}`, {
         token: adminToken,
         body: { fullName: OWNER.fullName },
@@ -159,14 +176,18 @@ async function main() {
       },
     });
     owner = data;
-    console.log(`создан пользователь: ${owner.email} (${owner.role}) — id=${owner.id}, fullName=«${owner.fullName}»`);
+    console.log(
+      `создан пользователь: ${owner.email} (${owner.role}) — id=${owner.id}, fullName=«${owner.fullName}»`,
+    );
   }
 
   // --- 2) Объект владельца, привязанный к аккаунту (ownerClientId) ---------------
   let object = await findObjectByName(adminToken, OBJECT.name);
   if (object) {
     if (object.ownerClientId === owner.id) {
-      console.log(`объект уже есть и привязан: «${object.name}» — id=${object.id}, ownerClientId=${owner.id}, не трогаю`);
+      console.log(
+        `объект уже есть и привязан: «${object.name}» — id=${object.id}, ownerClientId=${owner.id}, не трогаю`,
+      );
     } else {
       // Объект есть, но привязка не та (или её нет) — приводим к документированному
       // состоянию. Именно `ownerClientId` даёт владельцу доступ в портале.
@@ -175,7 +196,9 @@ async function main() {
         body: { ownerClientId: owner.id },
       });
       object = data;
-      console.log(`объект уже есть, привязка обновлена: «${object.name}» — id=${object.id}, ownerClientId=${owner.id}`);
+      console.log(
+        `объект уже есть, привязка обновлена: «${object.name}» — id=${object.id}, ownerClientId=${owner.id}`,
+      );
     }
   } else {
     const { data } = await request('POST', '/api/objects', {
@@ -221,16 +244,26 @@ async function main() {
   ).data;
   const items = Array.isArray(filtered?.items) ? filtered.items : [];
 
-  console.log(`GET /api/auth/me → role=${me?.role} fullName=«${me?.fullName}» email=${me?.email} id=${me.id}`);
-  console.log(`GET /api/objects?ownerClientId=${me.id} → total=${filtered?.total} items=${items.length}`);
+  console.log(
+    `GET /api/auth/me → role=${me?.role} fullName=«${me?.fullName}» email=${me?.email} id=${me.id}`,
+  );
+  console.log(
+    `GET /api/objects?ownerClientId=${me.id} → total=${filtered?.total} items=${items.length}`,
+  );
 
   // Портал открывает первый объект по возрастанию id.
-  const picked = [...items].sort((left, right) => String(left.id).localeCompare(String(right.id)))[0];
+  const picked = [...items].sort((left, right) =>
+    String(left.id).localeCompare(String(right.id)),
+  )[0];
   if (!picked) {
-    console.error('ОШИБКА: у владельца нет объектов с его ownerClientId (портал покажет «Объект не подключён»)');
+    console.error(
+      'ОШИБКА: у владельца нет объектов с его ownerClientId (портал покажет «Объект не подключён»)',
+    );
     process.exit(1);
   }
-  console.log(`портал откроет объект: «${picked.name}» (id=${picked.id}), ownerClientId=${picked.ownerClientId}`);
+  console.log(
+    `портал откроет объект: «${picked.name}» (id=${picked.id}), ownerClientId=${picked.ownerClientId}`,
+  );
 
   if (!items.every((item) => item.ownerClientId === me.id)) {
     console.error('ОШИБКА: фильтр ownerClientId вернул чужой объект');
@@ -239,12 +272,16 @@ async function main() {
   // Портал после выбора подтверждает объект запросом GET /api/objects/:id.
   const confirmed = (await request('GET', `/api/objects/${picked.id}`, { token: ownerToken })).data;
   if (String(confirmed?.ownerClientId) !== String(me.id)) {
-    console.error(`ОШИБКА: GET /api/objects/${picked.id} вернул ownerClientId=${confirmed?.ownerClientId}`);
+    console.error(
+      `ОШИБКА: GET /api/objects/${picked.id} вернул ownerClientId=${confirmed?.ownerClientId}`,
+    );
     process.exit(1);
   }
   console.log(`GET /api/objects/${picked.id} → ok (объект подтверждён для владельца)`);
 
-  console.log(`\nГотово. Портал: ${API_BASE_URL.replace(/:\d+$/, ':8091')}/ — вход ${OWNER.email} / ${OWNER.password}`);
+  console.log(
+    `\nГотово. Портал: ${API_BASE_URL.replace(/:\d+$/, ':8091')}/ — вход ${OWNER.email} / ${OWNER.password}`,
+  );
 }
 
 main().catch((error) => {

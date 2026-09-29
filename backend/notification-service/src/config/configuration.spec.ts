@@ -1,8 +1,4 @@
-import configuration, {
-  DEFAULT_PORT,
-  DEFAULT_RABBITMQ_URL,
-  positiveInt,
-} from './configuration';
+import configuration, { DEFAULT_PORT, DEFAULT_RABBITMQ_URL, positiveInt } from './configuration';
 
 describe('configuration (notification-service)', () => {
   const saved = { ...process.env };

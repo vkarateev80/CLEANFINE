@@ -65,7 +65,9 @@ export function MovementsPanel() {
   const items = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
   const material = (materials.data?.items ?? []).find((item) => item.id === materialId);
-  const objectNames = new Map((objects.data?.items ?? []).map((object) => [object.id, object.name]));
+  const objectNames = new Map(
+    (objects.data?.items ?? []).map((object) => [object.id, object.name]),
+  );
 
   const forbidden = apiStatus(query.error) === 403;
   const filtersActive = objectId !== '' || from !== '' || to !== '';
@@ -174,9 +176,7 @@ export function MovementsPanel() {
             disabled={materials.isLoading}
             onChange={(event) => write({ mvMaterialId: event.target.value || null })}
           >
-            <option value="">
-              {materials.isLoading ? 'Загрузка…' : 'Выберите материал'}
-            </option>
+            <option value="">{materials.isLoading ? 'Загрузка…' : 'Выберите материал'}</option>
             {(materials.data?.items ?? []).map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name} ({item.unit})

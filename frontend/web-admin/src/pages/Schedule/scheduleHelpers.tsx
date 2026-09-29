@@ -168,8 +168,7 @@ export function currentPosition(): Promise<Coords | { error: string }> {
   }
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
-      (position) =>
-        resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
       (error) => resolve({ error: geolocationErrorText(error) }),
       // Таймаут 10 с: у мобильных браузеров без разрешения ответа не приходит
       // вовсе, и без него кнопка «Отметить приход» зависла бы навсегда.

@@ -51,7 +51,10 @@ import { bodyText, loginAs, runTag } from '../../helpers/core';
 test.describe.configure({ timeout: 180_000 });
 
 /** Свой объект core на прогон: аварийные заявки убираются по нему. */
-const objectId = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+const objectId = `00000000-0000-4000-8000-${runTag()
+  .replace(/[^0-9a-f]/g, '')
+  .slice(-12)
+  .padStart(12, '0')}`;
 
 test.afterEach(() => {
   flushOperationsData();
@@ -67,7 +70,9 @@ test.afterAll(() => {
  * Свежий OPERATOR через auth-service: его участие гарантирует, что уведомление
  * EMERGENCY в этом тесте принадлежит именно нам, а не прошлым прогонам.
  */
-async function createFreshOperator(request: APIRequestContext): Promise<{ id: string; token: string }> {
+async function createFreshOperator(
+  request: APIRequestContext,
+): Promise<{ id: string; token: string }> {
   const admin = await loginAs(request, 'ADMIN');
   const email = `e2e-m38-sos-${runTag()}@cleaning-ops.com`;
   const password = 'e2e-m38-sos-pass';
@@ -238,7 +243,10 @@ test.describe('Оперативная вертикаль: RBAC и чужой о�
     request,
   }) => {
     // UUID v4 — иначе DTO отсекает запрос как 400 и проверка 404 ничего не значит.
-    const missing = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+    const missing = `00000000-0000-4000-8000-${runTag()
+      .replace(/[^0-9a-f]/g, '')
+      .slice(-12)
+      .padStart(12, '0')}`;
     const token = await loginAs(request, 'ADMIN');
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -267,7 +275,10 @@ test.describe('Оперативная вертикаль: RBAC и чужой о�
       assigneeId: operatorId,
       description: `E2E-M73 права на операцию ${runTag()}`,
     });
-    const operationId = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+    const operationId = `00000000-0000-4000-8000-${runTag()
+      .replace(/[^0-9a-f]/g, '')
+      .slice(-12)
+      .padStart(12, '0')}`;
     const path = `${TICKETS_URL}/api/tickets/${ticket.id}/operations/${operationId}/complete`;
 
     // 401 — до ролей и до ресурса: охрана аутентификации стоит первой.
@@ -293,7 +304,10 @@ test.describe('Оперативная вертикаль: RBAC и чужой о�
     // в РЕСУРС — несуществующая заявка даёт 404, а не 403. Так «403 у CLIENT» —
     // это отказ по роли, а не следствие несуществующего ресурса.
     const operator = await loginAs(request, 'OPERATOR');
-    const missing = `00000000-0000-4000-8000-${runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0')}`;
+    const missing = `00000000-0000-4000-8000-${runTag()
+      .replace(/[^0-9a-f]/g, '')
+      .slice(-12)
+      .padStart(12, '0')}`;
     const asOperator = await request.post(
       `${TICKETS_URL}/api/tickets/${missing}/operations/${operationId}/complete`,
       { headers: { Authorization: `Bearer ${operator}` }, data: { totalOperations: 1 } },

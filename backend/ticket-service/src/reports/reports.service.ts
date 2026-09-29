@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  ReportsRepository,
-  type TicketExecutionDailyRow,
-} from './reports.repository';
+import { ReportsRepository, type TicketExecutionDailyRow } from './reports.repository';
 
 /**
  * Отчёты ticket-service (М7.1, CQRS-read): выполнение заявок — количество, время

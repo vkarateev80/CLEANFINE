@@ -3,7 +3,6 @@ import { RabbitMqService } from './rabbitmq.service';
 
 jest.mock('amqplib', () => ({ connect: jest.fn() }));
 
- 
 import * as amqp from 'amqplib';
 
 const connectMock = amqp.connect as unknown as jest.Mock;

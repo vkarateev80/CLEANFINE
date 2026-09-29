@@ -120,7 +120,14 @@ export function TicketsPage() {
   }
 
   function resetFilters() {
-    updateParams({ status: null, type: null, priority: null, objectId: null, assigneeId: null, skip: null });
+    updateParams({
+      status: null,
+      type: null,
+      priority: null,
+      objectId: null,
+      assigneeId: null,
+      skip: null,
+    });
   }
 
   const showSkeleton = query.isLoading;
@@ -223,8 +230,8 @@ export function TicketsPage() {
       thClassName: 'w-[120px]',
       cell: (ticket) => (
         <span className="font-mono text-xs text-neutral-500">
-          {ticket._count.comments} 💬 · {ticket._count.operations} ✅ ·{' '}
-          {ticket._count.assignments} 👤
+          {ticket._count.comments} 💬 · {ticket._count.operations} ✅ · {ticket._count.assignments}{' '}
+          👤
         </span>
       ),
       card: 'field',

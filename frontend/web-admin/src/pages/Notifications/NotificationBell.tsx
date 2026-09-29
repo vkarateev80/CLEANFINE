@@ -2,9 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Spinner } from '../../components/ui';
 import { ROUTES } from '../../router/routes';
-import { notificationTypeIcon, notificationTypeLabel, ticketIdFromPayload } from '../../types/notifications';
+import {
+  notificationTypeIcon,
+  notificationTypeLabel,
+  ticketIdFromPayload,
+} from '../../types/notifications';
 import { formatDateTime } from '../Tickets/ticketHelpers';
-import { useMarkNotificationRead, useRecentNotifications, useUnreadNotifications } from './useNotifications';
+import {
+  useMarkNotificationRead,
+  useRecentNotifications,
+  useUnreadNotifications,
+} from './useNotifications';
 
 const RECENT_LIMIT = 5;
 
@@ -58,9 +66,7 @@ export function NotificationBell() {
       <button
         type="button"
         data-testid="notification-bell"
-        aria-label={
-          unreadCount > 0 ? `Уведомления: ${unreadCount} непрочитанных` : 'Уведомления'
-        }
+        aria-label={unreadCount > 0 ? `Уведомления: ${unreadCount} непрочитанных` : 'Уведомления'}
         aria-haspopup="menu"
         aria-expanded={open}
         className="relative inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-lg text-neutral-600 hover:bg-neutral-100 max-lg:min-h-[44px] max-lg:min-w-[44px]"

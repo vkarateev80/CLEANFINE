@@ -96,7 +96,8 @@ export function ReportPanel() {
       mono: true,
       card: 'field',
       cardLabel: 'Расход',
-      cell: (item) => formatQuantity(isTotal(item) ? (totals?.consumedQuantity ?? 0) : item.consumedQuantity),
+      cell: (item) =>
+        formatQuantity(isTotal(item) ? (totals?.consumedQuantity ?? 0) : item.consumedQuantity),
     },
     {
       key: 'operations',

@@ -76,7 +76,9 @@ describe('AuthController (HTTP)', () => {
 
     app = moduleRef.createNestApplication();
     // Тот же пайп, что в main.ts — регрессия «DTO через import type» ловится именно здесь.
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }),
+    );
     await app.init();
     jwt = moduleRef.get(JwtService);
   });

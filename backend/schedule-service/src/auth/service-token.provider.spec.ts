@@ -79,7 +79,11 @@ describe('ServiceTokenProvider', () => {
       jsonResponse(201, { accessToken: jwtWithExp(900) }),
     );
 
-    await Promise.all([provider.getAccessToken(), provider.getAccessToken(), provider.getAccessToken()]);
+    await Promise.all([
+      provider.getAccessToken(),
+      provider.getAccessToken(),
+      provider.getAccessToken(),
+    ]);
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
@@ -113,7 +117,9 @@ describe('ServiceTokenProvider', () => {
 
   it('мусорный токен не ломает логику (консервативный TTL)', async () => {
     const { provider } = build();
-    (global.fetch as jest.Mock).mockResolvedValue(jsonResponse(201, { accessToken: 'no-dots-here' }));
+    (global.fetch as jest.Mock).mockResolvedValue(
+      jsonResponse(201, { accessToken: 'no-dots-here' }),
+    );
 
     await expect(provider.getAccessToken()).resolves.toBe('no-dots-here');
     await provider.getAccessToken();

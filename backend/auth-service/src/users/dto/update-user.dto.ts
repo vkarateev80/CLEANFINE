@@ -27,7 +27,10 @@ export class UpdateUserDto {
   @IsIn(ROLE_VALUES, { message: 'Недопустимая роль' })
   role?: Role;
 
-  @ApiPropertyOptional({ description: 'Активен ли сотрудник (false — мягкая деактивация)', example: true })
+  @ApiPropertyOptional({
+    description: 'Активен ли сотрудник (false — мягкая деактивация)',
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

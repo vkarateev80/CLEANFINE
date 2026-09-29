@@ -45,9 +45,9 @@ describe('ticket-timings (М3.4/М3.5)', () => {
     it('assigned: повторное назначение не теряет время первого принятия', () => {
       const firstAccepted = new Date('2026-01-01T09:30:00.000Z');
 
-      expect(timingUpdatesFor('assigned', NOW, DURATIONS, { acceptedAt: firstAccepted }).acceptedAt).toBe(
-        firstAccepted,
-      );
+      expect(
+        timingUpdatesFor('assigned', NOW, DURATIONS, { acceptedAt: firstAccepted }).acceptedAt,
+      ).toBe(firstAccepted);
     });
 
     it('in_progress: фиксирует прибытие и дедлайн выполнения (60 мин)', () => {
@@ -65,10 +65,7 @@ describe('ticket-timings (М3.4/М3.5)', () => {
       ).toBe(firstArrival);
     });
 
-    it.each([
-      ['paused'],
-      ['rejected'],
-    ])('%s: тайминги не меняются', (status) => {
+    it.each([['paused'], ['rejected']])('%s: тайминги не меняются', (status) => {
       expect(timingUpdatesFor(status as never, NOW, DURATIONS)).toEqual({});
     });
 

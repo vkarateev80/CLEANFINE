@@ -32,8 +32,20 @@ import {
   TICKET_TYPE_LABELS,
   type TicketOperationCompletionEntity,
 } from '../../types/tickets';
-import { TicketPriorityBadge, TicketStatusBadge, deadlineHint, formatDateTime, shortId } from './ticketHelpers';
-import { useAssigneeOptions, useRoomTechCard, useTicket, useTicketRoom, userName } from './useTickets';
+import {
+  TicketPriorityBadge,
+  TicketStatusBadge,
+  deadlineHint,
+  formatDateTime,
+  shortId,
+} from './ticketHelpers';
+import {
+  useAssigneeOptions,
+  useRoomTechCard,
+  useTicket,
+  useTicketRoom,
+  userName,
+} from './useTickets';
 
 /**
  * Карточка заявки (М3.7): паспорт, история назначений, комментарии, операции
@@ -169,13 +181,16 @@ export function TicketDetailPage() {
   const allowedTransitions = ALLOWED_TRANSITIONS[ticket.status];
   const operationsCompleted = ticket.operations.length;
   const assigneeName = userName(assignees.data?.items, ticket.assigneeId);
-  const authorName = (authorId: string) => userName(assignees.data?.items, authorId) ?? shortId(authorId);
+  const authorName = (authorId: string) =>
+    userName(assignees.data?.items, authorId) ?? shortId(authorId);
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         breadcrumbs={
-          <Breadcrumbs items={[{ label: 'Заявки', to: ROUTES.tickets }, { label: shortId(ticket.id) }]} />
+          <Breadcrumbs
+            items={[{ label: 'Заявки', to: ROUTES.tickets }, { label: shortId(ticket.id) }]}
+          />
         }
         title={TICKET_TYPE_LABELS[ticket.type]}
         subtitle={
@@ -276,7 +291,10 @@ export function TicketDetailPage() {
             <div className="flex flex-wrap gap-4 border-t border-neutral-200 pt-3 text-xs text-neutral-500">
               <span>
                 Объект:{' '}
-                <Link to={ROUTES.object(ticket.objectId)} className="text-primary-600 hover:underline">
+                <Link
+                  to={ROUTES.object(ticket.objectId)}
+                  className="text-primary-600 hover:underline"
+                >
                   {shortId(ticket.objectId)}
                 </Link>
               </span>
@@ -297,8 +315,16 @@ export function TicketDetailPage() {
                   {ticket.lat.toFixed(6)}, {ticket.lng.toFixed(6)}
                 </span>
               )}
-              {ticket.escalatedAt && <span className="text-warning-600">эскалация {formatDateTime(ticket.escalatedAt)}</span>}
-              {ticket.overdueAt && <span className="text-danger-600">просрочена {formatDateTime(ticket.overdueAt)}</span>}
+              {ticket.escalatedAt && (
+                <span className="text-warning-600">
+                  эскалация {formatDateTime(ticket.escalatedAt)}
+                </span>
+              )}
+              {ticket.overdueAt && (
+                <span className="text-danger-600">
+                  просрочена {formatDateTime(ticket.overdueAt)}
+                </span>
+              )}
             </div>
           </Card>
 
@@ -377,7 +403,8 @@ export function TicketDetailPage() {
                         shortId(assignment.assigneeId)}
                     </span>
                     <span className="text-xs text-neutral-500">
-                      назначил {authorName(assignment.assignedBy)} · {formatDateTime(assignment.assignedAt)}
+                      назначил {authorName(assignment.assignedBy)} ·{' '}
+                      {formatDateTime(assignment.assignedAt)}
                     </span>
                   </li>
                 ))}
@@ -397,7 +424,9 @@ export function TicketDetailPage() {
                 {ticket.comments.map((item) => (
                   <li key={item.id} className="rounded-lg border border-neutral-200 px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-500">
-                      <span className="font-medium text-neutral-700">{authorName(item.authorId)}</span>
+                      <span className="font-medium text-neutral-700">
+                        {authorName(item.authorId)}
+                      </span>
                       <span>{formatDateTime(item.createdAt)}</span>
                     </div>
                     <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-800">{item.text}</p>
@@ -456,15 +485,21 @@ export function TicketDetailPage() {
               <h2 className="text-sm font-medium text-neutral-900" data-testid="ticket-operations">
                 Операции техкарты
               </h2>
-              <Badge tone={operationsTotal > 0 && operationsCompleted >= operationsTotal ? 'success' : 'neutral'}>
+              <Badge
+                tone={
+                  operationsTotal > 0 && operationsCompleted >= operationsTotal
+                    ? 'success'
+                    : 'neutral'
+                }
+              >
                 {operationsCompleted} / {operationsTotal || '—'}
               </Badge>
             </div>
 
             {ticket.roomId === null && (
               <p className="text-xs text-neutral-400">
-                У заявки не указано помещение — техкарта не определена. Отметьте операцию вручную
-                по id, если он известен исполнителю.
+                У заявки не указано помещение — техкарта не определена. Отметьте операцию вручную по
+                id, если он известен исполнителю.
               </p>
             )}
 
@@ -496,7 +531,9 @@ export function TicketDetailPage() {
                       className="flex flex-col gap-2 rounded-lg border border-neutral-200 px-3 py-2"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-neutral-900">{operation.name}</span>
+                        <span className="text-sm font-medium text-neutral-900">
+                          {operation.name}
+                        </span>
                         <span className="font-mono text-xs text-neutral-500">
                           {operation.estimatedTimeMin} мин
                         </span>
@@ -595,11 +632,7 @@ export function TicketDetailPage() {
             </div>
 
             <div className="flex flex-col gap-2 border-t border-neutral-200 pt-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(ROUTES.tickets)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.tickets)}>
                 ← К списку заявок
               </Button>
             </div>

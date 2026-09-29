@@ -95,10 +95,11 @@ describe('TechCardsController (техкарты)', () => {
   it('пагинация list объявлена с дефолтами 0/50 и ParseIntPipe', () => {
     // Клиент может не передать skip/take — контракт обязан подставить 0 и 50,
     // а строки из query превратить в числа (иначе Prisma получит "50").
-    const argsMeta = Reflect.getMetadata(ROUTE_ARGS_METADATA, TechCardsController, 'list') as Record<
-      string,
-      { index: number; pipes: unknown[] }
-    >;
+    const argsMeta = Reflect.getMetadata(
+      ROUTE_ARGS_METADATA,
+      TechCardsController,
+      'list',
+    ) as Record<string, { index: number; pipes: unknown[] }>;
     const pipesByIndex = new Map(
       Object.values(argsMeta).map((arg) => [arg.index, arg.pipes] as const),
     );
@@ -153,7 +154,9 @@ describe('TechOperationsController (операции техкарты)', () => {
   });
 
   it('роуты и RBAC: операции правят ADMIN и SUPERVISOR', () => {
-    expect(Reflect.getMetadata(PATH_METADATA, TechOperationsController)).toBe('api/tech-operations');
+    expect(Reflect.getMetadata(PATH_METADATA, TechOperationsController)).toBe(
+      'api/tech-operations',
+    );
     expect(Reflect.getMetadata(METHOD_METADATA, controller.update)).toBe(RequestMethod.PATCH);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.remove)).toBe(RequestMethod.DELETE);
     expect(Reflect.getMetadata(ROLES_KEY, controller.update)).toEqual(['ADMIN', 'SUPERVISOR']);

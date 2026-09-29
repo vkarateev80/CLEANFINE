@@ -70,8 +70,8 @@ describe('FilesService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma.storedFile.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) =>
-      storedRow({ ...data, id: 'f1' }),
+    prisma.storedFile.create.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) => storedRow({ ...data, id: 'f1' }),
     );
     service = new FilesService(
       prisma as unknown as PrismaService,
@@ -95,7 +95,9 @@ describe('FilesService', () => {
 
     it('отклоняет недопустимый MIME для категории', async () => {
       const file = multerFile(Buffer.from('txt'), 'text/plain', 'doc.txt');
-      await expect(service.upload(file, { kind: 'photo' })).rejects.toThrow(/Недопустимый тип файла/);
+      await expect(service.upload(file, { kind: 'photo' })).rejects.toThrow(
+        /Недопустимый тип файла/,
+      );
     });
 
     it('отклоняет файл больше 10 МБ', async () => {
@@ -111,9 +113,9 @@ describe('FilesService', () => {
 
     it('отклоняет некорректный takenAt', async () => {
       const file = multerFile(await makePng(1600, 900), 'image/png', 'ok.png');
-      await expect(
-        service.upload(file, { kind: 'photo', takenAt: 'не-дата' }),
-      ).rejects.toThrow(/ISO 8601/);
+      await expect(service.upload(file, { kind: 'photo', takenAt: 'не-дата' })).rejects.toThrow(
+        /ISO 8601/,
+      );
     });
   });
 

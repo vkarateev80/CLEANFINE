@@ -192,7 +192,13 @@ interface ConsumptionFixture {
  */
 async function setupConsumptionFixture(
   request: APIRequestContext,
-  options: { materialName: string; stock: number; consumption: number; threshold: number; cost: number },
+  options: {
+    materialName: string;
+    stock: number;
+    consumption: number;
+    threshold: number;
+    cost: number;
+  },
 ): Promise<ConsumptionFixture> {
   const operator = await createFreshOperator(request);
 
@@ -299,7 +305,10 @@ async function consumeFixture(
 
 /** Случайный UUID v4: DTO стенда требуют именно v4, иначе 400 вместо 404. */
 function randomUuid(): string {
-  const hex = runTag().replace(/[^0-9a-f]/g, '').slice(-12).padStart(12, '0');
+  const hex = runTag()
+    .replace(/[^0-9a-f]/g, '')
+    .slice(-12)
+    .padStart(12, '0');
   return `00000000-0000-4000-8000-${hex}`;
 }
 
@@ -408,7 +417,9 @@ test.describe('Schedule: генерация смен и плановых зая�
 
     const first = await generateForDate(request, date);
     expect(first.date).toBe(date);
-    expect(first.ticketServiceUnavailable, 'ticket-service доступен — проход не прерван').toBe(false);
+    expect(first.ticketServiceUnavailable, 'ticket-service доступен — проход не прерван').toBe(
+      false,
+    );
     expect(first.shiftsCreated, 'смены созданы').toBeGreaterThanOrEqual(1);
     expect(first.ticketsCreated, 'плановые заявки созданы').toBeGreaterThanOrEqual(1);
     expect(first.errors.join(' '), 'ошибок по нашим графикам нет').not.toContain(schedule.id);
@@ -543,7 +554,9 @@ test.describe('Schedule: check-in и check-out', () => {
     expect(await errorMessage(outside), 'текст ошибки зафиксирован заданием').toContain(
       'Вы находитесь вне зоны объекта',
     );
-    const stillPlanned = (await (await getScheduleEvent(request, event.id)).json()) as ScheduleEventView;
+    const stillPlanned = (await (
+      await getScheduleEvent(request, event.id)
+    ).json()) as ScheduleEventView;
     expect(stillPlanned.status, 'после 403 смена осталась PLANNED').toBe('PLANNED');
 
     // Геозона действительно наша: gps-service подтверждает вхождение в неё.
@@ -703,7 +716,9 @@ test.describe('Schedule: check-in и check-out', () => {
 
     // Повторный проход не публикует событие второй раз: смена уже не PLANNED.
     const secondScan = await checkMissed(request, date);
-    expect(secondScan.missed.eventIds, 'повтор не находит нашу смену снова').not.toContain(event.id);
+    expect(secondScan.missed.eventIds, 'повтор не находит нашу смену снова').not.toContain(
+      event.id,
+    );
   });
 });
 
@@ -842,18 +857,20 @@ test.describe('Materials: справочник', () => {
 
     // Поиск серверный и ищет и по названию, и по поставщику.
     const byName = await listMaterials(request, { search: name });
-    expect(byName.items.map((item) => item.id), 'поиск по названию находит материал').toContain(
-      material.id,
-    );
+    expect(
+      byName.items.map((item) => item.id),
+      'поиск по названию находит материал',
+    ).toContain(material.id);
 
     const supplierMaterial = await trackMaterial(request, {
       name: `E2E-M47 поставщик ${runTag()}`,
       supplier: `ООО «Уникальный ${runTag()}»`,
     });
     const bySupplier = await listMaterials(request, { search: 'Уникальный' });
-    expect(bySupplier.items.map((item) => item.id), 'поиск по поставщику').toContain(
-      supplierMaterial.id,
-    );
+    expect(
+      bySupplier.items.map((item) => item.id),
+      'поиск по поставщику',
+    ).toContain(supplierMaterial.id);
 
     const noMatch = await listMaterials(request, { search: `нет-такого-${runTag()}` });
     expect(noMatch.items, 'по несуществующему запросу — пусто').toHaveLength(0);
@@ -1003,18 +1020,30 @@ test.describe('Materials: движения и остатки', () => {
     });
     await expectStatus(tooMuch, 400, 'расход больше остатка');
     expect(await errorMessage(tooMuch)).toContain('Недостаточно материала');
-    expect((await findStock(request, material.id, objectA))?.quantity, 'остаток не изменился').toBe(70);
+    expect((await findStock(request, material.id, objectA))?.quantity, 'остаток не изменился').toBe(
+      70,
+    );
 
     // Количество 0 не является движением.
     await expectStatus(
-      await postMovement(request, { materialId: material.id, objectId: objectA, type: 'OUT', quantity: 0 }),
+      await postMovement(request, {
+        materialId: material.id,
+        objectId: objectA,
+        type: 'OUT',
+        quantity: 0,
+      }),
       400,
       'нулевое количество',
     );
 
     // TRANSFER: без получателя и с получателем = источник — 400 (доменные проверки).
     await expectStatus(
-      await postMovement(request, { materialId: material.id, objectId: objectA, type: 'TRANSFER', quantity: 5 }),
+      await postMovement(request, {
+        materialId: material.id,
+        objectId: objectA,
+        type: 'TRANSFER',
+        quantity: 5,
+      }),
       400,
       'TRANSFER без targetObjectId',
     );
@@ -1074,7 +1103,12 @@ test.describe('Materials: движения и остатки', () => {
 
     await createMovement(request, { materialId: material.id, objectId, type: 'IN', quantity: 10 });
     await createMovement(request, { materialId: material.id, objectId, type: 'OUT', quantity: 3 });
-    await createMovement(request, { materialId: material.id, objectId, type: 'WRITE_OFF', quantity: 2 });
+    await createMovement(request, {
+      materialId: material.id,
+      objectId,
+      type: 'WRITE_OFF',
+      quantity: 2,
+    });
     // Другой объект: приход, затем расход — этот расход не должен попасть в отчёт первого объекта.
     await createMovement(request, {
       materialId: material.id,
@@ -1133,9 +1167,24 @@ test.describe('Materials: движения и остатки', () => {
     const objectB = randomUuid();
     const material = await trackMaterial(request, { name: `E2E-M47 история ${runTag()}` });
 
-    await createMovement(request, { materialId: material.id, objectId: objectA, type: 'IN', quantity: 5 });
-    await createMovement(request, { materialId: material.id, objectId: objectB, type: 'IN', quantity: 7 });
-    await createMovement(request, { materialId: material.id, objectId: objectA, type: 'OUT', quantity: 2 });
+    await createMovement(request, {
+      materialId: material.id,
+      objectId: objectA,
+      type: 'IN',
+      quantity: 5,
+    });
+    await createMovement(request, {
+      materialId: material.id,
+      objectId: objectB,
+      type: 'IN',
+      quantity: 7,
+    });
+    await createMovement(request, {
+      materialId: material.id,
+      objectId: objectA,
+      type: 'OUT',
+      quantity: 2,
+    });
 
     const all = await listMovements(request, material.id);
     expect(all.total, 'все движения материала').toBe(3);
@@ -1199,7 +1248,11 @@ test.describe('Materials: сквозное автосписание', () => {
     // рассылает всем владельцам активных устройств — своё устройство даёт детерминированного
     // получателя, не зависящего от устройств, оставленных другими наборами.
     const device = deviceToken('m47');
-    await trackDevice(request, { token: device, platform: 'android' }, { token: fixture.operatorToken });
+    await trackDevice(
+      request,
+      { token: device, platform: 'android' },
+      { token: fixture.operatorToken },
+    );
 
     const completion = await completeTicketOperation(
       request,
@@ -1260,7 +1313,9 @@ test.describe('Materials: сквозное автосписание', () => {
     await expectStatus(duplicate, 201, 'повторное завершение операции');
     const duplicateResult = (await duplicate.json()) as CompleteOperationResult;
     expect(duplicateResult.alreadyCompleted, 'повтор идемпотентен').toBe(true);
-    expect(duplicateResult.completedAt, 'время завершения не перезаписано').toBe(result.completedAt);
+    expect(duplicateResult.completedAt, 'время завершения не перезаписано').toBe(
+      result.completedAt,
+    );
 
     const afterDuplicate = await listMovements(request, fixture.material.id, {
       objectId: fixture.objectId,
@@ -1351,7 +1406,10 @@ test.describe('Materials: сквозное автосписание', () => {
     expect(afterSecond.stocks, 'остаток B не удалён').toBe(1);
     expect(afterSecond.movements, 'движения B не тронуты').toBe(2);
     expect(afterSecond.consumed, 'строка идемпотентности B не тронута').toBe(1);
-    expect(await findStock(request, second.material.id, second.objectId), 'B доступен по API').not.toBeNull();
+    expect(
+      await findStock(request, second.material.id, second.objectId),
+      'B доступен по API',
+    ).not.toBeNull();
     await expectStatus(await getMaterial(request, first.material.id), 404, 'удалённый материал A');
   });
 });

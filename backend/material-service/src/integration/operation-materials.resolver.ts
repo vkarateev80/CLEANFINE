@@ -36,10 +36,7 @@ export class ApiOperationMaterialsResolver implements OperationMaterialsResolver
     private readonly core: CoreMaterialsClient,
   ) {}
 
-  async getOperationMaterials(
-    ticketId: string,
-    operationId: string,
-  ): Promise<OperationMaterials> {
+  async getOperationMaterials(ticketId: string, operationId: string): Promise<OperationMaterials> {
     const ticket = await this.tickets.getTicket(ticketId);
     if (!ticket) {
       this.logger.warn(`Заявка ${ticketId} недоступна — автосписание пропущено`);

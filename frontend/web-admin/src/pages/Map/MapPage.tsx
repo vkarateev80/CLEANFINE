@@ -34,7 +34,13 @@ import {
   type NearbyEmployee,
   type TrackPointEntity,
 } from '../../types/gps';
-import { useEmployeeNames, useGeofences, useNearbyEmployees, useObjectOptions, useTrackHistory } from './useMap';
+import {
+  useEmployeeNames,
+  useGeofences,
+  useNearbyEmployees,
+  useObjectOptions,
+  useTrackHistory,
+} from './useMap';
 
 /**
  * Экран «Карта» (М3.7): геозоны объекта и ближние сотрудники на Mapbox GL.
@@ -75,8 +81,14 @@ export function MapPage() {
     return map;
   }, [employees.data]);
 
-  const employeesList = useMemo<NearbyEmployee[]>(() => nearby.data?.employees ?? [], [nearby.data]);
-  const geofencesList = useMemo<GeofenceEntity[]>(() => geofences.data?.geofences ?? [], [geofences.data]);
+  const employeesList = useMemo<NearbyEmployee[]>(
+    () => nearby.data?.employees ?? [],
+    [nearby.data],
+  );
+  const geofencesList = useMemo<GeofenceEntity[]>(
+    () => geofences.data?.geofences ?? [],
+    [geofences.data],
+  );
 
   const selectedObject = useMemo(
     () => (objects.data?.items ?? []).find((object) => object.id === objectId) ?? null,
@@ -187,8 +199,7 @@ export function MapPage() {
       mono: true,
       card: 'field',
       cardLabel: 'Радиус',
-      cell: (geofence) =>
-        geofence.radiusMeters === null ? '—' : `${geofence.radiusMeters} м`,
+      cell: (geofence) => (geofence.radiusMeters === null ? '—' : `${geofence.radiusMeters} м`),
     },
     {
       key: 'boundary',
@@ -252,8 +263,7 @@ export function MapPage() {
       mono: true,
       card: 'field',
       cardLabel: 'Координаты',
-      cell: (employee) =>
-        `${formatCoordinate(employee.lat)}, ${formatCoordinate(employee.lng)}`,
+      cell: (employee) => `${formatCoordinate(employee.lat)}, ${formatCoordinate(employee.lng)}`,
     },
     {
       key: 'timestamp',
@@ -271,8 +281,7 @@ export function MapPage() {
       mono: true,
       card: 'field',
       cardLabel: 'Заряд',
-      cell: (employee) =>
-        employee.batteryLevel === null ? '—' : `${employee.batteryLevel} %`,
+      cell: (employee) => (employee.batteryLevel === null ? '—' : `${employee.batteryLevel} %`),
     },
     {
       key: 'track',
@@ -479,9 +488,7 @@ export function MapPage() {
           loading={geofences.isLoading}
           skeletonRows={3}
           empty={
-            selectedObject
-              ? 'У объекта нет геозон — создайте её через API геозон'
-              : 'Геозон нет'
+            selectedObject ? 'У объекта нет геозон — создайте её через API геозон' : 'Геозон нет'
           }
         />
       </Card>
@@ -530,7 +537,9 @@ export function MapPage() {
                     : ''}
             </span>
           </div>
-          {track.isError && <ErrorBanner error={track.error} onRetry={() => track.mutate(trackUserId)} />}
+          {track.isError && (
+            <ErrorBanner error={track.error} onRetry={() => track.mutate(trackUserId)} />
+          )}
           {track.data && track.data.count === 0 && (
             <p className="text-sm text-neutral-500">За последние 24 часа точек нет.</p>
           )}
@@ -544,7 +553,8 @@ export function MapPage() {
           {track.data && track.data.count > 0 && (
             <p className="text-xs text-neutral-400">
               Период: {track.data.from ? formatDateTime(track.data.from) : '—'} …{' '}
-              {track.data.to ? formatDateTime(track.data.to) : '—'}. Радиус поиска не влияет на трек.
+              {track.data.to ? formatDateTime(track.data.to) : '—'}. Радиус поиска не влияет на
+              трек.
             </p>
           )}
         </Card>

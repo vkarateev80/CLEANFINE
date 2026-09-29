@@ -143,7 +143,12 @@ export class GpsService {
       throw new BadRequestException(`За один запрос не более ${maxBatchSize} точек`);
     }
     // Треки пишутся только за себя: подмена userId — прерогатива ADMIN/SUPERVISOR.
-    if (dto.userId && dto.userId !== user.id && user.role !== 'ADMIN' && user.role !== 'SUPERVISOR') {
+    if (
+      dto.userId &&
+      dto.userId !== user.id &&
+      user.role !== 'ADMIN' &&
+      user.role !== 'SUPERVISOR'
+    ) {
       throw new ForbiddenException('Можно отправлять треки только за себя');
     }
 
@@ -161,11 +166,17 @@ export class GpsService {
       .sort((left, right) => left.timestamp.getTime() - right.timestamp.getTime());
 
     // Состояние «до batch» читаем до вставки: только так можно отличить выход из геозоны.
-    const previousGeofences = await this.geofences.findContainingBefore(userId, points[0].timestamp);
+    const previousGeofences = await this.geofences.findContainingBefore(
+      userId,
+      points[0].timestamp,
+    );
     const accepted = await this.insertTracks(userId, points);
 
     const lastPoint = points[points.length - 1];
-    const currentGeofences = await this.geofences.findContainingGeofences(lastPoint.lat, lastPoint.lng);
+    const currentGeofences = await this.geofences.findContainingGeofences(
+      lastPoint.lat,
+      lastPoint.lng,
+    );
     const insideIds = new Set(currentGeofences.map((geofence) => geofence.id));
     const exited = previousGeofences.filter((geofence) => !insideIds.has(geofence.id));
 
@@ -201,7 +212,8 @@ export class GpsService {
 
   /** История перемещений сотрудника с фильтром по времени (М3.2). */
   async history(query: TrackHistoryQueryDto): Promise<TrackHistoryResult> {
-    const limit = query.limit ?? this.config.get<number>('gps.historyLimit') ?? DEFAULT_HISTORY_LIMIT;
+    const limit =
+      query.limit ?? this.config.get<number>('gps.historyLimit') ?? DEFAULT_HISTORY_LIMIT;
 
     const conditions: Prisma.Sql[] = [Prisma.sql`user_id = ${query.userId}::uuid`];
     if (query.from) {

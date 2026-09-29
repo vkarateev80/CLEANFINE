@@ -47,7 +47,9 @@ export function Th({
   className?: string;
 }) {
   const alignment = { left: 'text-left', right: 'text-right', center: 'text-center' }[align];
-  return <th className={['px-4 py-3 font-medium', alignment, className ?? ''].join(' ')}>{children}</th>;
+  return (
+    <th className={['px-4 py-3 font-medium', alignment, className ?? ''].join(' ')}>{children}</th>
+  );
 }
 
 export function TBody({ children }: { children: ReactNode }) {

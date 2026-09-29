@@ -86,11 +86,14 @@ export function PlanUploadModal({
     >
       <div className="flex flex-col gap-4">
         {Boolean(error) && <ErrorBanner error={error} />}
-        {localError && <ErrorBanner error={new Error(localError)} onRetry={() => setLocalError(null)} />}
+        {localError && (
+          <ErrorBanner error={new Error(localError)} onRetry={() => setLocalError(null)} />
+        )}
 
         {roomsWithCoords > 0 && (
           <SoftWarning>
-            Координаты {roomsWithCoords} помещений могут перестать соответствовать новому изображению.
+            Координаты {roomsWithCoords} помещений могут перестать соответствовать новому
+            изображению.
           </SoftWarning>
         )}
 

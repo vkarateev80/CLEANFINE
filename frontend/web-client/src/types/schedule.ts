@@ -1,7 +1,4 @@
-import type {
-  ScheduleEventStatus,
-  ScheduleFrequency,
-} from '@cleaning-ops/shared/types/schedule';
+import type { ScheduleEventStatus, ScheduleFrequency } from '@cleaning-ops/shared/types/schedule';
 
 /**
  * Типы ответов schedule-service (М4.6). Поля повторяют

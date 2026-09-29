@@ -478,10 +478,14 @@ test('уборка: материалы, движения, техкарты и з
   await deleteTechCard(request, card.id);
   await deleteObject(request, object.id);
 
-  expect(
-    planningCounts({ materialIds: [material.id] }),
-    'материал и его движения сняты',
-  ).toEqual({ schedules: 0, events: 0, materials: 0, stocks: 0, movements: 0, consumed: 0 });
+  expect(planningCounts({ materialIds: [material.id] }), 'материал и его движения сняты').toEqual({
+    schedules: 0,
+    events: 0,
+    materials: 0,
+    stocks: 0,
+    movements: 0,
+    consumed: 0,
+  });
   expect(
     (await core(request, 'get', `/api/tech-cards/${card.id}`)).status(),
     'техкарта прогона удалена',

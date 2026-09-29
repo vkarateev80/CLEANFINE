@@ -28,10 +28,17 @@ export class CreateFloorDto {
 
 export class UpdateFloorDto {
   @ApiPropertyOptional({ example: 2 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(-5) @Max(200) number?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(-5)
+  @Max(200)
+  number?: number;
 
   @ApiPropertyOptional({ example: 'Второй этаж' })
-  @IsOptional() @IsString() name?: string;
+  @IsOptional()
+  @IsString()
+  name?: string;
 
   /**
    * Масштаб плана. `null` (и историческое `''` от старых клиентов) — очистить;
@@ -67,9 +74,25 @@ export class AttachPlanDto {
   @Min(0.000001)
   planScale?: number;
 
-  @ApiPropertyOptional({ description: 'Ширина плана в пикселях (реальный размер изображения)', example: 1200 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(INT4_MAX) planWidth?: number;
+  @ApiPropertyOptional({
+    description: 'Ширина плана в пикселях (реальный размер изображения)',
+    example: 1200,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(INT4_MAX)
+  planWidth?: number;
 
-  @ApiPropertyOptional({ description: 'Высота плана в пикселях (реальный размер изображения)', example: 800 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(INT4_MAX) planHeight?: number;
+  @ApiPropertyOptional({
+    description: 'Высота плана в пикселях (реальный размер изображения)',
+    example: 800,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(INT4_MAX)
+  planHeight?: number;
 }

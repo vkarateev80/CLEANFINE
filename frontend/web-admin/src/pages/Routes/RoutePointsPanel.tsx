@@ -81,7 +81,10 @@ export function RoutePointsPanel({
 
   return (
     <section
-      className={['flex min-h-0 flex-col rounded-xl border border-neutral-200 bg-white shadow-sm', className ?? ''].join(' ')}
+      className={[
+        'flex min-h-0 flex-col rounded-xl border border-neutral-200 bg-white shadow-sm',
+        className ?? '',
+      ].join(' ')}
     >
       <header className="flex flex-col gap-2 border-b border-neutral-200 px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -121,7 +124,12 @@ export function RoutePointsPanel({
         )}
       </header>
 
-      <div className={['min-h-0 flex-1 overflow-y-auto', saving ? 'pointer-events-none opacity-60' : ''].join(' ')}>
+      <div
+        className={[
+          'min-h-0 flex-1 overflow-y-auto',
+          saving ? 'pointer-events-none opacity-60' : '',
+        ].join(' ')}
+      >
         {points.length === 0 ? (
           <div className="p-4">
             <EmptyState
@@ -179,7 +187,11 @@ export function RoutePointsPanel({
                     >
                       <div className="flex items-center gap-1 truncate text-sm font-medium text-neutral-900">
                         {point.room.techCardId === null && (
-                          <span className="text-warning-500" title="Помещение без техкарты" aria-hidden="true">
+                          <span
+                            className="text-warning-500"
+                            title="Помещение без техкарты"
+                            aria-hidden="true"
+                          >
                             ⚠
                           </span>
                         )}
@@ -189,7 +201,9 @@ export function RoutePointsPanel({
                         {zoneLabel(point.room)}
                         {point.room.techCardId === null && ' · без техкарты'}
                       </div>
-                      {invalidTime && <div className="text-xs text-danger-600">Не удалось сохранить время</div>}
+                      {invalidTime && (
+                        <div className="text-xs text-danger-600">Не удалось сохранить время</div>
+                      )}
                     </button>
 
                     {/* Время и удаление — одной строкой внутри карточки: на
@@ -197,7 +211,9 @@ export function RoutePointsPanel({
                         прежний компактный `w-20`. */}
                     <div className="flex items-center gap-2 max-md:w-full max-md:justify-between">
                       <label className="flex shrink-0 items-center gap-1 max-md:flex-1">
-                        <span className="sr-only">Нормативное время, мин, для {point.room.name}</span>
+                        <span className="sr-only">
+                          Нормативное время, мин, для {point.room.name}
+                        </span>
                         <input
                           type="number"
                           min={1}
@@ -289,8 +305,8 @@ export function RoutePointsPanel({
         {dirty && (
           <div className="text-xs text-neutral-400">
             Порядок и время точек уходят на сервер одним сохранением:{' '}
-            <span className="font-mono">PATCH /routes/:id/reorder</span> с полным списком id, затем —
-            время изменённых точек.
+            <span className="font-mono">PATCH /routes/:id/reorder</span> с полным списком id, затем
+            — время изменённых точек.
           </div>
         )}
       </footer>

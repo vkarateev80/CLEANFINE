@@ -70,7 +70,11 @@ describe('StorageService', () => {
       clientMock.bucketExists.mockResolvedValue(true);
       const service = build();
 
-      await Promise.all([service.ensureBuckets(), service.ensureBuckets(), service.ensureBuckets()]);
+      await Promise.all([
+        service.ensureBuckets(),
+        service.ensureBuckets(),
+        service.ensureBuckets(),
+      ]);
 
       // 4 бакета, а не 12: результат кешируется промисом
       expect(clientMock.bucketExists).toHaveBeenCalledTimes(ALL_BUCKETS.length);

@@ -48,10 +48,7 @@ export interface TicketsFeed {
   refetch: () => void;
 }
 
-export function useTicketsFeed(
-  objectId: string | undefined,
-  filter: TicketFilterKey,
-): TicketsFeed {
+export function useTicketsFeed(objectId: string | undefined, filter: TicketFilterKey): TicketsFeed {
   // `take` растёт при догрузке: страницы не склеиваются вручную, а запрашиваются
   // заново с увеличенным размером. Это осознанный компромисс: `skip` для набора
   // из нескольких статусов пришлось бы двигать синхронно по каждому запросу, а
@@ -101,7 +98,8 @@ export function useTicketsFeed(
     items,
     total,
     isLoading: results.some((result) => result.isLoading),
-    isFetchingMore: results.some((result) => result.isFetching) && !results.some((r) => r.isLoading),
+    isFetchingMore:
+      results.some((result) => result.isFetching) && !results.some((r) => r.isLoading),
     isError: results.some((result) => result.isError),
     error: results.find((result) => result.isError)?.error ?? null,
     hasMore: items.length < total,

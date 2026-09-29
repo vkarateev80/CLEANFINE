@@ -8,7 +8,11 @@ import type {
   RegisterDeviceDto,
   UpdateSettingsDto,
 } from './dto/notifications.dto';
-import { renderTemplate, type RenderedNotification, type TemplateParams } from './notification-templates';
+import {
+  renderTemplate,
+  type RenderedNotification,
+  type TemplateParams,
+} from './notification-templates';
 import { NOTIFICATION_TYPES, type NotificationType } from './notification-types';
 import { PUSH_SENDER, toPushData, type PushSender } from './push/push-sender';
 
@@ -277,9 +281,7 @@ export class NotificationsService {
       });
       if (result.invalidTokens.length > 0) {
         const count = await this.deactivateTokens(result.invalidTokens);
-        this.logger.warn(
-          `Невалидные токены user=${userId}: деактивировано устройств ${count}`,
-        );
+        this.logger.warn(`Невалидные токены user=${userId}: деактивировано устройств ${count}`);
       }
     } catch (error) {
       // Падение push-провайдера не должно отменять in-app уведомление.

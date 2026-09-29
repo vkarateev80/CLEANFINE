@@ -86,7 +86,12 @@ export class UsersService {
         where: {
           AND: [
             { id: { not: id } },
-            { OR: [...(dto.email ? [{ email: dto.email.toLowerCase() }] : []), ...(dto.phone ? [{ phone: dto.phone }] : [])] },
+            {
+              OR: [
+                ...(dto.email ? [{ email: dto.email.toLowerCase() }] : []),
+                ...(dto.phone ? [{ phone: dto.phone }] : []),
+              ],
+            },
           ],
         },
       });

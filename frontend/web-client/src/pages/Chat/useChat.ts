@@ -156,9 +156,12 @@ export function useChatHistory(chatId: string | null) {
 
   // Догруженные вверх страницы: сервер отдаёт их от старых к новым, поэтому
   // список склеивается «старые + первая страница», без переворачивания.
-  const [older, setOlder] = useState<{ chatId: string | null; items: MessageView[]; cursor: string | null; hasMore: boolean }>(
-    { chatId: null, items: [], cursor: null, hasMore: false },
-  );
+  const [older, setOlder] = useState<{
+    chatId: string | null;
+    items: MessageView[];
+    cursor: string | null;
+    hasMore: boolean;
+  }>({ chatId: null, items: [], cursor: null, hasMore: false });
 
   // Смена чата сбрасывает накопленную историю: «хвост» другой переписки в ленте
   // выглядел бы как чужие сообщения.

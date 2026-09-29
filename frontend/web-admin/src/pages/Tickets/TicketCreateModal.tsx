@@ -48,7 +48,12 @@ const INITIAL: FormState = {
 type Errors = Partial<Record<keyof FormState, string>>;
 
 /** Число необязательно, но если введено — должно быть в диапазоне DTO. */
-function validateCoordinate(raw: string, min: number, max: number, label: string): string | undefined {
+function validateCoordinate(
+  raw: string,
+  min: number,
+  max: number,
+  label: string,
+): string | undefined {
   const trimmed = raw.trim();
   if (trimmed === '') return undefined;
   const value = Number(trimmed);
@@ -73,7 +78,10 @@ export function TicketCreateModal({
   const objects = useObjectOptions();
   const assignees = useAssigneeOptions();
 
-  const [values, setValues] = useState<FormState>(() => ({ ...INITIAL, objectId: defaultObjectId ?? '' }));
+  const [values, setValues] = useState<FormState>(() => ({
+    ...INITIAL,
+    objectId: defaultObjectId ?? '',
+  }));
   const [errors, setErrors] = useState<Errors>({});
 
   const rooms = useObjectRooms(values.objectId === '' ? null : values.objectId);

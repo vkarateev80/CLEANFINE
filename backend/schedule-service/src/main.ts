@@ -33,16 +33,15 @@ async function bootstrap(): Promise<void> {
   // Порт фиксирован в .env (SCHEDULE_SERVICE_PORT=3008); PORT — общий фолбэк.
   const port = Number(process.env.SCHEDULE_SERVICE_PORT ?? process.env.PORT) || 3008;
   await app.listen(port);
-   
+
   console.log(`schedule-service запущен: http://localhost:${port}/api`);
   if (process.env.NODE_ENV !== 'production') {
-     
     console.log(`Swagger UI: http://localhost:${port}/api/docs`);
   }
 
   // ConfigService здесь, чтобы конфигурация точно была провалидирована на старте.
   const schedule = app.get(ConfigService).get('schedule');
-   
+
   console.log(
     `Проходы: неявки/авто check-out каждые ${schedule?.missedCheckinIntervalMs} мс, ` +
       `авто check-out через ${schedule?.autoCheckoutMinutes} мин, ` +

@@ -5,9 +5,7 @@ import { AuthUser, RolesGuard } from './roles.guard';
 
 function createReflector(values: { roles?: string[]; isPublic?: boolean }): Reflector {
   return {
-    getAllAndOverride: jest.fn((key: string) =>
-      key === 'roles' ? values.roles : values.isPublic,
-    ),
+    getAllAndOverride: jest.fn((key: string) => (key === 'roles' ? values.roles : values.isPublic)),
   } as unknown as Reflector;
 }
 
@@ -37,9 +35,9 @@ describe('RolesGuard (RBAC)', () => {
     expect(guard.canActivate(createContext(admin))).toBe(true);
 
     const operatorGuard = new RolesGuard(createReflector({ roles: ['ADMIN', 'SUPERVISOR'] }));
-    expect(() =>
-      operatorGuard.canActivate(createContext({ ...admin, role: 'OPERATOR' })),
-    ).toThrow(ForbiddenException);
+    expect(() => operatorGuard.canActivate(createContext({ ...admin, role: 'OPERATOR' }))).toThrow(
+      ForbiddenException,
+    );
   });
 
   it('отклоняет запрос без аутентифицированного пользователя', () => {

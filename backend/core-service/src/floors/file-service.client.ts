@@ -80,7 +80,8 @@ export class FileServiceClient {
     return {
       id: typeof fileId === 'string' ? fileId : '',
       url,
-      originalName: typeof payload.originalName === 'string' ? payload.originalName : file.originalname,
+      originalName:
+        typeof payload.originalName === 'string' ? payload.originalName : file.originalname,
       width: typeof payload.width === 'number' ? payload.width : null,
       height: typeof payload.height === 'number' ? payload.height : null,
     };
@@ -99,7 +100,9 @@ export class FileServiceClient {
         signal: AbortSignal.timeout(this.timeoutMs),
       });
       if (!response.ok) {
-        this.logger.warn(`Не удалось привязать файл ${fileId} к этажу ${floorId}: ${response.status}`);
+        this.logger.warn(
+          `Не удалось привязать файл ${fileId} к этажу ${floorId}: ${response.status}`,
+        );
       }
     } catch (error) {
       this.logger.warn(`Привязка файла не удалась: ${(error as Error).message}`);

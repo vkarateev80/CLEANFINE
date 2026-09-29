@@ -95,7 +95,8 @@ export function RouteListPage({
   );
 
   const createMutation = useMutation({
-    mutationFn: (payload: { floorId: string; name: string }) => createRoute(payload.floorId, payload.name),
+    mutationFn: (payload: { floorId: string; name: string }) =>
+      createRoute(payload.floorId, payload.name),
     onSuccess: (route) => {
       void queryClient.invalidateQueries({ queryKey: ['routes', route.floorId] });
       setCreateOpen(false);
@@ -290,7 +291,9 @@ export function RouteListPage({
           ) : filteredRoutes.length === 0 ? (
             <div className="p-4">
               <EmptyState
-                title={routes.length === 0 ? 'На этаже нет маршрутов' : 'Нет маршрутов с таким статусом'}
+                title={
+                  routes.length === 0 ? 'На этаже нет маршрутов' : 'Нет маршрутов с таким статусом'
+                }
                 hint={
                   routes.length === 0
                     ? 'Создайте черновик маршрута и добавьте в него помещения этажа.'
@@ -378,7 +381,12 @@ export function RouteListPage({
           <div className="border-t border-neutral-200 p-4">
             <div className="rounded-lg border border-danger-500 bg-white px-3 py-2 text-xs text-danger-600">
               {actionError}
-              <Button variant="ghost" size="sm" className="ml-2" onClick={() => setActionError(null)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-2"
+                onClick={() => setActionError(null)}
+              >
                 Скрыть
               </Button>
             </div>
@@ -396,7 +404,9 @@ export function RouteListPage({
           <div className="flex flex-col gap-4">
             <div>
               <div className="text-xs text-neutral-500">Выбранный этаж</div>
-              <div className="text-lg font-medium text-neutral-900">{floorLabel(selectedFloor)}</div>
+              <div className="text-lg font-medium text-neutral-900">
+                {floorLabel(selectedFloor)}
+              </div>
             </div>
             <div className="text-sm text-neutral-500">
               Маршрутов на этаже: <span className="font-mono">{routes.length}</span>
@@ -423,7 +433,11 @@ export function RouteListPage({
         busy={createMutation.isPending}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>
+            <Button
+              variant="secondary"
+              onClick={() => setCreateOpen(false)}
+              disabled={createMutation.isPending}
+            >
               Отмена
             </Button>
             <Button
@@ -464,8 +478,8 @@ export function RouteListPage({
             />
           </Field>
           <div className="text-xs text-neutral-500">
-            Новый маршрут создаётся в статусе <Badge tone="warning">Черновик</Badge> — активировать его
-            можно после сборки точек.
+            Новый маршрут создаётся в статусе <Badge tone="warning">Черновик</Badge> — активировать
+            его можно после сборки точек.
           </div>
         </div>
       </Modal>
@@ -574,9 +588,7 @@ function ObjectRow({
       aria-pressed={selected}
       className={[
         'rounded-md border-l-2 px-3 py-2 text-left transition-colors',
-        selected
-          ? 'border-primary-600 bg-primary-50'
-          : 'border-transparent hover:bg-neutral-50',
+        selected ? 'border-primary-600 bg-primary-50' : 'border-transparent hover:bg-neutral-50',
       ].join(' ')}
     >
       <div className="truncate text-sm font-medium text-neutral-900">{object.name}</div>
@@ -589,8 +601,18 @@ function ObjectRow({
 
 /** Пилюля статуса списка: те же подписи, что и у бейджа, но без иконки-точки. */
 function RouteStatusPill({ status }: { status: RouteStatus }) {
-  const tone = status === 'ACTIVE' ? 'text-success-600' : status === 'ARCHIVED' ? 'text-neutral-500' : 'text-warning-600';
-  const dot = status === 'ACTIVE' ? 'bg-success-500' : status === 'ARCHIVED' ? 'bg-neutral-400' : 'bg-warning-500';
+  const tone =
+    status === 'ACTIVE'
+      ? 'text-success-600'
+      : status === 'ARCHIVED'
+        ? 'text-neutral-500'
+        : 'text-warning-600';
+  const dot =
+    status === 'ACTIVE'
+      ? 'bg-success-500'
+      : status === 'ARCHIVED'
+        ? 'bg-neutral-400'
+        : 'bg-warning-500';
   return (
     <span className={['inline-flex items-center gap-1 text-xs', tone].join(' ')}>
       <span className={['h-1.5 w-1.5 rounded-full', dot].join(' ')} aria-hidden="true" />

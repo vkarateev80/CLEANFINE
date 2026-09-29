@@ -57,9 +57,7 @@ export function useObjectRooms(objectId: string | null | undefined) {
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const detail = await getObjectDetail(objectId as string);
-      return detail.floors.flatMap((floor) =>
-        floor.rooms.map((room) => ({ room, floor })),
-      );
+      return detail.floors.flatMap((floor) => floor.rooms.map((room) => ({ room, floor })));
     },
   });
 }

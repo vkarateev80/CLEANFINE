@@ -50,9 +50,7 @@ export function listSchedules(): Promise<ScheduleEntity[]> {
 
 /** `GET /api/schedule/events` — плоские смены дня с фильтрами объекта/исполнителя. */
 export function listEvents(query: ListEventsQuery = {}): Promise<ScheduleEventEntity[]> {
-  return apiClient
-    .get('/schedule/events', { params: compact({ ...query }) })
-    .then((r) => r.data);
+  return apiClient.get('/schedule/events', { params: compact({ ...query }) }).then((r) => r.data);
 }
 
 /** `GET /api/schedule/events/:id` — одна смена (вкладка «Смены дня» ей не пользуется). */

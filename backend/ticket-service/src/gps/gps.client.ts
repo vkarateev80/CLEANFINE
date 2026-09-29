@@ -37,7 +37,12 @@ export class GpsClient {
     return this.config.get<number>('gpsService.nearbyRadiusM') ?? 500;
   }
 
-  async findNearbyEmployees(lat: number, lng: number, radiusM?: number, token?: string): Promise<NearbyEmployee[]> {
+  async findNearbyEmployees(
+    lat: number,
+    lng: number,
+    radiusM?: number,
+    token?: string,
+  ): Promise<NearbyEmployee[]> {
     const radius = radiusM ?? this.defaultRadiusM;
     const url = `${this.baseUrl}/api/gps/employees/nearby?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}&radius=${encodeURIComponent(String(radius))}`;
 
@@ -78,7 +83,7 @@ function extractEmployees(payload: unknown): NearbyEmployee[] {
   const list = Array.isArray(payload)
     ? payload
     : isRecord(payload)
-      ? firstArray(payload.items) ?? firstArray(payload.employees) ?? firstArray(payload.data)
+      ? (firstArray(payload.items) ?? firstArray(payload.employees) ?? firstArray(payload.data))
       : null;
 
   if (!list) {

@@ -42,7 +42,10 @@ export default () => ({
    * логинится в auth-service учётной записью сервиса (SERVICE_AUTH_*).
    */
   authService: {
-    baseUrl: baseUrl(process.env.AUTH_SERVICE_URL ?? process.env.E2E_API_URL, 'http://localhost:3001'),
+    baseUrl: baseUrl(
+      process.env.AUTH_SERVICE_URL ?? process.env.E2E_API_URL,
+      'http://localhost:3001',
+    ),
     email: nonEmpty(process.env.SERVICE_AUTH_EMAIL, 'admin@cleaning-ops.com'),
     password: nonEmpty(process.env.SERVICE_AUTH_PASSWORD, 'admin123'),
     timeoutMs: positiveInt(process.env.AUTH_SERVICE_TIMEOUT_MS, 5_000),

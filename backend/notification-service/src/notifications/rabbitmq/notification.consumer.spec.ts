@@ -66,10 +66,7 @@ function build(): {
   );
   const push = new MockPushSender();
   const rabbit = { subscribe: jest.fn() };
-  const service = new NotificationsService(
-    prisma as unknown as PrismaService,
-    push,
-  );
+  const service = new NotificationsService(prisma as unknown as PrismaService, push);
   const consumer = new NotificationConsumer(rabbit as unknown as RabbitmqService, service);
 
   return { prisma, push, rabbit, consumer };
@@ -164,7 +161,9 @@ describe('NotificationConsumer', () => {
         lng: '37.61',
       });
       expect(
-        log.mock.calls.map((call) => String(call[0])).filter((line) => line.includes('[MOCK PUSH]')),
+        log.mock.calls
+          .map((call) => String(call[0]))
+          .filter((line) => line.includes('[MOCK PUSH]')),
       ).toHaveLength(2);
 
       // 2) in-app записи сохранены для каждого получателя.
@@ -307,7 +306,9 @@ describe('NotificationConsumer', () => {
         },
       });
       expect(
-        log.mock.calls.map((call) => String(call[0])).filter((line) => line.includes('[MOCK PUSH]')),
+        log.mock.calls
+          .map((call) => String(call[0]))
+          .filter((line) => line.includes('[MOCK PUSH]')),
       ).toHaveLength(1);
 
       // 2) in-app запись создана именно указанному пользователю.
@@ -359,7 +360,9 @@ describe('NotificationConsumer', () => {
 
       expect(push.sent).toHaveLength(0);
       expect(prisma.notification.create).not.toHaveBeenCalled();
-      expect(log.mock.calls.map((call) => String(call[0])).join('\n')).toContain('уведомлено 0 из 1');
+      expect(log.mock.calls.map((call) => String(call[0])).join('\n')).toContain(
+        'уведомлено 0 из 1',
+      );
     });
 
     it('неподдержанное событие не роняет консьюмер', async () => {
@@ -377,8 +380,9 @@ describe('NotificationConsumer', () => {
     it('событие с нарушенным контрактом пропускается с предупреждением', async () => {
       const { push, consumer } = build();
 
-      await expect(consumer.handle(message('ticket.created', { ticketId: 't-7' }))).resolves
-        .toBeUndefined();
+      await expect(
+        consumer.handle(message('ticket.created', { ticketId: 't-7' })),
+      ).resolves.toBeUndefined();
 
       expect(push.sent).toHaveLength(0);
       expect(warn).toHaveBeenCalled();
@@ -399,9 +403,7 @@ describe('NotificationConsumer', () => {
       const { prisma, push, consumer } = build();
       prisma.device.findMany.mockResolvedValue([{ token: 'bad-token' }]);
 
-      await consumer.handle(
-        message('geofence.exit', { userId: 'u-9', employeeName: 'Иванов' }),
-      );
+      await consumer.handle(message('geofence.exit', { userId: 'u-9', employeeName: 'Иванов' }));
 
       expect(push.sent).toHaveLength(1);
       expect(prisma.device.updateMany).toHaveBeenCalledWith({
@@ -417,9 +419,9 @@ describe('NotificationConsumer', () => {
       const { prisma, consumer } = build();
       prisma.notification.create.mockRejectedValue(new Error('БД недоступна'));
 
-      await expect(
-        consumer.handle(message('geofence.exit', { userId: 'u-9' })),
-      ).rejects.toThrow('БД недоступна');
+      await expect(consumer.handle(message('geofence.exit', { userId: 'u-9' }))).rejects.toThrow(
+        'БД недоступна',
+      );
     });
   });
 });

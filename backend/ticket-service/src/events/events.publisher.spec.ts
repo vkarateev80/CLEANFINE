@@ -54,9 +54,13 @@ describe('EventsPublisher (ticket-service)', () => {
     const payload = { ticketId: 't-1', assigneeId: 'u-2', description: 'Уборка' };
     await expect(publisher.publish(ROUTING_KEYS.TICKET_CREATED, payload)).resolves.toBe(true);
 
-    expect(connectMock).toHaveBeenCalledWith('amqp://admin:secret@localhost:5672', { timeout: 1000 });
+    expect(connectMock).toHaveBeenCalledWith('amqp://admin:secret@localhost:5672', {
+      timeout: 1000,
+    });
     // Exchange объявлен durable: события не теряются при перезапуске брокера.
-    expect(channel.assertExchange).toHaveBeenCalledWith(EVENTS_EXCHANGE, 'topic', { durable: true });
+    expect(channel.assertExchange).toHaveBeenCalledWith(EVENTS_EXCHANGE, 'topic', {
+      durable: true,
+    });
     expect(channel.publish).toHaveBeenCalledWith(
       EVENTS_EXCHANGE,
       'ticket.created',
