@@ -68,3 +68,12 @@ export function updateUser(id: string, payload: UpdateUserPayload): Promise<Sess
 export function deactivateUser(id: string): Promise<void> {
   return apiClient.delete(`/users/${id}`).then(() => undefined);
 }
+
+/**
+ * Полное удаление (`DELETE /users/:id?permanent=true`, только ADMIN).
+ * Необратимо: строка пользователя и refresh-токены удаляются, история
+ * в других сервисах остаётся без резолвимого имени.
+ */
+export function deleteUser(id: string): Promise<void> {
+  return apiClient.delete(`/users/${id}`, { params: { permanent: 'true' } }).then(() => undefined);
+}

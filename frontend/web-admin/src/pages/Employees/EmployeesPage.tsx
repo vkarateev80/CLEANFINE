@@ -14,6 +14,7 @@ import type { SessionUser } from '../../types';
 import {
   useCreateEmployee,
   useDeactivateEmployee,
+  useDeleteEmployee,
   useEmployees,
   useUpdateEmployee,
 } from './useEmployees';
@@ -32,7 +33,7 @@ import {
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
-type DialogKind = 'create' | 'edit' | 'deactivate';
+type DialogKind = 'create' | 'edit' | 'deactivate' | 'delete';
 
 interface ActiveDialog {
   kind: DialogKind;
@@ -103,11 +104,16 @@ export function EmployeesPage() {
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const deactivateEmployee = useDeactivateEmployee();
+  const deleteEmployee = useDeleteEmployee();
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
 
-  const busy = createEmployee.isPending || updateEmployee.isPending || deactivateEmployee.isPending;
+  const busy =
+    createEmployee.isPending ||
+    updateEmployee.isPending ||
+    deactivateEmployee.isPending ||
+    deleteEmployee.isPending;
 
   function resetFilters() {
     setSkip(0);
@@ -135,6 +141,11 @@ export function EmployeesPage() {
   function openDeactivate(employee: SessionUser) {
     setDialogError(null);
     setDialog({ kind: 'deactivate', employee });
+  }
+
+  function openDelete(employee: SessionUser) {
+    setDialogError(null);
+    setDialog({ kind: 'delete', employee });
   }
 
   async function handleCreate(event: FormEvent) {
@@ -194,6 +205,17 @@ export function EmployeesPage() {
     setDialogError(null);
     try {
       await deactivateEmployee.mutateAsync(dialog.employee.id);
+      setDialog(null);
+    } catch (err) {
+      setDialogError(err);
+    }
+  }
+
+  async function handleDelete() {
+    if (!dialog?.employee) return;
+    setDialogError(null);
+    try {
+      await deleteEmployee.mutateAsync(dialog.employee.id);
       setDialog(null);
     } catch (err) {
       setDialogError(err);
@@ -282,11 +304,21 @@ export function EmployeesPage() {
                 className="max-md:px-2 max-md:text-xs"
                 aria-label={`Активировать «${employee.fullName}»`}
                 onClick={() => void handleReactivate(employee)}
-                loading={deactivateEmployee.isPending}
+                loading={updateEmployee.isPending}
               >
                 Активировать
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-danger-600 max-md:px-2 max-md:text-xs"
+              aria-label={`Удалить «${employee.fullName}»`}
+              data-testid={`employee-delete-${employee.id}`}
+              onClick={() => openDelete(employee)}
+            >
+              Удалить
+            </Button>
           </span>
         ) : (
           <span className="text-xs text-neutral-400">—</span>
@@ -578,6 +610,19 @@ export function EmployeesPage() {
         confirmLabel="Деактивировать"
         busy={deactivateEmployee.isPending}
         onConfirm={() => void handleDeactivate()}
+        onCancel={() => setDialog(null)}
+      />
+
+      {/* ---------------------------------------------------------- удаление */}
+      <ConfirmDialog
+        open={dialog?.kind === 'delete'}
+        title="Удаление сотрудника"
+        message={`Сотрудник «${dialog?.employee?.fullName ?? ''}» будет удалён насовсем —
+          восстановить его нельзя. Вход станет невозможным, история (заявки, смены)
+          сохранится, но имя сотрудника в ней уже не отобразится.`}
+        confirmLabel="Удалить"
+        busy={deleteEmployee.isPending}
+        onConfirm={() => void handleDelete()}
         onCancel={() => setDialog(null)}
       />
     </div>

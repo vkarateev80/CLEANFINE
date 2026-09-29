@@ -116,4 +116,19 @@ export class UsersService {
     }
     return toSafeUser(updated);
   }
+
+  /**
+   * Полное удаление пользователя (`?permanent=true`).
+   *
+   * В своей БД каскадом уходят refresh-токены (onDelete: Cascade в схеме).
+   * В других сервисах (заявки, смены, GPS) userId хранится без FK — история
+   * остаётся, но ссылки на пользователя больше не резолвятся в имя.
+   */
+  async purge(id: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+    await this.prisma.user.delete({ where: { id } });
+  }
 }

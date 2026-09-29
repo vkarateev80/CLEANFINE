@@ -3,6 +3,7 @@ import type { Role } from '@cleaning-ops/shared/types/roles';
 import {
   createUser,
   deactivateUser,
+  deleteUser,
   listUsers,
   updateUser,
   type CreateUserPayload,
@@ -79,6 +80,14 @@ export function useDeactivateEmployee() {
   const invalidate = useInvalidateEmployees();
   return useMutation({
     mutationFn: (id: string) => deactivateUser(id),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteEmployee() {
+  const invalidate = useInvalidateEmployees();
+  return useMutation({
+    mutationFn: (id: string) => deleteUser(id),
     onSuccess: invalidate,
   });
 }

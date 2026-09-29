@@ -100,18 +100,31 @@ export class UsersController {
     return this.users.update(id, dto);
   }
 
-  /** Мягкая деактивация. */
+  /** Мягкая деактивация; `?permanent=true` — полное удаление (см. UsersService.purge). */
   @Delete(':id')
   @HttpCode(204)
   @Roles('ADMIN')
   @ApiOperation({
-    summary: 'Мягкая деактивация сотрудника (только ADMIN)',
+    summary: 'Деактивация сотрудника или полное удаление (только ADMIN)',
     description:
-      'Пользователь не удаляется: ставится isActive=false и отзываются все refresh-токены.',
+      'По умолчанию — мягкая деактивация: isActive=false и отзыв всех refresh-токенов, ' +
+      'пользователь остаётся в справочнике. С параметром permanent=true — полное удаление ' +
+      'пользователя и его refresh-токенов (каскад); история в других сервисах сохраняется, ' +
+      'ссылки на пользователя перестают резолвиться.',
   })
-  @ApiResponse({ status: 204, description: 'Сотрудник деактивирован' })
+  @ApiQuery({
+    name: 'permanent',
+    required: false,
+    description: 'true — полное удаление вместо деактивации',
+    example: 'true',
+  })
+  @ApiResponse({ status: 204, description: 'Сотрудник деактивирован или удалён' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })
-  async deactivate(@Param('id') id: string) {
+  async deactivateOrRemove(@Param('id') id: string, @Query('permanent') permanent?: string) {
+    if (permanent === 'true') {
+      await this.users.purge(id);
+      return;
+    }
     await this.users.update(id, { isActive: false });
   }
 }

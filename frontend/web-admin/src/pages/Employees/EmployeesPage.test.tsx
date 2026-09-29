@@ -11,6 +11,7 @@ vi.mock('../../api/users', () => ({
   createUser: vi.fn(),
   updateUser: vi.fn(),
   deactivateUser: vi.fn(),
+  deleteUser: vi.fn(),
   getUser: vi.fn(),
 }));
 
@@ -84,6 +85,21 @@ describe('Раздел «Сотрудники»', () => {
     const role = within(dialog).getByLabelText(/Роль/) as HTMLSelectElement;
     expect(role.options.length).toBe(4);
     expect(role.value).toBe('OPERATOR');
+  });
+
+  it('ADMIN: «Удалить» открывает подтверждение с предупреждением о необратимости', async () => {
+    renderPage();
+    const [row] = await screen.findAllByTestId('employee-row-emp-1');
+    fireEvent.click(within(row).getByTestId('employee-delete-emp-1'));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/насовсем/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/нельзя|необратимо/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Удалить' })).toBeInTheDocument();
+    // Деактивация — отдельное действие, эта кнопка не про неё
+    expect(
+      within(dialog).queryByRole('button', { name: 'Деактивировать' }),
+    ).not.toBeInTheDocument();
   });
 
   it('SUPERVISOR — режим просмотра без кнопки создания', async () => {
