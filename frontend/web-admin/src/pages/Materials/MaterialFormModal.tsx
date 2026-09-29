@@ -192,7 +192,7 @@ export function MaterialFormModal({
             htmlFor="material-unit"
             required
             error={errors.unit}
-            hint="л, мл, кг, шт"
+            hint={presetValues('material-units').join(', ')}
           >
             <Input
               id="material-unit"
