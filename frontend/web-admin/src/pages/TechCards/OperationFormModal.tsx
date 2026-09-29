@@ -6,7 +6,7 @@ import { ErrorBanner, errorMessage } from '../../components/ui/Feedback';
 import { Checkbox, Field, Input, Select, Textarea } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { PresetInput } from '../../components/ui/PresetInput';
-import { presetValues } from '../../templates/presets';
+import { presetOptions, presetValues } from '../../templates/presets';
 import { Table, TBody, Td, Th, THead, Tr } from '../../components/ui/Table';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { apiStatus, shortId } from '../Materials/materialsHelpers';
@@ -290,9 +290,10 @@ export function OperationFormModal({
         </div>
 
         <Field
-          label="Оборудование (JSON)"
+          label="Оборудование"
           htmlFor={`${formId}-equipment`}
-          hint='Объект вида { "items": ["швабра"], "ppe": ["перчатки"] } — выберите из списка или введите свой. Пусто — не задано.'
+          hint="Инвентарь через запятую, затем «;» и СИЗ — например: швабра, ведро; перчатки. Выберите из списка или введите своё. Пусто — не задано."
+
           error={errors.equipment}
         >
           <PresetInput
@@ -302,8 +303,8 @@ export function OperationFormModal({
             className="font-mono text-sm"
             invalid={Boolean(errors.equipment)}
             value={values.equipmentText}
-            placeholder='{ "items": ["швабра", "ведро"] }'
-            options={presetValues('equipment-json')}
+            placeholder="швабра, ведро; перчатки"
+            options={presetOptions('equipment')}
             onValueChange={(next) => patch({ equipmentText: next })}
           />
         </Field>

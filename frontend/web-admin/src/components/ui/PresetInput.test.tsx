@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PresetInput } from './PresetInput';
 
 const OPTIONS = ['Вынести мусор', 'Протереть пыль', 'Помыть пол'];
@@ -56,6 +56,24 @@ describe('PresetInput — выпадающая библиотека', () => {
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'пыль' } });
     expect(optionTexts()).toEqual(['Протереть пыль']);
+  });
+
+  it('опции со своей подписью: в списке — подпись, в значение — value', () => {
+    const mockChange = vi.fn();
+    render(
+      <PresetInput
+        id="eq"
+        data-testid="eq"
+        value=""
+        options={['швабра; перчатки', { value: '; маска', label: 'маска (только СИЗ)' }]}
+        onValueChange={mockChange}
+      />,
+    );
+    fireEvent.focus(screen.getByTestId('eq'));
+    expect(screen.getByText('маска (только СИЗ)')).toBeInTheDocument();
+    expect(screen.queryByText('; маска')).not.toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByTestId('preset-option-; маска'));
+    expect(mockChange).toHaveBeenCalledWith('; маска');
   });
 
   it('свободный ввод сохраняется: своё значение не из списка', () => {

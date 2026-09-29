@@ -1,4 +1,5 @@
 import { useId, useState, type KeyboardEvent } from 'react';
+import type { PresetOptionValue } from '../../templates/presets';
 import { Input, type InputProps } from './Input';
 
 /**
@@ -19,8 +20,8 @@ import { Input, type InputProps } from './Input';
 export interface PresetInputProps extends Omit<InputProps, 'onChange' | 'value' | 'list'> {
   value: string;
   onValueChange: (value: string) => void;
-  /** Вся библиотека значений для выпадающего списка. */
-  options: string[];
+  /** Вся библиотека значений: строки или пары «значение → человеческая подпись». */
+  options: PresetOptionValue[];
 }
 
 export function PresetInput({ value, onValueChange, options, ...inputProps }: PresetInputProps) {
@@ -30,10 +31,16 @@ export function PresetInput({ value, onValueChange, options, ...inputProps }: Pr
   const [typed, setTyped] = useState(false);
   const [active, setActive] = useState(-1);
 
+  const normalized = options.map((option) =>
+    typeof option === 'string' ? { value: option, label: option } : option,
+  );
   const query = typed ? value.trim().toLowerCase() : '';
   const filtered = query
-    ? options.filter((option) => option.toLowerCase().includes(query))
-    : options;
+    ? normalized.filter(
+        (option) =>
+          option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query),
+      )
+    : normalized;
 
   function choose(option: string) {
     onValueChange(option);
@@ -57,7 +64,7 @@ export function PresetInput({ value, onValueChange, options, ...inputProps }: Pr
       setActive((current) => Math.max(current - 1, 0));
     } else if (event.key === 'Enter' && open && active >= 0 && filtered[active] !== undefined) {
       event.preventDefault();
-      choose(filtered[active]);
+      choose(filtered[active].value);
     } else if (event.key === 'Escape' && open) {
       setOpen(false);
     }
@@ -95,10 +102,10 @@ export function PresetInput({ value, onValueChange, options, ...inputProps }: Pr
         >
           {filtered.map((option, index) => (
             <li
-              key={option}
+              key={option.value}
               role="option"
               aria-selected={index === active}
-              data-testid={`preset-option-${option}`}
+              data-testid={`preset-option-${option.value}`}
               className={[
                 'cursor-pointer px-3 py-1.5 text-sm',
                 index === active ? 'bg-primary-50 text-primary-700' : 'text-neutral-700',
@@ -106,11 +113,11 @@ export function PresetInput({ value, onValueChange, options, ...inputProps }: Pr
               ].join(' ')}
               onMouseDown={(event) => {
                 event.preventDefault();
-                choose(option);
+                choose(option.value);
               }}
               onMouseEnter={() => setActive(index)}
             >
-              {option}
+              {option.label}
             </li>
           ))}
         </ul>

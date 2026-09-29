@@ -23,10 +23,24 @@ describe('библиотеки пресетов полей', () => {
       'material-units',
       'material-suppliers',
       'operation-names',
-      'equipment-json',
+      'equipment',
     ] as PresetId[]) {
       expect(PRESET_LIBRARIES[id]).toBeDefined();
     }
+  });
+
+  it('оборудование задано человеческим форматом, без JSON', () => {
+    const equipment = PRESET_LIBRARIES.equipment.values;
+    expect(equipment.length).toBeGreaterThanOrEqual(4);
+    for (const option of equipment) {
+      const value = typeof option === 'string' ? option : option.value;
+      // Единственный JSON-путь оставлен для легаси-ввода, не для библиотеки.
+      expect(value.startsWith('{')).toBe(false);
+      expect(value.includes('"items"')).toBe(false);
+    }
+    // Подпись отличается от значения у пункта «только СИЗ».
+    const ppeOnly = equipment.find((o) => typeof o !== 'string');
+    expect(ppeOnly).toEqual({ value: '; перчатки', label: 'перчатки (только СИЗ)' });
   });
 
   it('presetValues склеивает группы и убирает дубли', () => {
