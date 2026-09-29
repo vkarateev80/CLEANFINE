@@ -27,6 +27,19 @@ interface LocationState {
   roleDenied?: Role;
 }
 
+/**
+ * Автоловушка лончеров с рабочего стола: `?email=…&password=…`.
+ * Пароль только в адресной строке локального запуска, в бандл не вшит;
+ * после входа URL очищается через `history.replaceState`.
+ */
+export function readAutoLogin(search: string): { email: string; password: string } | null {
+  const params = new URLSearchParams(search);
+  const email = params.get('email');
+  const password = params.get('password');
+  if (!email || !password) return null;
+  return { email, password };
+}
+
 /** Проверка email на клиенте: «есть `@` и точка после него» (полную проверку делает бэкенд). */
 function isEmailLike(value: string): boolean {
   const at = value.indexOf('@');
@@ -43,6 +56,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const passwordRef = useRef<HTMLInputElement>(null);
+  const autoTried = useRef(false);
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as LocationState | null;
@@ -59,24 +73,23 @@ export function LoginPage() {
     }
   }, [state?.roleDenied]);
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function performLogin(nextEmail: string, nextPassword: string): Promise<boolean> {
     setError(null);
     setEmailError(null);
     setRoleWarning(null);
 
-    if (!email || !password) {
+    if (!nextEmail || !nextPassword) {
       setError('Введите email и пароль');
-      return;
+      return false;
     }
-    if (!isEmailLike(email)) {
+    if (!isEmailLike(nextEmail)) {
       setEmailError('Введите корректный email');
-      return;
+      return false;
     }
 
     setLoading(true);
     try {
-      const user = await login({ email, password });
+      const user = await login({ email: nextEmail, password: nextPassword });
 
       // Роль проверяется ПОСЛЕ получения профиля: `POST /api/auth/login` ролей не
       // различает, токены к этому моменту уже выданы, и их нужно погасить —
@@ -88,12 +101,13 @@ export function LoginPage() {
             ROLE_LABELS[user.role] ?? user.role
           }» работает в админ-панели.`,
         );
-        return;
+        return false;
       }
 
       const from = state?.from;
       const target = from ? `${from.pathname}${from.search ?? ''}` : '/dashboard';
       navigate(target, { replace: true });
+      return true;
     } catch (caught) {
       const status = apiStatus(caught);
       if (status === 401) {
@@ -108,10 +122,29 @@ export function LoginPage() {
       } else {
         setError('Не удалось войти. Проверьте соединение с сервером');
       }
+      return false;
     } finally {
       setLoading(false);
     }
   }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    await performLogin(email, password);
+  }
+
+  // Автоловушка лончера: один раз за загрузку; при ошибке поля остаются
+  // заполненными — пользователь правит и жмёт «Войти» сам.
+  useEffect(() => {
+    if (autoTried.current) return;
+    const auto = readAutoLogin(window.location.search);
+    if (!auto) return;
+    autoTried.current = true;
+    window.history.replaceState({}, '', window.location.pathname);
+    setEmail(auto.email);
+    setPassword(auto.password);
+    void performLogin(auto.email, auto.password);
+  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>

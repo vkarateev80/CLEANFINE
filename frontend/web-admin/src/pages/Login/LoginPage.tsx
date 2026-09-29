@@ -1,10 +1,24 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { login } from '../../api/auth';
 import { Button } from '../../components/ui/Button';
 
 interface LocationState {
   from?: { pathname: string };
+}
+
+/**
+ * Автоловушка лончеров с рабочего стола: `?email=…&password=…`.
+ * Пароль живёт только в адресной строке конкретного локального запуска —
+ * в бандл ничего не вшито, после входа URL очищается (history.replaceState,
+ * в историю мусор не попадает).
+ */
+export function readAutoLogin(search: string): { email: string; password: string } | null {
+  const params = new URLSearchParams(search);
+  const email = params.get('email');
+  const password = params.get('password');
+  if (!email || !password) return null;
+  return { email, password };
 }
 
 export function LoginPage() {
@@ -14,26 +28,45 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const autoTried = useRef(false);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function performLogin(nextEmail: string, nextPassword: string): Promise<boolean> {
     setError(null);
-    if (!email || !password) {
+    if (!nextEmail || !nextPassword) {
       setError('Введите email и пароль');
-      return;
+      return false;
     }
     setLoading(true);
     try {
-      await login({ email, password });
+      await login({ email: nextEmail, password: nextPassword });
       const from = (location.state as LocationState | null)?.from?.pathname ?? '/dashboard';
       navigate(from, { replace: true });
+      return true;
     } catch (err) {
-      const message = extractError(err);
-      setError(message);
+      setError(extractError(err));
+      return false;
     } finally {
       setLoading(false);
     }
   }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    await performLogin(email, password);
+  }
+
+  // Автоловушка лончера: один раз за загрузку, без циклов при ошибке —
+  // после неё пользователь правит уже заполненные поля руками.
+  useEffect(() => {
+    if (autoTried.current) return;
+    const auto = readAutoLogin(window.location.search);
+    if (!auto) return;
+    autoTried.current = true;
+    window.history.replaceState({}, '', window.location.pathname);
+    setEmail(auto.email);
+    setPassword(auto.password);
+    void performLogin(auto.email, auto.password);
+  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
