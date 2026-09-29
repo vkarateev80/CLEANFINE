@@ -10,6 +10,7 @@ export * from './Feedback';
 export * from './Input';
 export * from './Modal';
 export * from './Pagination';
+export * from './PresetInput';
 export * from './ResponsiveTable';
 export * from './SortableList';
 export * from './Table';

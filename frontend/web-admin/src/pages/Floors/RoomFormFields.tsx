@@ -1,4 +1,4 @@
-import { ErrorBanner, Field, Input, Select, errorMessage } from '../../components/ui';
+import { ErrorBanner, Field, Input, PresetInput, Select, errorMessage } from '../../components/ui';
 import { presetValues } from '../../templates/presets';
 import type { TechCardListItem } from '../../types/core';
 import { isCoordsError, rectAreaHint, type PlanSize } from './floorPlanUtils';
@@ -55,13 +55,11 @@ export function RoomFormFields({
   const rect = rectFromForm(values);
   const areaHint = rectAreaHint(rect, planScale);
   const coordsServerError = isCoordsError(serverError) ? errorMessage(serverError) : null;
-  const listId = `${idPrefix}-floor-types`;
   // Тип помещения: уже встречавшиеся на этаже значения + библиотека
-  // (виды помещений и покрытия) — единый datalist без дублей.
+  // (виды помещений и покрытия) — единый список без дублей.
   const typeOptions = [
     ...new Set([...floorTypeOptions, ...presetValues('room-types', 'floor-coverings')]),
   ];
-  const zoneListId = `${idPrefix}-zones`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -111,37 +109,27 @@ export function RoomFormFields({
           error={errors.floorType}
           hint="Виды помещения и покрытия из библиотеки — или своё значение"
         >
-          <Input
+          <PresetInput
             id={`${idPrefix}-type`}
             name="floorType"
-            list={listId}
             value={values.floorType}
             disabled={disabled}
             invalid={Boolean(errors.floorType)}
-            onChange={(event) => onChange({ floorType: event.target.value })}
+            options={typeOptions}
+            onValueChange={(next) => onChange({ floorType: next })}
           />
-          <datalist id={listId}>
-            {typeOptions.map((option) => (
-              <option key={option} value={option} />
-            ))}
-          </datalist>
         </Field>
 
         <Field label="Зона" htmlFor={`${idPrefix}-zone`}>
-          <Input
+          <PresetInput
             id={`${idPrefix}-zone`}
             name="zone"
-            list={zoneListId}
             value={values.zone}
             placeholder="zone-a"
             disabled={disabled}
-            onChange={(event) => onChange({ zone: event.target.value })}
+            options={presetValues('zones')}
+            onValueChange={(next) => onChange({ zone: next })}
           />
-          <datalist id={zoneListId}>
-            {presetValues('zones').map((option) => (
-              <option key={option} value={option} />
-            ))}
-          </datalist>
         </Field>
 
         <Field label="Техкарта" htmlFor={`${idPrefix}-tech-card`}>

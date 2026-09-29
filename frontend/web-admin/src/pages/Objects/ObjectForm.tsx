@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listUsers } from '../../api/users';
-import { Button, ErrorBanner, Field, Input, Select } from '../../components/ui';
+import { Button, ErrorBanner, Field, Input, PresetInput, Select } from '../../components/ui';
 import type { SessionUser } from '../../types';
 import type { CreateObjectPayload, ObjectEntity } from '../../types/core';
 import { OBJECT_STATUSES, OBJECT_STATUS_LABELS, type ObjectStatus } from '../../types/status';
@@ -293,19 +293,14 @@ export function ObjectForm({
           hint="Библиотека типов — подсказка; можно ввести своё значение"
           error={fieldErrors.type}
         >
-          <Input
+          <PresetInput
             id="object-type"
-            list="object-type-options"
             value={values.type}
             invalid={Boolean(fieldErrors.type)}
             maxLength={80}
-            onChange={(event) => update('type', event.target.value)}
+            options={presetValues('object-types')}
+            onValueChange={(next) => update('type', next)}
           />
-          <datalist id="object-type-options">
-            {presetValues('object-types').map((type) => (
-              <option key={type} value={type} />
-            ))}
-          </datalist>
         </Field>
 
         <Field label="Статус" htmlFor="object-status" required error={fieldErrors.status}>
