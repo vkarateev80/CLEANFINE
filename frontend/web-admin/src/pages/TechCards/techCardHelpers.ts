@@ -60,26 +60,62 @@ export function parseEquipmentInput(raw: string): EquipmentParse {
   const trimmed = raw.trim();
   if (trimmed === '') return { ok: true, value: undefined };
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'неизвестная ошибка';
-    return { ok: false, error: `Невалидный JSON: ${message}` };
+  // Легаси/расширенный ввод: объект с произвольными ключами — JSON-путь.
+  // Такие данные (если где-то остались) не теряются при правке.
+  if (trimmed.startsWith('{')) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'неизвестная ошибка';
+      return { ok: false, error: `Невалидный JSON: ${message}` };
+    }
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { ok: false, error: 'Оборудование должно быть JSON-объектом: { "items": [...] }' };
+    }
+    return { ok: true, value: parsed as Record<string, unknown> };
   }
 
-  // Массив или число класс-валидатор `@IsObject()` отвергнет — ловим на клиенте,
-  // иначе пользователь получит 400 без указания поля.
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return { ok: false, error: 'Оборудование должно быть JSON-объектом: { "items": [...] }' };
+  // Человеческий формат: «инвентарь, через запятую; СИЗ после “;”».
+  const parts = trimmed.split(';');
+  if (parts.length > 2) {
+    return { ok: false, error: 'Один разделитель «;»: инвентарь; СИЗ' };
   }
-
-  return { ok: true, value: parsed as Record<string, unknown> };
+  const list = (part: string | undefined) =>
+    (part ?? '')
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  const items = list(parts[0]);
+  const ppe = list(parts[1]);
+  if (items.length === 0 && ppe.length === 0) {
+    return { ok: true, value: undefined };
+  }
+  const value: Record<string, unknown> = {};
+  if (items.length > 0) value.items = items;
+  if (ppe.length > 0) value.ppe = ppe;
+  return { ok: true, value };
 }
 
-/** Обратное преобразование: сохранённый JSON → текст в textarea. */
+/** Обратное преобразование: сохранённый объект → человекочитаемое поле. */
 export function equipmentToText(equipment: Record<string, unknown> | null): string {
   if (equipment === null) return '';
+  const asList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+
+  // Обычный контракт {items, ppe} — человеческий формат.
+  const keys = Object.keys(equipment);
+  const isPlain = keys.every((key) => key === 'items' || key === 'ppe');
+  if (isPlain) {
+    const items = asList(equipment.items);
+    const ppe = asList(equipment.ppe);
+    if (items.length === 0 && ppe.length === 0) return '';
+    const ppePart = ppe.length > 0 ? `; ${ppe.join(', ')}` : '';
+    return `${items.join(', ')}${ppePart}`;
+  }
+
+  // Легаси-объект с произвольными ключами: не выдумываем структуру,
+  // оставляем JSON — иначе данные потеряются при сохранении.
   return JSON.stringify(equipment, null, 2);
 }
 

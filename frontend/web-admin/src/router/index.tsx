@@ -12,9 +12,9 @@ import { MessagesPage } from '../pages/Messages/MessagesPage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
 import { NotificationsPage } from '../pages/Notifications/NotificationsPage';
 import { SchedulePage } from '../pages/Schedule/SchedulePage';
+import { EmployeesPage } from '../pages/Employees/EmployeesPage';
 import { ObjectDetailPage } from '../pages/Objects/ObjectDetailPage';
 import { ObjectsListPage } from '../pages/Objects/ObjectsListPage';
-import { PlaceholderPage } from '../pages/Placeholder/PlaceholderPage';
 import { ReportsPage } from '../pages/Reports/ReportsPage';
 import { RouteBuilderPage } from '../pages/Routes/RouteBuilderPage';
 import { TechCardDetailPage } from '../pages/TechCards/TechCardDetailPage';
@@ -50,7 +50,7 @@ const techCardDetail = (
 
 const employees = (
   <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
-    <PlaceholderPage title="Сотрудники" phase="М1" />
+    <EmployeesPage />
   </RoleGuard>
 );
 

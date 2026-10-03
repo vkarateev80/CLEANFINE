@@ -14,14 +14,14 @@ import { defineConfig, devices } from '@playwright/test';
  * Адреса остальных сервисов наборы читают из окружения САМИ (helpers/*.ts), а не через
  * `use`: `E2E_GPS_URL` (:3004), `E2E_TICKET_URL` (:3005), `E2E_NOTIFICATION_URL` (:3006),
  * `E2E_MATERIAL_URL` (:3007), `E2E_SCHEDULE_URL` (:3008), `E2E_CHAT_URL` (:3009, REST
- * `/api/chat` и WebSocket namespace `/chat`), `E2E_BASE_URL` (:5173). Дефолты — локальный
+ * `/api/chat` и WebSocket namespace `/chat`), `E2E_BASE_URL` (:5175). Дефолты — локальный
  * стенд, поэтому в CI достаточно поднять сервисы на штатных портах.
  *
  * Второе UI-приложение — портал заказчика (`frontend/web-client`, :5174, М5.4). Он живёт
  * в том же проекте `web` (файл `e2e/web/portal.ui.spec.ts`), но у него СВОЙ адрес, который
  * не выражается одним `baseURL`: `E2E_PORTAL_URL` (:5174, дефолт — локальный стенд).
  * Специфика портала переходит по абсолютному адресу, а админские шаги того же файла — по
- * `baseURL` проекта (`E2E_BASE_URL`, :5173); мобильный вьюпорт портала задаётся в самом
+ * `baseURL` проекта (`E2E_BASE_URL`, :5175); мобильный вьюпорт портала задаётся в самом
  * файле (`test.use(devices['iPhone 13'])`). Отдельный проект для портала не заводится
  * намеренно: `--project=web` обязан прогонять весь UI-набор целиком, включая портал.
  *
@@ -32,7 +32,7 @@ import { defineConfig, devices } from '@playwright/test';
  *    сам механизм и работает при поднятом лимите;
  *  - core-service: порт 3003, file-service: порт 3002 (М2.9), MinIO :9000;
  *  - chat-service: порт 3009 (М5.6), ticket-service :3005 — участники TICKET-чата;
- *  - web-admin: порт 5173 (vite dev, proxy /api → :3001).
+ *  - web-admin: порт 5175 (vite dev, proxy /api → :3001); 5173 занят PatentMaster.
  * В CI все поднимаются шагами джобы.
  *
  * Источник: УСТАВ.md → Агент QA (E2E Playwright).
@@ -78,9 +78,9 @@ export default defineConfig({
       testMatch: /.*\.ui\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
-        // Админка (:5173). Специфика портала (:5174) берёт `E2E_PORTAL_URL` сам —
+        // Админка (:5175). Специфика портала (:5174) берёт `E2E_PORTAL_URL` сам —
         // у проекта один `baseURL`, а приложений два.
-        baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
+        baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5175',
       },
     },
     {
@@ -90,7 +90,7 @@ export default defineConfig({
        * стенда `prj-cleanfine`. Файл набора — `e2e/web/adaptive.spec.ts`, и имя
        * намеренно НЕ `*.ui.spec.ts`: с шаблоном проекта `web` спека попадала бы в
        * него при обычном `playwright test` (штатный `pnpm test:e2e` идёт без
-       * `--project`) и уходила бы на localhost:5173.
+       * `--project`) и уходила бы на localhost:5175.
        *
        * `timeout` поднят до 90 с намеренно: единственный вход на прогон живёт в
        * worker-фикстуре `adaptiveStorage` и укладывается в таймаут ПЕРВОГО теста.

@@ -5,7 +5,8 @@ import { Button } from '../../components/ui/Button';
 import { ErrorBanner, errorMessage } from '../../components/ui/Feedback';
 import { Checkbox, Field, Input, Select, Textarea } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { presetValues } from '../../templates/presets';
+import { PresetInput } from '../../components/ui/PresetInput';
+import { presetOptions, presetValues } from '../../templates/presets';
 import { Table, TBody, Td, Th, THead, Tr } from '../../components/ui/Table';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { apiStatus, shortId } from '../Materials/materialsHelpers';
@@ -233,20 +234,15 @@ export function OperationFormModal({
         {Boolean(formError) && <ErrorBanner error={formError} />}
 
         <Field label="Название" htmlFor={`${formId}-name`} required error={errors.name}>
-          <Input
+          <PresetInput
             id={`${formId}-name`}
             data-testid="operation-name"
-            list={`${formId}-name-options`}
             value={values.name}
             invalid={Boolean(errors.name)}
             placeholder="Например, «Нанести чистящее средство»"
-            onChange={(event) => patch({ name: event.target.value })}
+            options={presetValues('operation-names')}
+            onValueChange={(next) => patch({ name: next })}
           />
-          <datalist id={`${formId}-name-options`}>
-            {presetValues('operation-names').map((option) => (
-              <option key={option} value={option} />
-            ))}
-          </datalist>
         </Field>
 
         <Field label="Описание" htmlFor={`${formId}-description`} hint="До 1000 символов">
@@ -294,29 +290,23 @@ export function OperationFormModal({
         </div>
 
         <Field
-          label="Оборудование (JSON)"
+          label="Оборудование"
           htmlFor={`${formId}-equipment`}
-          hint='Объект вида { "items": ["швабра"], "ppe": ["перчатки"] } — выберите из списка или введите свой. Пусто — не задано.'
+          hint="Инвентарь через запятую, затем «;» и СИЗ — например: швабра, ведро; перчатки. Выберите из списка или введите своё. Пусто — не задано."
+
           error={errors.equipment}
         >
-          {/* Однострочный input: textarea не поддерживает list+datalist,
-              а JSON оборудования пишется в одну строку — как у названия операции. */}
-          <Input
+          <PresetInput
             id={`${formId}-equipment`}
             data-testid="operation-equipment"
-            list={`${formId}-equipment-options`}
             spellCheck={false}
             className="font-mono text-sm"
             invalid={Boolean(errors.equipment)}
             value={values.equipmentText}
-            placeholder='{ "items": ["швабра", "ведро"] }'
-            onChange={(event) => patch({ equipmentText: event.target.value })}
+            placeholder="швабра, ведро; перчатки"
+            options={presetOptions('equipment')}
+            onValueChange={(next) => patch({ equipmentText: next })}
           />
-          <datalist id={`${formId}-equipment-options`}>
-            {presetValues('equipment-json').map((preset) => (
-              <option key={preset} value={preset} />
-            ))}
-          </datalist>
         </Field>
 
         <section className="flex flex-col gap-3">
@@ -445,14 +435,12 @@ export function OperationFormModal({
                         />
                       </Td>
                       <Td>
-                        <Input
-                          list={`${formId}-units`}
+                        <PresetInput
                           className="w-24"
                           aria-label="Единица измерения"
                           value={material.unit}
-                          onChange={(event) =>
-                            patchMaterial(material.key, { unit: event.target.value })
-                          }
+                          options={presetValues('material-units')}
+                          onValueChange={(next) => patchMaterial(material.key, { unit: next })}
                         />
                       </Td>
                       <Td align="right">
@@ -477,12 +465,6 @@ export function OperationFormModal({
               </TBody>
             </Table>
           )}
-
-          <datalist id={`${formId}-units`}>
-            {presetValues('material-units').map((unit) => (
-              <option key={unit} value={unit} />
-            ))}
-          </datalist>
         </section>
       </form>
     </Modal>

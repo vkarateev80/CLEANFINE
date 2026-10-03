@@ -22,12 +22,15 @@ export type PresetId =
   | 'material-units'
   | 'material-suppliers'
   | 'operation-names'
-  | 'equipment-json';
+  | 'equipment';
+
+/** Значение списка: строка либо пара «значение → человеческая подпись». */
+export type PresetOptionValue = string | { value: string; label: string };
 
 export interface PresetLibrary {
   id: PresetId;
   label: string;
-  values: readonly string[];
+  values: readonly PresetOptionValue[];
 }
 
 export const PRESET_LIBRARIES: Record<PresetId, PresetLibrary> = {
@@ -133,15 +136,17 @@ export const PRESET_LIBRARIES: Record<PresetId, PresetLibrary> = {
       'Заправить пост уборки',
     ],
   },
-  'equipment-json': {
-    id: 'equipment-json',
-    label: 'Оборудование (JSON)',
+  equipment: {
+    id: 'equipment',
+    label: 'Оборудование',
+    // Формат поля: «инвентарь, через запятую; СИЗ после точки с запятой» —
+    // JSON остаётся только форматом хранения на сервере (см. techCardHelpers).
     values: [
-      '{ "items": ["швабра", "ведро"], "ppe": ["перчатки"] }',
-      '{ "items": ["пылесос"], "ppe": ["маска"] }',
-      '{ "items": ["салфетки", "скребок"], "ppe": ["перчатки"] }',
-      '{ "items": ["мешки для мусора"], "ppe": ["перчатки", "маска"] }',
-      '{ "ppe": ["перчатки"] }',
+      'швабра, ведро; перчатки',
+      'пылесос; маска',
+      'салфетки, скребок; перчатки',
+      'мешки для мусора; перчатки, маска',
+      { value: '; перчатки', label: 'перчатки (только СИЗ)' },
     ],
   },
 };
@@ -150,11 +155,13 @@ export const PRESET_LIBRARIES: Record<PresetId, PresetLibrary> = {
  * Значения одной или нескольких библиотек, без дублей (порядок сохраняется):
  * полю «Тип помещения» отдаются и виды помещений, и покрытия одной строкой.
  */
+/** Строковые значения (для подсказок и join): объекты → их `value`. */
 export function presetValues(...ids: PresetId[]): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
   for (const id of ids) {
-    for (const value of PRESET_LIBRARIES[id].values) {
+    for (const option of PRESET_LIBRARIES[id].values) {
+      const value = typeof option === 'string' ? option : option.value;
       if (!seen.has(value)) {
         seen.add(value);
         result.push(value);
@@ -162,4 +169,9 @@ export function presetValues(...ids: PresetId[]): string[] {
     }
   }
   return result;
+}
+
+/** Сырые опции для PresetInput: строки и пары «значение/подпись» как есть. */
+export function presetOptions(...ids: PresetId[]): PresetOptionValue[] {
+  return ids.flatMap((id) => [...PRESET_LIBRARIES[id].values]);
 }

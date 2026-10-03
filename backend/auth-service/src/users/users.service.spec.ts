@@ -30,6 +30,7 @@ describe('UsersService', () => {
       update: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+      delete: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -202,6 +203,23 @@ describe('UsersService', () => {
       await service.list({});
       const args = prisma.user.findMany.mock.calls[0][0] as { where: { OR?: unknown } };
       expect(args.where.OR).toBeUndefined();
+    });
+  });
+
+  describe('purge', () => {
+    it('полное удаление: user.delete по id (refresh-токены — каскадом в схеме)', async () => {
+      prisma.user.findUnique.mockResolvedValue(userRecord);
+      prisma.user.delete.mockResolvedValue(userRecord);
+
+      await service.purge('u1');
+
+      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u1' } });
+    });
+
+    it('бросает NotFoundException, если пользователя нет', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      await expect(service.purge('missing')).rejects.toThrow(NotFoundException);
+      expect(prisma.user.delete).not.toHaveBeenCalled();
     });
   });
 });

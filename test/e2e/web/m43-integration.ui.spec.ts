@@ -48,7 +48,7 @@ import { userByRole } from '../../helpers/users';
  * «Материалы» эти сценарии размыли бы предмет проверки. `core.ui.spec.ts` не трогаю —
  * он про ядро домена М2.7.
  *
- * Требуется web-admin :5173 (vite проксирует `/api` на :3001 auth, :3003 core,
+ * Требуется web-admin :5175 (vite проксирует `/api` на :3001 auth, :3003 core,
  * :3005 tickets, :3007 materials), core-service :3003, material-service :3007,
  * ticket-service :3005 и PostgreSQL (уборка + SQL-проверки).
  *
@@ -439,6 +439,11 @@ test('М4.3: поиск заявки по подстроке описания н
 // ---------------------------------------------------------------------------
 
 test('уборка: материалы, движения, техкарты и заявки прогона сняты', async ({ request }) => {
+  // Полный цикл «создать → проверить «до» → снести → проверить «после»» на загруженной
+  // машине не укладывается в дефолтные 30 с. Обрыв тела теста по таймауту оставлял
+  // DELETE техкарты в полёте, и afterEach налетал на него вторым DELETE — гонка
+  // getCard/delete давала 500 (P2025) вместо идемпотентных 204/404.
+  test.setTimeout(120_000);
   test.skip(!sqlAvailable(), 'нет доступа к docker-контейнеру cleaning-ops-postgres');
 
   const tag = runTag();
@@ -477,6 +482,9 @@ test('уборка: материалы, движения, техкарты и з
   flushPlanningData();
   await deleteTechCard(request, card.id);
   await deleteObject(request, object.id);
+  // Из сетей уборки убираем сразу: повторный DELETE из afterEach без надобности.
+  createdTechCardIds.delete(card.id);
+  createdObjectIds.delete(object.id);
 
   expect(planningCounts({ materialIds: [material.id] }), 'материал и его движения сняты').toEqual({
     schedules: 0,

@@ -45,7 +45,7 @@ import { userByRole } from '../../helpers/users';
  *
  * Проект `web`: файл оканчивается на `.ui.spec.ts`, поэтому его подхватывает тот же
  * проект, что и UI-наборы админки; адрес портала задаётся `E2E_PORTAL_URL` (в CI — :5174),
- * а адрес админки остаётся `baseURL` проекта (`E2E_BASE_URL`, :5173). Портал и админка —
+ * а адрес админки остаётся `baseURL` проекта (`E2E_BASE_URL`, :5175). Портал и админка —
  * два разных приложения, поэтому переходы в портал идут по абсолютному адресу, а в
  * админку — по относительному (см. сквозной тест ниже).
  *
@@ -77,8 +77,8 @@ const admin = userByRole('ADMIN');
 /** Портал заказчика — отдельное приложение (:5174). */
 const PORTAL_URL = process.env.E2E_PORTAL_URL ?? 'http://localhost:5174';
 
-/** Админка — `baseURL` проекта `web` (в CI `E2E_BASE_URL` = :5173). */
-const ADMIN_URL = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
+/** Админка — `baseURL` проекта `web` (в CI `E2E_BASE_URL` = :5175). */
+const ADMIN_URL = process.env.E2E_BASE_URL ?? 'http://localhost:5175';
 
 /** Параметры мобильного контекста из дескриптора iPhone 13 (без `defaultBrowserType`). */
 const iPhone = devices['iPhone 13'];

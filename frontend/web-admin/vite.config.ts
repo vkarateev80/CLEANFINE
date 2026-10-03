@@ -73,7 +73,9 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    //5173 занят dev-сервером другого проекта (PatentMaster10-master) —
+    // админке отведён постоянный 5175, чтобы проекты не воевали за порт.
+    port: 5175,
     proxy,
     watch: {
       /**

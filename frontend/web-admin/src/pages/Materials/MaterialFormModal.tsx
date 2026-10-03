@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createMaterial, updateMaterial } from '../../api/materials';
-import { Button, ErrorBanner, Field, Input, Modal } from '../../components/ui';
+import { Button, ErrorBanner, Field, Input, Modal, PresetInput } from '../../components/ui';
 import { presetValues } from '../../templates/presets';
 import type { CreateMaterialPayload, MaterialEntity } from '../../types/materials';
 import { parseRequiredNumber } from './materialsHelpers';
@@ -171,20 +171,15 @@ export function MaterialFormModal({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field label="Название" htmlFor="material-name" required error={errors.name}>
-            <Input
+            <PresetInput
               id="material-name"
               data-testid="material-name"
-              list="material-name-options"
               value={values.name}
               invalid={Boolean(errors.name)}
               placeholder="Средство для мытья полов"
-              onChange={(event) => update('name', event.target.value)}
+              options={presetValues('material-names')}
+              onValueChange={(next) => update('name', next)}
             />
-            <datalist id="material-name-options">
-              {presetValues('material-names').map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
           </Field>
 
           <Field
@@ -192,22 +187,17 @@ export function MaterialFormModal({
             htmlFor="material-unit"
             required
             error={errors.unit}
-            hint="л, мл, кг, шт"
+            hint={presetValues('material-units').join(', ')}
           >
-            <Input
+            <PresetInput
               id="material-unit"
               data-testid="material-unit"
-              list="material-unit-options"
               value={values.unit}
               invalid={Boolean(errors.unit)}
               placeholder="л"
-              onChange={(event) => update('unit', event.target.value)}
+              options={presetValues('material-units')}
+              onValueChange={(next) => update('unit', next)}
             />
-            <datalist id="material-unit-options">
-              {presetValues('material-units').map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
           </Field>
 
           <Field
@@ -271,19 +261,14 @@ export function MaterialFormModal({
             htmlFor="material-supplier"
             hint={material ? 'Пустое поле очищает поставщика' : 'Необязательно'}
           >
-            <Input
+            <PresetInput
               id="material-supplier"
               data-testid="material-supplier"
-              list="material-supplier-options"
               value={values.supplier}
               placeholder="ООО «Химторг»"
-              onChange={(event) => update('supplier', event.target.value)}
+              options={presetValues('material-suppliers')}
+              onValueChange={(next) => update('supplier', next)}
             />
-            <datalist id="material-supplier-options">
-              {presetValues('material-suppliers').map((option) => (
-                <option key={option} value={option} />
-              ))}
-            </datalist>
           </Field>
         </div>
       </div>

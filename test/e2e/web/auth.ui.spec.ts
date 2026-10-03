@@ -3,7 +3,7 @@ import { userByRole } from '../../helpers/users';
 
 /**
  * М1.8 — Playwright smoke web-admin (браузер).
- * Требует запущенного web-admin (vite dev, http://localhost:5173) и auth-service (:3001):
+ * Требует запущенного web-admin (vite dev, http://localhost:5175) и auth-service (:3001):
  * vite-прокси отправляет /api на :3001.
  */
 

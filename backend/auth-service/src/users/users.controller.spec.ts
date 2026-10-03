@@ -54,6 +54,7 @@ describe('UsersController (HTTP)', () => {
     getById: jest.fn(),
     register: jest.fn(),
     update: jest.fn(),
+    purge: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -289,6 +290,26 @@ describe('UsersController (HTTP)', () => {
         .set('Authorization', asAdmin())
         .expect(204);
       expect(usersService.update).toHaveBeenCalledWith('u2', { isActive: false });
+    });
+
+    it('ADMIN с permanent=true → 204 и purge вместо деактивации', async () => {
+      usersService.purge.mockResolvedValue(undefined);
+      await request(app.getHttpServer())
+        .delete('/api/users/u2?permanent=true')
+        .set('Authorization', asAdmin())
+        .expect(204);
+      expect(usersService.purge).toHaveBeenCalledWith('u2');
+      expect(usersService.update).not.toHaveBeenCalled();
+    });
+
+    it('permanent включается только значением true', async () => {
+      usersService.update.mockResolvedValue({ ...safeUser, isActive: false });
+      await request(app.getHttpServer())
+        .delete('/api/users/u2?permanent=1')
+        .set('Authorization', asAdmin())
+        .expect(204);
+      expect(usersService.update).toHaveBeenCalledWith('u2', { isActive: false });
+      expect(usersService.purge).not.toHaveBeenCalled();
     });
 
     it('SUPERVISOR получает 403', async () => {
