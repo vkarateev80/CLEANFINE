@@ -10,12 +10,17 @@ import type { RoomEntity, RoomWithTechCard } from '../../types/core';
 export const PLAN_MAX_BYTES = 10 * 1024 * 1024;
 
 export const PLAN_ACCEPT =
-  '.png,.jpg,.jpeg,.svg,.pdf,image/png,image/jpeg,image/svg+xml,application/pdf';
+  '.png,.jpg,.jpeg,.svg,.pdf,.sh3d,image/png,image/jpeg,image/svg+xml,application/pdf';
 
-export const PLAN_FORMATS_HINT = 'PNG, JPG, SVG или PDF, не более 10 МБ';
+export const PLAN_FORMATS_HINT = 'PNG, JPG, SVG, PDF или Sweet Home 3D (.sh3d), не более 10 МБ';
 
-const PLAN_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.pdf'];
+const PLAN_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.pdf', '.sh3d'];
 const PLAN_MIME_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'application/pdf'];
+
+/** Файл Sweet Home 3D — конвертируется в PNG прямо в браузере админки. */
+export function isSh3dFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith('.sh3d');
+}
 
 /** Пределы зума из спецификации: 25–400 %, шаг кнопок — 25 %. */
 export const ZOOM_MIN = 0.25;
