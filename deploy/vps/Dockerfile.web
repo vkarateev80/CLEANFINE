@@ -18,6 +18,8 @@
 # Переменные сборки:
 #   VITE_API_URL=/api  — относительный: фронт ходит в nginx того же origin,
 #                        а nginx раскидывает /api/* по сервисам (§4).
+#   VITE_BASE=/        — база публичных URL; для k3s-портала передаётся
+#                        /client/ (cleanfine.ru/client), см. vite.config.ts.
 #   VITE_WS_URL        — НЕ задаётся: в проде WebSocket-upgrade делает nginx
 #                        (location /socket.io/ → chat:3009), см. комментарий в
 #                        frontend/web-client/vite.config.ts.
@@ -31,6 +33,10 @@ FROM node:20-alpine AS builder
 ARG APP=web-admin
 ARG VITE_API_URL=/api
 ARG VITE_MAPBOX_TOKEN=
+# База публичных URL SPA. Дефолт `/` (админка в корне, портал в compose);
+# k3s-портал собирается с `--build-arg VITE_BASE=/client/` — сайт живёт под
+# cleanfine.ru/client (vite.config.ts читает VITE_BASE как `base`).
+ARG VITE_BASE=/
 WORKDIR /build
 
 # 1) Зависимости фронтенда. Ставим ДО COPY исходников, чтобы слой кэшировался.
@@ -52,6 +58,7 @@ COPY frontend/${APP}/src ./frontend/${APP}/src
 
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
+ENV VITE_BASE=${VITE_BASE}
 # `npm run build` = `tsc --noEmit && vite build`; APP нужен в том числе для
 # сообщения о начале сборки.
 RUN echo "==> сборка ${APP} (VITE_API_URL=${VITE_API_URL})" \

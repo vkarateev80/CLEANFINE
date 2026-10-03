@@ -55,6 +55,44 @@ spec:
                 port:
                   number: 80
 ---
+# Портал заказчика: cleanfine.ru/client → web-client (решение владельца 03.10).
+# Сборка портала — с VITE_BASE=/client/ (аресы/роутер знают префикс), а nginx
+# внутри пода статику отдаёт от корня, поэтому traefik срезает префикс сам —
+# аннотации middleware у k8s-ingress провайдера молча игнорируются (см. шапку).
+# Без слэша на конце `/client` stripPrefix по forceSlash даёт `/` — index.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: portal-strip
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  stripPrefix:
+    prefixes:
+      - /client
+---
+# HTTPS-роутер портала. priority 60: plain-Ingress кэтч-алла считает приоритет
+# по длине правила (~40) — 30 проигрывал ему и /client уходил в web-admin
+# (воспроизведено 03.10). ACME-solver живёт на entryPoint web (~78), 60 не мешает.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: cleanfine-portal
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: (Host(`cleanfine.ru`) || Host(`www.cleanfine.ru`)) && PathPrefix(`/client`)
+      kind: Rule
+      priority: 60
+      services:
+        - name: web-client
+          port: 80
+      middlewares:
+        - name: portal-strip
+---
 # HTTP→HTTPS для обоих хостов. priority 50: выше дефолтного (длина правила
 # ~40 у plain-Ingress), ниже solver-ингресса (~78) — ACME не перехватывается.
 apiVersion: traefik.io/v1alpha1

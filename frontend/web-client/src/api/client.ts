@@ -1,6 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../stores/authStore';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, LOGIN_PATH } from './config';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -97,9 +97,11 @@ apiClient.interceptors.response.use(
     const outcome = await refreshAccessToken(refreshToken);
     if (!outcome.ok) {
       // Полная перезагрузка нужна только если пользователь уже вне /login —
-      // иначе теряются введённые данные и сообщение об ошибке.
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      // иначе теряются введённые данные и сообщение об ошибке. Путь считается
+      // от BASE_PATH: на k3s портал живёт под /client, и корневой '/login'
+      // увёл бы пользователя в админку.
+      if (window.location.pathname !== LOGIN_PATH) {
+        window.location.href = LOGIN_PATH;
       }
       return Promise.reject(error);
     }
