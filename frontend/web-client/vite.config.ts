@@ -45,6 +45,13 @@ const proxy = Object.fromEntries(
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  /**
+   * База публичных URL (аресы, main-маршрут в index.html). Дефолт `/` — dev на
+   * :5174, e2e и корневые деплои работают как раньше. Для k3s-портала сборка
+   * идёт с `VITE_BASE=/client/` (build-arg в deploy/vps/Dockerfile.web), иначе
+   * браузер запросил бы `/assets/…` в корне — попал бы в web-admin.
+   */
+  base: process.env.VITE_BASE || '/',
   resolve: {
     alias: {
       // tsconfig.paths Vite не читает; из shared приходят рантайм-значения

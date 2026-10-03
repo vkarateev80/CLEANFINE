@@ -29,9 +29,15 @@ import { TicketsPage } from '../pages/Tickets/TicketsPage';
  * `ScopeGate` стоит только на экранах, которым объект обязателен. `/chat` его не
  * требует: переписка с менеджером нужна и тогда, когда объект ещё не привязан —
  * это единственный канал связи в портале.
+ *
+ * `basename` берётся из `import.meta.env.BASE_URL` (=`base` сборки): в dev и в
+ * корневом деплое это `/` — поведение не меняется; на k3s портал собран с
+ * `VITE_BASE=/client/`, и без basename роутер искал бы `/login` вместо
+ * `/client/login`. Все `Navigate`/`Link` внутри остаются относительными.
  */
-export const router = createBrowserRouter([
-  {
+export const router = createBrowserRouter(
+  [
+    {
     path: '/login',
     element: (
       <PublicOnlyGuard>
@@ -93,4 +99,6 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '*', element: <NotFoundPage /> },
-]);
+  ],
+  { basename: import.meta.env.BASE_URL },
+);
