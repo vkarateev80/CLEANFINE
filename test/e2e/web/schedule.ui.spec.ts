@@ -36,7 +36,7 @@ import { userByRole } from '../../helpers/users';
  *   5) удаление графика через ConfirmDialog → строка исчезает и график пропадает из API;
  *   6) «Мои смены» по deep-link: своя смена видна, модалка отметки открывается.
  *
- * Требуется web-admin на :5173 (vite dev проксирует `/api` на :3008 — schedule-service,
+ * Требуется web-admin на :5175 (vite dev проксирует `/api` на :3008 — schedule-service,
  * :3003 — core, :3001 — auth) и schedule-service :3008; вход — под ADMIN.
  *
  * ДЕТЕРМИНИРОВАННОСТЬ (важно для соседних наборов):
@@ -190,10 +190,13 @@ test('создание ежедневного графика через мода
   planningTracker.schedule(scheduleId);
 
   // Строка показывает правило повторения по-русски, объект и активность.
-  await expect(row.first()).toContainText(name);
-  await expect(row.first()).toContainText('Ежедневно · 06:30 UTC');
-  await expect(row.first()).toContainText(object.name);
-  await expect(row.first()).toContainText('Активен');
+  // Хук `schedule-row-<id>` после адаптивного рефакторинга живёт в ячейке названия
+  // (см. `TableOnlyTestId`), поэтому остальные колонки читаем у строки таблицы-предка.
+  const rowCells = row.first().locator('xpath=ancestor::tr');
+  await expect(rowCells).toContainText(name);
+  await expect(rowCells).toContainText('Ежедневно · 06:30 UTC');
+  await expect(rowCells).toContainText(object.name);
+  await expect(rowCells).toContainText('Активен');
 
   // И то же самое на сервере: форма отправила именно daily/06:30 и наш объект.
   const saved = (await listSchedules(request)).find((item) => item.id === scheduleId);
@@ -450,6 +453,9 @@ test('уборка: после снятия графика в БД не оста
   page,
   request,
 }) => {
+  // Тест тяжёлый (генерация смен + несколько SQL-срезов через docker): на загруженной
+  // машине дефолтные 30 с истекали на входе в UI, и Playwright обрывал fill на логине.
+  test.setTimeout(120_000);
   test.skip(!sqlAvailable(), 'нет доступа к docker-контейнеру cleaning-ops-postgres');
 
   const name = `E2E-M47-UI-SCHED уборка ${runTag()}`;

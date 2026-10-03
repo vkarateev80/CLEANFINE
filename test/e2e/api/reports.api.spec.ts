@@ -23,7 +23,7 @@ import { createMovement, flushPlanningData, trackMaterial, utcDate } from '../..
  *
  * Адаптеров в проекте два, и оба — один и тот же приём (таблица префиксов `/api/...`):
  *  1. nginx `:8080` (прод-подобный контур, машинная обвязка стенда) — `E2E_GATEWAY_URL`;
- *  2. vite dev-сервер админки `:5173` (таблица `SERVICE_ROUTES` в `web-admin/vite.config.ts`).
+ *  2. vite dev-сервер админки `:5175` (таблица `SERVICE_ROUTES` в `web-admin/vite.config.ts`).
  * Второй важен для CI: джоба `e2e` поднимает именно dev-серверы, nginx там нет, и без
  * адаптера проверка «через точку входа» в CI не выполнялась бы вовсе (М7.3).
  *
@@ -36,7 +36,7 @@ import { createMovement, flushPlanningData, trackMaterial, utcDate } from '../..
 const GATEWAY_CANDIDATES = [
   process.env.E2E_GATEWAY_URL,
   'http://127.0.0.1:8080',
-  'http://localhost:5173',
+  'http://localhost:5175',
 ].filter((value): value is string => Boolean(value));
 
 /** Живой адаптер, выбранный в `beforeAll`; до выбора пуст. */
@@ -72,7 +72,7 @@ test.beforeAll(async ({ request }) => {
     throw new Error(
       'ни один прокси-адаптер не отвечает 401 на анонимный отчёт — проверять «единую точку ' +
         `входа» не на чем. Попытки: ${attempts.join('; ')}. Поднимите nginx стенда ` +
-        '(bash ~/.cleaning-ops/stand.sh web-up) или vite админки (:5173) и задайте E2E_GATEWAY_URL.',
+        '(bash ~/.cleaning-ops/stand.sh web-up) или vite админки (:5175) и задайте E2E_GATEWAY_URL.',
     );
   }
   console.log(`[reports] прокси-адаптер: ${API_BASE}`);

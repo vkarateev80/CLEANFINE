@@ -106,12 +106,12 @@ cd test && FONTCONFIG_PATH=/etc/fonts FONTCONFIG_FILE=/etc/fonts/fonts.conf \
 |---|---|---|---|
 | Что проверяет | контракты HTTP-сервисов | UI админки и портала в браузере | только адаптив админки (ширины, каркас, таргеты) |
 | Шаблон файлов | `*.api.spec.ts` | `*.ui.spec.ts` | `adaptive.spec.ts` (намеренно **не** `*.ui.spec.ts`) |
-| Адрес | `E2E_API_URL` (:3001) | `E2E_BASE_URL` (:5173) + `E2E_PORTAL_URL` (:5174) | `E2E_ADMIN_URL` — по умолчанию стенд `http://100.109.185.14:8090` |
+| Адрес | `E2E_API_URL` (:3001) | `E2E_BASE_URL` (:5175) + `E2E_PORTAL_URL` (:5174) | `E2E_ADMIN_URL` — по умолчанию стенд `http://100.109.185.14:8090` |
 | Вход | логин на каждый набор | логин на каждый тест/файл | **один вход на прогон** (worker-фикстура `adaptiveStorage`), дальше контексты на готовом `storageState` |
 | `timeout` | конфиговые 30 с | конфиговые 30 с | 90 с на тест: единственный вход укладывается в таймаут первого теста |
 
 Почему имя файла не `*.ui.spec.ts`: с шаблоном проекта `web` спека попадала бы в обычный
-`playwright test` (штатный `pnpm test:e2e` идёт без `--project`) и уходила бы на `localhost:5173`.
+`playwright test` (штатный `pnpm test:e2e` идёт без `--project`) и уходила бы на `localhost:5175`.
 Проекты `api` и `web` из-за этого не изменены вообще.
 
 **Обязательное окружение.** `FONTCONFIG_PATH=/etc/fonts` и `FONTCONFIG_FILE=/etc/fonts/fonts.conf`
@@ -145,7 +145,7 @@ bash scripts/reset-stand.sh --keep-minio
 bash ~/.cleaning-ops/stand.sh up
 
 # 3. Dev-серверы клиентов — если UI-набор идёт не через nginx (:8080/:8081), а через vite
-bash ~/.cleaning-ops/stand.sh web     # :5173 админка, :5174 портал
+bash ~/.cleaning-ops/stand.sh web     # :5175 админка, :5174 портал
 
 # 4. Приёмка: оба проекта, два прогона подряд (воспроизводимость)
 cd test
@@ -206,7 +206,7 @@ SQL-view отчётов М7.1 в 15-секундный залп: `staff_geofence
 
 ## Запуск
 
-Нужны запущенные сервисы: auth-service на `:3001` и web-admin (vite) на `:5173`
+Нужны запущенные сервисы: auth-service на `:3001` и web-admin (vite) на `:5175`
 (для ядрового набора — core-service `:3003`, file-service `:3002` и MinIO `:9000`).
 
 ```bash
@@ -297,7 +297,7 @@ THROTTLE_GLOBAL_LIMIT=10000` (как в примере выше): при бое�
 В отличие от ядрового набора он идёт через браузер и проверяет интерфейс, а не контракты API.
 
 Нужны **все** сервисы: auth (`:3001`), file (`:3002`), core (`:3003`), MinIO (`:9000`) и
-web-admin (`:5173`, vite dev — он проксирует `/api` по сервисам).
+web-admin (`:5175`, vite dev — он проксирует `/api` по сервисам).
 
 ```bash
 # web-admin
@@ -416,7 +416,7 @@ node node_modules/@playwright/test/cli.js test --project=api e2e/api/gps.api.spe
 | `E2E_MATERIAL_URL` | `http://localhost:3007` | material-service: справочник, склады, движения, отчёт |
 | `E2E_SCHEDULE_URL` | `http://localhost:3008` | schedule-service: графики, смены, check-in/check-out |
 | `E2E_CHAT_URL` | `http://localhost:3009` | chat-service: чаты, история, поиск (REST `/api/chat` и WebSocket namespace `/chat`) |
-| `E2E_BASE_URL` | `http://localhost:5173` | web-admin: UI-проект Playwright |
+| `E2E_BASE_URL` | `http://localhost:5175` | web-admin: UI-проект Playwright |
 | `E2E_PORTAL_URL` | `http://localhost:5174` | портал заказчика (web-client): UI-набор `e2e/web/portal.ui.spec.ts` |
 | `E2E_POSTGRES_CONTAINER` | `cleaning-ops-postgres` | контейнер для уборки через `psql` |
 
@@ -445,7 +445,7 @@ node node_modules/@playwright/test/cli.js test --project=api e2e/api/gps.api.spe
 ### Требования к стенду (М4.7)
 
 - auth `:3001`, core `:3003`, gps `:3004`, tickets `:3005`, notifications `:3006`,
-  material `:3007`, schedule `:3008`, web-admin `:5173`;
+  material `:3007`, schedule `:3008`, web-admin `:5175`;
 - **RabbitMQ обязателен**: без него `ticket.operation.completed` не дойдёт до автосписания,
   а `schedule.missed_checkin` и `material.low` — до уведомлений;
 - **`SCHEDULE_CRON_ENABLED=false`**: набор проверяет неявки и генерацию ручными триггерами
@@ -569,7 +569,7 @@ in-app записи. Тест фиксирует ФАКТИЧЕСКИЙ конт
 | уборка | объект, заявка, чат, материал и их строки в БД прогона сняты |
 
 **Требования к стенду:** auth `:3001`, core `:3003`, tickets `:3005`, materials `:3007`,
-chat `:3009`, web-admin `:5173` и портал `:5174` (`E2E_PORTAL_URL`), PostgreSQL через
+chat `:3009`, web-admin `:5175` и портал `:5174` (`E2E_PORTAL_URL`), PostgreSQL через
 `docker exec` (уборка и SQL-тест). Портал в мобильном вьюпорте (`devices['iPhone 13']` в самом
 файле), админские шаги цикла — отдельным контекстом с десктопным вьюпортом: контексты,
 созданные через `browser.newContext()`, наследуют опции `use` файла, и админка в 390 px ломает
@@ -615,10 +615,10 @@ KPI-сводки и доступ (401 без токена; в М7.3 добавл
 **Единая точка входа (приёмка М7.1 п.3).** Каждый запрос идёт через прокси-адаптер, который
 маршрутизирует `/api/...` по девяти сервисам. Адаптеров два, оба — таблица префиксов:
 nginx стенда `:8080` (`E2E_GATEWAY_URL`) и таблица `SERVICE_ROUTES` в
-`frontend/web-admin/vite.config.ts` (`:5173`). Спека выбирает адаптер в `beforeAll`, проверяя
+`frontend/web-admin/vite.config.ts` (`:5175`). Спека выбирает адаптер в `beforeAll`, проверяя
 живость: анонимный `GET /api/materials/reports/summary` обязан ответить **401** (значит, запрос
 дошёл до сервиса; статика nginx и SPA-fallback dev-сервера на неизвестный `/api` отдают 200 с
-`index.html`). Порядок: `E2E_GATEWAY_URL` → `:8080` → `:5173`. Это нужно для CI: джоба `e2e`
+`index.html`). Порядок: `E2E_GATEWAY_URL` → `:8080` → `:5175`. Это нужно для CI: джоба `e2e`
 поднимает dev-серверы и nginx там нет, поэтому без второго адаптера проверка «через точку входа» в
 CI не выполнялась бы вовсе. Если живо ни одного адаптера, `beforeAll` падает с подсказкой, что
 поднять, — молчаливого пропуска нет.
