@@ -37,7 +37,7 @@ describe('Страница «Шаблоны»', () => {
     expect(screen.queryByTestId('template-card-obj-bc')).not.toBeInTheDocument();
   });
 
-  it('просмотр показывает состав шаблона техкарды', () => {
+  it('просмотр показывает состав шаблона техкарты', () => {
     renderPage();
     fireEvent.click(screen.getByTestId('template-preview-tc-office'));
     const body = screen.getByTestId('template-preview-body');

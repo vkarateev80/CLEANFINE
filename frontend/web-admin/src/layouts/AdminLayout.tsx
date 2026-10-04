@@ -31,7 +31,7 @@ const NAV: NavItem[] = [
   // которым core-service разрешает создание и правку (@Roles). У оператора
   // пункт не показывается, а RoleGuard закрывает и прямой заход по URL.
   { to: '/routes', label: 'Маршруты', icon: '🗺️', roles: ['ADMIN', 'SUPERVISOR'] },
-  { to: '/tech-cards', label: 'Техкарды', icon: '🧾', roles: ['ADMIN', 'SUPERVISOR'] },
+  { to: '/tech-cards', label: 'Техкарты', icon: '🧾', roles: ['ADMIN', 'SUPERVISOR'] },
   // Шаблоны: демо-заготовки техкарт/маршрутов/объектов. Создание из шаблона
   // ходит в те же POST, что и обычные экраны, — виден ролям с правом создания.
   { to: '/templates', label: 'Шаблоны', icon: '📚', roles: ['ADMIN', 'SUPERVISOR'] },
