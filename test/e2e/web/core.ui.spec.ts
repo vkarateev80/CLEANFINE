@@ -360,7 +360,7 @@ test('М2.7: RBAC — оператору недоступен конструкт
 
   // Пункт меню скрыт для роли, которой бэкенд запрещает правку маршрутов.
   await expect(page.getByRole('link', { name: 'Маршруты' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Техкарды' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Техкарты' })).toHaveCount(0);
   // Чтение объектов оператору разрешено.
   await expect(page.getByRole('link', { name: 'Объекты' })).toBeVisible();
 
