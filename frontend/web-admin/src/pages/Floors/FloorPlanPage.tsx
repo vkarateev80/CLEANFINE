@@ -37,12 +37,31 @@ import {
   downloadRoomsCsv,
   formatArea,
   isPdfPlanUrl,
+  isSh3dFile,
   roomRect,
   zoomPercent,
   type PlanSize,
   type Rect,
 } from './floorPlanUtils';
 import { roomCreatePayload, roomUpdatePayload, type RoomFormValues } from './roomForm';
+import type { ImportRoom } from './sh3d';
+
+/**
+ * План из .sh3d залит в file-service, но часть помещений не создалась:
+ * модалку закрываем (повторная отправка дублировала бы план), ошибку показываем
+ * над канвасом, список обновляется — успешные помещения уже в базе.
+ */
+class RoomsImportedPartiallyError extends Error {
+  constructor(
+    readonly failed: number,
+    readonly total: number,
+    readonly firstReason: string,
+  ) {
+    super(
+      `План загружен, но ${failed} из ${total} помещений не создано. Первая ошибка: ${firstReason}`,
+    );
+  }
+}
 
 /**
  * Экран «План этажа + редактор помещений» (М2.7), маршрут /objects/:id/floors/:floorId.
@@ -69,6 +88,8 @@ export function FloorPlanPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  /** .sh3d, брошенный в пустую зону: модалка открывается с ним для превью/импорта. */
+  const [sh3dInitialFile, setSh3dInitialFile] = useState<File | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [scaleInput, setScaleInput] = useState('');
   const [scaleError, setScaleError] = useState<string | null>(null);
@@ -147,12 +168,43 @@ export function FloorPlanPage() {
   });
 
   const planMutation = useMutation({
-    mutationFn: (args: { file: File; scale?: number }) =>
-      uploadFloorPlan(requireFloorId(), args.file, args.scale),
+    mutationFn: async (args: { file: File; scale?: number; importRooms?: ImportRoom[] }) => {
+      const floor = await uploadFloorPlan(requireFloorId(), args.file, args.scale);
+      const rooms = args.importRooms ?? [];
+      if (rooms.length === 0) return floor;
+      // План обязан быть залит ДО помещений: core валидирует координаты по его
+      // размерам, поэтому сначала upload, затем создание. Батчи по 4 — пул Prisma
+      // в core limit 8, 63 «одновременных» POST ломали соединения (500/P1001).
+      const failures: string[] = [];
+      const BATCH_SIZE = 4;
+      for (let offset = 0; offset < rooms.length; offset += BATCH_SIZE) {
+        const batch = rooms.slice(offset, offset + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map((room) => createRoom(requireFloorId(), room)),
+        );
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            const reason =
+              result.reason instanceof Error ? result.reason.message : String(result.reason);
+            failures.push(`${batch[index].name}: ${reason}`);
+          }
+        });
+      }
+      if (failures.length > 0) {
+        throw new RoomsImportedPartiallyError(failures.length, rooms.length, failures[0]);
+      }
+      return floor;
+    },
     onSuccess: () => {
       setUploadOpen(false);
       setFileError(null);
       invalidateFloor();
+    },
+    onError: (caught) => {
+      if (caught instanceof RoomsImportedPartiallyError) {
+        setUploadOpen(false);
+        invalidateFloor();
+      }
     },
   });
 
@@ -262,6 +314,7 @@ export function FloorPlanPage() {
     planMutation.reset();
     attachPlanMutation.reset();
     setFileError(null);
+    setSh3dInitialFile(null);
     setUploadOpen(false);
   }
 
@@ -586,9 +639,16 @@ export function FloorPlanPage() {
             onHover={setHoveredRoomId}
             onCreateRect={handleCreateRect}
             onRectChange={handleRectChange}
-            onUploadFile={(file) =>
-              planMutation.mutate({ file, scale: floor.planScale ?? undefined })
-            }
+            onUploadFile={(file) => {
+              // .sh3d мимо модалки не отправляем: нужна конвертация и вопрос
+              // про импорт помещений — открываем модалку с этим файлом.
+              if (isSh3dFile(file)) {
+                setSh3dInitialFile(file);
+                setUploadOpen(true);
+                return;
+              }
+              planMutation.mutate({ file, scale: floor.planScale ?? undefined });
+            }}
           />
 
           {selectedRoom && (
@@ -649,11 +709,18 @@ export function FloorPlanPage() {
           planScale={floor.planScale}
           busy={planMutation.isPending || attachPlanMutation.isPending}
           error={planError}
-          onSubmit={(file, scale) => planMutation.mutate({ file, scale: scale ?? undefined })}
+          onSubmit={(file, scale, importRooms) =>
+            planMutation.mutate({
+              file,
+              scale: scale ?? undefined,
+              importRooms,
+            })
+          }
           onAttachUrl={(url, scale) =>
             attachPlanMutation.mutate({ url, scale: scale ?? undefined })
           }
           onClose={closeUploadModal}
+          initialFile={sh3dInitialFile}
         />
       )}
 

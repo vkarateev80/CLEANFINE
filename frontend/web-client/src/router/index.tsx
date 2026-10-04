@@ -38,67 +38,67 @@ import { TicketsPage } from '../pages/Tickets/TicketsPage';
 export const router = createBrowserRouter(
   [
     {
-    path: '/login',
-    element: (
-      <PublicOnlyGuard>
-        <AuthLayout>
-          <LoginPage />
-        </AuthLayout>
-      </PublicOnlyGuard>
-    ),
-  },
-  {
-    path: '/',
-    element: (
-      <AuthGuard>
-        <SessionGate>
-          <RoleGuard>
-            <ClientLayout />
-          </RoleGuard>
-        </SessionGate>
-      </AuthGuard>
-    ),
-    children: [
-      // Объект клиента определяется внутри `ClientLayout` (контекст), поэтому
-      // гейт стоит на каждой странице, а не на родительском маршруте.
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      {
-        path: 'dashboard',
-        element: (
-          <ScopeGate>
-            <DashboardPage />
-          </ScopeGate>
-        ),
-      },
-      {
-        path: 'tickets',
-        element: (
-          <ScopeGate>
-            <TicketsPage />
-          </ScopeGate>
-        ),
-      },
-      {
-        path: 'tickets/:id',
-        element: (
-          <ScopeGate>
-            <TicketDetailPage />
-          </ScopeGate>
-        ),
-      },
-      {
-        path: 'reports',
-        element: (
-          <ScopeGate>
-            <ReportsPage />
-          </ScopeGate>
-        ),
-      },
-      // Чат не зависит от объекта: клиенту нужен канал связи всегда.
-      { path: 'chat', element: <ChatPage /> },
-    ],
-  },
-  { path: '*', element: <NotFoundPage /> },
+      path: '/login',
+      element: (
+        <PublicOnlyGuard>
+          <AuthLayout>
+            <LoginPage />
+          </AuthLayout>
+        </PublicOnlyGuard>
+      ),
+    },
+    {
+      path: '/',
+      element: (
+        <AuthGuard>
+          <SessionGate>
+            <RoleGuard>
+              <ClientLayout />
+            </RoleGuard>
+          </SessionGate>
+        </AuthGuard>
+      ),
+      children: [
+        // Объект клиента определяется внутри `ClientLayout` (контекст), поэтому
+        // гейт стоит на каждой странице, а не на родительском маршруте.
+        { index: true, element: <Navigate to="/dashboard" replace /> },
+        {
+          path: 'dashboard',
+          element: (
+            <ScopeGate>
+              <DashboardPage />
+            </ScopeGate>
+          ),
+        },
+        {
+          path: 'tickets',
+          element: (
+            <ScopeGate>
+              <TicketsPage />
+            </ScopeGate>
+          ),
+        },
+        {
+          path: 'tickets/:id',
+          element: (
+            <ScopeGate>
+              <TicketDetailPage />
+            </ScopeGate>
+          ),
+        },
+        {
+          path: 'reports',
+          element: (
+            <ScopeGate>
+              <ReportsPage />
+            </ScopeGate>
+          ),
+        },
+        // Чат не зависит от объекта: клиенту нужен канал связи всегда.
+        { path: 'chat', element: <ChatPage /> },
+      ],
+    },
+    { path: '*', element: <NotFoundPage /> },
   ],
   { basename: import.meta.env.BASE_URL },
 );

@@ -93,6 +93,39 @@ spec:
       middlewares:
         - name: portal-strip
 ---
+# Файлы MinIO (планы, фото): https://cleanfine.ru/minio/<bucket>/<key>.
+# Срезаем префикс — бакеты лежат в корне minio; без этого file-service
+# отдавал бы http://minio:9000 (внутренний DNS, браузер не откроет).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: minio-strip
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  stripPrefix:
+    prefixes:
+      - /minio
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: cleanfine-minio
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: (Host(`cleanfine.ru`) || Host(`www.cleanfine.ru`)) && PathPrefix(`/minio`)
+      kind: Rule
+      priority: 50
+      services:
+        - name: minio
+          port: 9000
+      middlewares:
+        - name: minio-strip
+---
 # HTTP→HTTPS для обоих хостов. priority 50: выше дефолтного (длина правила
 # ~40 у plain-Ingress), ниже solver-ингресса (~78) — ACME не перехватывается.
 apiVersion: traefik.io/v1alpha1

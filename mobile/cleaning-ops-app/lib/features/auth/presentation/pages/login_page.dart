@@ -29,6 +29,27 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
+  /// Демо-вход лончеров симуляторов (`scripts/launchers/Cleaning-Ops-*.command`):
+  /// лончер передаёт `--dart-define=AUTO_LOGIN_EMAIL=…` / `AUTO_LOGIN_PASSWORD=…`,
+  /// экран заполняет форму и нажимает «Войти» один раз. Без define значения
+  /// пустые — поведение экрана (и юнит-тесты) не меняются.
+  static const String _autoEmail = String.fromEnvironment('AUTO_LOGIN_EMAIL');
+  static const String _autoPassword = String.fromEnvironment('AUTO_LOGIN_PASSWORD');
+
+  @override
+  void initState() {
+    super.initState();
+    if (_autoEmail.isEmpty || _autoPassword.isEmpty) return;
+    // После первого кадра: форма уже прикреплена, validate() внутри _submit
+    // увидит заполненные поля.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _emailController.text = _autoEmail;
+      _passwordController.text = _autoPassword;
+      _submit();
+    });
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
