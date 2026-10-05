@@ -32,7 +32,7 @@ export class ReportsController {
 
   @Get('summary')
   @ApiOperation({
-    summary: 'KPI контроля персонала для дашборда',
+    summary: 'KPI контроля персонала для доски действий',
     description: 'Смены, отметки, неявки, авто-закрытия, опоздания, отработанные часы и явка.',
   })
   @ApiResponse({ status: 200, description: 'StaffSummaryView' })

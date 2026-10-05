@@ -31,7 +31,7 @@ export class ReportsController {
 
   @Get('summary')
   @ApiOperation({
-    summary: 'KPI контроля по GPS для дашборда',
+    summary: 'KPI контроля по GPS для доски действий',
     description: 'Посещения, время на объектах, число отслеживаемых сотрудников и точек трека.',
   })
   @ApiResponse({ status: 200, description: 'GeofenceSummaryView' })

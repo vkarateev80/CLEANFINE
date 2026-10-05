@@ -23,7 +23,7 @@ import type {
  * Схема (решение архитектора №4, CQRS в «облегчённой» форме): read-модели
  * (SQL-представления) созданы ВНУТРИ сервиса-владельца данных, там же живут
  * read-эндпоинты. Единого представления сквозь сервисы нет — у каждого сервиса своя БД,
- * поэтому сводный дашборд собирает ответы сервисов, а не JOIN.
+ * поэтому сводная доска действий собирает ответы сервисов, а не JOIN.
  */
 
 /** Отчёт по расходу материалов: объект + период + материал (material-service). */
@@ -40,7 +40,7 @@ export function getConsumptionByObject(
     .then((r) => r.data);
 }
 
-/** KPI расхода материалов для дашборда (material-service). */
+/** KPI расхода материалов для доски действий (material-service). */
 export function getConsumptionSummary(): Promise<ConsumptionSummary> {
   return apiClient.get('/materials/reports/summary').then((r) => r.data);
 }
@@ -52,7 +52,7 @@ export function getTicketExecutionReport(
   return apiClient.get('/tickets/reports/execution', { params: query }).then((r) => r.data);
 }
 
-/** KPI заявок для дашборда (ticket-service). */
+/** KPI заявок для доски действий (ticket-service). */
 export function getTicketSummary(): Promise<TicketSummary> {
   return apiClient.get('/tickets/reports/summary').then((r) => r.data);
 }
@@ -62,7 +62,7 @@ export function getStaffControlReport(query: StaffControlQuery = {}): Promise<St
   return apiClient.get('/schedule/reports/staff-control', { params: query }).then((r) => r.data);
 }
 
-/** KPI смен для дашборда (schedule-service). */
+/** KPI смен для доски действий (schedule-service). */
 export function getStaffSummary(): Promise<StaffSummary> {
   return apiClient.get('/schedule/reports/summary').then((r) => r.data);
 }
@@ -74,7 +74,7 @@ export function getGeofenceControlReport(
   return apiClient.get('/gps/reports/geofence-control', { params: query }).then((r) => r.data);
 }
 
-/** KPI посещений объектов для дашборда (gps-service). */
+/** KPI посещений объектов для доски действий (gps-service). */
 export function getGeofenceSummary(): Promise<GeofenceSummary> {
   return apiClient.get('/gps/reports/summary').then((r) => r.data);
 }

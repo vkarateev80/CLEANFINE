@@ -91,7 +91,7 @@ alertmanager:
               storage: 1Gi
 
 # node-exporter/kube-state-metrics — дефолты стека (диск, CPU, поды).
-# Дашборды по умолчанию включены (node-exporter full).
+# Доска действийы по умолчанию включены (node-exporter full).
 defaultRules:
   rules:
     alertmanager: true

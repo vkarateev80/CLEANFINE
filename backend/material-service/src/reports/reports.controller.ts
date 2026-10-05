@@ -46,7 +46,7 @@ export class ReportsController {
 
   @Get('summary')
   @ApiOperation({
-    summary: 'KPI расхода для дашборда',
+    summary: 'KPI расхода для доски действий',
     description:
       'Расход и стоимость за последние 30 дней, число объектов с расходом, позиции ниже порога ' +
       'и топ-5 материалов по стоимости.',

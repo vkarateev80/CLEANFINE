@@ -48,8 +48,8 @@ test.describe('web-admin: вход', () => {
     await page.getByRole('button', { name: 'Войти' }).click();
 
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 20_000 });
-    await expect(page.getByRole('heading', { name: 'Дашборд' })).toBeVisible();
-    await expect(page.getByText(admin.email)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Доска действий' })).toBeVisible();
+    await expect(page.getByText(admin.email, { exact: true })).toBeVisible();
     // бейдж роли в карточке профиля (span, а не текст в сайдбаре)
     await expect(page.locator('span', { hasText: /^ADMIN$/ })).toBeVisible();
   });

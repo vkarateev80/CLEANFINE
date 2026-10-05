@@ -69,7 +69,7 @@ export interface StaffControlReportView {
   };
 }
 
-/** KPI контроля персонала для дашборда. */
+/** KPI контроля персонала для доски действий. */
 export interface StaffSummaryView {
   shiftsTotal: number;
   checkedInCount: number;
@@ -136,7 +136,7 @@ export class ReportsService {
     };
   }
 
-  /** KPI контроля персонала для дашборда: одна строка read-модели. */
+  /** KPI контроля персонала для доски действий: одна строка read-модели. */
   async summary(): Promise<StaffSummaryView> {
     const totals = await this.repository.totals();
 

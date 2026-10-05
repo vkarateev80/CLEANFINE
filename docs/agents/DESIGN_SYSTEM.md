@@ -186,7 +186,7 @@ Accessibility (контраст, размеры)
 
 Экраны:
 
-dashboard.fig — Дашборд
+dashboard.fig — Доска действий
 
 objects_list.fig — Список объектов
 

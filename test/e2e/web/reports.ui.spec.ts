@@ -4,7 +4,7 @@ import { createMovement, flushPlanningData, trackMaterial } from '../../helpers/
 import { userByRole } from '../../helpers/users';
 
 /**
- * М7.1 — UI-спека страницы «Отчёты» и дашборда в web-admin.
+ * М7.1 — UI-спека страницы «Отчёты» и доски действий в web-admin.
  *
  * Проверяется интерфейс, а не контракт API (контракты закрыты
  * `e2e/api/reports.api.spec.ts`):
@@ -14,7 +14,7 @@ import { userByRole } from '../../helpers/users';
  *      перезапрашивается, а не показывает закешированные числа;
  *   3) графики Recharts отрисованы (есть SVG-элементы, а не пустая карточка);
  *   4) экспорт CSV отдаёт файл с заголовками и строками таблицы;
- *   5) дашборд показывает KPI-карточки и графики, и с него есть переход в «Отчёты».
+ *   5) доска действий показывает KPI-карточки и графики, и с него есть переход в «Отчёты».
  *
  * ДАННЫЕ ДЛЯ UI (М7.3). Проверки графика и экспорта требуют НЕПУСТОГО отчёта: на
  * пустой базе страница честно показывает «за период нет расхода», и обе проверки
@@ -258,11 +258,11 @@ test.describe('Отчёты М7.1 (web-admin)', () => {
   });
 });
 
-test.describe('Дашборд М7.1 (web-admin)', () => {
-  test('дашборд показывает KPI и графики, а ссылка ведёт в отчёты', async ({ page }) => {
+test.describe('Доска действий М7.1 (web-admin)', () => {
+  test('доска действий показывает KPI и графики, а ссылка ведёт в отчёты', async ({ page }) => {
     await open(page, '/dashboard');
 
-    await expect(page.getByRole('heading', { name: 'Дашборд' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Доска действий' })).toBeVisible();
     await expect(page.getByTestId('dashboard-kpi')).toBeVisible({ timeout: 20_000 });
 
     // Восемь карточек KPI из четырёх сервисов: заявки, материалы, персонал, геозоны.
@@ -284,25 +284,25 @@ test.describe('Дашборд М7.1 (web-admin)', () => {
       expect(text).not.toContain('NaN');
     }
 
-    // Графики дашборда: SVG внутри карточек Recharts.
+    // Графики доски действий: SVG внутри карточек Recharts.
     for (const chartId of ['dashboard-chart-tickets', 'dashboard-chart-consumption']) {
       const chart = page.getByTestId(chartId);
       await expect(chart).toBeVisible({ timeout: 20_000 });
       await expect(chart.locator('svg').first()).toBeVisible({ timeout: 20_000 });
     }
 
-    // Переход в отчёты — единая точка входа в аналитику, а не «второй дашборд».
+    // Переход в отчёты — единая точка входа в аналитику, а не «вторая доска действий».
     await page.getByTestId('dashboard-reports-link').click();
     await expect(page).toHaveURL(/\/reports$/);
     await expect(page.getByTestId('report-totals-materials')).toBeVisible({ timeout: 20_000 });
   });
 
-  test('KPI дашборда совпадает с итогами отчёта за тот же период', async ({ page }) => {
+  test('KPI доски действий совпадает с итогами отчёта за тот же период', async ({ page }) => {
     await open(page, '/dashboard');
     await expect(page.getByTestId('kpi-materials-cost')).toBeVisible({ timeout: 20_000 });
     const dashboardCost = (await page.getByTestId('kpi-materials-cost').textContent()) ?? '';
 
-    // Тот же период, что у дашборда (30 дней), открываем в отчёте.
+    // Тот же период, что у доски действий (30 дней), открываем в отчёте.
     await open(page, '/reports?tab=materials&from=2000-01-01');
     await expect(page.getByTestId('report-total-cost')).toBeVisible({ timeout: 20_000 });
     const reportCost = (await page.getByTestId('report-total-cost').textContent()) ?? '';

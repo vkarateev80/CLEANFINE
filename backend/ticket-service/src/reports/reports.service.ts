@@ -48,7 +48,7 @@ export interface TicketExecutionReportView {
   };
 }
 
-/** KPI дашборда по заявкам. */
+/** KPI доски действий по заявкам. */
 export interface TicketSummaryView {
   ticketsTotal: number;
   newCount: number;
@@ -111,7 +111,7 @@ export class ReportsService {
     };
   }
 
-  /** KPI заявок для дашборда: считается одной строкой read-модели. */
+  /** KPI заявок для доски действий: считается одной строкой read-модели. */
   async summary(): Promise<TicketSummaryView> {
     const totals = await this.repository.totals();
 

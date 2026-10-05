@@ -23,7 +23,7 @@ import { formatDayShort, formatMoney, formatNumber } from './reportsHelpers';
  * Графики отчётов М7.1 (Recharts).
  *
  * ПОЧЕМУ ГРАФИКИ В ОТДЕЛЬНОМ МОДУЛЕ. Recharts тянет в бандл заметный рантайм, и держать
- * его в двух местах (дашборд и страница «Отчёты») означало бы два способа рисовать один
+ * его в двух местах (доска действий и страница «Отчёты») означало бы два способа рисовать один
  * и тот же ряд. Здесь один набор компонентов на все четыре отчёта; страница только
  * выбирает, какой показать.
  *
@@ -215,7 +215,7 @@ export function GeofenceDailyChart({ series }: { series: GeofenceDailyPoint[] })
   );
 }
 
-/** Сводный график дашборда: заявки за 30 дней (создано / выполнено). */
+/** Сводный график доски действий: заявки за 30 дней (создано / выполнено). */
 export function DashboardTicketsChart({ series }: { series: TicketDailyPoint[] }) {
   return (
     <ChartCard
@@ -257,7 +257,7 @@ export function DashboardTicketsChart({ series }: { series: TicketDailyPoint[] }
   );
 }
 
-/** Сводный график дашборда: расход материалов за 30 дней (стоимость по дням). */
+/** Сводный график доски действий: расход материалов за 30 дней (стоимость по дням). */
 export function DashboardConsumptionChart({ series }: { series: ConsumptionSeriesPoint[] }) {
   return (
     <ChartCard

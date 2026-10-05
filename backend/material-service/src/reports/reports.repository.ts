@@ -68,7 +68,7 @@ export interface ObjectOnlyFilter {
   objectId?: string;
 }
 
-/** Строка «остаток ниже порога» — для KPI дашборда. */
+/** Строка «остаток ниже порога» — для KPI доски действий. */
 export interface LowStockViewRow {
   material_id: string;
   object_id: string;
@@ -104,7 +104,7 @@ export class ReportsRepository {
     `;
   }
 
-  /** Итоги по объектам — для карточек дашборда. */
+  /** Итоги по объектам — для карточек доски действий. */
   async consumptionTotals(filter: ObjectOnlyFilter): Promise<ConsumptionTotalsViewRow[]> {
     return this.prisma.$queryRaw<ConsumptionTotalsViewRow[]>`
       SELECT object_id, materials_count, consumed_quantity, operations, last_movement_at
@@ -115,7 +115,7 @@ export class ReportsRepository {
   }
 
   /**
-   * Остатки ниже порога материала — KPI «позиции ниже порога» на дашборде.
+   * Остатки ниже порога материала — KPI «позиции ниже порога» на доске действий.
    *
    * Считается по ТАБЛИЦАМ, а не по read-модели: правило «ниже порога» — это сравнение
    * остатка с порогом справочника, то есть состояние склада, а не факт движения.

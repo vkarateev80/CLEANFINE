@@ -151,7 +151,7 @@ LEFT JOIN geofences g
 WHERE t.location IS NOT NULL
 GROUP BY t.user_id, date_trunc('day', t."timestamp")::date;
 
--- KPI контроля персонала по GPS для дашборда: одна строка.
+-- KPI контроля персонала по GPS для доски действий: одна строка.
 CREATE VIEW staff_geofence_totals AS
 SELECT
     (SELECT COUNT(*)::int FROM staff_geofence_control) AS control_rows,

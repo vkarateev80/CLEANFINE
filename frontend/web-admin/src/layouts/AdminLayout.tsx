@@ -25,7 +25,7 @@ export interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { to: '/dashboard', label: 'Дашборд', icon: '📊', end: true },
+  { to: '/dashboard', label: 'Доска действий', icon: '📊', end: true },
   { to: '/objects', label: 'Объекты', icon: '🏢' },
   // Маршруты и техкарты — рабочие места ADMIN/SUPERVISOR: ровно те роли,
   // которым core-service разрешает создание и правку (@Roles). У оператора

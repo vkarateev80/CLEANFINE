@@ -74,7 +74,7 @@ SELECT
 FROM staff_shift_fact
 GROUP BY user_id, object_id, route_id, day;
 
--- KPI смен для дашборда: одна строка, считается в SQL.
+-- KPI смен для доски действий: одна строка, считается в SQL.
 CREATE OR REPLACE VIEW staff_control_totals AS
 SELECT
     COUNT(*)::int AS shifts_total,

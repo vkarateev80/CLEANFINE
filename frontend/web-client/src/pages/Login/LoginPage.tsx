@@ -155,8 +155,8 @@ export function LoginPage() {
         <Input
           id="portal-email"
           name="email"
-          type="email"
-          autoComplete="email"
+          type="text"
+          autoComplete="username"
           inputMode="email"
           autoCapitalize="none"
           spellCheck={false}

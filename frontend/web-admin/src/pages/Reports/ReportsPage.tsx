@@ -49,7 +49,7 @@ export function ReportsPage() {
   const tabParam = params.get('tab');
   const tab: TabKey = isTabKey(tabParam) ? tabParam : 'materials';
 
-  // Период по умолчанию — последние 30 дней: то же окно, что у KPI дашборда.
+  // Период по умолчанию — последние 30 дней: то же окно, что у KPI доски действий.
   const fallback = useMemo(() => defaultPeriod(), []);
   const from = params.get('from') ?? fallback.from;
   const to = params.get('to') ?? fallback.to;

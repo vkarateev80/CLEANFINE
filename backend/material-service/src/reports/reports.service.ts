@@ -42,7 +42,7 @@ export interface ConsumptionReportView {
   series: ConsumptionSeriesPoint[];
 }
 
-/** KPI расхода для карточек дашборда. */
+/** KPI расхода для карточек доски действий. */
 export interface ConsumptionSummaryView {
   consumedQuantity30d: number;
   cost30d: number;
@@ -197,7 +197,7 @@ export class ReportsService {
   }
 
   /**
-   * KPI дашборда: расход за последние 30 дней, число материалов и объектов, позиции
+   * KPI доски действий: расход за последние 30 дней, число материалов и объектов, позиции
    * ниже порога, топ-5 материалов по стоимости.
    *
    * «За 30 дней» — решение, принятое здесь: план М7.1 не задаёт окно KPI. 30 дней —
