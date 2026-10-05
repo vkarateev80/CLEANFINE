@@ -196,7 +196,7 @@ jobs:
       # chat-service → notification-service: push оффлайн-получателям (М5.1).
       NOTIFICATION_SERVICE_URL: http://localhost:3006
       # Сервисная учётка для внутренних вызовов (material → core, schedule → ticket/gps).
-      SERVICE_AUTH_EMAIL: admin@cleaning-ops.com
+      SERVICE_AUTH_EMAIL: admin
       SERVICE_AUTH_PASSWORD: admin123
       JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret-ci
       JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret

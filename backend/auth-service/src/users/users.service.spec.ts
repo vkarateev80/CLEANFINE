@@ -7,7 +7,7 @@ import { TokensService } from '../tokens/tokens.service';
 
 const userRecord = {
   id: 'u1',
-  email: 'operator@cleaning-ops.com',
+  email: 'operator',
   phone: null,
   passwordHash: bcrypt.hashSync('oper123', 10),
   pinCode: null,
@@ -75,7 +75,7 @@ describe('UsersService', () => {
       prisma.user.findFirst.mockResolvedValue(userRecord);
       await expect(
         service.register({
-          email: 'operator@cleaning-ops.com',
+          email: 'operator',
           password: 'password1',
           fullName: 'Дубль',
         }),

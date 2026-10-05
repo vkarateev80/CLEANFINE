@@ -27,11 +27,9 @@ describe('JwtStrategy (notification-service)', () => {
     it('преобразует payload токена в AuthUser', () => {
       const { strategy } = build('secret');
 
-      expect(
-        strategy.validate({ sub: 'u1', email: 'admin@cleaning-ops.com', role: 'ADMIN' }),
-      ).toEqual({
+      expect(strategy.validate({ sub: 'u1', email: 'admin', role: 'ADMIN' })).toEqual({
         id: 'u1',
-        email: 'admin@cleaning-ops.com',
+        email: 'admin',
         role: 'ADMIN',
         // Профиль в core не хранится: имя подставляет auth-service/UI.
         fullName: '',

@@ -25,7 +25,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'support/app_harness.dart';
 
-const String kOperatorEmail = 'operator@cleaning-ops.com';
+const String kOperatorEmail = 'operator';
 const String kOperatorPassword = 'oper123';
 
 /// Сколько секунд держим приложение живым. Хост-скрипт подаёт координаты окнами.

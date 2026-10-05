@@ -31,7 +31,7 @@ import { check } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
 
 const BASE_URL = __ENV.K6_BASE_URL || 'http://127.0.0.1:3101';
-const EMAIL = __ENV.K6_EMAIL || 'admin@cleaning-ops.com';
+const EMAIL = __ENV.K6_EMAIL || 'admin';
 const PASSWORD = __ENV.K6_PASSWORD || 'admin123';
 const LOGIN_LIMIT = Number(__ENV.K6_LOGIN_LIMIT || 5);
 const BURST = Number(__ENV.K6_BURST || LOGIN_LIMIT * 2);

@@ -26,7 +26,7 @@ const API_BASE_URL = (process.env.API_BASE_URL ?? 'http://100.109.185.14:8090').
 const TIMEOUT_MS = Number(process.env.SEED_TIMEOUT_MS ?? 15000);
 
 // Креды seed-администратора: он создаёт пользователя (POST /api/users — только ADMIN).
-const ADMIN_EMAIL = 'admin@cleaning-ops.com';
+const ADMIN_EMAIL = 'admin';
 const ADMIN_PASSWORD = 'admin123';
 
 // Владелец объекта: роль CLIENT (иначе портал не пустит), пароль демо-уровня.

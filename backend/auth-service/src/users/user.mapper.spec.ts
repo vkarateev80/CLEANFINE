@@ -3,7 +3,7 @@ import { toSafeUser } from './user.mapper';
 
 const dbUser = {
   id: 'u1',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   phone: '+79990000000',
   passwordHash: 'secret-hash',
   pinCode: 'secret-pin',
@@ -20,7 +20,7 @@ describe('toSafeUser', () => {
   it('возвращает только публичные поля', () => {
     expect(toSafeUser(dbUser)).toEqual({
       id: 'u1',
-      email: 'admin@cleaning-ops.com',
+      email: 'admin',
       phone: '+79990000000',
       fullName: 'Администратор',
       role: 'ADMIN',

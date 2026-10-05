@@ -5,7 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 const dbUser = {
   id: 'u1',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   phone: null,
   passwordHash: 'hash',
   pinCode: null,
@@ -51,7 +51,7 @@ describe('JwtStrategy', () => {
 
       expect(result).toEqual({
         id: 'u1',
-        email: 'admin@cleaning-ops.com',
+        email: 'admin',
         role: 'ADMIN',
         fullName: 'Администратор',
       });

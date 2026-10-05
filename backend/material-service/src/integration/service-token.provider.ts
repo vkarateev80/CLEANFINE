@@ -33,7 +33,7 @@ export class ServiceTokenProvider {
   }
 
   private get email(): string {
-    return this.config.get<string>('authService.email') ?? 'admin@cleaning-ops.com';
+    return this.config.get<string>('authService.email') ?? 'admin';
   }
 
   private get password(): string {

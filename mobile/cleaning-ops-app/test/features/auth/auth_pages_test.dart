@@ -24,11 +24,11 @@ void main() {
     );
   }
 
-  testWidgets('неверный email показывает текст «Введите корректный email»', (tester) async {
+  testWidgets('пустой email показывает текст «Введите корректный email»', (tester) async {
     await tester.pumpWidget(wrap(const LoginPage()));
     await tester.pump();
 
-    await tester.enterText(find.byKey(const Key('email_field')), 'operator@');
+    await tester.enterText(find.byKey(const Key('email_field')), '');
     await tester.ensureVisible(find.byKey(const Key('submit_button')));
     await tester.tap(find.byKey(const Key('submit_button')));
     await tester.pump();

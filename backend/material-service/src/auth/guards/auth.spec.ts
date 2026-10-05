@@ -19,7 +19,7 @@ function createContext(user?: AuthUser): ExecutionContext {
 
 const admin: AuthUser = {
   id: 'u-1',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   role: 'ADMIN',
   fullName: 'Админ',
 };

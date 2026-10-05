@@ -1,9 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class LoginDto {
-  @ApiProperty({ description: 'Email пользователя', example: 'admin@cleaning-ops.com' })
-  @IsEmail({}, { message: 'Некорректный email' })
+  @ApiProperty({
+    description: 'Логин: email или короткое имя (admin, operator, client)',
+    example: 'admin',
+  })
+  @IsString({ message: 'Укажите логин' })
+  @IsNotEmpty({ message: 'Укажите логин' })
+  // Без @IsEmail: демо-учётки — короткие имена (admin/operator/client).
+  // Формат-проверка «найдёт ли пользователься» — валидность на сервере: 401.
+  @MaxLength(254, { message: 'Логин не длиннее 254 символов' })
   email!: string;
 
   @ApiProperty({ description: 'Пароль (не короче 6 символов)', example: 'admin123', minLength: 6 })

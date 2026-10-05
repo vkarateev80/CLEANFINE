@@ -217,10 +217,10 @@ for pair in "8090 web-admin" "8091 web-client"; do
     "$(curl -s -o /dev/null -w '%{http_code}' "http://${TAILNET_IP}:$1/" || echo 'нет ответа')"
 done
 
-echo "-- AC-3: логин admin@cleaning-ops.com"
+echo "-- AC-3: логин admin"
 LOGIN_CODE="$(curl -s -o /tmp/cf-login.json -w '%{http_code}' -X POST \
   "http://${TAILNET_IP}:8090/api/auth/login" -H 'Content-Type: application/json' \
-  -d '{"email":"admin@cleaning-ops.com","password":"admin123"}' || true)"
+  -d '{"email":"admin","password":"admin123"}' || true)"
 echo "   POST /api/auth/login → $LOGIN_CODE (ожидается 201)"
 if [ "$LOGIN_CODE" = "201" ]; then
   TOKEN="$(python3 -c 'import json;print(json.load(open("/tmp/cf-login.json"))["accessToken"])' 2>/dev/null || true)"

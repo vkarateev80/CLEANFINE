@@ -138,7 +138,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             validator: Validators.email,
             onChanged: (_) => ref.read(authControllerProvider.notifier).clearError(),
             decoration: const InputDecoration(
-              hintText: 'operator@cleaning-ops.com',
+              hintText: 'operator',
               isDense: true,
             ),
           ),

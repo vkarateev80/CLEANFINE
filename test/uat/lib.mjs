@@ -83,10 +83,10 @@ export async function loginPin(phone, pinCode) {
 }
 
 export const USERS = {
-  admin: { email: 'admin@cleaning-ops.com', password: 'admin123', fullName: 'Администратор' },
+  admin: { email: 'admin', password: 'admin123', fullName: 'Администратор' },
   supervisor: { email: 'supervisor@cleaning-ops.com', password: 'super123', fullName: 'Бригадир' },
-  operator: { email: 'operator@cleaning-ops.com', password: 'oper123', phone: '+79990000003', pin: '3456' },
-  client: { email: 'client@example.com', password: 'client123' },
+  operator: { email: 'operator', password: 'oper123', phone: '+79990000003', pin: '3456' },
+  client: { email: 'client', password: 'client123' },
 };
 
 /**

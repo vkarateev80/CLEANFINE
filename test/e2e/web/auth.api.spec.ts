@@ -116,16 +116,25 @@ test.describe('Auth: вертикаль входа', () => {
     expect(replay.status()).toBe(401);
   });
 
-  test('неверный пароль → 401, невалидный email → 400', async ({ request }) => {
+  test('неверный пароль → 401, неизвестный логин → 401, пустой логин → 400', async ({
+    request,
+  }) => {
     const bad = await request.post('/api/auth/login', {
       data: { email: admin.email, password: 'definitely-wrong' },
     });
     expect(bad.status()).toBe(401);
 
-    const invalid = await request.post('/api/auth/login', {
+    // Формат логина больше не проверяется (@IsEmail снят): «not-an-email» —
+    // просто несуществующий логин, сервер отвечает 401, а не 400.
+    const unknown = await request.post('/api/auth/login', {
       data: { email: 'not-an-email', password: admin.password },
     });
-    expect(invalid.status()).toBe(400);
+    expect(unknown.status()).toBe(401);
+
+    const empty = await request.post('/api/auth/login', {
+      data: { email: '', password: admin.password },
+    });
+    expect(empty.status()).toBe(400);
   });
 
   test('защищённые эндпоинты без токена → 401', async ({ request }) => {

@@ -40,10 +40,9 @@ export function readAutoLogin(search: string): { email: string; password: string
   return { email, password };
 }
 
-/** Проверка email на клиенте: «есть `@` и точка после него» (полную проверку делает бэкенд). */
+/** Логин: email или короткое имя (client) — формат не ограничиваем, 401 вернёт бэкенд. */
 function isEmailLike(value: string): boolean {
-  const at = value.indexOf('@');
-  return at > 0 && value.indexOf('.', at) > at + 1;
+  return value.trim().length > 0;
 }
 
 export function LoginPage() {
@@ -168,7 +167,7 @@ export function LoginPage() {
           invalid={Boolean(emailError)}
           disabled={loading}
           onChange={(event) => setEmail(event.target.value)}
-          placeholder="client@example.com"
+          placeholder="client"
         />
       </Field>
 

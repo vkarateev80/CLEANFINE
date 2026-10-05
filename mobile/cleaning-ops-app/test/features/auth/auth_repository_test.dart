@@ -15,7 +15,7 @@ import '../../helpers/auth_fakes.dart';
 void main() {
   const Map<String, Object> operatorUser = <String, Object>{
     'id': 'u-1',
-    'email': 'operator@cleaning-ops.com',
+    'email': 'operator',
     'fullName': 'Иванов Иван',
     'role': 'OPERATOR',
     'isActive': true,
@@ -58,7 +58,7 @@ void main() {
     final repository = build(adapter: routes(), session: session, pins: pins);
 
     final AuthResult<AuthUser> result = await repository.login(
-      email: 'operator@cleaning-ops.com',
+      email: 'operator',
       password: 'operator123',
     );
 
@@ -67,7 +67,7 @@ void main() {
     expect(session.signInCalls, hasLength(1));
     expect(session.signInCalls.single['accessToken'], 'access-1');
     expect(session.signInCalls.single['role'], 'OPERATOR');
-    expect(pins.credentials.email, 'operator@cleaning-ops.com');
+    expect(pins.credentials.email, 'operator');
   });
 
   test('401 превращается в UnauthorizedFailure, сессия не открывается', () async {
@@ -80,7 +80,7 @@ void main() {
     );
 
     final AuthResult<AuthUser> result =
-        await repository.login(email: 'operator@cleaning-ops.com', password: 'wrong');
+        await repository.login(email: 'operator', password: 'wrong');
 
     expect(result.failureOrNull, isA<UnauthorizedFailure>());
     expect(session.signInCalls, isEmpty);
@@ -97,7 +97,7 @@ void main() {
     );
 
     final AuthResult<AuthUser> result =
-        await repository.login(email: 'operator@cleaning-ops.com', password: 'operator123');
+        await repository.login(email: 'operator', password: 'operator123');
 
     expect(result.failureOrNull, isA<NetworkFailure>());
     expect(result.failureOrNull?.message, AuthTexts.network);
@@ -126,7 +126,7 @@ void main() {
       adapter: routes(
         me: const FakeResponse(200, <String, Object>{
           'id': 'client-1',
-          'email': 'client@example.com',
+          'email': 'client',
           'fullName': 'Заказчик',
           'role': 'CLIENT',
           'isActive': true,
@@ -136,7 +136,7 @@ void main() {
     );
 
     final AuthResult<AuthUser> result =
-        await repository.login(email: 'client@example.com', password: 'client123');
+        await repository.login(email: 'client', password: 'client123');
 
     expect(result.failureOrNull, isA<ForbiddenFailure>());
     expect(session.signInCalls, isEmpty);
@@ -154,7 +154,7 @@ void main() {
 
   test('вход по PIN использует сохранённый email', () async {
     final pins = InMemoryPinStore()
-      ..credentials = const PinCredentials(email: 'operator@cleaning-ops.com');
+      ..credentials = const PinCredentials(email: 'operator');
     final repository = build(adapter: routes(), pins: pins);
 
     final AuthResult<AuthUser> result = await repository.loginWithPin(pin: '3456');

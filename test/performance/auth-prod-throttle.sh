@@ -67,7 +67,7 @@ stop() {
 status() {
   local code
   code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$PORT/api/auth/login" \
-    -H 'Content-Type: application/json' -d '{"email":"admin@cleaning-ops.com","password":"admin123"}' || true)"
+    -H 'Content-Type: application/json' -d '{"email":"admin","password":"admin123"}' || true)"
   echo "порт :$PORT → логин отвечает $code (201 = поднят)"
 }
 

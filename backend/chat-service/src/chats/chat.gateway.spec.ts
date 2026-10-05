@@ -8,13 +8,13 @@ import type { AuthUser } from '../auth/guards/roles.guard';
 
 const admin: AuthUser = {
   id: 'u-admin',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   role: 'ADMIN',
   fullName: '',
 };
 const _operator: AuthUser = {
   id: 'u-oper',
-  email: 'operator@cleaning-ops.com',
+  email: 'operator',
   role: 'OPERATOR',
   fullName: '',
 };
@@ -206,7 +206,7 @@ describe('ChatGateway', () => {
     beforeEach(async () => {
       jwt.verifyAsync.mockResolvedValue({
         sub: 'u-admin',
-        email: 'admin@cleaning-ops.com',
+        email: 'admin',
         role: 'ADMIN',
       });
       socket = fakeSocket('s-1', { token: 't' });

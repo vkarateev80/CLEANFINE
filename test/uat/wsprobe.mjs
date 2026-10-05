@@ -16,7 +16,7 @@ async function probe(label, url) {
 }
 const t = await fetch('http://127.0.0.1:8080/api/auth/login', {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email: 'admin@cleaning-ops.com', password: 'admin123' }),
+  body: JSON.stringify({ email: 'admin', password: 'admin123' }),
 }).then((r) => r.json()).then((d) => d.accessToken);
 console.log(await probe('[напрямую]', 'http://127.0.0.1:3009'));
 console.log(await probe('[через nginx :8080]', 'http://127.0.0.1:8080'));

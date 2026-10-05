@@ -56,7 +56,7 @@ x-app-env: &app-env
   NOTIFICATION_SERVICE_URL: http://notifications:3006
   # Сервисная учётка внутренних вызовов (chat/material/schedule).
   # Пароль обязан совпадать с паролем seed-администратора (решение O4).
-  SERVICE_AUTH_EMAIL: ${SERVICE_AUTH_EMAIL:-admin@cleaning-ops.com}
+  SERVICE_AUTH_EMAIL: ${SERVICE_AUTH_EMAIL:-admin}
   SERVICE_AUTH_PASSWORD: ${SERVICE_AUTH_PASSWORD:-admin123}
   # JWT: auth валидирует секреты (NODE_ENV=production ⇒ ≥32 символа, разные).
   JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET не задан в .env.vps — запустите deploy/vps/gen-env.sh}

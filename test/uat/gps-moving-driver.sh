@@ -42,7 +42,7 @@ wait "$PID" 2>/dev/null
 log "остановлено; выгружаю точки"
 
 OT=$(curl -s -X POST $B/auth/login -H 'Content-Type: application/json' \
-  -d '{"email":"operator@cleaning-ops.com","password":"oper123"}' \
+  -d '{"email":"operator","password":"oper123"}' \
   | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
 UID_OP=$(curl -s $B/auth/me -H "Authorization: Bearer $OT" | python3 -c "import sys,json;print(json.load(sys.stdin)['id'])")
 FROM=$(python3 -c "import datetime;print((datetime.datetime.utcnow()-datetime.timedelta(minutes=20)).strftime('%Y-%m-%dT%H:%M:%S.000Z'))")

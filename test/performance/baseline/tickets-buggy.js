@@ -30,7 +30,7 @@ export const options = {
 };
 
 const BASE_URL = __ENV.K6_BASE_URL || 'http://localhost:3000';
-const EMAIL = __ENV.K6_EMAIL || 'admin@cleaning-ops.com';
+const EMAIL = __ENV.K6_EMAIL || 'admin';
 const PASSWORD = __ENV.K6_PASSWORD || 'admin123';
 
 function login() {

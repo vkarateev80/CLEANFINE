@@ -15,7 +15,7 @@ set -u
 
 ROOT="${CLEANFINE_ROOT:-/Users/mac/Desktop/MIMO/Clean}"
 APP_DIR="$ROOT/mobile/cleaning-ops-app"
-EMAIL="operator@cleaning-ops.com"
+EMAIL="operator"
 PASSWORD="oper123"
 # iOS-симулятор видит хост-машину как localhost (не 10.0.2.2 — это Android).
 API_HOST="localhost"

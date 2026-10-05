@@ -4,7 +4,7 @@ import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 export class PinLoginDto {
   @ApiPropertyOptional({
     description: 'Email пользователя (нужен email или телефон)',
-    example: 'operator@cleaning-ops.com',
+    example: 'operator',
   })
   @IsOptional()
   @IsString()

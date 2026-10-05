@@ -6,14 +6,18 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('Validators.email', () {
     test('корректный email проходит', () {
-      expect(Validators.email('operator@cleaning-ops.com'), isNull);
+      expect(Validators.email('operator'), isNull);
     });
 
-    test('пустое значение и мусор дают текст из УСТАВА', () {
+    test('короткий логин без @ проходит (operator, admin, client)', () {
+      expect(Validators.email('operator'), isNull);
+      expect(Validators.email('admin'), isNull);
+    });
+
+    test('пустое значение даёт текст из УСТАВА', () {
       expect(Validators.email(''), 'Введите корректный email');
       expect(Validators.email(null), 'Введите корректный email');
-      expect(Validators.email('operator@'), 'Введите корректный email');
-      expect(Validators.email('оператор@почта.рф'), 'Введите корректный email');
+      expect(Validators.email('   '), 'Введите корректный email');
     });
   });
 

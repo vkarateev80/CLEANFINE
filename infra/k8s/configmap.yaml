@@ -30,7 +30,7 @@ data:
   SCHEDULE_SERVICE_URL: "http://schedule:3008"
   CHAT_SERVICE_URL: "http://chat:3009"
 
-  SERVICE_AUTH_EMAIL: "admin@cleaning-ops.com"
+  SERVICE_AUTH_EMAIL: "admin"
 
   JWT_ACCESS_TTL: "15m"
   JWT_REFRESH_TTL: "30d"

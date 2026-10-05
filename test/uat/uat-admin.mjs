@@ -653,7 +653,7 @@ async function main() {
           ok: !hasRoutes && !hasCards && finalPath === '/dashboard',
           actual: `меню оператора: ${menu.map((m) => m.trim()).filter(Boolean).join(' | ')}; `
             + `прямой заход /routes → ${finalPath}`,
-          evidence: 'вход operator@cleaning-ops.com → /dashboard, /routes перенаправлен',
+          evidence: 'вход operator → /dashboard, /routes перенаправлен',
         };
       },
     );

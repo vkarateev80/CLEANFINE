@@ -14,7 +14,7 @@ import type { AuthUser } from '../auth/guards/roles.guard';
 
 const admin: AuthUser = {
   id: 'u-admin',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   role: 'ADMIN',
   fullName: '',
 };
@@ -26,13 +26,13 @@ const supervisor: AuthUser = {
 };
 const operator: AuthUser = {
   id: 'u-oper',
-  email: 'operator@cleaning-ops.com',
+  email: 'operator',
   role: 'OPERATOR',
   fullName: '',
 };
 const clientRole: AuthUser = {
   id: 'u-client',
-  email: 'client@example.com',
+  email: 'client',
   role: 'CLIENT',
   fullName: '',
 };

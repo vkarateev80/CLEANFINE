@@ -24,7 +24,7 @@ chat `:3009`. REST ходит через dev-прокси Vite (`/api/auth`, `/a
 `/api/objects`, `/api/tickets`, `/api/notifications`, `/api/materials`,
 `/api/schedule`, `/api/chat`).
 
-Вход: `client@example.com` / `client123` (роль `CLIENT`, см. `test/fixtures/users.json`).
+Вход: `client` / `client123` (роль `CLIENT`, см. `test/fixtures/users.json`).
 
 ## Переменные окружения
 

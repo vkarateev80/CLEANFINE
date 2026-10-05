@@ -67,7 +67,7 @@ function polygonAround(lat, lng) {
 async function resolveOperator(admin) {
   for (const password of ['operator123', 'admin123', 'password1']) {
     const attempt = await call('POST', `${AUTH}/api/auth/login`, {
-      body: { email: 'operator@cleaning-ops.com', password },
+      body: { email: 'operator', password },
     });
     if (attempt.payload?.accessToken) {
       log('seed-оператор залогинился, пароль из типовых');
@@ -104,7 +104,7 @@ async function main() {
   try {
     section('0. Логин admin и исполнитель смены');
     const adminLogin = await call('POST', `${AUTH}/api/auth/login`, {
-      body: { email: 'admin@cleaning-ops.com', password: 'admin123' },
+      body: { email: 'admin', password: 'admin123' },
     });
     const admin = adminLogin.payload.accessToken;
     adminToken = admin;

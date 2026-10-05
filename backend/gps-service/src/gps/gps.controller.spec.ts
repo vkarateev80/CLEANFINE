@@ -7,7 +7,7 @@ import { GpsService } from './gps.service';
 
 const user: AuthUser = {
   id: 'd8369dde-68c5-4f8b-ab72-55cd39497607',
-  email: 'operator@cleaning-ops.com',
+  email: 'operator',
   role: 'OPERATOR',
   fullName: 'Иван',
 };

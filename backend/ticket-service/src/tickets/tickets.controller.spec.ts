@@ -24,7 +24,7 @@ const ticketsMock = {
 
 const USER: AuthUser = {
   id: 'u-admin',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   role: 'ADMIN',
   fullName: '',
 };

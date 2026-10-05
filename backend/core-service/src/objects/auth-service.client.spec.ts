@@ -27,7 +27,7 @@ function loginResponse(): Response {
 function safeUser(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 'client-1',
-    email: 'client@example.com',
+    email: 'client',
     phone: '+7 495 000-00-00',
     fullName: 'ООО «Ромашка»',
     role: 'CLIENT',
@@ -43,7 +43,7 @@ function build(values: Record<string, unknown> = {}) {
   const map: Record<string, unknown> = {
     'authService.baseUrl': 'http://auth:3001',
     'authService.timeoutMs': 5_000,
-    'authService.email': 'admin@cleaning-ops.com',
+    'authService.email': 'admin',
     'authService.password': 'admin123',
     ...values,
   };
@@ -81,7 +81,7 @@ describe('AuthServiceClient', () => {
       expect(fetchMock).toHaveBeenNthCalledWith(1, 'http://auth:3001/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ email: 'admin@cleaning-ops.com', password: 'admin123' }),
+        body: JSON.stringify({ email: 'admin', password: 'admin123' }),
         signal: expect.anything(),
       });
       expect(fetchMock).toHaveBeenNthCalledWith(

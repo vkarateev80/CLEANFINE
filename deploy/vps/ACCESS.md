@@ -26,13 +26,13 @@
 
 | Роль | Куда | Логин | Пароль | Зачем эта учётка |
 |---|---|---|---|---|
-| ADMIN | админка `:8090` | `admin@cleaning-ops.com` | `admin123` | полный доступ, 11 пунктов меню; она же служебная для проверки привязок объектов |
+| ADMIN | админка `:8090` | `admin` | `admin123` | полный доступ, 11 пунктов меню; она же служебная для проверки привязок объектов |
 | SUPERVISOR | админка `:8090` | `supervisor@cleaning-ops.com` | `super123` | те же 11 пунктов, что у ADMIN, включая «Сотрудники» |
-| OPERATOR | админка `:8090` | `operator@cleaning-ops.com` | `oper123` | 8 пунктов — без «Маршрутов», «Техкарт» и «Сотрудников» |
+| OPERATOR | админка `:8090` | `operator` | `oper123` | 8 пунктов — без «Маршрутов», «Техкарт» и «Сотрудников» |
 | CLIENT (владелец объекта) | портал `:8091` | `owner@cleanfine.ru` | `owner123` | привязан к объекту «БЦ «Ромашка»» — видит его |
-| CLIENT (без привязки) | портал `:8091` | `client@example.com` | `client123` | не привязан ни к чему — видит пустой список |
+| CLIENT (без привязки) | портал `:8091` | `client` | `client123` | не привязан ни к чему — видит пустой список |
 
-Учётные записи ADMIN/SUPERVISOR/OPERATOR/CLIENT(`client@example.com`) создаёт
+Учётные записи ADMIN/SUPERVISOR/OPERATOR/CLIENT(`client`) создаёт
 `scripts/seed/seed-users.mjs` из фикстур `test/fixtures/users.json`; владельца
 `owner@cleanfine.ru` и объект «БЦ «Ромашка»» — `scripts/seed/seed-demo-object.mjs`.
 Повторный seed пересоздаёт пароли и приводит стенд к этому состоянию, поэтому пароли
@@ -41,7 +41,7 @@
 **Про последние две строки: это не дубль, а проверочная пара.** Обе учётки — роль CLIENT
 на одном и том же портале `:8091`, и различаются они ровно одним: у `owner@cleanfine.ru`
 есть **явная привязка** объекта к аккаунту (`Object.ownerClientId = id владельца`),
-у `client@example.com` привязки нет. Портал определяет «свой объект» только по
+у `client` привязки нет. Портал определяет «свой объект» только по
 `ownerClientId === id сессии`, поэтому владелец видит «БЦ «Ромашка»», а непривязанный
 клиент — пустой список. Расхождение между этими двумя учётками (обе видят объект или
 обе не видят) и есть признак поломки привязки, а не «особенности прав»: проверяйте пару
@@ -57,7 +57,7 @@
 
 Дополнительно существуют PIN мобильного входа (нужны только мобильному приложению,
 на стенде приложения нет): `1234` (ADMIN), `2345` (SUPERVISOR), `3456` (OPERATOR),
-`4567` (CLIENT `client@example.com`), `5678` (владелец). PIN-вход — `POST /api/auth/pin`;
+`4567` (CLIENT `client`), `5678` (владелец). PIN-вход — `POST /api/auth/pin`;
 портал и админка авторизуются парой email + пароль. Источник: `deploy/vps/README.md` §1,
 §5.1, `test/fixtures/users.json`.
 
@@ -102,7 +102,7 @@ catch-all `auth:3001` и получают 404) — для этих двух се
 # 1) Токен администратора. Логин отвечает 201, а не 200 — это норма.
 TOKEN=$(curl -s -X POST http://100.109.185.14:8090/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"admin@cleaning-ops.com","password":"admin123"}' \
+  -d '{"email":"admin","password":"admin123"}' \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["accessToken"])')
 
 # 2) Кто мы (role=ADMIN) и список объектов стенда
@@ -197,8 +197,8 @@ grep -E '^(MINIO_ROOT_PASSWORD|MINIO_SECRET_KEY|DB_PASSWORD|RABBITMQ_PASSWORD)='
 Стенд честно демонстрационный: пароли из §2 лежат в git (фикстуры и seed-скрипты) и
 заведомо слабые. Перед публикацией за пределы tailnet как минимум:
 
-1. **Сменить пароли всех seed-учёток** (`admin@cleaning-ops.com`, `supervisor@…`,
-   `operator@…`, `client@example.com`, `owner@cleanfine.ru`) — и не оставлять их в
+1. **Сменить пароли всех seed-учёток** (`admin`, `supervisor@…`,
+   `operator@…`, `client`, `owner@cleanfine.ru`) — и не оставлять их в
    фикстурах/seed как «документированные».
 2. **Сгенерировать секреты заново** (`bash deploy/vps/gen-env.sh --force`) и убедиться,
    что `.env.vps` не попал в git. При смене пароля seed-администратора **синхронно
