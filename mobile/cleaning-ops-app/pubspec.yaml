@@ -57,6 +57,7 @@ dependencies:
   # Подключены путём, а не копией: источник токенов один на web и mobile.
   cleaning_ops_tokens:
     path: ../../design/tokens/generated
+  flutter_local_notifications: ^19.2.0
 
 dev_dependencies:
   flutter_test:

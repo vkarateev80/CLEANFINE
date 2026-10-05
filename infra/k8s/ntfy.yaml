@@ -1,0 +1,75 @@
+# ntfy — self-hosted push-канал CLEANFINE (решение 05.10: свой сервер вместо Firebase).
+#
+# Модель: notification-service публикует на топик `…` устройства (токен устройства =
+# имя топика), телефон подписывается через https://cleanfine.ru/ntfy/<topic>.
+# Топики генерирует клиент (cf-<24 hex>, 96 бит энтропии) — угадать невозможно;
+# аутентификация ntfy намеренно выключена (MVP), апгрейд — visitor-auth + ACL.
+# Маршрут: IngressRoute PathPrefix(/ntfy) → StripPrefix → :8080 (см. ingress.yaml).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ntfy
+  namespace: cleaning-ops
+  labels:
+    app.kubernetes.io/name: ntfy
+    app.kubernetes.io/part-of: cleaning-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ntfy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ntfy
+        app.kubernetes.io/part-of: cleaning-ops
+    spec:
+      containers:
+        - name: ntfy
+          image: binwiederhier/ntfy:v2
+          args:
+            - serve
+            - --listen-http=:8080
+            - --behind-proxy=true
+            # base-url и attachment-cache-dir не задаём: ntfy запрещает sub-path
+            # в base-url, а attachment-cache-dir его требует. Вложений не
+            # используем (только title/body/data), внешний префикс /ntfy
+            # делает traefik (StripPrefix) — ntfy его не видит.
+            - --cache-file=/var/cache/ntfy/cache.db
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /v1/health, port: 8080 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /v1/health, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "20m", memory: "64Mi" }
+            limits: { cpu: "250m", memory: "128Mi" }
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/ntfy
+      volumes:
+        - name: cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ntfy
+  namespace: cleaning-ops
+  labels:
+    app.kubernetes.io/name: ntfy
+    app.kubernetes.io/part-of: cleaning-ops
+spec:
+  selector:
+    app.kubernetes.io/name: ntfy
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

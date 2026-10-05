@@ -28,6 +28,10 @@ export default () => ({
     prefetch: positiveInt(process.env.NOTIFICATION_RABBITMQ_PREFETCH, 10),
     reconnectBaseMs: positiveInt(process.env.NOTIFICATION_RABBITMQ_RECONNECT_MS, 5_000),
   },
-  // Блока push больше нет: Firebase исключён из проекта (27.09.2026),
-  // канал push — только MockPushSender (провайдер PUSH_SENDER в модуле).
+  // Канал push (решение 05.10): self-hosted ntfy вместо исключённого Firebase.
+  // PUSH_PROVIDER=mock|ntfy (дефолт mock — e2e и юниты без внешнего сервиса).
+  push: {
+    provider: process.env.PUSH_PROVIDER ?? 'mock',
+    ntfyUrl: process.env.NTFY_BASE_URL ?? 'http://ntfy:8080',
+  },
 });

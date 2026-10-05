@@ -19,12 +19,14 @@ void main() {
   setUp(() => socket = FakeChatSocket());
   tearDown(() => socket.dispose());
 
-  Widget wrap(FakeChatRepository repository, {FakeConnectivityService? connectivity}) {
+  Widget wrap(FakeChatRepository repository,
+      {FakeConnectivityService? connectivity}) {
     return ProviderScope(
       overrides: <Override>[
         chatRepositoryProvider.overrideWithValue(repository),
         chatSocketProvider.overrideWithValue(socket),
-        connectivityServiceProvider.overrideWithValue(connectivity ?? FakeConnectivityService()),
+        connectivityServiceProvider
+            .overrideWithValue(connectivity ?? FakeConnectivityService()),
       ],
       child: const MaterialApp(home: ChatsPage()),
     );
@@ -35,26 +37,33 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   }
 
-  testWidgets('§10.4: пустой список — «Чатов пока нет» и бейджа непрочитанных нет', (
+  testWidgets(
+      '§10.4: пустой список — «Чатов пока нет» и бейджа непрочитанных нет', (
     WidgetTester tester,
   ) async {
     final container = ProviderContainer(
       overrides: <Override>[
-        chatRepositoryProvider.overrideWithValue(FakeChatRepository(chats: const <ChatSummary>[])),
+        chatRepositoryProvider.overrideWithValue(
+            FakeChatRepository(chats: const <ChatSummary>[])),
         chatSocketProvider.overrideWithValue(socket),
-        connectivityServiceProvider.overrideWithValue(FakeConnectivityService()),
+        connectivityServiceProvider
+            .overrideWithValue(FakeConnectivityService()),
       ],
     );
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const MaterialApp(home: ChatsPage())),
+      UncontrolledProviderScope(
+          container: container, child: const MaterialApp(home: ChatsPage())),
     );
     await settle(tester);
 
     expect(find.byKey(const Key('chats_empty_text')), findsOneWidget);
     expect(find.text('Чатов пока нет'), findsOneWidget);
-    expect(find.text('Чат появится, когда бригадир создаст его по объекту или заявке'), findsOneWidget);
+    expect(
+        find.text(
+            'Чат появится, когда бригадир создаст его по объекту или заявке'),
+        findsOneWidget);
     // Таб «Чаты» без бейджа: суммарный `unreadCount` равен нулю.
     expect(container.read(chatUnreadBadgeProvider), 0);
   });
@@ -71,7 +80,12 @@ void main() {
           title: 'БЦ «Север»',
           lastText: 'Фото отправил',
           lastAuthorId: 'me',
-          lastAt: DateTime.now().subtract(const Duration(days: 1, minutes: 5)),
+          // Вчерашний полдень: любые «минуты/часы от now» около 00:00 уходят
+          // на позавчера и ломают метку «Вчера» (поэтому тест падал после полуночи).
+          lastAt: () {
+            final DateTime now = DateTime.now();
+            return DateTime(now.year, now.month, now.day - 1, 12, 0);
+          }(),
         ),
       ],
     );
@@ -81,7 +95,8 @@ void main() {
       overrides: <Override>[
         chatRepositoryProvider.overrideWithValue(repository),
         chatSocketProvider.overrideWithValue(socket),
-        connectivityServiceProvider.overrideWithValue(FakeConnectivityService()),
+        connectivityServiceProvider
+            .overrideWithValue(FakeConnectivityService()),
       ],
     );
     addTearDown(container.dispose);
@@ -92,7 +107,8 @@ void main() {
     );
 
     await tester.pumpWidget(
-      UncontrolledProviderScope(container: container, child: const MaterialApp(home: ChatsPage())),
+      UncontrolledProviderScope(
+          container: container, child: const MaterialApp(home: ChatsPage())),
     );
     await settle(tester);
 
@@ -147,7 +163,8 @@ void main() {
     await settle(tester);
 
     socket.emitMessage(
-      chatMessage(id: 'new-1', chatId: 'chat-1', text: 'Санузел 101 закрыт на ремонт'),
+      chatMessage(
+          id: 'new-1', chatId: 'chat-1', text: 'Санузел 101 закрыт на ремонт'),
     );
     await settle(tester);
 
@@ -155,17 +172,21 @@ void main() {
     expect(find.byKey(const Key('chat_unread_badge_chat-1')), findsOneWidget);
   });
 
-  testWidgets('оффлайн: баннер на /chats виден, список остаётся', (WidgetTester tester) async {
-    final FakeConnectivityService connectivity = FakeConnectivityService(online: false);
+  testWidgets('оффлайн: баннер на /chats виден, список остаётся',
+      (WidgetTester tester) async {
+    final FakeConnectivityService connectivity =
+        FakeConnectivityService(online: false);
     addTearDown(connectivity.dispose);
 
     await tester.pumpWidget(
-      wrap(FakeChatRepository(chats: <ChatSummary>[chatSummary()]), connectivity: connectivity),
+      wrap(FakeChatRepository(chats: <ChatSummary>[chatSummary()]),
+          connectivity: connectivity),
     );
     await settle(tester);
 
     expect(find.byKey(const Key('chats_offline_banner')), findsOneWidget);
-    expect(find.text('Нет соединения — данные могут быть устаревшими'), findsOneWidget);
+    expect(find.text('Нет соединения — данные могут быть устаревшими'),
+        findsOneWidget);
     expect(find.byKey(const Key('chat_tile_chat-1')), findsOneWidget);
   });
 

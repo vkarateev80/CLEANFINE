@@ -126,6 +126,37 @@ spec:
       middlewares:
         - name: minio-strip
 ---
+# ntfy (push-канал): https://cleanfine.ru/ntfy/<topic> → StripPrefix → ntfy:8080.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: ntfy-strip
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  stripPrefix:
+    prefixes:
+      - /ntfy
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: cleanfine-ntfy
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: (Host(`cleanfine.ru`) || Host(`www.cleanfine.ru`)) && PathPrefix(`/ntfy`)
+      kind: Rule
+      priority: 50
+      services:
+        - name: ntfy
+          port: 8080
+      middlewares:
+        - name: ntfy-strip
+---
 # HTTP→HTTPS для обоих хостов. priority 50: выше дефолтного (длина правила
 # ~40 у plain-Ingress), ниже solver-ингресса (~78) — ACME не перехватывается.
 apiVersion: traefik.io/v1alpha1

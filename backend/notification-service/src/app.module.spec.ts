@@ -21,6 +21,9 @@ describe('AppModule (notification-service)', () => {
   });
 
   it('собирается целиком: guard-ы, консьюмер, push-адаптер и сервис уведомлений', async () => {
+    // Корневой .env стенда задаёт PUSH_PROVIDER=ntfy; этот тест проверяет ДЕФОЛТ
+    // (мок без внешнего сервиса) — фиксируем явно, afterAll вернёт окружение.
+    process.env.PUSH_PROVIDER = 'mock';
     const prismaMock = { $connect: jest.fn(), $disconnect: jest.fn() };
     // RabbitMQ подменяется: реального брокера в unit-тесте нет и быть не должно.
     const rabbitMock = {

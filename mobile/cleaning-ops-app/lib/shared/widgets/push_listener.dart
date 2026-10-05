@@ -78,7 +78,9 @@ class _PushListenerState extends ConsumerState<PushListener> {
   Future<void> _registerToken(String userId) async {
     if (_registeredFor == userId) return;
     _registeredFor = userId;
+    debugPrint('[PUSH] _registerToken start user=$userId');
     final String? token = await ref.read(pushServiceProvider).token();
+    debugPrint('[PUSH] token=${token ?? 'NULL'}');
     // Токена нет (Firebase не сконфигурирована) — регистрация пропускается:
     // остальной путь push (in-app, настройки) от неё не зависит.
     if (token == null || token.isEmpty) return;
@@ -87,7 +89,8 @@ class _PushListenerState extends ConsumerState<PushListener> {
           .read(notificationsRepositoryProvider)
           .registerDevice(token: token, platform: devicePlatform());
       _registered = true;
-    } on Object {
+    } catch (err) {
+      debugPrint('[PUSH] registerDevice failed: $err');
       // Нет сети — токен зарегистрируется при следующем входе.
       _registeredFor = null;
     }
