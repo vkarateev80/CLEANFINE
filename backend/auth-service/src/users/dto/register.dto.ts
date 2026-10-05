@@ -1,11 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsEmail,
   IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
+  MaxLength,
   MinLength,
 } from 'class-validator';
 import type { Role } from '@cleaning-ops/shared/types/roles';
@@ -15,8 +15,13 @@ import type { Role } from '@cleaning-ops/shared/types/roles';
 const ROLE_VALUES = ['OPERATOR', 'SUPERVISOR', 'ADMIN', 'CLIENT'] as const;
 
 export class RegisterDto {
-  @ApiProperty({ description: 'Email нового сотрудника', example: 'new.operator@cleaning-ops.com' })
-  @IsEmail({}, { message: 'Некорректный email' })
+  @ApiProperty({
+    description: 'Email или короткий логин нового сотрудника',
+    example: 'ivanov',
+  })
+  @IsString({ message: 'Укажите логин' })
+  @IsNotEmpty({ message: 'Укажите логин' })
+  @MaxLength(254, { message: 'Логин не длиннее 254 символов' })
   email!: string;
 
   @ApiPropertyOptional({ description: 'Телефон', example: '+79990000005' })

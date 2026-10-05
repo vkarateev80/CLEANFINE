@@ -9,7 +9,7 @@ const pinHash = bcrypt.hashSync('1234', 10);
 
 const activeUser = {
   id: 'u1',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   phone: null,
   passwordHash,
   pinCode: pinHash,
@@ -57,7 +57,7 @@ describe('AuthService', () => {
     it('должен вернуть пару токенов при верном пароле', async () => {
       prisma.user.findUnique.mockResolvedValue(activeUser);
       const result = await service.login({
-        email: 'admin@cleaning-ops.com',
+        email: 'admin',
         password: 'secret123',
       });
       expect(result.accessToken).toBe('a1');
@@ -66,9 +66,9 @@ describe('AuthService', () => {
 
     it('должен бросать UnauthorizedException при неверном пароле', async () => {
       prisma.user.findUnique.mockResolvedValue(activeUser);
-      await expect(
-        service.login({ email: 'admin@cleaning-ops.com', password: 'wrong-password' }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.login({ email: 'admin', password: 'wrong-password' })).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('должен бросать UnauthorizedException при неверном email', async () => {
@@ -80,24 +80,24 @@ describe('AuthService', () => {
 
     it('должен бросать UnauthorizedException для деактивированного пользователя', async () => {
       prisma.user.findUnique.mockResolvedValue({ ...activeUser, isActive: false });
-      await expect(
-        service.login({ email: 'admin@cleaning-ops.com', password: 'secret123' }),
-      ).rejects.toThrow('Пользователь деактивирован');
+      await expect(service.login({ email: 'admin', password: 'secret123' })).rejects.toThrow(
+        'Пользователь деактивирован',
+      );
     });
   });
 
   describe('pinLogin', () => {
     it('должен вернуть токены при верном PIN', async () => {
       prisma.user.findFirst.mockResolvedValue(activeUser);
-      const result = await service.pinLogin({ email: 'admin@cleaning-ops.com', pinCode: '1234' });
+      const result = await service.pinLogin({ email: 'admin', pinCode: '1234' });
       expect(result.refreshToken).toBe('r1');
     });
 
     it('должен бросать при неверном PIN', async () => {
       prisma.user.findFirst.mockResolvedValue(activeUser);
-      await expect(
-        service.pinLogin({ email: 'admin@cleaning-ops.com', pinCode: '9999' }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.pinLogin({ email: 'admin', pinCode: '9999' })).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 

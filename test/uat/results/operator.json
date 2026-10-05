@@ -102,7 +102,7 @@
       "id": "O11",
       "title": "Профиль: данные пользователя и смена PIN (с возвратом исходного)",
       "expected": "GET /auth/me отдаёт карточку оператора; смена PIN принимается, старый PIN перестаёт работать, новый работает; PIN возвращён к исходному",
-      "actual": "карточка: «Оператор», operator@cleaning-ops.com, тел. +79990000003, роль OPERATOR, создан 2026-09-20T22:46:22.034Z; смена PIN → HTTP 201; старый PIN → HTTP 401; новый PIN → HTTP 201; возврат PIN → HTTP 201, исходный PIN → HTTP 201",
+      "actual": "карточка: «Оператор», operator, тел. +79990000003, роль OPERATOR, создан 2026-09-20T22:46:22.034Z; смена PIN → HTTP 201; старый PIN → HTTP 401; новый PIN → HTTP 201; возврат PIN → HTTP 201, исходный PIN → HTTP 201",
       "ok": true,
       "evidence": "POST /api/auth/change-pin ×2 + POST /api/auth/pin ×3",
       "ms": 607

@@ -5,7 +5,7 @@ function createConfig(): ConfigService {
   return {
     get: jest.fn((key: string) => {
       if (key === 'authService.baseUrl') return 'http://localhost:3001';
-      if (key === 'authService.email') return 'admin@cleaning-ops.com';
+      if (key === 'authService.email') return 'admin';
       if (key === 'authService.password') return 'admin123';
       if (key === 'authService.timeoutMs') return 1000;
       return undefined;
@@ -52,7 +52,7 @@ describe('ServiceTokenProvider (М4.2)', () => {
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ email: 'admin@cleaning-ops.com', password: 'admin123' }),
+        body: JSON.stringify({ email: 'admin', password: 'admin123' }),
       }),
     );
   });

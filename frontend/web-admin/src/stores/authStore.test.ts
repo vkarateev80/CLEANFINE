@@ -4,7 +4,7 @@ import { useAuthStore } from './authStore';
 
 const user: SessionUser = {
   id: 'u-admin-1',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   phone: null,
   fullName: 'Администратор',
   role: 'ADMIN',
@@ -34,7 +34,7 @@ describe('authStore — сессия', () => {
 
   it('setUser сохраняет пользователя', () => {
     useAuthStore.getState().setUser(user);
-    expect(useAuthStore.getState().user?.email).toBe('admin@cleaning-ops.com');
+    expect(useAuthStore.getState().user?.email).toBe('admin');
     expect(useAuthStore.getState().user?.role).toBe('ADMIN');
   });
 

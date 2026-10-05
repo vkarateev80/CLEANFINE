@@ -23,11 +23,11 @@ const BASE_URL = __ENV.K6_BASE_URL || 'http://127.0.0.1:8080';
 // целевого сервиса по host-loopback (BASE_URL = http://127.0.0.1:3004 и т. п.):
 // обоснование — раздел «Ретранслятор nginx → хост» в docs/PERFORMANCE_REPORT.md.
 const AUTH_BASE_URL = __ENV.K6_AUTH_BASE_URL || (BASE_URL.includes(':8080') ? BASE_URL : 'http://127.0.0.1:3001');
-const EMAIL = __ENV.K6_EMAIL || 'admin@cleaning-ops.com';
+const EMAIL = __ENV.K6_EMAIL || 'admin';
 const PASSWORD = __ENV.K6_PASSWORD || 'admin123';
 // Сотрудник, за которого пишутся треки: передавать userId вправе только ADMIN/SUPERVISOR,
 // поэтому пишет администратор, а userId берётся из токена самого сотрудника.
-const TRACK_EMAIL = __ENV.K6_TRACK_EMAIL || 'operator@cleaning-ops.com';
+const TRACK_EMAIL = __ENV.K6_TRACK_EMAIL || 'operator';
 const TRACK_PASSWORD = __ENV.K6_TRACK_PASSWORD || 'oper123';
 const BATCH_SIZE = Number(__ENV.K6_GPS_BATCH || 250);
 const RATE = Number(__ENV.K6_GPS_RATE || 5); // запросов/с

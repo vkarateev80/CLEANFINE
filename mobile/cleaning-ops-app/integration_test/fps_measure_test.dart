@@ -26,7 +26,7 @@ import 'package:integration_test/integration_test.dart';
 import 'support/app_harness.dart';
 import 'support/frame_stats.dart';
 
-const String kOperatorEmail = 'operator@cleaning-ops.com';
+const String kOperatorEmail = 'operator';
 const String kOperatorPassword = 'oper123';
 
 void main() {

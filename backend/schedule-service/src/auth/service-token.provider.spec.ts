@@ -22,7 +22,7 @@ function build(values: Record<string, unknown> = {}) {
   const map: Record<string, unknown> = {
     'authService.baseUrl': 'http://localhost:3001',
     'authService.timeoutMs': 5_000,
-    'authService.email': 'admin@cleaning-ops.com',
+    'authService.email': 'admin',
     'authService.password': 'admin123',
     ...values,
   };
@@ -56,7 +56,7 @@ describe('ServiceTokenProvider', () => {
     expect(global.fetch).toHaveBeenCalledWith('http://localhost:3001/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ email: 'admin@cleaning-ops.com', password: 'admin123' }),
+      body: JSON.stringify({ email: 'admin', password: 'admin123' }),
       signal: expect.anything(),
     });
   });

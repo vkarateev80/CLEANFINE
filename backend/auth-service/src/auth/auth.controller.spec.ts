@@ -95,11 +95,11 @@ describe('AuthController (HTTP)', () => {
 
       await request(app.getHttpServer())
         .post('/api/auth/login')
-        .send({ email: 'admin@cleaning-ops.com', password: 'admin123' })
+        .send({ email: 'admin', password: 'admin123' })
         .expect(201);
 
       expect(authService.login).toHaveBeenCalledWith({
-        email: 'admin@cleaning-ops.com',
+        email: 'admin',
         password: 'admin123',
       });
     });
@@ -108,24 +108,33 @@ describe('AuthController (HTTP)', () => {
       authService.login.mockResolvedValue(tokenPair);
       const res = await request(app.getHttpServer())
         .post('/api/auth/login')
-        .send({ email: 'admin@cleaning-ops.com', password: 'admin123' })
+        .send({ email: 'admin', password: 'admin123' })
         .expect(201);
       expect(res.body).toEqual(tokenPair);
     });
 
-    it('отклоняет невалидный email (400) с русским сообщением', async () => {
+    it('отклоняет пустой логин (400) с русским сообщением', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/auth/login')
-        .send({ email: 'not-an-email', password: 'admin123' })
+        .send({ email: '', password: 'admin123' })
         .expect(400);
-      expect(res.body.message).toContain('Некорректный email');
+      expect(res.body.message).toContain('Укажите логин');
       expect(authService.login).not.toHaveBeenCalled();
+    });
+
+    it('принимает короткий логин без @ (admin) — не роняет валидацию', async () => {
+      authService.login.mockResolvedValue(tokenPair);
+      await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: 'admin', password: 'admin123' })
+        .expect(201);
+      expect(authService.login).toHaveBeenCalled();
     });
 
     it('отклоняет короткий пароль (400)', async () => {
       await request(app.getHttpServer())
         .post('/api/auth/login')
-        .send({ email: 'admin@cleaning-ops.com', password: '123' })
+        .send({ email: 'admin', password: '123' })
         .expect(400);
     });
 
@@ -147,7 +156,7 @@ describe('AuthController (HTTP)', () => {
       authService.pinLogin.mockResolvedValue(tokenPair);
       const res = await request(app.getHttpServer())
         .post('/api/auth/pin')
-        .send({ email: 'admin@cleaning-ops.com', pinCode: '1234' })
+        .send({ email: 'admin', pinCode: '1234' })
         .expect(201);
       expect(res.body).toEqual(tokenPair);
     });
@@ -155,7 +164,7 @@ describe('AuthController (HTTP)', () => {
     it('отклоняет PIN неверного формата', async () => {
       await request(app.getHttpServer())
         .post('/api/auth/pin')
-        .send({ email: 'admin@cleaning-ops.com', pinCode: 'abcd' })
+        .send({ email: 'admin', pinCode: 'abcd' })
         .expect(400);
     });
 

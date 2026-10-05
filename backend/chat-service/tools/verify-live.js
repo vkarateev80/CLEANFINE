@@ -69,11 +69,11 @@ async function resolveUserId(token, email) {
 
 async function main() {
   console.log(`chat-service: ${CHAT_URL}`);
-  const admin = await login('admin@cleaning-ops.com', 'admin123');
-  const operator = await login('operator@cleaning-ops.com', 'oper123');
-  const adminId = admin.userId ?? (await resolveUserId(admin.token, 'admin@cleaning-ops.com'));
+  const admin = await login('admin', 'admin123');
+  const operator = await login('operator', 'oper123');
+  const adminId = admin.userId ?? (await resolveUserId(admin.token, 'admin'));
   const operatorId =
-    operator.userId ?? (await resolveUserId(operator.token, 'operator@cleaning-ops.com'));
+    operator.userId ?? (await resolveUserId(operator.token, 'operator'));
   console.log(`ADMIN=${adminId} OPERATOR=${operatorId}`);
 
   // 1. Без токена — 401.
@@ -139,8 +139,8 @@ async function main() {
     participantIds: [adminId],
   });
   // Чат с самим собой создать нельзя — используем CLIENT как второго участника.
-  const client = await login('client@example.com', 'client123');
-  const clientId = client.userId ?? (await resolveUserId(client.token, 'client@example.com'));
+  const client = await login('client', 'client123');
+  const clientId = client.userId ?? (await resolveUserId(client.token, 'client'));
   const foreignChat = await api('POST', '/api/chat/chats', admin.token, {
     type: 'direct',
     participantIds: [clientId],

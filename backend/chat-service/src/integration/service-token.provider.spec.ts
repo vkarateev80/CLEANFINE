@@ -13,7 +13,7 @@ function jwtWithExp(secondsFromNow: number): string {
 function configMock(overrides: Record<string, unknown> = {}): ConfigService {
   const values: Record<string, unknown> = {
     'authService.baseUrl': 'http://localhost:3001',
-    'authService.email': 'admin@cleaning-ops.com',
+    'authService.email': 'admin',
     'authService.password': 'admin123',
     'authService.timeoutMs': 1_000,
     ...overrides,
@@ -46,7 +46,7 @@ describe('ServiceTokenProvider (chat-service)', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('http://localhost:3001/api/auth/login');
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({
-      email: 'admin@cleaning-ops.com',
+      email: 'admin',
       password: 'admin123',
     });
   });

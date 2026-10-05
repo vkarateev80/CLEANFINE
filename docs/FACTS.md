@@ -55,9 +55,9 @@ rabbitmq 320m, minio 320m, девять backend по 320m, два фронтен
 
 ## 2. Учётные записи и данные стенда
 
-Фикстуры e2e (совпадают с `test/fixtures/users.json`): `admin@cleaning-ops.com`/`admin123`,
-`supervisor@cleaning-ops.com`/`super123`, `operator@cleaning-ops.com`/`oper123`,
-`client@example.com`/`client123`. PIN мобильного входа: `1234`/`2345`/`3456`/`4567`
+Фикстуры e2e (совпадают с `test/fixtures/users.json`): `admin`/`admin123`,
+`supervisor@cleaning-ops.com`/`super123`, `operator`/`oper123`,
+`client`/`client123`. PIN мобильного входа: `1234`/`2345`/`3456`/`4567`
 (телефоны `+79990000001…4`).
 
 Демонстрационные: `owner@cleanfine.ru` (CLIENT) и `dev@cleanfine.ru` (ADMIN). Разделять два стенда
@@ -192,7 +192,7 @@ push проверяется без реальных ключей. Заводит
     | Данные | `scripts/seed/seed-demo-object.mjs` создаёт объект с `ownerClientId`; новый `scripts/seed/backfill-owner-client.mjs` — разовый идемпотентный backfill (dry-run по умолчанию, `--commit`, только единственное точное совпадение, при неоднозначности не меняет; 3 прогона → 2 PATCH) |
 
     **Приёмка (проверено запуском):** портал владельца видит объект (1 объект); непривязанный
-    `client@example.com` — 0 объектов; объект с `clientName`, совпадающим с ФИО клиента, но без
+    `client` — 0 объектов; объект с `clientName`, совпадающим с ФИО клиента, но без
     привязки, клиенту **не виден** (главный регресс); создание с привязкой → 201; `PATCH` без поля
     привязку сохраняет, `PATCH` с `null` снимает; 400 на несуществующий и на не-CLIENT аккаунт;
     fail-closed — одноразовый контейнер core с недоступным `AUTH_SERVICE_URL` → POST **503** и
@@ -482,7 +482,7 @@ VPS `185.227.144.229`, compose-проект `prj-cleanfine`, эксплуата�
     аутентифицированному пользователю, клиент может запросить чужой объект напрямую (раздел 4.10).
     Это принятое ограничение объёма, а не недосмотр, но его нельзя терять из вида.
   - **Эксплуатационная зависимость от служебной учётки.** Проверка аккаунта идёт под учёткой из
-    `SERVICE_AUTH_EMAIL`/`SERVICE_AUTH_PASSWORD` = `admin@cleaning-ops.com` (роль ADMIN) с паролем
+    `SERVICE_AUTH_EMAIL`/`SERVICE_AUTH_PASSWORD` = `admin` (роль ADMIN) с паролем
     seed-администратора `admin123`. При **понижении её роли** (или переводе из ADMIN/SUPERVISOR)
     `GET /api/users/:id` вернёт 403, при **смене пароля** в `.env.vps` останется старый — в обоих
     случаях привязка объектов начнёт отказывать **fail-closed 503** («Не удалось проверить аккаунт

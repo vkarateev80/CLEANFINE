@@ -12,7 +12,7 @@
 param(
   [string]$AuthUrl = 'http://localhost:3001',
   [string]$GpsUrl = 'http://localhost:3004',
-  [string]$Email = 'admin@cleaning-ops.com',
+  [string]$Email = 'admin',
   [string]$Password = 'admin123',
   [string]$PostgresContainer = 'cleaning-ops-postgres',
   [string]$RabbitContainer = 'cleaning-ops-rabbitmq',

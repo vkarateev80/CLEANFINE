@@ -128,8 +128,8 @@ async function waitBuffered(buffer, timeoutMs = 6000) {
 }
 
 async function main() {
-  const adminToken = await login('admin@cleaning-ops.com', 'admin123');
-  const operatorToken = await login('operator@cleaning-ops.com', 'oper123');
+  const adminToken = await login('admin', 'admin123');
+  const operatorToken = await login('operator', 'oper123');
   const adminId = await me(adminToken);
   const operatorId = await me(operatorToken);
 

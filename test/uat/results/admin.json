@@ -158,7 +158,7 @@
       "expected": "пункты меню отсутствуют, прямой заход на /routes возвращает на дашборд",
       "actual": "меню оператора: Дашборд | Объекты | Заявки | Карта | Материалы | Графики и смены | Сообщения | Отчёты; прямой заход /routes → /dashboard",
       "ok": true,
-      "evidence": "вход operator@cleaning-ops.com → /dashboard, /routes перенаправлен",
+      "evidence": "вход operator → /dashboard, /routes перенаправлен",
       "ms": 2102
     },
     {

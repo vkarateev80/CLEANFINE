@@ -39,7 +39,7 @@ void main() {
     );
     login.headers.contentType = ContentType.json;
     login.write(jsonEncode(<String, String>{
-      'email': 'operator@cleaning-ops.com',
+      'email': 'operator',
       'password': 'oper123',
     }));
     final HttpClientResponse loginResponse = await login.close();

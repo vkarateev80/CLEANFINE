@@ -19,7 +19,7 @@ const mockListUsers = vi.mocked(listUsers);
 
 const EMPLOYEE: SessionUser = {
   id: 'emp-1',
-  email: 'operator@cleaning-ops.com',
+  email: 'operator',
   phone: '+79990000003',
   fullName: 'Оператор',
   role: 'OPERATOR',
@@ -67,7 +67,7 @@ describe('Раздел «Сотрудники»', () => {
     const [activeRow] = await screen.findAllByTestId('employee-row-emp-1');
     const [inactiveRow] = await screen.findAllByTestId('employee-row-emp-2');
     // ФИО «Оператор» совпадает с лейблом роли — сверяемся по email.
-    expect(within(activeRow).getByText('operator@cleaning-ops.com')).toBeInTheDocument();
+    expect(within(activeRow).getByText('operator')).toBeInTheDocument();
     expect(within(inactiveRow).getByText('fired@cleaning-ops.com')).toBeInTheDocument();
     expect(within(inactiveRow).getByText('Уволенный')).toBeInTheDocument();
     expect(within(activeRow).getByText('Активен')).toBeInTheDocument();

@@ -13,7 +13,7 @@ const NOW = new Date('2026-01-01T10:00:00.000Z');
 
 const USER: AuthUser = {
   id: 'u-admin',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   role: 'ADMIN',
   fullName: 'Администратор',
 };

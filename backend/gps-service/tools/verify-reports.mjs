@@ -39,7 +39,7 @@ async function main() {
   const login = await fetch(`${AUTH_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'operator@cleaning-ops.com', password: 'oper123' }),
+    body: JSON.stringify({ email: 'operator', password: 'oper123' }),
   });
   const { accessToken } = await login.json();
   const me = await fetch(`${AUTH_URL}/api/auth/me`, {

@@ -10,7 +10,7 @@ const mockLogin = vi.mocked(login);
 
 const ADMIN: SessionUser = {
   id: 'u-admin',
-  email: 'admin@cleaning-ops.com',
+  email: 'admin',
   phone: null,
   fullName: 'Администратор',
   role: 'ADMIN',
@@ -36,7 +36,7 @@ describe('readAutoLogin', () => {
 describe('автоловушка лончера', () => {
   beforeEach(() => {
     mockLogin.mockResolvedValue(ADMIN);
-    window.history.replaceState({}, '', '/login?email=admin%40cleaning-ops.com&password=admin123');
+    window.history.replaceState({}, '', '/login?email=admin&password=admin123');
   });
 
   afterEach(() => {
@@ -53,7 +53,7 @@ describe('автоловушка лончера', () => {
 
     await waitFor(() =>
       expect(mockLogin).toHaveBeenCalledWith({
-        email: 'admin@cleaning-ops.com',
+        email: 'admin',
         password: 'admin123',
       }),
     );

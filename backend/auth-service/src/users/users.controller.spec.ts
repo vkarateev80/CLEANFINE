@@ -35,7 +35,7 @@ class TestJwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
 const safeUser = {
   id: 'u2',
-  email: 'operator@cleaning-ops.com',
+  email: 'operator',
   phone: null,
   fullName: 'Оператор',
   role: 'OPERATOR',
@@ -224,17 +224,29 @@ describe('UsersController (HTTP)', () => {
       expect(usersService.register).not.toHaveBeenCalled();
     });
 
-    it('валидирует email и роль', async () => {
+    it('валидирует логин и роль', async () => {
       await request(app.getHttpServer())
         .post('/api/users')
         .set('Authorization', asAdmin())
-        .send({ ...payload, email: 'bad-email' })
+        .send({ ...payload, email: '' })
         .expect(400);
       await request(app.getHttpServer())
         .post('/api/users')
         .set('Authorization', asAdmin())
         .send({ ...payload, role: 'SUPERUSER' })
         .expect(400);
+    });
+
+    it('принимает короткий логин без @ (admin)', async () => {
+      usersService.register.mockResolvedValue(safeUser);
+      await request(app.getHttpServer())
+        .post('/api/users')
+        .set('Authorization', asAdmin())
+        .send({ ...payload, email: 'admin' })
+        .expect(201);
+      expect(usersService.register).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'admin' }),
+      );
     });
 
     it('отклоняет короткий пароль', async () => {

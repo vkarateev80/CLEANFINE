@@ -37,10 +37,10 @@ compose-проекте `prj-cleanfine`, публикация только на t
 
 | Роль | Email | Пароль | PIN |
 |---|---|---|---|
-| ADMIN | admin@cleaning-ops.com | `admin123` | 1234 |
+| ADMIN | admin | `admin123` | 1234 |
 | SUPERVISOR | supervisor@cleaning-ops.com | `super123` | 2345 |
-| OPERATOR | operator@cleaning-ops.com | `oper123` | 3456 |
-| CLIENT | client@example.com | `client123` | 4567 |
+| OPERATOR | operator | `oper123` | 3456 |
+| CLIENT | client | `client123` | 4567 |
 
 > Email-адреса сверены с `test/fixtures/users.json`: у роли CLIENT домен
 > `example.com`, а не `cleaning-ops.com`.
@@ -401,7 +401,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST http://100.109.185.14:8111/api/
   -d "{\"email\":\"$SERVICE_AUTH_EMAIL\",\"password\":\"$SERVICE_AUTH_PASSWORD\"}"   # учётка жива?
 ```
 
-**Зависимость эксплуатации (важно).** Служебная учётка — это `admin@cleaning-ops.com` с ролью
+**Зависимость эксплуатации (важно).** Служебная учётка — это `admin` с ролью
 **ADMIN** и паролем seed-администратора (`admin123`), решение O4. Привязка объектов работает
 только пока эта учётка активна, имеет роль **ADMIN или SUPERVISOR** и её пароль совпадает с
 `SERVICE_AUTH_PASSWORD` в `deploy/vps/.env.vps`. **Понижение роли** → `GET /api/users/:id`
@@ -425,7 +425,7 @@ curl -s -o /dev/null -w 'web-client %{http_code}\n' http://100.109.185.14:8091/
 # AC-3: логин 201 и role=ADMIN
 TOKEN=$(curl -s -X POST http://100.109.185.14:8090/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"admin@cleaning-ops.com","password":"admin123"}' \
+  -d '{"email":"admin","password":"admin123"}' \
   | python3 -c 'import sys,json;print(json.load(sys.stdin)["accessToken"])')
 curl -s -H "Authorization: Bearer $TOKEN" http://100.109.185.14:8090/api/auth/me
 

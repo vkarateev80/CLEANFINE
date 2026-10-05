@@ -65,7 +65,7 @@
 | `MATERIAL_CONSUMER_ENABLED` | `true` | `false` — выключить консьюмер автосписания |
 | `MATERIAL_CONSUMER_MAX_ATTEMPTS` | 5 | Доставок до DLQ |
 | `AUTH_SERVICE_URL` / `E2E_API_URL` | `http://localhost:3001` | Сервисный логин |
-| `SERVICE_AUTH_EMAIL` / `SERVICE_AUTH_PASSWORD` | `admin@cleaning-ops.com` / `admin123` | Учётка сервиса |
+| `SERVICE_AUTH_EMAIL` / `SERVICE_AUTH_PASSWORD` | `admin` / `admin123` | Учётка сервиса |
 | `TICKET_SERVICE_URL` | `http://localhost:3005` | Заявка → `roomId` |
 | `CORE_SERVICE_URL` | `http://localhost:3003` | Помещение/техкарта/объект |
 | `*_SERVICE_TIMEOUT_MS` | 5000 | Таймауты внутренних вызовов |

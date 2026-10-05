@@ -34,9 +34,9 @@ const BASE_URL = __ENV.K6_BASE_URL || 'http://127.0.0.1:8080';
 // целевого сервиса по host-loopback (BASE_URL = http://127.0.0.1:3004 и т. п.):
 // обоснование — раздел «Ретранслятор nginx → хост» в docs/PERFORMANCE_REPORT.md.
 const AUTH_BASE_URL = __ENV.K6_AUTH_BASE_URL || (BASE_URL.includes(':8080') ? BASE_URL : 'http://127.0.0.1:3001');
-const EMAIL = __ENV.K6_EMAIL || 'admin@cleaning-ops.com';
+const EMAIL = __ENV.K6_EMAIL || 'admin';
 const PASSWORD = __ENV.K6_PASSWORD || 'admin123';
-const OPERATOR_EMAIL = __ENV.K6_OPERATOR_EMAIL || 'operator@cleaning-ops.com';
+const OPERATOR_EMAIL = __ENV.K6_OPERATOR_EMAIL || 'operator';
 const OPERATOR_PASSWORD = __ENV.K6_OPERATOR_PASSWORD || 'oper123';
 const SCHEDULES = Number(__ENV.K6_SCHED_COUNT || 100);
 // Параллелизм фазы individual. По умолчанию 20, а не SCHEDULES: ручной триггер — не штатный

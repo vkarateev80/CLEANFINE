@@ -11,12 +11,12 @@ describe('JwtStrategy (chat-service)', () => {
   it('доверяет payload токена auth-service и возвращает пользователя', () => {
     const user = buildStrategy().validate({
       sub: 'u-1',
-      email: 'admin@cleaning-ops.com',
+      email: 'admin',
       role: 'ADMIN',
     });
     expect(user).toEqual({
       id: 'u-1',
-      email: 'admin@cleaning-ops.com',
+      email: 'admin',
       role: 'ADMIN',
       fullName: '',
     });

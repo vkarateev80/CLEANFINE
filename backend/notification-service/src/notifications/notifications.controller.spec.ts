@@ -9,7 +9,7 @@ import {
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 
-const user: AuthUser = { id: 'u-1', email: 'admin@cleaning-ops.com', role: 'ADMIN', fullName: '' };
+const user: AuthUser = { id: 'u-1', email: 'admin', role: 'ADMIN', fullName: '' };
 
 describe('NotificationsController', () => {
   const notifications = {

@@ -1,6 +1,6 @@
 [
   {
-    "email": "admin@cleaning-ops.com",
+    "email": "admin",
     "phone": "+79990000001",
     "password": "admin123",
     "pinCode": "1234",
@@ -21,7 +21,7 @@
     "isActive": true
   },
   {
-    "email": "operator@cleaning-ops.com",
+    "email": "operator",
     "phone": "+79990000003",
     "password": "oper123",
     "pinCode": "3456",
@@ -31,7 +31,7 @@
     "isActive": true
   },
   {
-    "email": "client@example.com",
+    "email": "client",
     "phone": "+79990000004",
     "password": "client123",
     "pinCode": "4567",

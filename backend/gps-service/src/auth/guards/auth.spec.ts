@@ -122,7 +122,7 @@ describe('декораторы (gps-service)', () => {
       { factory: (data: unknown, ctx: ExecutionContext) => unknown }
     >;
     const key = Object.keys(args).find((k) => k.includes(CUSTOM_ROUTE_ARGS_METADATA)) as string;
-    const user = { id: 'u1', email: 'admin@cleaning-ops.com', role: 'ADMIN' };
+    const user = { id: 'u1', email: 'admin', role: 'ADMIN' };
     const _request = { user };
 
     expect(args[key].factory(undefined, contextWith(user))).toBe(user);

@@ -29,7 +29,7 @@ class FakeAuthRemote extends AuthRemoteDataSource {
   FakeAuthRemote({
     this.user = const AuthUser(
       id: 'me',
-      email: 'operator@cleaning-ops.com',
+      email: 'operator',
       fullName: 'Иванов Иван Иванович',
       role: 'OPERATOR',
       phone: '+79990000003',

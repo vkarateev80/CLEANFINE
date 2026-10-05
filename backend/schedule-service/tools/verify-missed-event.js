@@ -37,7 +37,7 @@ async function main() {
     throw new Error('Задайте RABBITMQ_URL');
   }
   const login = await call('POST', `${AUTH}/api/auth/login`, {
-    body: { email: 'admin@cleaning-ops.com', password: 'admin123' },
+    body: { email: 'admin', password: 'admin123' },
   });
   const admin = login.payload.accessToken;
 

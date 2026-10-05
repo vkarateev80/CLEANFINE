@@ -35,7 +35,7 @@ const args = new Map(
 
 const RUNS = Number(args.get('runs') ?? 3);
 const BASE = args.get('url') ?? 'http://127.0.0.1:8080';
-const EMAIL = args.get('email') ?? 'admin@cleaning-ops.com';
+const EMAIL = args.get('email') ?? 'admin';
 const PASSWORD = args.get('password') ?? 'admin123';
 
 /** Порог приёмки М7.1 — 2000 мс. */

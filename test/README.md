@@ -194,10 +194,10 @@ SQL-view отчётов М7.1 в 15-секундный залп: `staff_geofence
 
 | Роль | Email | Пароль | PIN | Телефон |
 |---|---|---|---|---|
-| ADMIN | admin@cleaning-ops.com | admin123 | 1234 | +79990000001 |
+| ADMIN | admin | admin123 | 1234 | +79990000001 |
 | SUPERVISOR | supervisor@cleaning-ops.com | super123 | 2345 | +79990000002 |
-| OPERATOR | operator@cleaning-ops.com | oper123 | 3456 | +79990000003 |
-| CLIENT | client@example.com | client123 | 4567 | +79990000004 |
+| OPERATOR | operator | oper123 | 3456 | +79990000003 |
+| CLIENT | client | client123 | 4567 | +79990000004 |
 
 Биометрические ключи — `dev-biometric-<role>`.
 - **М2–М5** — e2e-вертикали по фазам плана.

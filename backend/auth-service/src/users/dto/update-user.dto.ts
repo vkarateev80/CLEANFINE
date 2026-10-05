@@ -1,14 +1,24 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, Matches } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import type { Role } from '@cleaning-ops/shared/types/roles';
 
 // Значения совпадают с shared/types/roles.ts (ROLES).
 const ROLE_VALUES = ['OPERATOR', 'SUPERVISOR', 'ADMIN', 'CLIENT'] as const;
 
 export class UpdateUserDto {
-  @ApiPropertyOptional({ description: 'Новый email', example: 'operator2@cleaning-ops.com' })
+  @ApiPropertyOptional({ description: 'Новый email или логин', example: 'petrov' })
   @IsOptional()
-  @IsEmail({}, { message: 'Некорректный email' })
+  @IsString({ message: 'Укажите логин' })
+  @IsNotEmpty({ message: 'Укажите логин' })
+  @MaxLength(254, { message: 'Логин не длиннее 254 символов' })
   email?: string;
 
   @ApiPropertyOptional({ description: 'Телефон', example: '+79990000006' })

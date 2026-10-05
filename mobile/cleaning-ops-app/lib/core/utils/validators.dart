@@ -6,15 +6,16 @@
 class Validators {
   const Validators._();
 
-  static final RegExp _email = RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$');
   static final RegExp _phone = RegExp(r'^\+?[0-9\s-]{7,15}$');
   static final RegExp _pin = RegExp(r'^\d{4,6}$');
 
-  /// Email: `RegisterDto.email` (`@IsEmail`).
+  /// Логин: `LoginDto.email` — email или короткое имя (admin, operator, client).
+  /// Формат не ограничиваем (в отличие от прежнего `@IsEmail`): пустое — ошибка,
+  /// остальное проверяет сервер (401), а не клиент.
   static String? email(String? value) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return 'Введите корректный email';
-    if (!_email.hasMatch(text)) return 'Введите корректный email';
+    if (text.length > 254) return 'Введите корректный email';
     return null;
   }
 

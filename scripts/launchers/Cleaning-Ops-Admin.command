@@ -14,7 +14,7 @@ ROOT="${CLEANFINE_ROOT:-/Users/mac/Desktop/MIMO/Clean}"
 PORT=5175
 APP_DIR="frontend/web-admin"
 EXTRA_ARGS=""
-URL="http://localhost:5175/login?email=admin%40cleaning-ops.com&password=admin123"
+URL="http://localhost:5175/login?email=admin&password=admin123"
 
 ensure_server() {
   if curl -s -o /dev/null --max-time 2 "http://localhost:${PORT}/"; then

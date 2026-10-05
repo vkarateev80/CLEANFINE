@@ -24,7 +24,7 @@ const BASE_URL = __ENV.K6_BASE_URL || 'http://127.0.0.1:8080';
 // docs/PERFORMANCE_REPORT.md: под нагрузкой он насыщается, и это ограничение СТЕНДА,
 // а не сервиса.
 const AUTH_BASE_URL = __ENV.K6_AUTH_BASE_URL || (BASE_URL.includes(':8080') ? BASE_URL : 'http://127.0.0.1:3001');
-const EMAIL = __ENV.K6_EMAIL || 'admin@cleaning-ops.com';
+const EMAIL = __ENV.K6_EMAIL || 'admin';
 const PASSWORD = __ENV.K6_PASSWORD || 'admin123';
 const LIST_TAKE = Number(__ENV.K6_LIST_TAKE || 50);
 

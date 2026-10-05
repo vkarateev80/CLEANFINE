@@ -28,7 +28,7 @@ void main() {
             .timeout(const Duration(seconds: 10));
         request.headers.contentType = ContentType.json;
         request.write(jsonEncode(<String, String>{
-          'email': 'operator@cleaning-ops.com',
+          'email': 'operator',
           'password': 'oper123',
         }));
         final HttpClientResponse response = await request.close();

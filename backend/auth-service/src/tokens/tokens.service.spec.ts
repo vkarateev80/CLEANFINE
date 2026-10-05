@@ -5,7 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { TokensService } from './tokens.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-const user = { id: 'u1', email: 'admin@cleaning-ops.com', role: 'ADMIN' };
+const user = { id: 'u1', email: 'admin', role: 'ADMIN' };
 const storedRefresh = {
   id: 'rt1',
   token: 'refresh-1',

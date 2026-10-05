@@ -18,7 +18,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'support/app_harness.dart';
 
-const String kEmail = 'operator@cleaning-ops.com';
+const String kEmail = 'operator';
 const String kPassword = 'oper123';
 const String kPin = '3456';
 
