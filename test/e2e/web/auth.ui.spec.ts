@@ -13,7 +13,7 @@ test.describe('web-admin: вход', () => {
   test('страница логина рендерится с полями и брендом', async ({ page }) => {
     await page.goto('/login');
 
-    await expect(page.getByText('🧹 Cleaning Ops')).toBeVisible();
+    await expect(page.getByText('🧹 CLEANFINE')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Вход в систему' })).toBeVisible();
     await expect(page.locator('input[name="email"]')).toBeVisible();
     await expect(page.locator('input[name="password"]')).toBeVisible();

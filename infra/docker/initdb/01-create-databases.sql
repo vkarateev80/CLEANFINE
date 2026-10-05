@@ -1,4 +1,4 @@
--- Cleaning Ops: создание БД на сервис (границы микросервисов).
+-- CLEANFINE: создание БД на сервис (границы микросервисов).
 -- Выполняется ТОЛЬКО при первом создании тома postgres_data
 -- (/docker-entrypoint-initdb.d). На существующем стенде БД создаются вручную:
 --   docker exec cleaning-ops-postgres psql -U admin -d postgres -c "CREATE DATABASE cleaning_ops_gps"

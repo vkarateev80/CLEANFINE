@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cleaning Ops — настройка окружения (bash/macOS/Linux/WSL)
+# CLEANFINE — настройка окружения (bash/macOS/Linux/WSL)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

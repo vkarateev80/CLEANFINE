@@ -1,7 +1,7 @@
 <!-- M0.3: auto-slice of the charter document. Canonical source file lives at the repo root. -->
 
 ГЛАВНЫЙ README (ORCHESTRATOR)
-# 🧹 Cleaning Ops — Система управления клинингом
+# 🧹 CLEANFINE — Система управления клинингом
 
 > Мультиплатформенное приложение для управления клининговыми работами
 > Толстый клиент: Flutter (iOS/Android) + React (Web Admin)

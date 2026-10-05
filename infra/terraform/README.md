@@ -1,4 +1,4 @@
-# Cleaning Ops — Terraform (М7.5)
+# CLEANFINE — Terraform (М7.5)
 
 Инфраструктура «вокруг» кластера: DNS-записи на ingress, переменные для
 провайдера (GKE/EKS/AKS — на выбор), опционально TLS через DNS-01.

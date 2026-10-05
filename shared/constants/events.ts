@@ -1,5 +1,5 @@
 /**
- * Имена exchange/routing key событий Cleaning Ops.
+ * Имена exchange/routing key событий CLEANFINE.
  * Контракт зафиксирован в М0.7 — изменения только через review архитектора.
  */
 export const EVENTS_EXCHANGE = 'cleaning-ops.events';

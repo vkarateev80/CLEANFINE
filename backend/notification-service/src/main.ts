@@ -15,7 +15,7 @@ async function bootstrap(): Promise<void> {
   // Swagger скрыт в production (как в core/auth/file).
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Cleaning Ops — Notification Service')
+      .setTitle('CLEANFINE — Notification Service')
       .setDescription(
         'Уведомления: устройства и push-токены, in-app список, настройки подписок, ' +
           'шаблоны и RabbitMQ-консьюмер событий оперативки.',

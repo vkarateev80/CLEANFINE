@@ -2,7 +2,7 @@
   "name": "@cleaning-ops/web-client",
   "version": "0.1.0",
   "private": true,
-  "description": "Web Client — портал заказчика Cleaning Ops: мобильный тонкий клиент (React, роль CLIENT). ПЛАН.md → М5.4, DS-004 (design/screens/web-client)",
+  "description": "Web Client — портал заказчика CLEANFINE: мобильный тонкий клиент (React, роль CLIENT). ПЛАН.md → М5.4, DS-004 (design/screens/web-client)",
   "type": "module",
   "scripts": {
     "dev": "vite",

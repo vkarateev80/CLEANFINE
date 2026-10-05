@@ -1,5 +1,5 @@
 // Сгенерировано автоматически: node design/scripts/generate.mjs. Не редактировать вручную.
-/// Дизайн-токены Cleaning Ops (источник: design/tokens/*.json).
+/// Дизайн-токены CLEANFINE (источник: design/tokens/*.json).
 /// Цвета — как int (используйте Color(AppColors.primary500));
 /// сборка ThemeData выполняется в mobile (М6) поверх этих констант.
 

@@ -33,7 +33,7 @@ class _CleaningOpsAppState extends ConsumerState<CleaningOpsApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Cleaning Ops',
+      title: 'CLEANFINE',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: ref.watch(appRouterProvider),

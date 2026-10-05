@@ -1,6 +1,6 @@
 # chat-service
 
-Сервис чатов реального времени Cleaning Ops (УСТАВ.md → «Агент Backend Chat», ПЛАН М5.1–М5.2).
+Сервис чатов реального времени CLEANFINE (УСТАВ.md → «Агент Backend Chat», ПЛАН М5.1–М5.2).
 NestJS 10 + Prisma 5 + PostgreSQL 16 + Socket.io 4. Порт — `CHAT_SERVICE_PORT` (3009).
 
 ## Назначение

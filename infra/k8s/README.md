@@ -1,4 +1,4 @@
-# Cleaning Ops — Kubernetes (М7.5)
+# CLEANFINE — Kubernetes (М7.5)
 
 Манифесты для продакшн-кластера: 9 NestJS-сервисов, 2 веб-фронтенда,
 инфраструктура (PostgreSQL+PostGIS, Redis, RabbitMQ, MinIO), Ingress + TLS.

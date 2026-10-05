@@ -8,7 +8,7 @@ class AuthTexts {
   const AuthTexts._();
 
   // Шапка и подписи (auth.md §3.1, §10).
-  static const String appTitle = '🧹 Cleaning Ops';
+  static const String appTitle = '🧹 CLEANFINE';
   static const String appSubtitle = 'Приложение оператора';
   static const String emailLabel = 'Email';
   static const String passwordLabel = 'Пароль';

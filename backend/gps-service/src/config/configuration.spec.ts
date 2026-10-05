@@ -33,7 +33,7 @@ describe('configuration (gps-service)', () => {
     expect(cfg.jwt.accessSecret).toBe('dev-access-secret');
     expect(cfg.rabbitmq.url).toBe('');
     expect(cfg.rabbitmq.enabled).toBe(true);
-    // Общий exchange Cleaning Ops приходит из shared/constants/events.
+    // Общий exchange CLEANFINE приходит из shared/constants/events.
     expect(cfg.rabbitmq.exchange).toBe('cleaning-ops.events');
     expect(cfg.gps.nearbyMaxAgeMinutes).toBe(DEFAULT_NEARBY_MAX_AGE_MINUTES);
     expect(cfg.gps.maxBatchSize).toBe(DEFAULT_MAX_BATCH_SIZE);

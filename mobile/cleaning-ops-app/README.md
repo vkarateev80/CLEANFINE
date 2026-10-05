@@ -1,6 +1,6 @@
 # cleaning_ops_app — мобильное приложение оператора
 
-Flutter-приложение Cleaning Ops (М6). Документация, стек, адреса сервисов и команды —
+Flutter-приложение CLEANFINE (М6). Документация, стек, адреса сервисов и команды —
 в [`../README.md`](../README.md); спецификации экранов — `design/screens/mobile/**` (DS-002).
 
 ```powershell

@@ -55,7 +55,7 @@ const dartIdent = (name, prefix = 'space') => {
 
 const dart = [];
 dart.push('// Сгенерировано автоматически: node design/scripts/generate.mjs. Не редактировать вручную.');
-dart.push('/// Дизайн-токены Cleaning Ops (источник: design/tokens/*.json).');
+dart.push('/// Дизайн-токены CLEANFINE (источник: design/tokens/*.json).');
 dart.push('/// Цвета — как int (используйте Color(AppColors.primary500));');
 dart.push('/// сборка ThemeData выполняется в mobile (М6) поверх этих констант.');
 dart.push('');
