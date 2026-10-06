@@ -54,6 +54,9 @@ COPY frontend/${APP}/vite.config.ts ./frontend/${APP}/vite.config.ts
 COPY frontend/${APP}/tailwind.config.js ./frontend/${APP}/tailwind.config.js
 COPY frontend/${APP}/postcss.config.js ./frontend/${APP}/postcss.config.js
 COPY frontend/${APP}/index.html ./frontend/${APP}/index.html
+# Публичные статические файлы (favicon.ico, apple-touch-icon.png): Vite копирует
+# publicDir в dist при сборке — без этого COPY бандл уезжает без фавиконок.
+COPY frontend/${APP}/public ./frontend/${APP}/public
 COPY frontend/${APP}/src ./frontend/${APP}/src
 
 ENV VITE_API_URL=${VITE_API_URL}
