@@ -1,4 +1,4 @@
-# 🎨 Дизайн-токены Cleaning Ops (DS-001, М1.1)
+# 🎨 Дизайн-токены CLEANFINE (DS-001, М1.1)
 
 Единый источник дизайна для всех платформ: Web Admin, Web Client, Mobile (Flutter).
 

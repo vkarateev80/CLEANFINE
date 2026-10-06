@@ -5,7 +5,7 @@ import '../../auth_texts.dart';
 
 /// Шапка экранов входа: текстовый логотип и подпись.
 ///
-/// `auth.md` §4.1: отдельного ассета логотипа нет — «🧹 Cleaning Ops»
+/// `auth.md` §4.1: отдельного ассета логотипа нет — «🧹 CLEANFINE»
 /// (`size2XL`/600/`primary600`) и «Приложение оператора» (`sizeSM`/`neutral500`).
 class AuthHeader extends StatelessWidget {
   const AuthHeader({

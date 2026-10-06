@@ -30,7 +30,7 @@ export class ReportsController {
 
   @Get('summary')
   @ApiOperation({
-    summary: 'KPI заявок для дашборда',
+    summary: 'KPI заявок для доски действий',
     description:
       'Всего заявок, новые, в работе, выполненные, просроченные, аварийные, среднее время цикла ' +
       'и доля выполненных в срок.',

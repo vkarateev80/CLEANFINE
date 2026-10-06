@@ -1,4 +1,4 @@
-# Cleaning Ops — настройка окружения (Windows PowerShell)
+# CLEANFINE — настройка окружения (Windows PowerShell)
 # Копирует .env.example в .env, если .env ещё нет.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)

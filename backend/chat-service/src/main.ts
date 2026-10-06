@@ -13,7 +13,7 @@ async function bootstrap(): Promise<void> {
   // Swagger скрыт в production (как в core/ticket/auth/file-service).
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Cleaning Ops — Chat Service')
+      .setTitle('CLEANFINE — Chat Service')
       .setDescription(
         'Чаты реального времени: object/ticket/direct/system, история сообщений, ' +
           'вложения, статус прочтения, поиск по тексту и push оффлайн-получателям ' +

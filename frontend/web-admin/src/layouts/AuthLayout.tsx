@@ -9,7 +9,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-lg md:p-8">
         <div className="mb-6 text-center md:mb-8">
-          <div className="text-2xl font-semibold text-primary-600">🧹 Cleaning Ops</div>
+          <div className="text-2xl font-semibold text-primary-600">🧹 CLEANFINE</div>
           <div className="text-sm text-neutral-500">Админ-панель</div>
         </div>
         {children}

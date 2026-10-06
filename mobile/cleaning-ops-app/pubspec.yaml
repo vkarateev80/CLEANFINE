@@ -1,5 +1,5 @@
 name: cleaning_ops_app
-description: "Cleaning Ops — мобильное приложение оператора (М6): офлайн-first клиент смен, чек-листов, SOS и GPS."
+description: "CLEANFINE — мобильное приложение оператора (М6): офлайн-first клиент смен, чек-листов, SOS и GPS."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -57,6 +57,7 @@ dependencies:
   # Подключены путём, а не копией: источник токенов один на web и mobile.
   cleaning_ops_tokens:
     path: ../../design/tokens/generated
+  flutter_local_notifications: ^19.2.0
 
 dev_dependencies:
   flutter_test:

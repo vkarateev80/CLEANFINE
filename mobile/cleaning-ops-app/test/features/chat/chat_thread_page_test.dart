@@ -34,7 +34,9 @@ void chatScreenTest(
   bool online = true,
   bool socketConnected = false,
   List<Override> extraOverrides = const <Override>[],
-  required Future<void> Function(WidgetTester tester, ProviderContainer container) body,
+  required Future<void> Function(
+          WidgetTester tester, ProviderContainer container)
+      body,
 }) {
   testWidgets(description, (WidgetTester tester) async {
     final AppDatabase database = AppDatabase.memory();
@@ -47,7 +49,8 @@ void chatScreenTest(
         chatRepositoryProvider.overrideWithValue(repository),
         chatSocketProvider.overrideWithValue(socket),
         secureStorageProvider.overrideWithValue(storage),
-        connectivityServiceProvider.overrideWithValue(FakeConnectivityService(online: online)),
+        connectivityServiceProvider
+            .overrideWithValue(FakeConnectivityService(online: online)),
         ...extraOverrides,
       ],
     );
@@ -65,7 +68,8 @@ void chatScreenTest(
           child: MaterialApp(
             home: const ChatThreadPage(chatId: 'chat-1'),
             // Сокет и хранилище нужны тесту напрямую.
-            builder: (BuildContext context, Widget? child) => child ?? const SizedBox.shrink(),
+            builder: (BuildContext context, Widget? child) =>
+                child ?? const SizedBox.shrink(),
           ),
         ),
       );
@@ -85,8 +89,17 @@ Future<void> settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 50));
 }
 
+/// Сегодняшний полдень (+сдвиг): метка «Сегодня» не зависит от времени запуска —
+/// «now минуты» около 00:00 перепрыгивают на вчера и роняют тест.
+DateTime _todayNoon({int addMinutes = 0}) {
+  final DateTime now = DateTime.now();
+  return DateTime(now.year, now.month, now.day, 12, 0)
+      .add(Duration(minutes: addMinutes));
+}
+
 void main() {
-  testWidgets('лента: входящее, моё сообщение, разделитель дня, «Начало переписки»', (
+  testWidgets(
+      'лента: входящее, моё сообщение, разделитель дня, «Начало переписки»', (
     WidgetTester tester,
   ) async {
     final AppDatabase database = AppDatabase.memory();
@@ -101,13 +114,13 @@ void main() {
             id: 'm1',
             authorId: 'peer',
             text: 'Прорыв трубы в санузле 101',
-            createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
+            createdAt: _todayNoon(addMinutes: -10),
           ),
           chatMessage(
             id: 'm2',
             authorId: 'me',
             text: 'Принял, иду',
-            createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
+            createdAt: _todayNoon(addMinutes: -5),
           ),
         ],
       ),
@@ -118,9 +131,11 @@ void main() {
         chatRepositoryProvider.overrideWithValue(repository),
         chatSocketProvider.overrideWithValue(socket),
         secureStorageProvider.overrideWithValue(
-          InMemorySecureStorage()..values[StorageKeys.accessToken] = 'access-token',
+          InMemorySecureStorage()
+            ..values[StorageKeys.accessToken] = 'access-token',
         ),
-        connectivityServiceProvider.overrideWithValue(FakeConnectivityService()),
+        connectivityServiceProvider
+            .overrideWithValue(FakeConnectivityService()),
       ],
     );
     container.read(sessionProvider.notifier).state = const SessionState(
@@ -157,7 +172,8 @@ void main() {
 
   chatScreenTest(
     '§10.3: чужой чат (403) — «Чат недоступен» без composer',
-    FakeChatRepository(detailFailure: const ForbiddenFailure('Вы не участник этого чата')),
+    FakeChatRepository(
+        detailFailure: const ForbiddenFailure('Вы не участник этого чата')),
     body: (WidgetTester tester, ProviderContainer container) async {
       expect(find.byKey(const Key('chat_forbidden_text')), findsOneWidget);
       // Текст виден и в шапке, и в пустом состоянии — проверяем наличие текста.
@@ -177,15 +193,18 @@ void main() {
     ),
     online: false,
     body: (WidgetTester tester, ProviderContainer container) async {
-      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
       final AppDatabase database = container.read(appDatabaseProvider);
 
       // Соединения нет: баннер оффлайна виден, composer активен (`chat.md` §5).
       expect(socket.isConnected, isFalse);
       expect(find.byKey(const Key('chat_offline_banner')), findsOneWidget);
-      expect(find.text('Нет соединения — сообщения уйдут при подключении'), findsOneWidget);
+      expect(find.text('Нет соединения — сообщения уйдут при подключении'),
+          findsOneWidget);
 
-      await tester.enterText(find.byKey(const Key('chat_input_field')), 'Принял');
+      await tester.enterText(
+          find.byKey(const Key('chat_input_field')), 'Принял');
       await settle(tester);
       await tester.tap(find.byKey(const Key('chat_send_button')));
       await settle(tester);
@@ -195,7 +214,8 @@ void main() {
       expect(find.text('Отправляется…'), findsOneWidget);
 
       // 2. Запись очереди: `kind = chat_message`, `status = pending`, есть clientMessageId.
-      final List<PendingAction> queued = await container.read(pendingActionQueueProvider).all();
+      final List<PendingAction> queued =
+          await container.read(pendingActionQueueProvider).all();
       expect(queued, hasLength(1));
       final PendingAction action = queued.single;
       expect(action.type, PendingActionTypes.chatMessage);
@@ -203,10 +223,12 @@ void main() {
       expect(action.payload['chatId'], 'chat-1');
       expect(action.payload['text'], 'Принял');
       expect(action.payload['clientMessageId'], isNotEmpty);
-      expect(action.idempotencyKey, 'chat:${action.payload['clientMessageId']}');
+      expect(
+          action.idempotencyKey, 'chat:${action.payload['clientMessageId']}');
 
       // 3. Локальная лента тоже помнит сообщение (`chat_messages`, `offline.md` §3).
-      final List<LocalChatMessage> local = await ChatMessageStore(database).forChat('chat-1');
+      final List<LocalChatMessage> local =
+          await ChatMessageStore(database).forChat('chat-1');
       expect(local, hasLength(1));
       expect(local.single.status, ChatMessageStatus.pending);
       expect(local.single.text, 'Принял');
@@ -218,13 +240,16 @@ void main() {
       expect(socket.sends, hasLength(1));
       expect(socket.sends.single['text'], 'Принял');
       expect(find.text('Отправляется…'), findsNothing);
-      expect(find.byKey(const Key('chat_message_status_server-1')), findsOneWidget);
+      expect(find.byKey(const Key('chat_message_status_server-1')),
+          findsOneWidget);
 
-      final List<PendingAction> after = await container.read(pendingActionQueueProvider).all();
+      final List<PendingAction> after =
+          await container.read(pendingActionQueueProvider).all();
       expect(after.single.status, PendingActionStatus.synced);
       expect(after.single.syncedAt, isNotNull);
 
-      final LocalChatMessage sent = (await ChatMessageStore(database).forChat('chat-1')).single;
+      final LocalChatMessage sent =
+          (await ChatMessageStore(database).forChat('chat-1')).single;
       expect(sent.status, ChatMessageStatus.sent);
       expect(sent.serverId, 'server-1');
     },
@@ -234,17 +259,22 @@ void main() {
     '§10.2: событие message:read ставит своему сообщению «Прочитано»',
     FakeChatRepository(
       detail: chatDetailFixture(),
-      page: chatPage(items: <ChatMessage>[chatMessage(id: 'm2', authorId: 'me', text: 'Принял, иду')]),
+      page: chatPage(items: <ChatMessage>[
+        chatMessage(id: 'm2', authorId: 'me', text: 'Принял, иду')
+      ]),
     ),
     body: (WidgetTester tester, ProviderContainer container) async {
-      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
       socket.emitConnected();
       socket.emitRead(chatId: 'chat-1', messageId: 'm2', readBy: 'peer');
       await settle(tester);
 
       // `Semantics(label: 'Прочитано')` у статуса своего сообщения.
       expect(
-        tester.getSemantics(find.byKey(const Key('chat_message_status_m2'))).label,
+        tester
+            .getSemantics(find.byKey(const Key('chat_message_status_m2')))
+            .label,
         contains('Прочитано'),
       );
     },
@@ -271,12 +301,16 @@ void main() {
 
       // Доставлено — серверный признак: две галочки с подписью.
       expect(
-        tester.getSemantics(find.byKey(const Key('chat_message_status_m3'))).label,
+        tester
+            .getSemantics(find.byKey(const Key('chat_message_status_m3')))
+            .label,
         contains('Доставлено'),
       );
       // Без deliveredAt остаётся «Отправлено» (одна галочка).
       expect(
-        tester.getSemantics(find.byKey(const Key('chat_message_status_m4'))).label,
+        tester
+            .getSemantics(find.byKey(const Key('chat_message_status_m4')))
+            .label,
         isNot(contains('Доставлено')),
       );
     },
@@ -286,12 +320,14 @@ void main() {
     'отметка прочтения входящего уходит в сокет один раз',
     FakeChatRepository(
       detail: chatDetailFixture(),
-      page: chatPage(items: <ChatMessage>[chatMessage(id: 'm1', authorId: 'peer')]),
+      page: chatPage(
+          items: <ChatMessage>[chatMessage(id: 'm1', authorId: 'peer')]),
     ),
     // Соединение уже поднято: отметка прочтения идёт основным путём — сокетом.
     socketConnected: true,
     body: (WidgetTester tester, ProviderContainer container) async {
-      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
       await settle(tester);
 
       expect(socket.reads, hasLength(1));
@@ -308,12 +344,14 @@ void main() {
     'без сокета отметка прочтения уходит HTTP-путём (`chat.md` §8)',
     FakeChatRepository(
       detail: chatDetailFixture(),
-      page: chatPage(items: <ChatMessage>[chatMessage(id: 'm1', authorId: 'peer')]),
+      page: chatPage(
+          items: <ChatMessage>[chatMessage(id: 'm1', authorId: 'peer')]),
     ),
     body: (WidgetTester tester, ProviderContainer container) async {
       final FakeChatRepository repository =
           container.read(chatRepositoryProvider) as FakeChatRepository;
-      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
       await settle(tester);
 
       expect(socket.reads, isEmpty);
@@ -326,13 +364,16 @@ void main() {
     'новое входящее по сокету появляется в ленте',
     FakeChatRepository(
       detail: chatDetailFixture(),
-      page: chatPage(items: <ChatMessage>[chatMessage(id: 'm1', authorId: 'peer')]),
+      page: chatPage(
+          items: <ChatMessage>[chatMessage(id: 'm1', authorId: 'peer')]),
     ),
     body: (WidgetTester tester, ProviderContainer container) async {
-      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
       socket.emitConnected();
       socket.emitMessage(
-        chatMessage(id: 'm3', authorId: 'peer', text: 'Санузел 101 закрыт на ремонт'),
+        chatMessage(
+            id: 'm3', authorId: 'peer', text: 'Санузел 101 закрыт на ремонт'),
       );
       await settle(tester);
 
@@ -364,7 +405,8 @@ void main() {
     body: (WidgetTester tester, ProviderContainer container) async {
       expect(find.byKey(const Key('chat_empty_text')), findsOneWidget);
       expect(find.text('Напишите первое сообщение'), findsOneWidget);
-      expect(find.text('Опишите вопрос — ответ придёт в это окно'), findsOneWidget);
+      expect(find.text('Опишите вопрос — ответ придёт в это окно'),
+          findsOneWidget);
     },
   );
 
@@ -375,19 +417,24 @@ void main() {
       page: const ChatMessagesPage(items: <ChatMessage>[]),
     ),
     body: (WidgetTester tester, ProviderContainer container) async {
-      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
       socket.emitConnected();
       await settle(tester);
 
       expect(
-        tester.widget<IconButton>(find.byKey(const Key('chat_send_button'))).onPressed,
+        tester
+            .widget<IconButton>(find.byKey(const Key('chat_send_button')))
+            .onPressed,
         isNull,
       );
 
       await tester.enterText(find.byKey(const Key('chat_input_field')), '   ');
       await settle(tester);
       expect(
-        tester.widget<IconButton>(find.byKey(const Key('chat_send_button'))).onPressed,
+        tester
+            .widget<IconButton>(find.byKey(const Key('chat_send_button')))
+            .onPressed,
         isNull,
       );
     },
@@ -400,9 +447,11 @@ void main() {
       page: const ChatMessagesPage(items: <ChatMessage>[]),
     ),
     body: (WidgetTester tester, ProviderContainer container) async {
-      await tester.enterText(find.byKey(const Key('chat_input_field')), 'Нужен доступ в 305');
+      await tester.enterText(
+          find.byKey(const Key('chat_input_field')), 'Нужен доступ в 305');
       await settle(tester);
-      expect(container.read(chatDraftsProvider)['chat-1'], 'Нужен доступ в 305');
+      expect(
+          container.read(chatDraftsProvider)['chat-1'], 'Нужен доступ в 305');
     },
   );
 
@@ -413,12 +462,14 @@ void main() {
       page: const ChatMessagesPage(items: <ChatMessage>[]),
     ),
     body: (WidgetTester tester, ProviderContainer container) async {
-      final FakeChatSocket socket = container.read(chatSocketProvider) as FakeChatSocket;
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
       socket.emitConnected();
       await settle(tester);
 
       socket.sendFailure = 'Вы не участник этого чата';
-      await tester.enterText(find.byKey(const Key('chat_input_field')), 'Нужен доступ в 305');
+      await tester.enterText(
+          find.byKey(const Key('chat_input_field')), 'Нужен доступ в 305');
       await settle(tester);
       await tester.tap(find.byKey(const Key('chat_send_button')));
       await settle(tester);
@@ -434,12 +485,17 @@ void main() {
       detail: chatDetailFixture(),
       page: chatPage(
         items: <ChatMessage>[
-          chatMessage(id: 'm1', authorId: 'peer', text: 'Фото', attachmentIds: <String>['file-1']),
+          chatMessage(
+              id: 'm1',
+              authorId: 'peer',
+              text: 'Фото',
+              attachmentIds: <String>['file-1']),
         ],
       ),
     ),
     extraOverrides: <Override>[
-      chatAttachmentResolverProvider.overrideWithValue(FakeAttachmentResolver()),
+      chatAttachmentResolverProvider
+          .overrideWithValue(FakeAttachmentResolver()),
     ],
     body: (WidgetTester tester, ProviderContainer container) async {
       expect(find.byKey(const Key('chat_attachment_m1')), findsOneWidget);
@@ -453,7 +509,8 @@ class FakeAttachmentResolver extends ChatAttachmentResolver {
   FakeAttachmentResolver()
       : super(
           fakeApiClient(
-            FakeHttpAdapter((_) async => const FakeResponse(200, <String, Object>{})),
+            FakeHttpAdapter(
+                (_) async => const FakeResponse(200, <String, Object>{})),
           ),
         );
 

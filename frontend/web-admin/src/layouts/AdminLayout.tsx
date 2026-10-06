@@ -25,7 +25,7 @@ export interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { to: '/dashboard', label: 'Дашборд', icon: '📊', end: true },
+  { to: '/dashboard', label: 'Доска действий', icon: '📊', end: true },
   { to: '/objects', label: 'Объекты', icon: '🏢' },
   // Маршруты и техкарты — рабочие места ADMIN/SUPERVISOR: ровно те роли,
   // которым core-service разрешает создание и правку (@Roles). У оператора
@@ -124,7 +124,7 @@ export function AdminLayout() {
           {/* На рейке w-16 места для названия нет — остаётся только знак; текст
               не дублируется, а скрывается, чтобы на desktop разметка и вид
               остались прежними. */}
-          <span className="md:max-lg:hidden">🧹 Cleaning Ops</span>
+          <span className="md:max-lg:hidden">🧹 CLEANFINE</span>
           <span aria-hidden="true" className="hidden md:max-lg:inline">
             🧹
           </span>

@@ -1,6 +1,6 @@
 name: CI
 
-# Cleaning Ops — базовый CI (М0.6; расширен М2.9: file/core; М3: gps/tickets/notifications).
+# CLEANFINE — базовый CI (М0.6; расширен М2.9: file/core; М3: gps/tickets/notifications).
 # Прогоняется на PR в develop/main и на пушах. Сервисы backend/* подключаются
 # автоматически по мере появления (в директории должен быть package.json).
 on:

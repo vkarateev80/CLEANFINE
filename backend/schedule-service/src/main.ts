@@ -14,7 +14,7 @@ async function bootstrap(): Promise<void> {
   // Swagger скрыт в production (как в auth/file/core/ticket).
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Cleaning Ops — Schedule Service')
+      .setTitle('CLEANFINE — Schedule Service')
       .setDescription(
         'Графики и смены: рекуррентные расписания (daily/weekly/monthly), генерация смен ' +
           'с автосозданием плановых заявок в ticket-service, check-in/check-out с проверкой ' +

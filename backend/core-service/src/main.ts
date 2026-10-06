@@ -13,7 +13,7 @@ async function bootstrap(): Promise<void> {
   // Swagger скрыт в production (как в auth/file-service).
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Cleaning Ops — Core Service')
+      .setTitle('CLEANFINE — Core Service')
       .setDescription(
         'Ядро домена: объекты → этажи → помещения, маршруты уборки с точками, ' +
           'техкарты с операциями и расходом материалов.',

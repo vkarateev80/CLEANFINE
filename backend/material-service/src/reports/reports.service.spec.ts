@@ -261,7 +261,7 @@ describe('ReportsService (М7.1, CQRS-read)', () => {
 
   // ------------------------------------------------------------------- KPI
 
-  it('KPI дашборда: расход за 30 дней, объекты, топ-5 и позиции ниже порога', async () => {
+  it('KPI доски действий: расход за 30 дней, объекты, топ-5 и позиции ниже порога', async () => {
     const day = new Date('2026-03-02T00:00:00.000Z');
     repository.consumptionDaily.mockResolvedValue([
       dailyRow({

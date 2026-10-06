@@ -364,7 +364,7 @@ test('М2.7: RBAC — оператору недоступен конструкт
   // Чтение объектов оператору разрешено.
   await expect(page.getByRole('link', { name: 'Объекты' })).toBeVisible();
 
-  // Прямой заход по URL упирается в RoleGuard и возвращает на дашборд.
+  // Прямой заход по URL упирается в RoleGuard и возвращает на доску действий.
   await page.goto('/routes');
   await expect(page).toHaveURL(/\/dashboard$/, { timeout: 20_000 });
 

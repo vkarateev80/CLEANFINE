@@ -2,7 +2,7 @@
   "name": "cleaning-ops",
   "version": "0.1.0",
   "private": true,
-  "description": "Cleaning Ops — система управления клининговыми работами (монорепо, устав М0)",
+  "description": "CLEANFINE — система управления клининговыми работами (монорепо, устав М0)",
   "engines": {
     "node": ">=18"
   },

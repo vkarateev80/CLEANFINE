@@ -51,7 +51,7 @@
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│                        🧹  Cleaning Ops                       │  ← size2XL, primary600
+│                        🧹  CLEANFINE                       │  ← size2XL, primary600
 │                     Приложение оператора                      │  ← sizeSM, neutral500
 │                                                               │
 │   Email *                                                     │
@@ -134,7 +134,7 @@
 | Элемент | Реализация | Обоснование |
 |---|---|---|
 | Контейнер | `Scaffold(body: SafeArea(child: SingleChildScrollView(padding: EdgeInsets.all(AppSpacing.lg))))` | на 320 dp и при открытой клавиатуре форма прокручивается, а не обрезается |
-| Шапка | `Text('🧹 Cleaning Ops')` — `size2XL`/`weightSemibold`, цвет `primary600`, по центру; подпись «Приложение оператора» — `sizeSM`, `neutral500` | текстовый логотип, как в админке и портале (отдельного ассета логотипа нет) |
+| Шапка | `Text('🧹 CLEANFINE')` — `size2XL`/`weightSemibold`, цвет `primary600`, по центру; подпись «Приложение оператора» — `sizeSM`, `neutral500` | текстовый логотип, как в админке и портале (отдельного ассета логотипа нет) |
 | Карточка формы | `Card` (или `Container`): `Colors.white`, `AppRadius.xl`, `AppShadows.md`, `padding: AppSpacing.xl` | токены `radius.xl` + `shadows.md` |
 | Поля | `TextFormField` с `OutlineInputBorder(borderRadius: AppRadius.lg)`, `contentPadding` `AppSpacing.md`, текст `sizeBASE` | 16 px — иначе iOS зумит при фокусе |
 | Кнопка действия | `FilledButton` высотой `48` (`minimumSize: Size.fromHeight(48)`), `AppRadius.lg` | touch-target ≥48 dp |
@@ -306,7 +306,7 @@
 
 | Где | Текст |
 |---|---|
-| Заголовок логина | «🧹 Cleaning Ops» |
+| Заголовок логина | «🧹 CLEANFINE» |
 | Подпись | «Приложение оператора» |
 | Метки полей | «Email», «Пароль» |
 | Валидация | «Введите корректный email», «Введите пароль», «Введите email и пароль» |

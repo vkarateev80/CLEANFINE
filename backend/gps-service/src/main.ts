@@ -17,7 +17,7 @@ async function bootstrap(): Promise<void> {
   // Swagger скрыт в production (как в auth/core/file-service).
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Cleaning Ops — GPS Service')
+      .setTitle('CLEANFINE — GPS Service')
       .setDescription(
         'Геопозиционирование: batch-приём треков (PostGIS), геозоны объектов, ' +
           'проверка вхождения, поиск ближних сотрудников, история перемещений.',

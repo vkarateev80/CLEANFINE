@@ -174,7 +174,7 @@ test.describe('несуществующий путь', () => {
   /**
    * 404 обслуживает `path: '*'` ВНЕ `AdminLayout` (`router/index.tsx`), поэтому
    * сайдбара и нижней навигации на ней нет и быть не должно: проверяем саму
-   * страницу (заголовок и переход на дашборд) и отсутствие переполнения.
+   * страницу (заголовок и переход на доску действий) и отсутствие переполнения.
    */
   test(`${NOT_FOUND_PATH} на 360, 768 и 1366px: страница 404 без переполнения`, async ({
     browser,
@@ -187,7 +187,7 @@ test.describe('несуществующий путь', () => {
       });
       try {
         await expect(page.getByText('Страница не найдена')).toBeVisible();
-        await expect(page.getByRole('link', { name: 'На дашборд' })).toBeVisible();
+        await expect(page.getByRole('link', { name: 'На доску действий' })).toBeVisible();
         const { scrollWidth, innerWidth } = await horizontalOverflow(page);
         if (scrollWidth > innerWidth) bad.push(`${width}px: ${scrollWidth} > ${innerWidth}`);
       } finally {

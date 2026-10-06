@@ -2,7 +2,7 @@
   "name": "@cleaning-ops/web-admin",
   "version": "0.1.0",
   "private": true,
-  "description": "Web Admin — админ-панель Cleaning Ops (React, толстый клиент). УСТАВ.md → Агент Frontend Web",
+  "description": "Web Admin — админ-панель CLEANFINE (React, толстый клиент). УСТАВ.md → Агент Frontend Web",
   "type": "module",
   "scripts": {
     "dev": "vite",

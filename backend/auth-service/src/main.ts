@@ -18,7 +18,7 @@ async function bootstrap(): Promise<void> {
   // схема API — внутренняя информация, наружу её не отдаём.
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Cleaning Ops — Auth Service')
+      .setTitle('CLEANFINE — Auth Service')
       .setDescription(
         'Аутентификация (JWT/PIN/биометрия) и RBAC. ' +
           'Access-токен передаётся заголовком `Authorization: Bearer <token>`.',

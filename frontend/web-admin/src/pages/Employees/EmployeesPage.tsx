@@ -472,7 +472,7 @@ export function EmployeesPage() {
           <Field label="Email" htmlFor="employee-email" required error={fieldErrors.email}>
             <Input
               id="employee-email"
-              type="email"
+              type="text"
               value={createForm.email}
               invalid={Boolean(fieldErrors.email)}
               onChange={(event) =>
@@ -568,7 +568,7 @@ export function EmployeesPage() {
           <Field label="Email" htmlFor="employee-edit-email" required error={fieldErrors.email}>
             <Input
               id="employee-edit-email"
-              type="email"
+              type="text"
               value={editForm.email}
               invalid={Boolean(fieldErrors.email)}
               onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))}

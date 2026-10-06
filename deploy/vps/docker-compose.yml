@@ -1,5 +1,5 @@
 # ============================================================
-# Cleaning Ops — изолированный VPS-стенд (compose-проект prj-cleanfine).
+# CLEANFINE — изолированный VPS-стенд (compose-проект prj-cleanfine).
 #
 # Источник истины: System Design v2 (разделы 3, 5, 8, ADR-1…ADR-8) и PRD
 # (FR-2…FR-9, FR-21…FR-25). Каталог deploy/vps/ — единственное место стенда.

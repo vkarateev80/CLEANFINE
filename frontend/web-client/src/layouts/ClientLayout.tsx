@@ -162,7 +162,7 @@ export function ClientLayout() {
 export function PortalFooter() {
   return (
     <div className="px-4 py-3 text-center text-xs text-neutral-500">
-      Портал заказчика · Cleaning Ops
+      Портал заказчика · CLEANFINE
     </div>
   );
 }

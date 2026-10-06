@@ -58,7 +58,7 @@ export function RouteBuilderPage() {
         breadcrumbs={
           <Breadcrumbs
             items={[
-              { label: 'Дашборд', to: ROUTES.dashboard },
+              { label: 'Доска действий', to: ROUTES.dashboard },
               { label: 'Маршруты', to: ROUTES.routes },
               ...(id ? [{ label: 'Редактор маршрута' }] : []),
             ]}
@@ -76,7 +76,7 @@ export function RouteBuilderPage() {
             to={ROUTES.dashboard}
             className="mt-3 inline-block text-sm text-primary-600 hover:underline"
           >
-            На дашборд
+            На доску действий
           </Link>
         </div>
       ) : id ? (

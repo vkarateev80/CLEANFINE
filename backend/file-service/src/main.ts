@@ -13,7 +13,7 @@ async function bootstrap(): Promise<void> {
   // Swagger скрыт в production (как в auth-service).
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('Cleaning Ops — File Service')
+      .setTitle('CLEANFINE — File Service')
       .setDescription(
         'Загрузка файлов в MinIO, водяные знаки (имя/дата/координаты), миниатюры, ' +
           'привязка к сущностям (планы этажей, заявки, чат, аватары).',

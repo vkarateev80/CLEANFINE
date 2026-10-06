@@ -14,7 +14,7 @@ export function NotFoundPage() {
         to="/dashboard"
         className="inline-flex items-center rounded-lg px-2 text-primary-600 hover:underline max-lg:min-h-[44px]"
       >
-        На дашборд
+        На доску действий
       </Link>
     </div>
   );

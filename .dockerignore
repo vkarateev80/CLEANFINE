@@ -1,5 +1,5 @@
 # ============================================================
-# Cleaning Ops — .dockerignore для сборки с контекстом = КОРЕНЬ репозитория.
+# CLEANFINE — .dockerignore для сборки с контекстом = КОРЕНЬ репозитория.
 #
 # Все сервисные Dockerfile-ы собираются из корня
 # (docker build -f backend/<svc>/Dockerfile .), потому что tsconfig маппит

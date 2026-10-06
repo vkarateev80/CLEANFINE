@@ -6,7 +6,7 @@
 -- в material-service — то же решение).
 --
 -- ПОЧЕМУ НЕ ЕДИНОЕ VIEW СКВОЗЬ СЕРВИСЫ. Своя БД (`cleaning_ops_tickets`) и своя
--- Prisma-схема: join с материалами или сменами в SQL невозможен. Сквозной дашборд
+-- Prisma-схема: join с материалами или сменами в SQL невозможен. Сквозной доска действий
 -- собирается админкой из read-эндпоинтов сервисов.
 --
 -- ЧТО ЗНАЧИТ «ВЫПОЛНЕНА». Статусы заявки — state machine из shared (`new → assigned →
@@ -77,7 +77,7 @@ FROM tickets t
 WHERE t."status" IN ('completed', 'verified', 'closed', 'overdue')
 GROUP BY t."objectId", t."type", t."status";
 
--- Заявки по дням создания: ряд для графика «создано / выполнено» и для дашборда.
+-- Заявки по дням создания: ряд для графика «создано / выполнено» и для доски действий.
 -- День считается в UTC: `createdAt` — `TIMESTAMP(3)` без таймзоны (Prisma пишет UTC),
 -- локальная дата дала бы сдвиг на границе суток.
 CREATE OR REPLACE VIEW ticket_execution_daily AS
@@ -109,7 +109,7 @@ SELECT
 FROM tickets t
 GROUP BY 1, 2, 3;
 
--- Сводка по заявкам одной строкой: KPI дашборда без агрегации в приложении.
+-- Сводка по заявкам одной строкой: KPI доски действий без агрегации в приложении.
 CREATE OR REPLACE VIEW ticket_execution_totals AS
 SELECT
     COUNT(*)::int AS tickets_total,

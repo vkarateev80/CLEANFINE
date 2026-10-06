@@ -1,4 +1,4 @@
-# 🌿 Git workflow Cleaning Ops
+# 🌿 Git workflow CLEANFINE
 
 > Свод из УСТАВ.md (README → «Конвенции», Dash-правила → «Git workflow») + правил командной работы.
 

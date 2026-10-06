@@ -1,4 +1,4 @@
-# Cleaning Ops — локальная инфраструктура (dev)
+# CLEANFINE — локальная инфраструктура (dev)
 # Использование: docker compose --env-file .env -f infra/docker/docker-compose.yml up -d
 # (код по УСТАВ.md → Агент DEVOPS, п.1; healthcheck'и добавлены)
 name: cleaning-ops

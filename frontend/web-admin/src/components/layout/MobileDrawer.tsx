@@ -81,7 +81,7 @@ export function MobileDrawer({ items, user }: MobileDrawerProps) {
         className="flex h-full w-72 max-w-[85vw] flex-col bg-neutral-900 text-neutral-100 shadow-xl"
       >
         <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 text-lg font-semibold text-primary-300">
-          <span>🧹 Cleaning Ops</span>
+          <span>🧹 CLEANFINE</span>
           <button
             type="button"
             onClick={closeDrawer}

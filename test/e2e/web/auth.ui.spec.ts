@@ -13,7 +13,7 @@ test.describe('web-admin: вход', () => {
   test('страница логина рендерится с полями и брендом', async ({ page }) => {
     await page.goto('/login');
 
-    await expect(page.getByText('🧹 Cleaning Ops')).toBeVisible();
+    await expect(page.getByText('🧹 CLEANFINE')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Вход в систему' })).toBeVisible();
     await expect(page.locator('input[name="email"]')).toBeVisible();
     await expect(page.locator('input[name="password"]')).toBeVisible();
@@ -48,8 +48,8 @@ test.describe('web-admin: вход', () => {
     await page.getByRole('button', { name: 'Войти' }).click();
 
     await expect(page).toHaveURL(/\/dashboard$/, { timeout: 20_000 });
-    await expect(page.getByRole('heading', { name: 'Дашборд' })).toBeVisible();
-    await expect(page.getByText(admin.email)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Доска действий' })).toBeVisible();
+    await expect(page.getByText(admin.email, { exact: true })).toBeVisible();
     // бейдж роли в карточке профиля (span, а не текст в сайдбаре)
     await expect(page.locator('span', { hasText: /^ADMIN$/ })).toBeVisible();
   });

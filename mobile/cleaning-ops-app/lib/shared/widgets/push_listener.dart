@@ -33,6 +33,7 @@ class _PushListenerState extends ConsumerState<PushListener> {
   GoRouter? _router;
   bool _registered = false;
   String? _registeredFor;
+  DateTime? _nextAttemptAt;
 
   @override
   void initState() {
@@ -60,7 +61,8 @@ class _PushListenerState extends ConsumerState<PushListener> {
   }
 
   Future<void> _handleInitialMessage() async {
-    final PushMessage? message = await ref.read(pushServiceProvider).initialMessage();
+    final PushMessage? message =
+        await ref.read(pushServiceProvider).initialMessage();
     if (message != null) _navigate(message);
   }
 
@@ -75,22 +77,34 @@ class _PushListenerState extends ConsumerState<PushListener> {
   }
 
   /// Токен устройства регистрируется один раз на пользователя.
+  ///
+  /// `registerDevice` возвращает [Result] и НЕ бросает ошибок — раньше результат
+  /// не проверялся, и упавшая регистрация молча считалась успехом (пуш уходил
+  /// на старый мёртвый топик). При отказе: лог + повтор не раньше чем через 30 с.
   Future<void> _registerToken(String userId) async {
     if (_registeredFor == userId) return;
+    final DateTime? notBefore = _nextAttemptAt;
+    if (notBefore != null && DateTime.now().isBefore(notBefore)) return;
     _registeredFor = userId;
+    debugPrint('[PUSH] _registerToken start user=$userId');
     final String? token = await ref.read(pushServiceProvider).token();
-    // Токена нет (Firebase не сконфигурирована) — регистрация пропускается:
+    debugPrint('[PUSH] token=${token ?? 'NULL'}');
+    // Токена нет (не то платформенное окружение) — регистрация пропускается:
     // остальной путь push (in-app, настройки) от неё не зависит.
     if (token == null || token.isEmpty) return;
-    try {
-      await ref
-          .read(notificationsRepositoryProvider)
-          .registerDevice(token: token, platform: devicePlatform());
+    final result = await ref
+        .read(notificationsRepositoryProvider)
+        .registerDevice(token: token, platform: devicePlatform());
+    if (result.isSuccess) {
       _registered = true;
-    } on Object {
-      // Нет сети — токен зарегистрируется при следующем входе.
-      _registeredFor = null;
+      debugPrint('[PUSH] registerDevice ok');
+      return;
     }
+    debugPrint(
+        '[PUSH] registerDevice failed: ${result.failureOrNull?.message}');
+    // Сетевая ошибка/401 — пробуем снова через 30 секунд (следующий кадр сессии).
+    _registeredFor = null;
+    _nextAttemptAt = DateTime.now().add(const Duration(seconds: 30));
   }
 
   @override

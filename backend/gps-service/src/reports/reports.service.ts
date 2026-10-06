@@ -68,7 +68,7 @@ export interface GeofenceControlReportView {
   };
 }
 
-/** KPI контроля по GPS для дашборда. */
+/** KPI контроля по GPS для доски действий. */
 export interface GeofenceSummaryView {
   visitsCount: number;
   dwellMinutes: number;
@@ -133,7 +133,7 @@ export class ReportsService {
     };
   }
 
-  /** KPI контроля по GPS для дашборда: одна строка read-модели. */
+  /** KPI контроля по GPS для доски действий: одна строка read-модели. */
   async summary(): Promise<GeofenceSummaryView> {
     const totals = await this.repository.totals();
 
