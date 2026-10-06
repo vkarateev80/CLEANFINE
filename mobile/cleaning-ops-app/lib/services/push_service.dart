@@ -152,7 +152,13 @@ PushMessage? ntfyEventToMessage(Map<String, dynamic> event) {
 /// Хостовые юнит-тесты получают `null`-токен (как Noop) — ни сети, ни плагинов.
 class NtfyPushService implements PushService {
   NtfyPushService({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+      : _storage = storage ??
+            const FlutterSecureStorage(
+              // Тот же бэкенд, что у auth-токенов (SecureStorageService):
+              // только encryptedSharedPreferences живёт через рестарты на этом
+              // устройстве — legacy/дефолт писал «ok», но терял данные.
+              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+            );
 
   final FlutterSecureStorage _storage;
   final StreamController<PushMessage> _foreground =
@@ -182,19 +188,34 @@ class NtfyPushService implements PushService {
     return topic;
   }
 
+  /// Чтение топика с ретраями: на холодном старте первый `read` нередко
+  /// возвращает `null` ещё до готовности хранилища (плагин/flutter_secure_storage),
+  /// и без ретрая топик перевыпускался бы при каждом запуске — пуш уходил бы
+  /// на мёртвый топик. Читаем до 5 раз с паузой 300 мс.
   Future<String?> _tryReadTopic() async {
-    try {
-      return await _storage.read(key: _topicStorageKey);
-    } on Object {
-      return null;
+    for (int attempt = 0; attempt < 5; attempt += 1) {
+      if (attempt > 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }
+      try {
+        final String? value = await _storage.read(key: _topicStorageKey);
+        debugPrint('[PUSH] storage.read#$attempt = ${value ?? 'null'}');
+        if (value != null && value.isNotEmpty) return value;
+      } on Object catch (err) {
+        debugPrint('[PUSH] storage.read ERROR: $err');
+      }
     }
+    return null;
   }
 
   Future<void> _trySaveTopic(String topic) async {
     try {
       await _storage.write(key: _topicStorageKey, value: topic);
-    } on Object {
-      // Нет доступа к keychain — топик перевыпустится при следующем входе.
+      final String? back = await _storage.read(key: _topicStorageKey);
+      debugPrint(
+          '[PUSH] storage.write ok; immediate read-back = ${back ?? 'null'}');
+    } on Object catch (err) {
+      debugPrint('[PUSH] storage.write ERROR: $err');
     }
   }
 
