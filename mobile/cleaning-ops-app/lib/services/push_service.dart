@@ -155,9 +155,10 @@ class NtfyPushService implements PushService {
       : _storage = storage ??
             const FlutterSecureStorage(
               // Тот же бэкенд, что у auth-токенов (SecureStorageService):
-              // только encryptedSharedPreferences живёт через рестарты на этом
-              // устройстве — legacy/дефолт писал «ok», но терял данные.
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              // v11 шифрует Android-хранилище по умолчанию (флаг удалён), а на
+              // macOS берём классический keychain (Data Protection → -34018
+              // на локально-подписанной сборке).
+              mOptions: MacOsOptions(usesDataProtectionKeychain: false),
             );
 
   final FlutterSecureStorage _storage;
