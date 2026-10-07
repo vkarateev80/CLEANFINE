@@ -75,8 +75,51 @@ void main() {
     expect(find.byKey(const Key('shell_tab_today')), findsOneWidget);
     expect(find.byKey(const Key('shell_tab_chats')), findsOneWidget);
     expect(find.byKey(const Key('shell_tab_profile')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_admin')), findsNothing);
     expect(find.byKey(const Key('today_sos_button')), findsOneWidget);
     expect(find.byKey(const Key('login_page')), findsNothing);
+  });
+
+  testWidgets('для ADMIN в таб-баре появляется «Админ»', (tester) async {
+    final storage = _InMemoryStorage()
+      ..seed(StorageKeys.accessToken, 'access')
+      ..seed(StorageKeys.refreshToken, 'refresh')
+      ..seed(StorageKeys.userId, 'user-1')
+      ..seed(StorageKeys.role, 'ADMIN');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: shellOverrides(storage),
+        child: const CleaningOpsApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byKey(const Key('today_page')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_admin')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_profile')), findsOneWidget);
+  });
+
+  testWidgets('для SUPERVISOR тоже видна вкладка «Админ»', (tester) async {
+    final storage = _InMemoryStorage()
+      ..seed(StorageKeys.accessToken, 'access')
+      ..seed(StorageKeys.refreshToken, 'refresh')
+      ..seed(StorageKeys.userId, 'user-1')
+      ..seed(StorageKeys.role, 'SUPERVISOR');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: shellOverrides(storage),
+        child: const CleaningOpsApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byKey(const Key('shell_tab_admin')), findsOneWidget);
   });
 
   testWidgets('нажатие SOS открывает полноэкранную аварийную заявку', (tester) async {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/admin/presentation/pages/admin_dashboard_page.dart';
 import '../features/auth/presentation/pages/login_page.dart';
 import '../features/auth/presentation/pages/pin_login_page.dart';
 import '../features/auth/presentation/pages/pin_setup_page.dart';
@@ -32,6 +33,9 @@ class AppRoutes {
   static const String sos = '/sos';
   static const String chats = '/chats';
   static const String profile = '/profile';
+
+  /// Доска действий — вкладка «Админ» (ADMIN/SUPERVISOR).
+  static const String admin = '/admin';
 
   /// Подмаршруты профиля (DS-002 `profile.md` §1.1).
   static const String profilePassword = '$profile/password';
@@ -143,6 +147,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     ChatThreadPage(chatId: state.pathParameters['chatId']!),
               ),
             ],
+          ),
+          GoRoute(
+            path: AppRoutes.admin,
+            builder: (context, state) => const AdminDashboardPage(),
           ),
           GoRoute(
             path: AppRoutes.profile,

@@ -43,6 +43,9 @@ final ticketsApiProvider = Provider<ApiClient>(
 final scheduleApiProvider = Provider<ApiClient>(
   (ref) => ref.watch(apiClientProvider(ApiConstants.scheduleBaseUrl)),
 );
+final materialsApiProvider = Provider<ApiClient>(
+  (ref) => ref.watch(apiClientProvider(ApiConstants.materialsBaseUrl)),
+);
 final notificationsApiProvider = Provider<ApiClient>(
   (ref) => ref.watch(apiClientProvider(ApiConstants.notificationsBaseUrl)),
 );

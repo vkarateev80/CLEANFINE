@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../features/admin/admin_texts.dart';
+import '../../features/auth/data/models/auth_roles.dart';
+import '../../features/auth/presentation/providers/session_provider.dart';
 import '../../features/chat/presentation/providers/chat_providers.dart';
 import '../../router/app_router.dart';
 import '../../services/gps_tracking_service.dart';
@@ -45,41 +48,45 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.dispose();
   }
 
-  static const List<_ShellTab> _tabs = <_ShellTab>[
-    _ShellTab(AppRoutes.today, Icons.today_outlined, Icons.today, 'Сегодня', Key('shell_tab_today')),
-    _ShellTab(
-      AppRoutes.chats,
-      Icons.chat_bubble_outline,
-      Icons.chat_bubble,
-      'Чаты',
-      Key('shell_tab_chats'),
-    ),
-    _ShellTab(
-      AppRoutes.profile,
-      Icons.person_outline,
-      Icons.person,
-      'Профиль',
-      Key('shell_tab_profile'),
-    ),
-  ];
+  /// Вкладки каркаса: для ADMIN/SUPERVISOR между «Чаты» и «Профиль»
+  /// появляется «Админ» (доска действий); оператор видит прежние три.
+  static List<_ShellTab> _tabsFor(String? role) {
+    final List<_ShellTab> tabs = <_ShellTab>[
+      const _ShellTab(
+          AppRoutes.today, Icons.today_outlined, Icons.today, 'Сегодня', Key('shell_tab_today')),
+      const _ShellTab(
+          AppRoutes.chats, Icons.chat_bubble_outline, Icons.chat_bubble, 'Чаты', Key('shell_tab_chats')),
+    ];
+    if (role == AuthRoles.admin || role == AuthRoles.supervisor) {
+      tabs.add(const _ShellTab(AppRoutes.admin, Icons.dashboard_outlined, Icons.dashboard,
+          AdminTexts.tabLabel, Key('shell_tab_admin')));
+    }
+    tabs.add(const _ShellTab(
+        AppRoutes.profile, Icons.person_outline, Icons.person, 'Профиль', Key('shell_tab_profile')));
+    return tabs;
+  }
 
-  int _indexFor(BuildContext context) {
+  int _indexFor(BuildContext context, List<_ShellTab> tabs) {
     final location = GoRouterState.of(context).matchedLocation;
-    final index = _tabs.indexWhere((tab) => location.startsWith(tab.path));
+    final index = tabs.indexWhere((tab) => location.startsWith(tab.path));
     return index < 0 ? 0 : index;
   }
 
   /// Ключ кнопки SOS зависит от экрана: их различают widget-тесты DS-002
   /// (`today_sos_button`, `chats_sos_button`, `profile_sos_button`).
-  String _sosKey(BuildContext context) => switch (_indexFor(context)) {
-        1 => 'chats_sos_button',
-        2 => 'profile_sos_button',
-        _ => 'today_sos_button',
-      };
+  String _sosKey(BuildContext context) {
+    final String location = GoRouterState.of(context).matchedLocation;
+    if (location.startsWith(AppRoutes.chats)) return 'chats_sos_button';
+    if (location.startsWith(AppRoutes.admin)) return 'admin_sos_button';
+    if (location.startsWith(AppRoutes.profile)) return 'profile_sos_button';
+    return 'today_sos_button';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final index = _indexFor(context);
+    final SessionState session = ref.watch(sessionProvider);
+    final List<_ShellTab> tabs = _tabsFor(session.role);
+    final int index = _indexFor(context, tabs);
     // Индикатор непрочитанных на табе «Чаты» (`chat.md` §1.1). Счётчик не
     // запускает загрузку списка сам: он обновляется контроллером списка, иначе
     // запрос уходил бы с любого экрана каркаса.
@@ -97,8 +104,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       bottomNavigationBar: NavigationBar(
         key: const Key('shell_bottom_nav'),
         selectedIndex: index,
-        onDestinationSelected: (value) => context.go(_tabs[value].path),
-        destinations: _tabs
+        onDestinationSelected: (value) => context.go(tabs[value].path),
+        destinations: tabs
             .map(
               (tab) => NavigationDestination(
                 key: tab.key,
