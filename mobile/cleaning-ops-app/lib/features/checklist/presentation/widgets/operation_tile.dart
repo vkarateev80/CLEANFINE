@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:cleaning_ops_tokens/app_tokens.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/domain/color_zone.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../shared/widgets/color_zone_chip.dart';
 import '../checklist_texts.dart';
 import '../providers/checklist_providers.dart';
 
@@ -16,6 +18,7 @@ class OperationTile extends StatefulWidget {
   const OperationTile({
     super.key,
     required this.state,
+    required this.roomZone,
     required this.index,
     required this.locked,
     required this.lockedBy,
@@ -28,6 +31,10 @@ class OperationTile extends StatefulWidget {
   });
 
   final ChecklistOperationState state;
+
+  /// Цвет инвентаря помещения — им помечается оборудование операции
+  /// (стёкла и зеркала — всегда жёлтым, см. `ColorZone.forOperation`).
+  final ColorZone roomZone;
 
   /// Позиция в списке: по ней определяется блокировка (`isLocked`).
   final int index;
@@ -211,7 +218,7 @@ class _OperationTileState extends State<OperationTile> {
                   style: const TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.textMuted),
                 ),
               ],
-              if (_expanded) _Details(state: state),
+              if (_expanded) _Details(state: state, roomZone: widget.roomZone),
               // Заблокированная операция показывает те же кнопки, но неактивными
               // (`onPressed == null`) — так требование «следующая недоступна»
               // проверяется и скринридером, и тестом.
@@ -349,31 +356,38 @@ class _TimerRow extends StatelessWidget {
 
 /// Раскрытая часть: оборудование и материалы (остатки не показываем — их нет в контракте).
 class _Details extends StatelessWidget {
-  const _Details({required this.state});
+  const _Details({required this.state, required this.roomZone});
 
   final ChecklistOperationState state;
+  final ColorZone roomZone;
 
   @override
   Widget build(BuildContext context) {
     final List<String> equipment = state.operation.equipmentLines;
+    final ColorZone zone = ColorZone.forOperation(state.operation.name, roomZone);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         if (equipment.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpacing.sm),
+          // Инвентарь операции — в цвете зоны: оператор берёт с поста
+          // инвентарь ровно этого цвета.
           Wrap(
+            key: Key('checklist_op_equipment_${state.operation.id}'),
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: <Widget>[
-              for (final String item in equipment)
-                Chip(
-                  label: Text(item),
-                  labelStyle: const TextStyle(fontSize: AppTypography.sizeXS),
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+              for (final String item in equipment) ColorZoneChip(zone: zone, label: item, compact: true),
             ],
           ),
+          if (zone != roomZone) ...<Widget>[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              ChecklistTexts.glassInventory,
+              key: Key('checklist_op_glass_${state.operation.id}'),
+              style: const TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.textSecondary),
+            ),
+          ],
         ],
         if (state.operation.hasMaterials) ...<Widget>[
           const SizedBox(height: AppSpacing.sm),

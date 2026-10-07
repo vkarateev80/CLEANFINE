@@ -23,10 +23,12 @@ class SecureStorageService implements TokenStore {
   SecureStorageService({FlutterSecureStorage? storage})
       : _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              // `first_unlock`: GPS-трекинг в фоне должен читать токен после
-              // блокировки экрана, но не до первой разблокировки после перезагрузки.
+              // v11: encryptedSharedPreferences — режим по умолчанию, флаг удалён.
               iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+              // Data Protection keychain требует подписи с AppIdentifierPrefix;
+              // ad-hoc/локальная сборка даёт -34018. На macOS берём классический
+              // keychain (аргумент «не применим на iOS»).
+              mOptions: MacOsOptions(usesDataProtectionKeychain: false),
             );
 
   final FlutterSecureStorage _storage;

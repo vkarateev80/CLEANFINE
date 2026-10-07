@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-admin-5176",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend/web-admin", "run", "dev", "--", "--port", "5176", "--strictPort"],
+      "port": 5176
+    }
+  ]
+}

@@ -11,11 +11,13 @@ import {
   uploadFloorPlan,
 } from '../../api/core';
 import { listUsers } from '../../api/users';
+import { roomColorZone } from '@cleaning-ops/shared/types/color-coding';
 import {
   Badge,
   Breadcrumbs,
   Button,
   Card,
+  ColorZoneBadge,
   ConfirmDialog,
   DetailRow,
   EmptyState,
@@ -567,6 +569,14 @@ export function ObjectDetailPage() {
       cell: ({ room }) => room.zone ?? '—',
       card: 'field',
       cardLabel: 'Зона',
+    },
+    {
+      key: 'colorZone',
+      header: 'Инвентарь',
+      thClassName: 'w-[150px]',
+      cell: ({ room }) => <ColorZoneBadge zone={roomColorZone(room)} />,
+      card: 'field',
+      cardLabel: 'Инвентарь',
     },
     {
       key: 'techCard',

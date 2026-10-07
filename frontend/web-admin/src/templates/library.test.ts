@@ -66,6 +66,16 @@ describe('библиотека шаблонов', () => {
     }
   });
 
+  it('цветовая кодировка: по одной табличке на цвет, с файлами превью и PDF', () => {
+    const signs = templatesByCategory('color-coding');
+    expect(signs.map((sign) => sign.zone).sort()).toEqual(['BLUE', 'GREEN', 'RED', 'YELLOW']);
+    for (const sign of signs) {
+      expect(sign.image).toMatch(/^color-coding\/.+\.jpg$/);
+      expect(sign.pdf).toMatch(/^color-coding\/.+\.pdf$/);
+      expect(templateSummary(sign)).toContain('PDF для печати');
+    }
+  });
+
   it('сводка для карточек считается', () => {
     const card = findTemplate('tc-office');
     expect(card).toBeDefined();

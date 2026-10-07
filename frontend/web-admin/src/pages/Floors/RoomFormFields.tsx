@@ -1,4 +1,19 @@
-import { ErrorBanner, Field, Input, PresetInput, Select, errorMessage } from '../../components/ui';
+import {
+  COLOR_ZONE_META,
+  colorZoneFromRoomType,
+  colorZoneFromZoneField,
+  roomColorZone,
+} from '@cleaning-ops/shared/types/color-coding';
+import {
+  ColorZoneBadge,
+  ColorZoneDot,
+  ErrorBanner,
+  Field,
+  Input,
+  PresetInput,
+  Select,
+  errorMessage,
+} from '../../components/ui';
 import { presetValues } from '../../templates/presets';
 import type { TechCardListItem } from '../../types/core';
 import { isCoordsError, rectAreaHint, type PlanSize } from './floorPlanUtils';
@@ -60,6 +75,10 @@ export function RoomFormFields({
   const typeOptions = [
     ...new Set([...floorTypeOptions, ...presetValues('room-types', 'floor-coverings')]),
   ];
+  // Цвет инвентаря выводится из типа и зоны на лету — человек видит его до
+  // сохранения и понимает, какую табличку вешать на пост.
+  const colorZone = values.floorType.trim() === '' ? null : roomColorZone(values);
+  const explicitZone = colorZoneFromZoneField(values.zone);
 
   return (
     <div className="flex flex-col gap-4">
@@ -116,11 +135,16 @@ export function RoomFormFields({
             disabled={disabled}
             invalid={Boolean(errors.floorType)}
             options={typeOptions}
+            optionMarker={(value) => <ColorZoneDot zone={colorZoneFromRoomType(value)} size={8} />}
             onValueChange={(next) => onChange({ floorType: next })}
           />
         </Field>
 
-        <Field label="Зона" htmlFor={`${idPrefix}-zone`}>
+        <Field
+          label="Зона"
+          htmlFor={`${idPrefix}-zone`}
+          hint="«Красная/Синяя/Зелёная/Жёлтая зона» задаёт цвет инвентаря явно"
+        >
           <PresetInput
             id={`${idPrefix}-zone`}
             name="zone"
@@ -128,9 +152,28 @@ export function RoomFormFields({
             placeholder="zone-a"
             disabled={disabled}
             options={presetValues('zones')}
+            optionMarker={(value) => {
+              const zone = colorZoneFromZoneField(value);
+              return zone === null ? null : <ColorZoneDot zone={zone} size={8} />;
+            }}
             onValueChange={(next) => onChange({ zone: next })}
           />
         </Field>
+
+        {colorZone !== null && (
+          <div
+            data-testid="room-form-color-zone"
+            className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 sm:col-span-2"
+          >
+            <span>Инвентарь:</span>
+            <ColorZoneBadge zone={colorZone} detail />
+            <span>
+              {explicitZone !== null
+                ? 'по полю «Зона»'
+                : `по типу помещения — ${COLOR_ZONE_META[colorZone].where}`}
+            </span>
+          </div>
+        )}
 
         <Field label="Техкарта" htmlFor={`${idPrefix}-tech-card`}>
           <Select

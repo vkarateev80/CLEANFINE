@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/domain/color_zone.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/clock.dart';
 import '../../../../router/app_router.dart';
 import '../../../../services/connectivity_service.dart';
 import '../../../../shared/services/photo_service.dart';
+import '../../../../shared/widgets/color_zone_chip.dart';
 import '../../../../shared/widgets/sync_status_widgets.dart';
 import '../../../route_map/presentation/providers/route_providers.dart';
 import '../checklist_texts.dart';
@@ -184,6 +186,8 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
       );
     }
 
+    final ColorZone roomZone =
+        ColorZone.forRoom(floorType: state.room.floorType, zone: state.room.zone, name: state.room.name);
     return ListView.builder(
       key: const Key('checklist_operations_list'),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
@@ -194,6 +198,7 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
           padding: const EdgeInsets.only(bottom: AppSpacing.lg),
           child: OperationTile(
             state: operation,
+            roomZone: roomZone,
             index: index,
             locked: state.isLocked(index),
             lockedBy: index == 0 ? null : state.operations[index - 1].operation.name,
@@ -347,12 +352,22 @@ class _ProgressHeader extends ConsumerWidget {
     final RouteDay? day = ref.watch(routeDayProvider(args.eventId)).valueOrNull;
     final int done = day?.done ?? 0;
     final int total = day?.total ?? 0;
+    // Цвет инвентаря помещения — первое, что оператор видит под заголовком:
+    // какой инвентарь брать на пост (красный для санузла, зелёный для кухни…).
+    final ColorZone zone =
+        ColorZone.forRoom(floorType: state.room.floorType, zone: state.room.zone, name: state.room.name);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          ColorZoneChip(
+            key: const Key('checklist_color_zone'),
+            zone: zone,
+            label: ChecklistTexts.colorZone(zone.name, zone.zoneName),
+          ),
+          const SizedBox(height: AppSpacing.md),
           if (day != null) ...<Widget>[
             LinearProgressIndicator(
               key: const Key('checklist_progress_bar'),

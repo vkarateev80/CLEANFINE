@@ -1,7 +1,14 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import {
+  COLOR_ZONE_META,
+  operationColorZone,
+  roomColorZone,
+  type ColorZone,
+} from '@cleaning-ops/shared/types/color-coding';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { CreateOperationPayload, TechOperationWithMaterials } from '../../types/core';
 import { Badge } from '../../components/ui/Badge';
+import { ColorZoneBadge, ColorZoneDot } from '../../components/ui/ColorZone';
 import { Button } from '../../components/ui/Button';
 import { Breadcrumbs, Card, PageHeader } from '../../components/ui/Card';
 import { EmptyState, ErrorBanner, LoadingBlock } from '../../components/ui/Feedback';
@@ -12,7 +19,13 @@ import { Table, TableMessageRow, TBody, Td, Th, THead, Tr } from '../../componen
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
 import { ROUTES } from '../../router/routes';
 import { OperationFormModal } from './OperationFormModal';
-import { materialsLabel, operationsLabel, roomsLabel, sumMinutes } from './techCardHelpers';
+import {
+  equipmentParts,
+  materialsLabel,
+  operationsLabel,
+  roomsLabel,
+  sumMinutes,
+} from './techCardHelpers';
 import {
   useAddOperation,
   useDeleteOperation,
@@ -51,6 +64,21 @@ export function TechCardDetailPage() {
   >(null);
   const [pendingDelete, setPendingDelete] = useState<TechOperationWithMaterials | null>(null);
   const [confirmCardDelete, setConfirmCardDelete] = useState(false);
+
+  // Цвет инвентаря техкарты: если все привязанные помещения одной цветовой
+  // зоны — он известен и красит оборудование операций; разные зоны или ни
+  // одного помещения — цвет задаёт конкретное помещение (видно в приложении
+  // оператора и на плане), здесь остаётся только жёлтый для стёкол.
+  const cardZone = useMemo<ColorZone | null>(() => {
+    const rooms = card?.rooms ?? [];
+    if (rooms.length === 0) return null;
+    const zones = new Set(
+      rooms.map((room) =>
+        roomColorZone({ floorType: room.floorType ?? '', zone: room.zone, name: room.name }),
+      ),
+    );
+    return zones.size === 1 ? [...zones][0] : null;
+  }, [card]);
 
   // Пока идёт сохранение, поле должно показывать новое имя, а не откатываться к
   // серверному: поэтому после успеха черновик сохраняется как «уже применённый».
@@ -342,6 +370,7 @@ export function TechCardDetailPage() {
                 renderItem={(operation) => (
                   <OperationRow
                     operation={operation}
+                    roomZone={cardZone}
                     expanded={expandedId === operation.id}
                     canEdit={canEdit}
                     onToggle={() =>
@@ -397,9 +426,28 @@ export function TechCardDetailPage() {
                 <p className="text-xs text-neutral-500">
                   Привязана к {roomsLabel(card.rooms.length)}
                 </p>
+                <div
+                  data-testid="techcard-color-zone"
+                  className="flex flex-wrap items-center gap-2 text-xs text-neutral-500"
+                >
+                  <span>Инвентарь:</span>
+                  {cardZone === null ? (
+                    <span>разный — по цвету помещения</span>
+                  ) : (
+                    <ColorZoneBadge zone={cardZone} detail />
+                  )}
+                </div>
                 <ul className="flex flex-col gap-2">
                   {card.rooms.slice(0, 5).map((room) => (
-                    <li key={room.id} className="text-sm">
+                    <li key={room.id} className="flex items-center gap-2 text-sm">
+                      <ColorZoneDot
+                        zone={roomColorZone({
+                          floorType: room.floorType ?? '',
+                          zone: room.zone,
+                          name: room.name,
+                        })}
+                        size={8}
+                      />
                       <Link
                         to={ROUTES.floorPlan(room.floor.objectId, room.floor.id)}
                         className="text-neutral-900 hover:text-primary-600"
@@ -477,6 +525,8 @@ export function TechCardDetailPage() {
 
 interface OperationRowProps {
   operation: TechOperationWithMaterials;
+  /** Цвет инвентаря помещений техкарты; `null` — помещения разных зон или их нет. */
+  roomZone: ColorZone | null;
   expanded: boolean;
   canEdit: boolean;
   onToggle: () => void;
@@ -492,6 +542,7 @@ interface OperationRowProps {
  */
 function OperationRow({
   operation,
+  roomZone,
   expanded,
   canEdit,
   onToggle,
@@ -500,6 +551,10 @@ function OperationRow({
   onDelete,
 }: OperationRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // Стёкла и зеркала — всегда жёлтый инвентарь; остальное — цвет помещения.
+  const glassZone = operationColorZone(operation.name, 'BLUE') === 'YELLOW' ? 'YELLOW' : null;
+  const equipmentZone: ColorZone | null = glassZone ?? roomZone;
+  const parts = equipmentParts(operation.equipment);
 
   return (
     <div
@@ -525,7 +580,12 @@ function OperationRow({
             иконки требований, расход материалов и время в одну строку с
             названием не помещаются. На desktop это прежний общий `flex`-ряд. */}
         <div className="flex flex-wrap items-center gap-3 max-md:w-full max-md:gap-2">
-          {operation.equipment !== null && <Badge tone="neutral">Оборудование</Badge>}
+          {operation.equipment !== null &&
+            (equipmentZone === null ? (
+              <Badge tone="neutral">Оборудование</Badge>
+            ) : (
+              <ColorZoneBadge zone={equipmentZone} />
+            ))}
 
           {operation.requiresPhoto && (
             <span className="text-primary-600" title="Требуется фото" aria-label="Требуется фото">
@@ -614,10 +674,59 @@ function OperationRow({
             <p className="text-sm text-neutral-700">{operation.description}</p>
           )}
 
-          <div>
-            <div className="text-xs text-neutral-500">Оборудование (JSON)</div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+              <span>Оборудование</span>
+              {equipmentZone !== null && operation.equipment !== null && (
+                <span>
+                  · {COLOR_ZONE_META[equipmentZone].name.toLowerCase()} инвентарь
+                  {glassZone !== null
+                    ? ' (стёкла и зеркала)'
+                    : ` — ${COLOR_ZONE_META[equipmentZone].zoneName.toLowerCase()}`}
+                </span>
+              )}
+            </div>
             {operation.equipment === null ? (
               <p className="text-xs text-neutral-400">Не задано</p>
+            ) : parts !== null ? (
+              // Инвентарь — цветные «пилюли» зоны, СИЗ — нейтральные.
+              <div className="flex flex-wrap gap-1.5" data-testid="operation-equipment-chips">
+                {parts.items.map((item) =>
+                  equipmentZone === null ? (
+                    <span
+                      key={`item-${item}`}
+                      className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-xs text-neutral-700"
+                    >
+                      {item}
+                    </span>
+                  ) : (
+                    <span
+                      key={`item-${item}`}
+                      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
+                      style={{
+                        backgroundColor: COLOR_ZONE_META[equipmentZone].hexSoft,
+                        borderColor: COLOR_ZONE_META[equipmentZone].hex,
+                        color: COLOR_ZONE_META[equipmentZone].hexDark,
+                      }}
+                    >
+                      <ColorZoneDot zone={equipmentZone} size={7} />
+                      {item}
+                    </span>
+                  ),
+                )}
+                {parts.ppe.map((item) => (
+                  <span
+                    key={`ppe-${item}`}
+                    title="Средство индивидуальной защиты"
+                    className="rounded-full border border-dashed border-neutral-300 bg-white px-2.5 py-0.5 text-xs text-neutral-500"
+                  >
+                    СИЗ · {item}
+                  </span>
+                ))}
+                {parts.items.length === 0 && parts.ppe.length === 0 && (
+                  <span className="text-xs text-neutral-400">Пусто</span>
+                )}
+              </div>
             ) : (
               // `min-w-0` у обёртки и `max-w-full` у блока: JSON скроллится
               // ВНУТРИ себя и не распирает страницу по горизонтали (System Design §8).

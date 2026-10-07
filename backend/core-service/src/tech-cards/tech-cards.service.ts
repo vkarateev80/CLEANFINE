@@ -55,6 +55,10 @@ export class TechCardsService {
           select: {
             id: true,
             name: true,
+            // Тип и зона нужны клиентам для цветовой кодировки инвентаря
+            // (shared/types/color-coding.ts): цвет выводится, в БД не хранится.
+            floorType: true,
+            zone: true,
             floor: { select: { id: true, name: true, objectId: true } },
           },
         },

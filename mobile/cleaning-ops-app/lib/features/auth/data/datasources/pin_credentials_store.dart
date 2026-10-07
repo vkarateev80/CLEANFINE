@@ -37,8 +37,10 @@ class SecurePinCredentialsStore implements PinCredentialsStore {
   SecurePinCredentialsStore({FlutterSecureStorage? storage})
       : _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+              // v11: encryptedSharedPreferences по умолчанию; на macOS — классический
+              // keychain (Data Protection даёт -34018 на локально-подписанной сборке).
               iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+              mOptions: MacOsOptions(usesDataProtectionKeychain: false),
             );
 
   final FlutterSecureStorage _storage;

@@ -97,6 +97,21 @@ export function parseEquipmentInput(raw: string): EquipmentParse {
   return { ok: true, value };
 }
 
+/**
+ * Инвентарь и СИЗ из сохранённого объекта `{items, ppe}`; `null` — объект
+ * легаси-формата с произвольными ключами (его показываем как JSON).
+ */
+export function equipmentParts(
+  equipment: Record<string, unknown> | null,
+): { items: string[]; ppe: string[] } | null {
+  if (equipment === null) return { items: [], ppe: [] };
+  const asList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+  const isPlain = Object.keys(equipment).every((key) => key === 'items' || key === 'ppe');
+  if (!isPlain) return null;
+  return { items: asList(equipment.items), ppe: asList(equipment.ppe) };
+}
+
 /** Обратное преобразование: сохранённый объект → человекочитаемое поле. */
 export function equipmentToText(equipment: Record<string, unknown> | null): string {
   if (equipment === null) return '';

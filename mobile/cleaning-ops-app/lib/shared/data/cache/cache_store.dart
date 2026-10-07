@@ -265,14 +265,28 @@ class CacheStore {
   /// Помещение из `GET /api/rooms/:id`: техкарта и заголовок чек-листа.
   Future<void> saveRoom(RoomDetail room) {
     return saveRooms(<CachedRoomInput>[
-      CachedRoomInput(id: room.id, floorId: room.floorId, name: room.name, techCardId: room.techCardId),
+      CachedRoomInput(
+        id: room.id,
+        floorId: room.floorId,
+        name: room.name,
+        techCardId: room.techCardId,
+        floorType: room.floorType,
+        zone: room.zone,
+      ),
     ]);
   }
 
   Future<RoomDetail?> room(String id) async {
     final CachedRoomRow? row = await _db.cachedRoomById(id);
     if (row == null) return null;
-    return RoomDetail(id: row.id, name: row.name, floorId: row.floorId, techCardId: row.techCardId);
+    return RoomDetail(
+      id: row.id,
+      name: row.name,
+      floorId: row.floorId,
+      techCardId: row.techCardId,
+      floorType: row.floorType,
+      zone: row.zone,
+    );
   }
 
   /// Запись помещений с сохранением уже известных полей.
@@ -293,8 +307,8 @@ class CacheStore {
           floorId: Value<String?>(room.floorId ?? existing?.floorId),
           name: Value<String>(_nonEmpty(room.name) ?? existing?.name ?? 'Помещение'),
           areaM2: Value<double?>(existing?.areaM2),
-          floorType: Value<String?>(existing?.floorType),
-          zone: Value<String?>(existing?.zone),
+          floorType: Value<String?>(room.floorType ?? existing?.floorType),
+          zone: Value<String?>(room.zone ?? existing?.zone),
           techCardId: Value<String?>(room.techCardId ?? existing?.techCardId),
           coordsX: Value<int?>(room.coordsX ?? existing?.coordsX),
           coordsY: Value<int?>(room.coordsY ?? existing?.coordsY),
@@ -510,12 +524,16 @@ class CachedRoomInput {
     this.coordsY,
     this.coordsWidth,
     this.coordsHeight,
+    this.floorType,
+    this.zone,
   });
 
   final String id;
   final String name;
   final String? floorId;
   final String? techCardId;
+  final String? floorType;
+  final String? zone;
   final int? coordsX;
   final int? coordsY;
   final int? coordsWidth;

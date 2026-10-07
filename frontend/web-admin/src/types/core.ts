@@ -155,7 +155,14 @@ export interface TechOperationWithMaterials extends TechOperationEntity {
 
 export interface TechCardDetail extends TechCardEntity {
   operations: TechOperationWithMaterials[];
-  rooms: Array<{ id: string; name: string; floor: { id: string; name: string; objectId: string } }>;
+  rooms: Array<{
+    id: string;
+    name: string;
+    /** Тип и зона — для цвета инвентаря (старые ответы без них → синий по умолчанию). */
+    floorType?: string;
+    zone?: string | null;
+    floor: { id: string; name: string; objectId: string };
+  }>;
   totalEstimatedTimeMin: number;
 }
 

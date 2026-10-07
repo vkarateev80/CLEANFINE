@@ -41,6 +41,12 @@ class ApiConstants {
     defaultValue: 'http://$host:3008',
   );
 
+  /// material-service (склад/расход) — нужен доске действий для KPI расхода.
+  static const String materialsBaseUrl = String.fromEnvironment(
+    'API_MATERIALS_URL',
+    defaultValue: 'http://$host:3007',
+  );
+
   /// REST chat-service; WebSocket ходит по тому же хосту и порту (namespace `/chat`).
   static const String chatBaseUrl = String.fromEnvironment(
     'API_CHAT_URL',

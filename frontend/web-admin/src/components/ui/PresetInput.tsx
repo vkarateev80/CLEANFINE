@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useId, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { PresetOptionValue } from '../../templates/presets';
 import { Input, type InputProps } from './Input';
 
@@ -22,9 +22,20 @@ export interface PresetInputProps extends Omit<InputProps, 'onChange' | 'value' 
   onValueChange: (value: string) => void;
   /** Вся библиотека значений: строки или пары «значение → человеческая подпись». */
   options: PresetOptionValue[];
+  /**
+   * Маркер слева от подписи пункта (например, точка цвета инвентаря по типу
+   * помещения). `null`/`undefined` — пункт без маркера.
+   */
+  optionMarker?: (value: string) => ReactNode;
 }
 
-export function PresetInput({ value, onValueChange, options, ...inputProps }: PresetInputProps) {
+export function PresetInput({
+  value,
+  onValueChange,
+  options,
+  optionMarker,
+  ...inputProps
+}: PresetInputProps) {
   const listId = useId();
   const [open, setOpen] = useState(false);
   /** false — показываем весь список; true — фильтруем по набранному тексту. */
@@ -107,7 +118,7 @@ export function PresetInput({ value, onValueChange, options, ...inputProps }: Pr
               aria-selected={index === active}
               data-testid={`preset-option-${option.value}`}
               className={[
-                'cursor-pointer px-3 py-1.5 text-sm',
+                'flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm',
                 index === active ? 'bg-primary-50 text-primary-700' : 'text-neutral-700',
                 'hover:bg-neutral-50',
               ].join(' ')}
@@ -117,6 +128,7 @@ export function PresetInput({ value, onValueChange, options, ...inputProps }: Pr
               }}
               onMouseEnter={() => setActive(index)}
             >
+              {optionMarker?.(option.value)}
               {option.label}
             </li>
           ))}

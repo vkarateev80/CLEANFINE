@@ -2,8 +2,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listFloors, listObjects } from '../../api/core';
+import { COLOR_ZONE_META } from '@cleaning-ops/shared/types/color-coding';
 import { Button } from '../../components/ui/Button';
 import { Card, PageHeader } from '../../components/ui/Card';
+import { ColorZoneBadge } from '../../components/ui/ColorZone';
 import { ErrorBanner } from '../../components/ui/Feedback';
 import { Field, Input, Select } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
@@ -36,6 +38,12 @@ type CategoryFilter = TemplateCategoryId | 'all';
 
 function summaryChips(template: LibraryTemplate): string[] {
   return templateSummary(template);
+}
+
+/** Публичный файл из `public/` с учётом базы сайта (`/` или `/client/`). */
+function publicUrl(path: string): string {
+  const base = import.meta.env.BASE_URL || '/';
+  return `${base.endsWith('/') ? base : `${base}/`}${path}`;
 }
 
 export function TemplatesPage() {
@@ -74,6 +82,8 @@ export function TemplatesPage() {
   }
 
   function openCreate(template: LibraryTemplate) {
+    // Табличка — печатный материал, в системе ничего не создаёт.
+    if (template.category === 'color-coding') return;
     setError(null);
     setPreview(null);
     setNameDraft(template.name);
@@ -134,6 +144,10 @@ export function TemplatesPage() {
           navigate(ROUTES.route(id));
           break;
         }
+        case 'color-coding':
+          // Недостижимо: openCreate не открывает диалог для табличек.
+          setCreateTarget(null);
+          break;
       }
       await queryClient.invalidateQueries({ queryKey: ['tech-cards'] });
     } catch (err) {
@@ -147,7 +161,7 @@ export function TemplatesPage() {
     <div className="flex flex-col gap-6" data-testid="templates-page">
       <PageHeader
         title="Шаблоны"
-        subtitle="Готовые заготовки техкарт, маршрутов и объектов: просмотрите состав и создайте реальную сущность в один клик."
+        subtitle="Готовые заготовки техкарт, маршрутов, объектов и материалов: просмотрите состав и создайте реальную сущность в один клик. Таблички цветовой кодировки — для печати на посты уборки."
       />
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Категории шаблонов">
@@ -194,7 +208,23 @@ export function TemplatesPage() {
                 </div>
               </div>
               <p className="break-words text-sm text-neutral-500">{template.description}</p>
+              {template.category === 'color-coding' && (
+                <button
+                  type="button"
+                  className="overflow-hidden rounded-lg border border-neutral-200"
+                  aria-label={`Открыть табличку «${template.name}»`}
+                  onClick={() => openPreview(template)}
+                >
+                  <img
+                    src={publicUrl(template.image)}
+                    alt={template.name}
+                    loading="lazy"
+                    className="block aspect-square w-full object-cover"
+                  />
+                </button>
+              )}
               <div className="flex flex-wrap gap-2">
+                {template.category === 'color-coding' && <ColorZoneBadge zone={template.zone} />}
                 {summaryChips(template).map((chip) => (
                   <span
                     key={chip}
@@ -213,13 +243,24 @@ export function TemplatesPage() {
                 >
                   Просмотр
                 </Button>
-                <Button
-                  size="sm"
-                  data-testid={`template-create-${template.id}`}
-                  onClick={() => openCreate(template)}
-                >
-                  Создать из шаблона
-                </Button>
+                {template.category === 'color-coding' ? (
+                  <a
+                    href={publicUrl(template.pdf)}
+                    download
+                    data-testid={`template-download-${template.id}`}
+                    className="inline-flex h-9 items-center justify-center rounded-lg bg-primary-600 px-3 text-sm font-medium text-white hover:bg-primary-700"
+                  >
+                    Скачать PDF
+                  </a>
+                ) : (
+                  <Button
+                    size="sm"
+                    data-testid={`template-create-${template.id}`}
+                    onClick={() => openCreate(template)}
+                  >
+                    Создать из шаблона
+                  </Button>
+                )}
               </div>
             </Card>
           );
@@ -237,7 +278,17 @@ export function TemplatesPage() {
             <Button variant="secondary" onClick={() => setPreview(null)}>
               Закрыть
             </Button>
-            {preview && (
+            {preview && preview.category === 'color-coding' && (
+              <a
+                href={publicUrl(preview.pdf)}
+                download
+                data-testid="template-preview-download"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-medium text-white hover:bg-primary-700"
+              >
+                Скачать PDF
+              </a>
+            )}
+            {preview && preview.category !== 'color-coding' && (
               <Button data-testid="template-preview-create" onClick={() => openCreate(preview)}>
                 Создать из шаблона
               </Button>
@@ -366,6 +417,36 @@ export function TemplatesPage() {
 
 /** Тело диалога просмотра: состав шаблона по категориям. */
 function TemplatePreviewBody({ template }: { template: LibraryTemplate }) {
+  if (template.category === 'color-coding') {
+    const meta = COLOR_ZONE_META[template.zone];
+    return (
+      <div className="flex flex-col gap-3" data-testid="template-preview-body">
+        <p className="break-words text-sm text-neutral-500">{template.description}</p>
+        <img
+          src={publicUrl(template.image)}
+          alt={template.name}
+          className="block w-full rounded-lg border border-neutral-200"
+        />
+        <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+          <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+            <dt className="text-xs text-neutral-400">Зона</dt>
+            <dd className="text-neutral-800">
+              {meta.zoneName} ({meta.where})
+            </dd>
+          </div>
+          <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+            <dt className="text-xs text-neutral-400">Инвентарь</dt>
+            <dd className="text-neutral-800">{meta.tools.join(', ')}</dd>
+          </div>
+        </dl>
+        <p className="text-xs text-neutral-400">
+          Цвет помещения на плане и в приложении оператора определяется автоматически по типу
+          помещения; поле «Зона» («{meta.adjective} зона») задаёт его явно.
+        </p>
+      </div>
+    );
+  }
+
   if (template.category === 'tech-cards') {
     return (
       <div className="flex flex-col gap-3" data-testid="template-preview-body">
