@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import type { PresetOptionValue } from '../../templates/presets';
 import { Input, type InputProps } from './Input';
 
@@ -27,6 +27,8 @@ export interface PresetInputProps extends Omit<InputProps, 'onChange' | 'value' 
    * помещения). `null`/`undefined` — пункт без маркера.
    */
   optionMarker?: (value: string) => ReactNode;
+  /** Стиль текста пункта (например, цвет шрифта по цвету инвентаря). */
+  optionStyle?: (value: string) => CSSProperties | undefined;
 }
 
 export function PresetInput({
@@ -34,6 +36,7 @@ export function PresetInput({
   onValueChange,
   options,
   optionMarker,
+  optionStyle,
   ...inputProps
 }: PresetInputProps) {
   const listId = useId();
@@ -129,7 +132,7 @@ export function PresetInput({
               onMouseEnter={() => setActive(index)}
             >
               {optionMarker?.(option.value)}
-              {option.label}
+              <span style={optionStyle?.(option.value)}>{option.label}</span>
             </li>
           ))}
         </ul>

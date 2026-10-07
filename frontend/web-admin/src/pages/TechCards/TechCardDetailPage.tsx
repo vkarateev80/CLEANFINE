@@ -1,5 +1,6 @@
 import {
   COLOR_ZONE_META,
+  colorZoneFromZoneField,
   operationColorZone,
   roomColorZone,
   type ColorZone,
@@ -601,7 +602,14 @@ function OperationRow({
             <span className="text-neutral-300">—</span>
           )}
 
-          <span className="text-xs text-neutral-500">
+          <span
+            className="text-xs text-neutral-500"
+            style={
+              equipmentZone !== null && operation.materials.length > 0
+                ? { color: COLOR_ZONE_META[equipmentZone].hexDark }
+                : undefined
+            }
+          >
             {materialsLabel(operation.materials.length)}
           </span>
 
@@ -691,8 +699,11 @@ function OperationRow({
             ) : parts !== null ? (
               // Инвентарь — цветные «пилюли» зоны, СИЗ — нейтральные.
               <div className="flex flex-wrap gap-1.5" data-testid="operation-equipment-chips">
-                {parts.items.map((item) =>
-                  equipmentZone === null ? (
+                {parts.items.map((item) => {
+                  // Слово цвета в самом названии («красные швабра») важнее
+                  // цвета помещения: так написал технолог — так и показываем.
+                  const itemZone = colorZoneFromZoneField(item) ?? equipmentZone;
+                  return itemZone === null ? (
                     <span
                       key={`item-${item}`}
                       className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-xs text-neutral-700"
@@ -704,16 +715,16 @@ function OperationRow({
                       key={`item-${item}`}
                       className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
                       style={{
-                        backgroundColor: COLOR_ZONE_META[equipmentZone].hexSoft,
-                        borderColor: COLOR_ZONE_META[equipmentZone].hex,
-                        color: COLOR_ZONE_META[equipmentZone].hexDark,
+                        backgroundColor: COLOR_ZONE_META[itemZone].hexSoft,
+                        borderColor: COLOR_ZONE_META[itemZone].hex,
+                        color: COLOR_ZONE_META[itemZone].hexDark,
                       }}
                     >
-                      <ColorZoneDot zone={equipmentZone} size={7} />
+                      <ColorZoneDot zone={itemZone} size={7} />
                       {item}
                     </span>
-                  ),
-                )}
+                  );
+                })}
                 {parts.ppe.map((item) => (
                   <span
                     key={`ppe-${item}`}
@@ -748,15 +759,27 @@ function OperationRow({
               {operation.materials.length === 0 && (
                 <TableMessageRow colSpan={3}>Материалы не заданы</TableMessageRow>
               )}
-              {operation.materials.map((material) => (
-                <Tr key={material.id}>
-                  <Td mono>{material.materialId}</Td>
-                  <Td align="right" mono>
-                    {material.consumptionPerOperation}
-                  </Td>
-                  <Td>{material.unit}</Td>
-                </Tr>
-              ))}
+              {operation.materials.map((material) => {
+                // Материалы операции — тем же цветом, что и инвентарь: они
+                // расходуются в той же зоне.
+                const tone =
+                  equipmentZone === null
+                    ? undefined
+                    : { color: COLOR_ZONE_META[equipmentZone].hexDark };
+                return (
+                  <Tr key={material.id}>
+                    <Td mono>
+                      <span style={tone}>{material.materialId}</span>
+                    </Td>
+                    <Td align="right" mono>
+                      <span style={tone}>{material.consumptionPerOperation}</span>
+                    </Td>
+                    <Td>
+                      <span style={tone}>{material.unit}</span>
+                    </Td>
+                  </Tr>
+                );
+              })}
             </TBody>
           </Table>
         </div>
