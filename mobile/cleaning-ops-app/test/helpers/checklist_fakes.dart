@@ -174,7 +174,19 @@ RouteDetail routeWithTwoRooms() {
   );
 }
 
-/// Помещение с техкартой.
-RoomDetail roomWithTechCard({String id = 'room-1', String? techCardId = 'tc1'}) {
-  return RoomDetail(id: id, name: 'Санузел 101', floorId: 'f1', techCardId: techCardId);
+/// Помещение с техкартой. Тип «Санузел» → красный инвентарь (`ColorZone.forRoom`).
+RoomDetail roomWithTechCard({
+  String id = 'room-1',
+  String? techCardId = 'tc1',
+  String? floorType = 'Санузел',
+  String? zone,
+}) {
+  return RoomDetail(
+    id: id,
+    name: 'Санузел 101',
+    floorId: 'f1',
+    techCardId: techCardId,
+    floorType: floorType,
+    zone: zone,
+  );
 }

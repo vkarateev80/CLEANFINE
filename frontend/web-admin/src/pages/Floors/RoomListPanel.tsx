@@ -1,5 +1,6 @@
+import { roomColorZone } from '@cleaning-ops/shared/types/color-coding';
 import { useMemo, useState } from 'react';
-import { Button, Input, Select } from '../../components/ui';
+import { Button, ColorZoneDot, Input, Select } from '../../components/ui';
 import type { RoomWithTechCard } from '../../types/core';
 import {
   ROOM_SORT_OPTIONS,
@@ -193,9 +194,12 @@ export function RoomListPanel({
                       {formatArea(room.areaM2)} м²
                     </span>
                   </div>
-                  <div className="mt-0.5 text-xs text-neutral-500">
-                    {room.floorType}
-                    {room.zone ? ` · ${room.zone}` : ''}
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500">
+                    <ColorZoneDot zone={roomColorZone(room)} size={8} />
+                    <span className="truncate">
+                      {room.floorType}
+                      {room.zone ? ` · ${room.zone}` : ''}
+                    </span>
                   </div>
                   <div className="mt-0.5 font-mono text-xs text-neutral-400">{coordsLabel}</div>
                   <div className="mt-1.5">

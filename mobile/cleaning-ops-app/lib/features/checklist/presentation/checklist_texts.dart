@@ -45,6 +45,13 @@ class ChecklistTexts {
   // Материалы.
   static String materials(int count) => 'Материалы: $count поз.; спишет сервер';
 
+  // Цветовая кодировка инвентаря (shared/types/color-coding.ts, таблички «четыре цвета»).
+  /// «Красный инвентарь · Санитарные зоны».
+  static String colorZone(String colorName, String zoneName) => '$colorName инвентарь · $zoneName';
+
+  /// Пояснение к жёлтому инвентарю у операции в помещении другого цвета.
+  static const String glassInventory = 'Жёлтый инвентарь — стёкла и зеркала';
+
   // Пустые состояния.
   static const String noOperations = 'В техкарте нет операций';
   static const String noTechCard = 'Техкарта не назначена';

@@ -161,6 +161,8 @@ describe('TechCardsService', () => {
             select: {
               id: true,
               name: true,
+              floorType: true,
+              zone: true,
               floor: { select: { id: true, name: true, objectId: true } },
             },
           },

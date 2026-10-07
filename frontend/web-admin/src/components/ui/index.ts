@@ -6,6 +6,7 @@
 export * from './Badge';
 export * from './Button';
 export * from './Card';
+export * from './ColorZone';
 export * from './Feedback';
 export * from './Input';
 export * from './Modal';

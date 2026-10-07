@@ -7,6 +7,8 @@ class RoomDetail {
     required this.name,
     this.floorId,
     this.techCardId,
+    this.floorType,
+    this.zone,
   });
 
   final String id;
@@ -15,6 +17,13 @@ class RoomDetail {
 
   /// `null` — техкарта помещению не назначена (экран покажет «Техкарта не назначена»).
   final String? techCardId;
+
+  /// Тип помещения («Санузел», «Офис») — по нему выводится цвет инвентаря
+  /// (`ColorZone.forRoom`); `null` у записей кэша до первой загрузки с сервера.
+  final String? floorType;
+
+  /// Зона («Красная зона», «Зона A») — может задать цвет инвентаря явно.
+  final String? zone;
 
   static RoomDetail? tryParse(dynamic body) {
     if (body is! Map) return null;
@@ -25,6 +34,8 @@ class RoomDetail {
       name: body['name']?.toString() ?? 'Помещение',
       floorId: _textOf(body['floorId']),
       techCardId: _textOf(body['techCardId']),
+      floorType: _textOf(body['floorType']),
+      zone: _textOf(body['zone']),
     );
   }
 }

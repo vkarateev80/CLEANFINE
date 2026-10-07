@@ -1,3 +1,4 @@
+import { COLOR_ZONE_META, type ColorZone } from '@cleaning-ops/shared/types/color-coding';
 import type { CreateMaterialPayload } from '../types/materials';
 import type { CreateObjectPayload } from '../types/core';
 
@@ -15,7 +16,7 @@ import type { CreateObjectPayload } from '../types/core';
  * видны всем без миграций; свои заготовки команды могут добавлять коммитом.
  */
 
-export type TemplateCategoryId = 'tech-cards' | 'routes' | 'objects' | 'materials';
+export type TemplateCategoryId = 'tech-cards' | 'routes' | 'objects' | 'materials' | 'color-coding';
 
 export interface TemplateCategory {
   id: TemplateCategoryId;
@@ -80,15 +81,54 @@ export interface MaterialSetTemplate {
   items: MaterialSetItem[];
 }
 
+/**
+ * Табличка цветовой кодировки инвентаря для поста уборки. В отличие от
+ * остальных шаблонов ничего не создаёт в системе: это печатный материал
+ * (PDF ≈ 29×29 см) и его превью. Файлы лежат в `public/color-coding/`;
+ * исходники и генератор — «сайт ЧИСТО/таблички-с-персоналом/собрать.py».
+ * Правила, по которым помещение получает цвет, — `shared/types/color-coding.ts`.
+ */
+export interface ColorSignTemplate {
+  id: string;
+  category: 'color-coding';
+  zone: ColorZone;
+  name: string;
+  description: string;
+  /** Пути относительно базы сайта (`import.meta.env.BASE_URL`). */
+  image: string;
+  pdf: string;
+}
+
 export type LibraryTemplate =
-  TechCardTemplate | RouteTemplate | ObjectTemplate | MaterialSetTemplate;
+  TechCardTemplate | RouteTemplate | ObjectTemplate | MaterialSetTemplate | ColorSignTemplate;
 
 export const TEMPLATE_CATEGORIES: TemplateCategory[] = [
   { id: 'tech-cards', label: 'Техкарты', icon: '🧾' },
   { id: 'routes', label: 'Маршруты', icon: '🗺️' },
   { id: 'objects', label: 'Объекты', icon: '🏢' },
   { id: 'materials', label: 'Материалы', icon: '📦' },
+  { id: 'color-coding', label: 'Цветовая кодировка', icon: '🎨' },
 ];
+
+const COLOR_SIGN_FILES: Record<ColorZone, string> = {
+  RED: '1-krasnyy',
+  BLUE: '2-siniy',
+  GREEN: '3-zelenyy',
+  YELLOW: '4-zheltyy',
+};
+
+function colorSign(zone: ColorZone): ColorSignTemplate {
+  const meta = COLOR_ZONE_META[zone];
+  return {
+    id: `sign-${zone.toLowerCase()}`,
+    category: 'color-coding',
+    zone,
+    name: `Табличка: ${meta.name} — ${meta.zoneName.toLowerCase()}`,
+    description: `Инвентарь ${meta.adjective.toLowerCase().replace(/ая$/, 'ого').replace(/яя$/, 'его')} цвета: ${meta.where}. Повесьте на пост уборки рядом с инвентарём.`,
+    image: `color-coding/${COLOR_SIGN_FILES[zone]}.jpg`,
+    pdf: `color-coding/${COLOR_SIGN_FILES[zone]}.pdf`,
+  };
+}
 
 export const TEMPLATE_LIBRARY: LibraryTemplate[] = [
   // ------------------------------------------------------------------ техкарты
@@ -289,12 +329,19 @@ export const TEMPLATE_LIBRARY: LibraryTemplate[] = [
       },
     ],
   },
+
+  // ------------------------------------------------- цветовая кодировка (таблички)
+  colorSign('RED'),
+  colorSign('BLUE'),
+  colorSign('GREEN'),
+  colorSign('YELLOW'),
 ];
 
 export function templatesByCategory(category: 'tech-cards'): TechCardTemplate[];
 export function templatesByCategory(category: 'routes'): RouteTemplate[];
 export function templatesByCategory(category: 'objects'): ObjectTemplate[];
 export function templatesByCategory(category: 'materials'): MaterialSetTemplate[];
+export function templatesByCategory(category: 'color-coding'): ColorSignTemplate[];
 export function templatesByCategory(category: TemplateCategoryId | 'all'): LibraryTemplate[];
 export function templatesByCategory(category: TemplateCategoryId | 'all'): LibraryTemplate[] {
   if (category === 'all') return TEMPLATE_LIBRARY;
@@ -327,6 +374,10 @@ export function templateSummary(template: LibraryTemplate): string[] {
       return uniform
         ? [`${template.items.length} позиций`, supplier]
         : [`${template.items.length} позиций`];
+    }
+    case 'color-coding': {
+      const meta = COLOR_ZONE_META[template.zone];
+      return [meta.zoneName, meta.tools.join(', '), 'PDF для печати'];
     }
   }
 }

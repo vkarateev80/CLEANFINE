@@ -7,7 +7,8 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { Button, EmptyState, ErrorBanner, Spinner } from '../../components/ui';
+import { COLOR_ZONE_META, roomColorZone } from '@cleaning-ops/shared/types/color-coding';
+import { Button, ColorZoneLegend, EmptyState, ErrorBanner, Spinner } from '../../components/ui';
 import type { RoomWithTechCard } from '../../types/core';
 import { PlanDropZone } from './PlanDropZone';
 import {
@@ -533,10 +534,18 @@ export function FloorPlanCanvas({
             const selected = room.id === selectedRoomId;
             const hovered = room.id === hoveredRoomId;
             const missingTechCard = room.techCard === null;
+            // Цвет инвентаря помещения (красный/синий/зелёный/жёлтый) — заливка
+            // и обводка рамки: план сразу показывает, какой инвентарь здесь
+            // работает. Состояния (выбрано/наведено/без техкарты) — толщиной,
+            // пунктиром и плотностью заливки, чтобы цвет зоны не терялся.
+            const colorZone = roomColorZone(room);
+            const zoneMeta = COLOR_ZONE_META[colorZone];
+            const fillAlpha = selected ? '66' : hovered ? '4D' : '33';
             return (
               <div
                 key={room.id}
-                title={room.name}
+                title={`${room.name} · ${zoneMeta.name.toLowerCase()} инвентарь`}
+                data-color-zone={colorZone}
                 onPointerDown={(event) => handleRoomPointerDown(event, room.id, rect)}
                 onMouseEnter={() => onHover(room.id)}
                 onMouseLeave={() => onHover(null)}
@@ -545,6 +554,8 @@ export function FloorPlanCanvas({
                   top: rect.y * zoom,
                   width: rect.width * zoom,
                   height: rect.height * zoom,
+                  borderColor: zoneMeta.hex,
+                  backgroundColor: `${zoneMeta.hex}${fillAlpha}`,
                 }}
                 className={[
                   'absolute border transition-colors',
@@ -552,17 +563,23 @@ export function FloorPlanCanvas({
                   // начинался бы над помещением, а не на свободном месте плана.
                   addMode ? 'pointer-events-none' : '',
                   selected
-                    ? 'border-2 border-primary-600 bg-primary-200'
+                    ? 'border-2 ring-2 ring-primary-600 ring-offset-1'
                     : missingTechCard
-                      ? 'border-dashed border-warning-500 bg-primary-50'
-                      : hovered
-                        ? 'border-primary-500 bg-primary-100'
-                        : 'border-primary-500 bg-primary-50',
+                      ? 'border-dashed'
+                      : '',
                   canEdit && drawEnabled && !addMode ? 'cursor-move' : 'cursor-pointer',
                 ].join(' ')}
               >
                 {zoomPercent(zoom) >= 50 && (
-                  <span className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap rounded-sm bg-white px-1 text-xs font-medium text-primary-700">
+                  <span
+                    className="pointer-events-none absolute left-1/2 top-0 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-sm bg-white px-1 text-xs font-medium"
+                    style={{ color: zoneMeta.hexDark }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: zoneMeta.hex }}
+                    />
                     {numbers.get(room.id) ?? 0} · {room.name}
                   </span>
                 )}
@@ -610,6 +627,13 @@ export function FloorPlanCanvas({
           )}
         </div>
       </div>
+
+      {/* Легенда цветов инвентаря: план читается без подсказок, как табличка на посту. */}
+      {rooms.length > 0 && (
+        <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-white/90 px-2.5 py-1.5 shadow-sm">
+          <ColorZoneLegend />
+        </div>
+      )}
 
       <div className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1">
         {addMode && canEdit && (

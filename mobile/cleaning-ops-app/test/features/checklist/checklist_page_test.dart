@@ -128,6 +128,23 @@ void main() {
     expect(find.text(ChecklistTexts.completed), findsOneWidget);
   });
 
+  appTest('цвет инвентаря: санузел — красный в шапке, зона «Зелёная» важнее типа', (tester) async {
+    await tester.pumpWidget(wrap(overrides(operations: twoOperations())));
+    await settle(tester);
+
+    expect(find.byKey(const Key('checklist_color_zone')), findsOneWidget);
+    expect(find.text(ChecklistTexts.colorZone('Красный', 'Санитарные зоны')), findsOneWidget);
+  });
+
+  appTest('цвет инвентаря: явная зона помещения важнее его типа', (tester) async {
+    await tester.pumpWidget(
+      wrap(overrides(operations: twoOperations(), room: roomWithTechCard(zone: 'Зелёная зона'))),
+    );
+    await settle(tester);
+
+    expect(find.text(ChecklistTexts.colorZone('Зелёный', 'Кухни и столовые')), findsOneWidget);
+  });
+
   appTest('обязательное фото: без снимка завершение не уходит, со снимком — с photoUrl', (tester) async {
     final FakeTicketsRepository tickets = FakeTicketsRepository();
     final FakeFilesRepository files = FakeFilesRepository();

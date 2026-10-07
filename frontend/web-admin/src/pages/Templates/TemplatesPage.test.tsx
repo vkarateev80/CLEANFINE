@@ -45,4 +45,25 @@ describe('Страница «Шаблоны»', () => {
     expect(body).toHaveTextContent('Помыть пол');
     expect(screen.getByTestId('template-preview-create')).toBeInTheDocument();
   });
+
+  it('таблички цветовой кодировки: четыре цвета, скачивание PDF вместо создания', () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('template-category-color-coding'));
+    for (const zone of ['red', 'blue', 'green', 'yellow']) {
+      expect(screen.getByTestId(`template-card-sign-${zone}`)).toBeInTheDocument();
+      expect(screen.queryByTestId(`template-create-sign-${zone}`)).not.toBeInTheDocument();
+      expect(screen.getByTestId(`template-download-sign-${zone}`)).toHaveAttribute(
+        'href',
+        expect.stringContaining('color-coding/'),
+      );
+    }
+    expect(screen.queryByTestId('template-card-tc-office')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('template-preview-sign-red'));
+    const body = screen.getByTestId('template-preview-body');
+    expect(body).toHaveTextContent('Санитарные зоны');
+    expect(body).toHaveTextContent('Ершик');
+    expect(screen.getByTestId('template-preview-download')).toBeInTheDocument();
+    expect(screen.queryByTestId('template-preview-create')).not.toBeInTheDocument();
+  });
 });
