@@ -225,14 +225,32 @@ export function TemplatesPage() {
               )}
               <div className="flex flex-wrap gap-2">
                 {template.category === 'color-coding' && <ColorZoneBadge zone={template.zone} />}
-                {summaryChips(template).map((chip) => (
-                  <span
-                    key={chip}
-                    className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-0.5 text-xs text-neutral-600"
-                  >
-                    {chip}
-                  </span>
-                ))}
+                {summaryChips(template).map((chip) => {
+                  // У таблички инвентарь («Швабра, Ведро…») — шрифтом своего цвета.
+                  const tools =
+                    template.category === 'color-coding' &&
+                    chip === COLOR_ZONE_META[template.zone].tools.join(', ')
+                      ? COLOR_ZONE_META[template.zone]
+                      : null;
+                  return (
+                    <span
+                      key={chip}
+                      className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-0.5 text-xs text-neutral-600"
+                      style={
+                        tools === null
+                          ? undefined
+                          : {
+                              color: tools.hexDark,
+                              borderColor: tools.hex,
+                              backgroundColor: tools.hexSoft,
+                              fontWeight: 500,
+                            }
+                      }
+                    >
+                      {chip}
+                    </span>
+                  );
+                })}
               </div>
               <div className="mt-auto flex flex-wrap gap-2 pt-1">
                 <Button
@@ -436,7 +454,9 @@ function TemplatePreviewBody({ template }: { template: LibraryTemplate }) {
           </div>
           <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
             <dt className="text-xs text-neutral-400">Инвентарь</dt>
-            <dd className="text-neutral-800">{meta.tools.join(', ')}</dd>
+            <dd className="font-medium" style={{ color: meta.hexDark }}>
+              {meta.tools.join(', ')}
+            </dd>
           </div>
         </dl>
         <p className="text-xs text-neutral-400">

@@ -377,7 +377,9 @@ class _Details extends StatelessWidget {
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: <Widget>[
-              for (final String item in equipment) ColorZoneChip(zone: zone, label: item, compact: true),
+              // Слово цвета в названии («красные швабра») важнее цвета помещения.
+              for (final String item in equipment)
+                ColorZoneChip(zone: ColorZone.fromZoneField(item) ?? zone, label: item, compact: true),
             ],
           ),
           if (zone != roomZone) ...<Widget>[
@@ -385,15 +387,17 @@ class _Details extends StatelessWidget {
             Text(
               ChecklistTexts.glassInventory,
               key: Key('checklist_op_glass_${state.operation.id}'),
-              style: const TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.textSecondary),
+              style: TextStyle(fontSize: AppTypography.sizeXS, color: ColorZone.yellow.dark),
             ),
           ],
         ],
         if (state.operation.hasMaterials) ...<Widget>[
           const SizedBox(height: AppSpacing.sm),
+          // Материалы операции — шрифтом цвета зоны, как и инвентарь.
           Text(
             ChecklistTexts.materials(state.operation.materials.length),
-            style: const TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.textSecondary),
+            key: Key('checklist_op_materials_${state.operation.id}'),
+            style: TextStyle(fontSize: AppTypography.sizeXS, color: zone.dark, fontWeight: FontWeight.w500),
           ),
         ],
       ],
