@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/app_product.dart';
 import '../../../../services/service_providers.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/datasources/pin_credentials_store.dart';
@@ -33,6 +34,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
     storage: ref.watch(secureStorageProvider),
     session: ref.watch(sessionProvider.notifier),
     pinStore: ref.watch(pinCredentialsProvider),
+    product: ref.watch(appProductProvider),
   );
 });
 

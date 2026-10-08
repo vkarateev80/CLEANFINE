@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/app_product.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/providers/session_provider.dart';
 import 'router/app_router.dart';
@@ -33,15 +34,14 @@ class _CleaningOpsAppState extends ConsumerState<CleaningOpsApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'CLEANFINE',
+      title: ref.watch(appProductProvider).title,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: ref.watch(appRouterProvider),
       // Push: регистрация токена устройства и переход по `data.type`
       // (DS-002 `profile.md` §3.4). Слушатель стоит над навигатором, поэтому
       // видит роутер и не зависит от открытого экрана.
-      builder: (BuildContext context, Widget? child) =>
-          PushListener(child: child ?? const SizedBox.shrink()),
+      builder: (BuildContext context, Widget? child) => PushListener(child: child ?? const SizedBox.shrink()),
     );
   }
 }

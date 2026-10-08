@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/app_product.dart';
 import '../../core/theme/app_colors.dart';
-import '../../features/admin/admin_texts.dart';
-import '../../features/auth/data/models/auth_roles.dart';
 import '../../features/auth/presentation/providers/session_provider.dart';
 import '../../features/chat/presentation/providers/chat_providers.dart';
 import '../../router/app_router.dart';
@@ -34,6 +33,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
+    // GPS-трекинг — только в приложении оператора: у «Команды» нет смен,
+    // и трекер там не нужен ни по смыслу, ни по батарее.
+    if (!ref.read(appProductProvider).hasOperatorFeatures) return;
     _tracker = ref.read(gpsTrackerProvider.notifier);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _tracker?.start();
@@ -48,27 +50,12 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.dispose();
   }
 
-  /// Вкладки каркаса: для ADMIN/SUPERVISOR между «Чаты» и «Профиль»
-  /// появляется «Админ» (доска действий); оператор видит прежние три.
-  static List<_ShellTab> _tabsFor(String? role) {
-    final List<_ShellTab> tabs = <_ShellTab>[
-      const _ShellTab(
-          AppRoutes.today, Icons.today_outlined, Icons.today, 'Сегодня', Key('shell_tab_today')),
-      const _ShellTab(
-          AppRoutes.chats, Icons.chat_bubble_outline, Icons.chat_bubble, 'Чаты', Key('shell_tab_chats')),
-    ];
-    if (role == AuthRoles.admin || role == AuthRoles.supervisor) {
-      tabs.add(const _ShellTab(AppRoutes.admin, Icons.dashboard_outlined, Icons.dashboard,
-          AdminTexts.tabLabel, Key('shell_tab_admin')));
-    }
-    tabs.add(const _ShellTab(
-        AppRoutes.profile, Icons.person_outline, Icons.person, 'Профиль', Key('shell_tab_profile')));
-    return tabs;
-  }
-
-  int _indexFor(BuildContext context, List<_ShellTab> tabs) {
+  /// Вкладки каркаса задаёт продукт (`ProductConfig.tabs`) и роль
+  /// (`tabsFor`): оператор — «Сегодня», «Чаты», «Профиль»; команда — «Доска»
+  /// для ADMIN/SUPERVISOR или «Объект» для CLIENT, затем «Чаты», «Профиль».
+  int _indexFor(BuildContext context, List<ProductTab> tabs) {
     final location = GoRouterState.of(context).matchedLocation;
-    final index = tabs.indexWhere((tab) => location.startsWith(tab.path));
+    final index = tabs.indexWhere((tab) => location.startsWith(tab.route));
     return index < 0 ? 0 : index;
   }
 
@@ -78,6 +65,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final String location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith(AppRoutes.chats)) return 'chats_sos_button';
     if (location.startsWith(AppRoutes.admin)) return 'admin_sos_button';
+    if (location.startsWith(AppRoutes.client)) return 'client_sos_button';
     if (location.startsWith(AppRoutes.profile)) return 'profile_sos_button';
     return 'today_sos_button';
   }
@@ -85,7 +73,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final SessionState session = ref.watch(sessionProvider);
-    final List<_ShellTab> tabs = _tabsFor(session.role);
+    final ProductConfig product = ref.watch(appProductProvider);
+    final List<ProductTab> tabs = product.tabsFor(session.role);
     final int index = _indexFor(context, tabs);
     // Индикатор непрочитанных на табе «Чаты» (`chat.md` §1.1). Счётчик не
     // запускает загрузку списка сам: он обновляется контроллером списка, иначе
@@ -93,24 +82,27 @@ class _AppShellState extends ConsumerState<AppShell> {
     final int unread = ref.watch(chatUnreadBadgeProvider);
     return Scaffold(
       body: widget.child,
-      floatingActionButton: FloatingActionButton.extended(
-        key: Key(_sosKey(context)),
-        onPressed: () => context.push(AppRoutes.sos),
-        backgroundColor: Theme.of(context).colorScheme.error,
-        foregroundColor: Theme.of(context).colorScheme.onError,
-        icon: const Icon(Icons.emergency),
-        label: const Text('SOS'),
-      ),
+      // SOS — аварийная заявка с объекта: есть только у приложения оператора.
+      floatingActionButton: product.hasOperatorFeatures
+          ? FloatingActionButton.extended(
+              key: Key(_sosKey(context)),
+              onPressed: () => context.push(AppRoutes.sos),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+              icon: const Icon(Icons.emergency),
+              label: const Text('SOS'),
+            )
+          : null,
       bottomNavigationBar: NavigationBar(
         key: const Key('shell_bottom_nav'),
         selectedIndex: index,
-        onDestinationSelected: (value) => context.go(tabs[value].path),
+        onDestinationSelected: (value) => context.go(tabs[value].route),
         destinations: tabs
             .map(
               (tab) => NavigationDestination(
                 key: tab.key,
-                icon: _tabIcon(tab.icon, tab.path == AppRoutes.chats ? unread : 0),
-                selectedIcon: _tabIcon(tab.selectedIcon, tab.path == AppRoutes.chats ? unread : 0),
+                icon: _tabIcon(tab.icon, tab.route == AppRoutes.chats ? unread : 0),
+                selectedIcon: _tabIcon(tab.selectedIcon, tab.route == AppRoutes.chats ? unread : 0),
                 label: tab.label,
               ),
             )
@@ -130,14 +122,4 @@ Widget _tabIcon(IconData icon, int count) {
     label: Text('$count'),
     child: Icon(icon),
   );
-}
-
-class _ShellTab {
-  const _ShellTab(this.path, this.icon, this.selectedIcon, this.label, this.key);
-
-  final String path;
-  final IconData icon;
-  final IconData selectedIcon;
-  final String label;
-  final Key key;
 }

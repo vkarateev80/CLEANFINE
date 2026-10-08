@@ -1,3 +1,4 @@
+import '../../../../core/app_product.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../services/secure_storage_service.dart';
@@ -26,15 +27,20 @@ class AuthRepository {
     required SecureStorageService storage,
     required AuthSessionWriter session,
     required PinCredentialsStore pinStore,
+    ProductConfig? product,
   })  : _remote = remote,
         _storage = storage,
         _session = session,
-        _pinStore = pinStore;
+        _pinStore = pinStore,
+        _product = product ?? ProductConfig.of(AppProduct.operator);
 
   final AuthRemoteDataSource _remote;
   final SecureStorageService _storage;
   final AuthSessionWriter _session;
   final PinCredentialsStore _pinStore;
+
+  /// Продукт решает, какие роли сюда пускать (оператор ≠ команда).
+  final ProductConfig _product;
 
   /// Вход по email и паролю: `POST /api/auth/login` → `GET /api/auth/me`.
   ///
@@ -216,9 +222,9 @@ class AuthRepository {
       rethrow;
     }
 
-    if (!user.isAllowed) {
+    if (!_product.allows(user.role)) {
       await _denyRole(tokens);
-      throw const ForbiddenException(AuthTexts.clientRoleDenied);
+      throw ForbiddenException(_product.deniedMessage(user.role));
     }
 
     await _session.signIn(
@@ -279,8 +285,7 @@ class AuthRepository {
       UnauthorizedException() => UnauthorizedFailure(error.message),
       ForbiddenException() => ForbiddenFailure(error.message),
       TooManyRequestsException() => const TooManyRequestsFailure(AuthTexts.tooManyAttempts),
-      ValidationException(:final fieldErrors) =>
-        ValidationFailure(error.message, fieldErrors: fieldErrors),
+      ValidationException(:final fieldErrors) => ValidationFailure(error.message, fieldErrors: fieldErrors),
       NotFoundException() => NotFoundFailure(error.message),
       ConflictException() => ConflictFailure(error.message),
       StorageException() => StorageFailure(error.message),

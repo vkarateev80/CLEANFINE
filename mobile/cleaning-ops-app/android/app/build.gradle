@@ -82,6 +82,26 @@ android {
             signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
         }
     }
+
+    // Продукты (lib/core/app_product.dart): один код — два приложения с разными
+    // applicationId, именами и точками входа. Сборка ОБЯЗАНА указывать flavor:
+    //   flutter build apk --flavor operator -t lib/main_operator.dart
+    //   flutter build apk --flavor team     -t lib/main_team.dart
+    // `operator` сохраняет исторический applicationId — установленное приложение
+    // обновляется, а не ставится рядом.
+    flavorDimensions "product"
+    productFlavors {
+        operator {
+            dimension "product"
+            applicationId "com.cleaningops.cleaning_ops_app"
+            resValue "string", "app_name", "CLEANFINE Оператор"
+        }
+        team {
+            dimension "product"
+            applicationId "com.cleaningops.team"
+            resValue "string", "app_name", "CLEANFINE Команда"
+        }
+    }
 }
 
 flutter {

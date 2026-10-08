@@ -1,4 +1,5 @@
 import 'package:cleaning_ops_app/app.dart';
+import 'package:cleaning_ops_app/core/app_product.dart';
 import 'package:cleaning_ops_app/database/app_database.dart';
 import 'package:cleaning_ops_app/database/database_provider.dart';
 import 'package:cleaning_ops_app/services/gps_tracking_service.dart';
@@ -80,7 +81,7 @@ void main() {
     expect(find.byKey(const Key('login_page')), findsNothing);
   });
 
-  testWidgets('для ADMIN в таб-баре появляется «Админ»', (tester) async {
+  testWidgets('«Оператор»: у ADMIN те же три вкладки, доски действий здесь нет', (tester) async {
     final storage = _InMemoryStorage()
       ..seed(StorageKeys.accessToken, 'access')
       ..seed(StorageKeys.refreshToken, 'refresh')
@@ -98,11 +99,44 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.byKey(const Key('today_page')), findsOneWidget);
-    expect(find.byKey(const Key('shell_tab_admin')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_admin')), findsNothing);
     expect(find.byKey(const Key('shell_tab_profile')), findsOneWidget);
   });
 
-  testWidgets('для SUPERVISOR тоже видна вкладка «Админ»', (tester) async {
+  /// Продукт «Команда» (`main_team.dart`): переопределяем провайдер продукта.
+  List<Override> teamOverrides(SecureStorageService storage) => <Override>[
+        ...shellOverrides(storage),
+        appProductProvider.overrideWithValue(ProductConfig.of(AppProduct.team)),
+      ];
+
+  testWidgets('«Команда»: ADMIN попадает на доску действий, без SOS и «Сегодня»', (tester) async {
+    final storage = _InMemoryStorage()
+      ..seed(StorageKeys.accessToken, 'access')
+      ..seed(StorageKeys.refreshToken, 'refresh')
+      ..seed(StorageKeys.userId, 'user-1')
+      ..seed(StorageKeys.role, 'ADMIN');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: teamOverrides(storage),
+        child: const CleaningOpsApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byKey(const Key('admin_page')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_admin')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_chats')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_profile')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_today')), findsNothing);
+    expect(find.byKey(const Key('shell_tab_client')), findsNothing);
+    expect(find.byKey(const Key('admin_sos_button')), findsNothing);
+    expect(find.byKey(const Key('today_page')), findsNothing);
+  });
+
+  testWidgets('«Команда»: SUPERVISOR тоже видит доску', (tester) async {
     final storage = _InMemoryStorage()
       ..seed(StorageKeys.accessToken, 'access')
       ..seed(StorageKeys.refreshToken, 'refresh')
@@ -111,7 +145,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: shellOverrides(storage),
+        overrides: teamOverrides(storage),
         child: const CleaningOpsApp(),
       ),
     );
@@ -120,6 +154,30 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.byKey(const Key('shell_tab_admin')), findsOneWidget);
+    expect(find.byKey(const Key('admin_page')), findsOneWidget);
+  });
+
+  testWidgets('«Команда»: CLIENT попадает в портал заказчика, доски не видит', (tester) async {
+    final storage = _InMemoryStorage()
+      ..seed(StorageKeys.accessToken, 'access')
+      ..seed(StorageKeys.refreshToken, 'refresh')
+      ..seed(StorageKeys.userId, 'user-1')
+      ..seed(StorageKeys.role, 'CLIENT');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: teamOverrides(storage),
+        child: const CleaningOpsApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byKey(const Key('client_home_page')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_client')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_admin')), findsNothing);
+    expect(find.byKey(const Key('client_sos_button')), findsNothing);
   });
 
   testWidgets('нажатие SOS открывает полноэкранную аварийную заявку', (tester) async {
