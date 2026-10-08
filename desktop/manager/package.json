@@ -1,0 +1,60 @@
+{
+  "name": "cleanfine-manager",
+  "productName": "CLEANFINE Менеджер",
+  "version": "1.0.0",
+  "description": "Десктоп менеджера CLEANFINE (macOS/Windows): обёртка над веб-админкой cleanfine.ru",
+  "private": true,
+  "main": "main.js",
+  "author": "CLEANFINE",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "start:local": "CLEANFINE_URL=http://localhost:5175 electron .",
+    "dist:mac": "electron-builder --mac --arm64 --x64",
+    "dist:win": "electron-builder --win --x64",
+    "dist": "electron-builder --mac --win"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ru.cleanfine.manager",
+    "productName": "CLEANFINE Менеджер",
+    "artifactName": "CLEANFINE-Manager-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "build/icon.png"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null
+    },
+    "dmg": {
+      "title": "CLEANFINE Менеджер"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "language": "1049",
+      "shortcutName": "CLEANFINE Менеджер"
+    }
+  }
+}
