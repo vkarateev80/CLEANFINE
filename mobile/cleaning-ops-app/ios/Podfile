@@ -9,6 +9,10 @@ project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
   'Release' => :release,
+  # Продукт «Команда» (flavor team, см. lib/core/app_product.dart).
+  'Debug-team' => :debug,
+  'Profile-team' => :release,
+  'Release-team' => :release,
 }
 
 def flutter_root

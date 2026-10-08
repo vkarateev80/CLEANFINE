@@ -39,10 +39,11 @@ cd mobile/cleaning-ops-app
 # Android — flavor обязателен (иначе Gradle не найдёт задачу)
 flutter build apk --release --flavor operator -t lib/main_operator.dart $DEFINES
 flutter build apk --release --flavor team     -t lib/main_team.dart     $DEFINES
-# iOS — схем-flavor'ов пока нет: оператор собирается как раньше (bundle
-# com.cleaningops.cleaningOpsApp); для «Команды» нужны Xcode-конфигурации
-# Debug-team/Release-team с bundle com.cleaningops.team (следующий шаг).
-flutter build ipa --release $DEFINES
+# iOS — оператор как раньше (схема Runner, bundle com.cleaningops.cleaningOpsApp);
+# «Команда» — схема `team` + конфигурации Debug-team/Release-team/Profile-team
+# (bundle com.cleaningops.team, имя из APP_DISPLAY_NAME, иконки AppIcon-Team)
+flutter build ipa --release -t lib/main_operator.dart $DEFINES
+flutter build ipa --release --flavor team -t lib/main_team.dart $DEFINES
 # macOS / Windows — продукт через define (flavor'ы на десктопе не нужны)
 flutter build macos --release --dart-define=APP_PRODUCT=team $DEFINES
 ```
@@ -53,7 +54,15 @@ flutter build macos --release --dart-define=APP_PRODUCT=team $DEFINES
 
 Android: `applicationId` оператора остался историческим
 (`com.cleaningops.cleaning_ops_app`) — установленные приложения обновляются;
-«Команда» — `com.cleaningops.team`. Имя берётся из `resValue app_name`.
+«Команда» — `com.cleaningops.team`. Имя берётся из `resValue app_name`,
+иконка «Команды» — `android/app/src/team/res/mipmap-*` (зелёная вариация
+`design/brand/app-icon-team-1024.png`, сдвиг оттенка −60°).
+
+iOS: `Info.plist` берёт `CFBundleDisplayName` из build setting `APP_DISPLAY_NAME`
+(операторские конфигурации — «CLEANFINE», командные — «CLEANFINE Команда»);
+`Flutter/Debug-team.xcconfig` и `Release-team.xcconfig` подключают поды
+`Pods-Runner.*-team` (Podfile маппит `*-team` конфигурации). Проверено сборкой
+обоих вариантов под симулятор.
 
 ## Десктоп менеджера
 
@@ -77,8 +86,7 @@ Android: `applicationId` оператора остался историческ�
 
 ## Дальше
 
-1. iOS: конфигурации/схема `team` с bundle `com.cleaningops.team`; иконка-вариант
-   для «Команды» (сейчас обе с одной иконкой).
-2. «Команда»: раздел «Отчёты» портала; пуши — `pushRoute` не должен вести на
-   операторские экраны.
-3. Десктоп-обёртка менеджера над веб-админкой (Tauri/Electron, macOS + Windows).
+1. «Команда»: раздел «Отчёты» портала; пуши — `pushRoute` не должен вести на
+   операторские экраны; релизная IPA «Команды» (нужен профиль под bundle
+   `com.cleaningops.team` в Apple Developer).
+2. Десктоп-обёртка менеджера — `desktop/manager` (Electron), см. его README.
