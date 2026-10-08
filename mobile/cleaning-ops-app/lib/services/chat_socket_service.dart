@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../core/constants/api_constants.dart';
+import '../features/auth/presentation/providers/session_provider.dart';
 import '../features/chat/data/models/chat_models.dart';
 
 /// Событие шлюза чата, приведённое к моделям приложения.
@@ -286,6 +287,9 @@ class SocketIoChatSocket implements ChatSocket {
 }
 
 final chatSocketProvider = Provider<ChatSocket>((Ref ref) {
+  // Сокет авторизован токеном конкретного пользователя: при смене сессии он
+  // закрывается (`onDispose`), новый поднимется с токеном нового.
+  ref.watch(sessionScopeProvider);
   final ChatSocket socket = SocketIoChatSocket();
   ref.onDispose(socket.disconnect);
   return socket;

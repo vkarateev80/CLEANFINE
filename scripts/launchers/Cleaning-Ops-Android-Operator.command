@@ -31,7 +31,9 @@ FLUTTER_BIN="$(command -v flutter || true)"
 run_flutter() {
   echo "==> flutter run -d $1 (API_HOST=$API_HOST, автологин $EMAIL)"
   cd "$APP_DIR" || exit 1
-  exec "$FLUTTER_BIN" run -d "$1" \
+  # Android-проект собирается по flavor'ам (build.gradle): без --flavor Gradle
+  # не найдёт задачу. Здесь — приложение оператора (`lib/main.dart`).
+  exec "$FLUTTER_BIN" run -d "$1" --flavor operator \
     --dart-define=API_HOST="$API_HOST" \
     --dart-define=AUTO_LOGIN_EMAIL="$EMAIL" \
     --dart-define=AUTO_LOGIN_PASSWORD="$PASSWORD"

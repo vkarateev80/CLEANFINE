@@ -11,6 +11,7 @@ import '../../../../shared/data/data_providers.dart';
 import '../../../../shared/data/models/operator_models.dart';
 import '../../../../shared/data/models/schedule_event.dart';
 import '../../../../shared/data/result.dart';
+import '../../../auth/presentation/providers/session_provider.dart';
 
 /// Точка маршрута вместе с её локальным статусом.
 class RoutePointState {
@@ -105,6 +106,8 @@ class RouteDay {
 class RouteDayController extends FamilyAsyncNotifier<RouteDay, String> {
   @override
   Future<RouteDay> build(String arg) async {
+    // Данные пользователя: выход и вход другого пересобирают провайдер с нуля.
+    ref.watch(sessionScopeProvider);
     final String eventId = arg;
     final CacheStore cache = ref.watch(cacheStoreProvider);
 

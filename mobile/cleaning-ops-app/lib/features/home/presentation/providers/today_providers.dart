@@ -62,6 +62,12 @@ class TodayOverview {
 class TodayOverviewController extends AsyncNotifier<TodayOverview> {
   @override
   Future<TodayOverview> build() async {
+    // Смены и заявки — данные пользователя: выход и вход другого пересобирают
+    // обзор, а не оставляют на экране смену прежнего до pull-to-refresh.
+    // Без сессии кэш не читается: в нём могут лежать данные вышедшего.
+    if (ref.watch(sessionScopeProvider) == null) {
+      return const TodayOverview(events: <ScheduleEvent>[], tickets: <TicketSummary>[]);
+    }
     final CacheStore cache = ref.watch(cacheStoreProvider);
     final TodayOverview? cached = await _fromCache(cache);
     if (cached != null) {
@@ -102,6 +108,11 @@ class TodayOverviewController extends AsyncNotifier<TodayOverview> {
 
   /// Сеть: ошибку отдаём наверх (экран покажет «Повторить»), успех пишем в кэш.
   Future<TodayOverview> _loadFromNetwork() async {
+    // Ответы, пришедшие уже после смены сессии, в кэш не пишутся: это данные
+    // прежнего пользователя.
+    final String? scope = ref.read(sessionScopeProvider);
+    bool sameSession() => ref.read(sessionScopeProvider) == scope;
+
     final ScheduleRepository schedule = ref.read(scheduleRepositoryProvider);
     final Result<List<ScheduleEvent>> eventsResult = await schedule.myEvents();
     final Failure? failure = eventsResult.failureOrNull;
@@ -112,7 +123,9 @@ class TodayOverviewController extends AsyncNotifier<TodayOverview> {
     final ScheduleEvent? current = pickCurrentEvent(events);
 
     final CacheStore cache = ref.read(cacheStoreProvider);
-    await cache.saveEvents(events);
+    // Полный список «моих смен»: кэш становится ровно таким (пустой ответ
+    // стирает смены, оставшиеся от прежнего пользователя).
+    if (sameSession()) await cache.replaceEvents(events);
 
     ObjectSummary? object;
     RouteDetail? route;
@@ -120,12 +133,14 @@ class TodayOverviewController extends AsyncNotifier<TodayOverview> {
     if (current?.objectId != null) {
       final Result<ObjectSummary> result = await core.object(current!.objectId!);
       object = result.dataOrNull;
-      if (object != null) await cache.saveObject(object);
+      if (object != null && sameSession()) await cache.saveObject(object);
     }
     if (current != null && current.hasRoute) {
       final Result<RouteDetail> result = await core.route(current.routeId!);
       route = result.dataOrNull;
-      if (route != null) await cache.saveRoute(eventId: current.id, route: route);
+      if (route != null && sameSession()) {
+        await cache.saveRoute(eventId: current.id, route: route);
+      }
     }
 
     List<TicketSummary> tickets = const <TicketSummary>[];
@@ -133,8 +148,10 @@ class TodayOverviewController extends AsyncNotifier<TodayOverview> {
     if (userId != null) {
       final Result<List<TicketSummary>> result =
           await ref.read(ticketsRepositoryProvider).assignedTo(userId);
-      tickets = result.dataOrNull ?? const <TicketSummary>[];
-      await cache.saveTickets(tickets);
+      final List<TicketSummary>? loaded = result.dataOrNull;
+      tickets = loaded ?? const <TicketSummary>[];
+      // Ошибка заявок не стирает кэш; успешный ответ заменяет его целиком.
+      if (loaded != null && sameSession()) await cache.replaceTickets(loaded);
     }
 
     return TodayOverview(
@@ -189,7 +206,10 @@ class TodayActionState {
 
 class TodayController extends Notifier<TodayActionState> {
   @override
-  TodayActionState build() => const TodayActionState();
+  TodayActionState build() {
+    ref.watch(sessionScopeProvider);
+    return const TodayActionState();
+  }
 
   /// Отметка прихода: геолокация → `POST /api/schedule/check-in`.
   ///

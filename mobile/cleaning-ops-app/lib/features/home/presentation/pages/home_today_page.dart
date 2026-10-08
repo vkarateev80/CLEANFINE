@@ -26,7 +26,11 @@ class HomeTodayPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<TodayOverview> overview = ref.watch(todayOverviewProvider);
-    final TodayOverview? data = overview.valueOrNull;
+    // Перезагрузка из-за смены сессии (`isReloading`) и ошибка несут значение
+    // прошлой сборки — возможно, другого пользователя: заголовок и баннер его
+    // не показывают (тело экрана и так рисует загрузку/ошибку через `when`).
+    final TodayOverview? data =
+        overview.isReloading || overview.hasError ? null : overview.valueOrNull;
     final bool offline = !(ref.watch(onlineProvider).valueOrNull ?? true);
 
     return Scaffold(

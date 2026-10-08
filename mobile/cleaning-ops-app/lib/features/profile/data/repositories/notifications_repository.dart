@@ -30,6 +30,16 @@ class NotificationsRepository {
     });
   }
 
+  /// `DELETE /api/notifications/device/:token` — отвязать устройство от
+  /// пользователя при выходе: иначе push прежнего пользователя (заявки, текст
+  /// чата) приходили бы следующему на этом устройстве (`profile.md` п. 11.2).
+  Future<Result<bool>> unregisterDevice(String token) {
+    return guard(() async {
+      await _api.delete('$_base/device/${Uri.encodeComponent(token)}');
+      return true;
+    });
+  }
+
   /// `GET /api/notifications/settings` → `{userId, disabledTypes, availableTypes}`.
   Future<Result<NotificationSettings>> settings() {
     return guard(() async {

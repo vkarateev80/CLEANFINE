@@ -1,3 +1,4 @@
+import '../../../../core/app_product.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../services/secure_storage_service.dart';
@@ -26,15 +27,20 @@ class AuthRepository {
     required SecureStorageService storage,
     required AuthSessionWriter session,
     required PinCredentialsStore pinStore,
+    ProductConfig? product,
   })  : _remote = remote,
         _storage = storage,
         _session = session,
-        _pinStore = pinStore;
+        _pinStore = pinStore,
+        _product = product ?? ProductConfig.of(AppProduct.operator);
 
   final AuthRemoteDataSource _remote;
   final SecureStorageService _storage;
   final AuthSessionWriter _session;
   final PinCredentialsStore _pinStore;
+
+  /// Продукт решает, какие роли сюда пускать (оператор ≠ команда).
+  final ProductConfig _product;
 
   /// Вход по email и паролю: `POST /api/auth/login` → `GET /api/auth/me`.
   ///
@@ -105,26 +111,52 @@ class AuthRepository {
     });
   }
 
-  /// Выход: серверный отзыв сессии (`POST /api/auth/logout`) + локальная очистка.
+  /// Выход: локальная очистка + серверный отзыв сессии (`POST /api/auth/logout`).
   ///
   /// Ошибка сети не мешает выходу (`profile.md` п. 10.5): локальная сессия
   /// чистится в любом случае, поэтому результатом всегда успех.
+  ///
+  /// Порядок важен. Сначала пара токенов запоминается и сессия гасится локально
+  /// (`signOut` сдвигает эпоху `SessionBridge`): фоновые запросы и refresh
+  /// прежнего пользователя после этого ничего не запишут. Затем пара отзывается
+  /// явно, мимо хранилища: access-токен мог истечь — тогда она сперва
+  /// обновляется и отзывается уже новая, чтобы на сервере не осталось живой
+  /// сессии, которую никто не держит.
   Future<AuthResult<bool>> logout() {
     return _run(() async {
-      String? refreshToken;
-      try {
-        refreshToken = await _storage.readRefreshToken();
-      } on AppException {
-        refreshToken = null;
+      final String? accessToken = await _readOrNull(_storage.readAccessToken);
+      final String? refreshToken = await _readOrNull(_storage.readRefreshToken);
+      await _session.signOut(clearUserData: true);
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _revoke(accessToken: accessToken, refreshToken: refreshToken);
       }
-      try {
-        await _remote.logout(refreshToken: refreshToken);
-      } on AppException {
-        // Нет сети или токен уже отозван — выходим локально.
-      }
-      await _session.signOut();
       return true;
     });
+  }
+
+  Future<void> _revoke({String? accessToken, required String refreshToken}) async {
+    try {
+      await _remote.logout(refreshToken: refreshToken, accessToken: accessToken ?? '');
+      return;
+    } on UnauthorizedException {
+      // Access истёк — ниже обновим пару и отзовём уже её.
+    } on AppException {
+      return; // Нет сети или токен уже отозван — выходим локально.
+    }
+    try {
+      final AuthTokens fresh = await _remote.refresh(refreshToken: refreshToken, detached: true);
+      await _remote.logout(refreshToken: fresh.refreshToken, accessToken: fresh.accessToken);
+    } on AppException {
+      // Refresh-токен уже мёртв — отзывать нечего.
+    }
+  }
+
+  static Future<String?> _readOrNull(Future<String?> Function() read) async {
+    try {
+      return await read();
+    } on AppException {
+      return null;
+    }
   }
 
   /// Установка/смена PIN: `POST /api/auth/change-pin {currentPassword, newPin}`.
@@ -158,6 +190,8 @@ class AuthRepository {
         currentPassword: currentPassword,
         newPassword: newPassword,
       );
+      // Данные не стираются: войдёт тот же пользователь с новым паролем
+      // (очередь не теряется), а вход другого их сотрёт по владельцу данных.
       await _session.signOut();
       return true;
     });
@@ -188,9 +222,9 @@ class AuthRepository {
       rethrow;
     }
 
-    if (!user.isAllowed) {
+    if (!_product.allows(user.role)) {
       await _denyRole(tokens);
-      throw const ForbiddenException(AuthTexts.clientRoleDenied);
+      throw ForbiddenException(_product.deniedMessage(user.role));
     }
 
     await _session.signIn(
@@ -251,8 +285,7 @@ class AuthRepository {
       UnauthorizedException() => UnauthorizedFailure(error.message),
       ForbiddenException() => ForbiddenFailure(error.message),
       TooManyRequestsException() => const TooManyRequestsFailure(AuthTexts.tooManyAttempts),
-      ValidationException(:final fieldErrors) =>
-        ValidationFailure(error.message, fieldErrors: fieldErrors),
+      ValidationException(:final fieldErrors) => ValidationFailure(error.message, fieldErrors: fieldErrors),
       NotFoundException() => NotFoundFailure(error.message),
       ConflictException() => ConflictFailure(error.message),
       StorageException() => StorageFailure(error.message),

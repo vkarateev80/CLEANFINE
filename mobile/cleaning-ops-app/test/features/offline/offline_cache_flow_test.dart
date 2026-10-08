@@ -24,6 +24,7 @@ import 'package:cleaning_ops_app/shared/services/location_service.dart';
 import 'package:cleaning_ops_app/shared/data/result.dart';
 import 'package:cleaning_ops_app/shared/services/photo_service.dart';
 import 'package:cleaning_ops_app/shared/widgets/offline_banner.dart';
+import 'package:cleaning_ops_app/features/auth/presentation/providers/session_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -134,6 +135,7 @@ void main() {
     return ProviderScope(
       overrides: <Override>[
         appDatabaseProvider.overrideWithValue(database),
+        sessionProvider.overrideWith(SignedInSession.new),
         connectivityServiceProvider.overrideWithValue(FakeConnectivityService(online: online)),
         scheduleRepositoryProvider.overrideWithValue(schedule),
         coreRepositoryProvider.overrideWithValue(

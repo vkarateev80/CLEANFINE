@@ -189,6 +189,34 @@ extension AppCacheQueries on AppDatabase {
     });
   }
 
+  /// Полная очистка данных пользователя при выходе (`profile.md` §3.5:
+  /// «очистка drift (все таблицы)»): кэш чтения, очередь действий, GPS-буфер и
+  /// лента чата. Диалог выхода предупреждает, что неотправленное будет потеряно.
+  Future<void> clearUserData() {
+    return batch((Batch batch) {
+      for (final TableInfo<Table, dynamic> table in allTables) {
+        batch.deleteAll(table);
+      }
+    });
+  }
+
+  /// Смены «на сегодня» целиком: строки, которых нет в ответе сервера (смены
+  /// прежнего пользователя или снятые с графика), из кэша уходят.
+  Future<void> replaceShiftEvents(List<ShiftEventsCompanion> rows) {
+    return batch((Batch batch) {
+      batch.deleteAll(shiftEvents);
+      batch.insertAllOnConflictUpdate(shiftEvents, rows);
+    });
+  }
+
+  /// Заявки оператора целиком — по тому же правилу, что [replaceShiftEvents].
+  Future<void> replaceTickets(List<CachedTicketsCompanion> rows) {
+    return batch((Batch batch) {
+      batch.deleteAll(cachedTickets);
+      batch.insertAllOnConflictUpdate(cachedTickets, rows);
+    });
+  }
+
   /// Самое свежее время записи кэша: «Данные от {HH:mm}» на экранах.
   Future<DateTime?> lastCacheUpdatedAt() async {
     final List<DateTime?> stamps = <DateTime?>[

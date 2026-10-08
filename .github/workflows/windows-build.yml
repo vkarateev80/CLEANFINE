@@ -1,0 +1,106 @@
+# Сборка десктопного приложения CLEANFINE под Windows.
+#
+# На Mac Windows-сборку Flutter сделать нельзя (нужны Visual Studio и MSVC),
+# поэтому она собирается на GitHub-раннере `windows-latest`. Результат — zip с
+# папкой приложения (CLEANFINE.exe + data + DLL плагинов + VC++ runtime) —
+# лежит в артефактах запуска; при пуше тега `windows-v*` ещё и прикрепляется
+# к GitHub Release.
+#
+# Запуск вручную: Actions → «Windows build» → Run workflow (можно задать адрес
+# сервера; по умолчанию прод https://cleanfine.ru) или из терминала:
+#   gh workflow run windows-build.yml --ref develop
+#   gh run watch && gh run download -n CLEANFINE-windows-x64 -D ~/Desktop
+#
+# Параметры сборки те же, что у macOS/iOS/Android-артефактов (`API_*_URL`
+# для всех 9 сервисов через один хост — traefik раскидывает по /api/*).
+# Автологин в сборку не вшивается.
+name: Windows build
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: 'Адрес сервера (все API_*_URL)'
+        required: true
+        default: 'https://cleanfine.ru'
+        type: string
+  push:
+    tags:
+      - 'windows-v*'
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: flutter build windows (x64)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: mobile/cleaning-ops-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor (Windows toolchain)
+        run: flutter doctor -v
+
+      # Дизайн-токены (`cleaning_ops_tokens`) — path-зависимость внутри репо,
+      # поэтому обычного `pub get` достаточно.
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build (release, x64)
+        env:
+          API_BASE_URL: ${{ github.event.inputs.api_base_url || 'https://cleanfine.ru' }}
+        run: |
+          $defines = @('AUTH','FILES','CORE','GPS','TICKETS','NOTIFICATIONS','SCHEDULE','MATERIALS','CHAT') |
+            ForEach-Object { "--dart-define=API_${_}_URL=$env:API_BASE_URL" }
+          Write-Host "API base: $env:API_BASE_URL"
+          flutter build windows --release @defines
+
+      # VC++ runtime рядом с exe: без него на «чистой» Windows приложение не
+      # стартует (msvcp140.dll не найден). Копирование этих DLL в папку
+      # приложения разрешено условиями распространения Visual Studio.
+      - name: Bundle VC++ runtime DLLs
+        run: |
+          $out = 'build/windows/x64/runner/Release'
+          foreach ($dll in 'msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll') {
+            Copy-Item "$env:SystemRoot/System32/$dll" $out -Force
+          }
+          Get-ChildItem $out | Select-Object Name, Length | Format-Table -AutoSize
+
+      - name: Package zip
+        id: pack
+        run: |
+          $version = ((Select-String -Path pubspec.yaml -Pattern '^version:\s*(\S+)').Matches.Groups[1].Value) -replace '\+.*$',''
+          $name = "CLEANFINE-$version-windows-x64"
+          $stage = Join-Path $env:RUNNER_TEMP $name
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item 'build/windows/x64/runner/Release/*' $stage -Recurse -Force
+          Compress-Archive -Path "$stage/*" -DestinationPath (Join-Path $env:RUNNER_TEMP "$name.zip") -Force
+          "zip=$(Join-Path $env:RUNNER_TEMP "$name.zip")" >> $env:GITHUB_OUTPUT
+          "name=$name" >> $env:GITHUB_OUTPUT
+          Write-Host "packed $name.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CLEANFINE-windows-x64
+          path: ${{ steps.pack.outputs.zip }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach to GitHub Release (tags windows-v*)
+        if: startsWith(github.ref, 'refs/tags/windows-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pack.outputs.zip }}

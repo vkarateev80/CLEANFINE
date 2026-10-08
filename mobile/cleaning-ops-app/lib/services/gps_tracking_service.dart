@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/api_constants.dart';
 import '../database/app_database.dart';
 import '../database/database_provider.dart';
+import '../features/auth/presentation/providers/session_provider.dart';
 import '../shared/data/data_providers.dart';
 import '../shared/data/models/gps_models.dart';
 import '../shared/data/models/schedule_event.dart';
@@ -260,6 +261,9 @@ class GpsTrackerController extends Notifier<GpsTrackingState> {
 
   @override
   GpsTrackingState build() {
+    // Смена пользователя останавливает трекер прежней сессии (`onDispose`),
+    // каркас новой сессии запускает его заново.
+    ref.watch(sessionScopeProvider);
     ref.onDispose(stop);
     return const GpsTrackingState();
   }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../services/service_providers.dart';
+import '../../auth/presentation/providers/session_provider.dart';
 import '../data/admin_reports_models.dart';
 
 /// Провайдеры доски действий: шесть read-моделей четырёх сервисов, как в
@@ -35,11 +36,13 @@ Map<String, dynamic> _asMap(Object? data) {
 }
 
 final ticketSummaryProvider = FutureProvider<TicketSummary>((ref) async {
+  ref.watch(sessionScopeProvider);
   final response = await ref.watch(ticketsApiProvider).get('/api/tickets/reports/summary');
   return TicketSummary.fromJson(_asMap(response.data));
 });
 
 final ticketExecutionProvider = FutureProvider<TicketExecutionReport>((ref) async {
+  ref.watch(sessionScopeProvider);
   final period = ref.watch(reportPeriodProvider);
   final response = await ref
       .watch(ticketsApiProvider)
@@ -48,11 +51,13 @@ final ticketExecutionProvider = FutureProvider<TicketExecutionReport>((ref) asyn
 });
 
 final consumptionSummaryProvider = FutureProvider<ConsumptionSummary>((ref) async {
+  ref.watch(sessionScopeProvider);
   final response = await ref.watch(materialsApiProvider).get('/api/materials/reports/summary');
   return ConsumptionSummary.fromJson(_asMap(response.data));
 });
 
 final consumptionReportProvider = FutureProvider<ConsumptionReport>((ref) async {
+  ref.watch(sessionScopeProvider);
   final period = ref.watch(reportPeriodProvider);
   final response = await ref
       .watch(materialsApiProvider)
@@ -61,11 +66,13 @@ final consumptionReportProvider = FutureProvider<ConsumptionReport>((ref) async 
 });
 
 final staffSummaryProvider = FutureProvider<StaffSummary>((ref) async {
+  ref.watch(sessionScopeProvider);
   final response = await ref.watch(scheduleApiProvider).get('/api/schedule/reports/summary');
   return StaffSummary.fromJson(_asMap(response.data));
 });
 
 final geofenceSummaryProvider = FutureProvider<GeofenceSummary>((ref) async {
+  ref.watch(sessionScopeProvider);
   final response = await ref.watch(gpsApiProvider).get('/api/gps/reports/summary');
   return GeofenceSummary.fromJson(_asMap(response.data));
 });
