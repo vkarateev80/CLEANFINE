@@ -33,6 +33,9 @@ class _PushListenerState extends ConsumerState<PushListener> {
   GoRouter? _router;
   bool _registered = false;
   String? _registeredFor;
+
+  /// Пользователь текущей сессии: его смена сбрасывает регистрацию токена.
+  String? _sessionUser;
   DateTime? _nextAttemptAt;
 
   @override
@@ -95,6 +98,8 @@ class _PushListenerState extends ConsumerState<PushListener> {
     final result = await ref
         .read(notificationsRepositoryProvider)
         .registerDevice(token: token, platform: devicePlatform());
+    // Пока шёл запрос, пользователь сменился — итог относится к прежнему.
+    if (_registeredFor != userId) return;
     if (result.isSuccess) {
       _registered = true;
       debugPrint('[PUSH] registerDevice ok');
@@ -112,6 +117,15 @@ class _PushListenerState extends ConsumerState<PushListener> {
     _router = ref.watch(appRouterProvider);
     final SessionState session = ref.watch(sessionProvider);
     final String? userId = session.userId;
+    // Выход или вход другого пользователя: токен устройства отвязан от прежнего
+    // (`LogoutController`), регистрация для нового — заново.
+    final String? sessionUser = session.isAuthenticated ? userId : null;
+    if (sessionUser != _sessionUser) {
+      _sessionUser = sessionUser;
+      _registered = false;
+      _registeredFor = null;
+      _nextAttemptAt = null;
+    }
     if (session.isAuthenticated && userId != null && !_registered) {
       unawaited(_registerToken(userId));
     }

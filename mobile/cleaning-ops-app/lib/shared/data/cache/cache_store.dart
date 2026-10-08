@@ -70,26 +70,33 @@ class CacheStore {
   // ------------------------------------------------------------- смены
 
   Future<void> saveEvents(List<ScheduleEvent> events, {DateTime? at}) {
-    final DateTime stamp = at ?? DateTime.now();
-    return _db.upsertShiftEvents(
-      events
-          .map(
-            (ScheduleEvent event) => ShiftEventsCompanion(
-              id: Value<String>(event.id),
-              scheduleId: Value<String?>(event.scheduleId),
-              scheduleName: Value<String>(event.scheduleName),
-              objectId: Value<String?>(event.objectId),
-              routeId: Value<String?>(event.routeId),
-              date: Value<String?>(event.date),
-              plannedStart: Value<String?>(event.plannedStart),
-              status: Value<String>(event.status),
-              ticketId: Value<String?>(event.ticketId),
-              checkOutReason: Value<String?>(event.checkOutReason),
-              updatedAt: Value<DateTime>(stamp),
-            ),
-          )
-          .toList(growable: false),
-    );
+    return _db.upsertShiftEvents(_eventRows(events, at ?? DateTime.now()));
+  }
+
+  /// Полный список смен пользователя (ответ `GET /api/schedule/my`): кэш
+  /// становится ровно таким — пустой ответ стирает смены прежнего пользователя.
+  Future<void> replaceEvents(List<ScheduleEvent> events, {DateTime? at}) {
+    return _db.replaceShiftEvents(_eventRows(events, at ?? DateTime.now()));
+  }
+
+  static List<ShiftEventsCompanion> _eventRows(List<ScheduleEvent> events, DateTime stamp) {
+    return events
+        .map(
+          (ScheduleEvent event) => ShiftEventsCompanion(
+            id: Value<String>(event.id),
+            scheduleId: Value<String?>(event.scheduleId),
+            scheduleName: Value<String>(event.scheduleName),
+            objectId: Value<String?>(event.objectId),
+            routeId: Value<String?>(event.routeId),
+            date: Value<String?>(event.date),
+            plannedStart: Value<String?>(event.plannedStart),
+            status: Value<String>(event.status),
+            ticketId: Value<String?>(event.ticketId),
+            checkOutReason: Value<String?>(event.checkOutReason),
+            updatedAt: Value<DateTime>(stamp),
+          ),
+        )
+        .toList(growable: false);
   }
 
   /// Смена изменилась на сервере (check-in/check-out): пишем это в кэш сразу,
@@ -353,24 +360,30 @@ class CacheStore {
   // ------------------------------------------------------------- заявки
 
   Future<void> saveTickets(List<TicketSummary> tickets, {DateTime? at}) {
-    final DateTime stamp = at ?? DateTime.now();
-    return _db.upsertTickets(
-      tickets
-          .map(
-            (TicketSummary ticket) => CachedTicketsCompanion(
-              id: Value<String>(ticket.id),
-              type: Value<String>(ticket.type),
-              priority: Value<String>(ticket.priority),
-              status: Value<String>(ticket.status),
-              description: Value<String?>(ticket.description),
-              roomId: Value<String?>(ticket.roomId),
-              completionDeadline: Value<String?>(ticket.completionDeadline),
-              operationsCompleted: Value<int?>(ticket.operationsCompleted),
-              updatedAt: Value<DateTime>(stamp),
-            ),
-          )
-          .toList(growable: false),
-    );
+    return _db.upsertTickets(_ticketRows(tickets, at ?? DateTime.now()));
+  }
+
+  /// Полный список заявок пользователя: кэш становится ровно таким.
+  Future<void> replaceTickets(List<TicketSummary> tickets, {DateTime? at}) {
+    return _db.replaceTickets(_ticketRows(tickets, at ?? DateTime.now()));
+  }
+
+  static List<CachedTicketsCompanion> _ticketRows(List<TicketSummary> tickets, DateTime stamp) {
+    return tickets
+        .map(
+          (TicketSummary ticket) => CachedTicketsCompanion(
+            id: Value<String>(ticket.id),
+            type: Value<String>(ticket.type),
+            priority: Value<String>(ticket.priority),
+            status: Value<String>(ticket.status),
+            description: Value<String?>(ticket.description),
+            roomId: Value<String?>(ticket.roomId),
+            completionDeadline: Value<String?>(ticket.completionDeadline),
+            operationsCompleted: Value<int?>(ticket.operationsCompleted),
+            updatedAt: Value<DateTime>(stamp),
+          ),
+        )
+        .toList(growable: false);
   }
 
   Future<List<TicketSummary>> tickets() async {

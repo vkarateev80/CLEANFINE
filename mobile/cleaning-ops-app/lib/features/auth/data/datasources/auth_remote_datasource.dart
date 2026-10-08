@@ -66,10 +66,14 @@ class AuthRemoteDataSource {
   }
 
   /// `POST /api/auth/refresh {refreshToken}` → 201 новая пара.
-  Future<AuthTokens> refresh({required String refreshToken}) async {
+  ///
+  /// [detached] — обновление вне текущей сессии (отзыв пары при выходе):
+  /// запрос не берёт токен из хранилища и не запускает refresh интерцептора.
+  Future<AuthTokens> refresh({required String refreshToken, bool detached = false}) async {
     final response = await _api.post(
       _refreshPath,
       data: <String, dynamic>{'refreshToken': refreshToken},
+      options: detached ? ApiClient.explicitAuth(null) : null,
     );
     return _tokensOf(response.data);
   }
@@ -78,12 +82,17 @@ class AuthRemoteDataSource {
   ///
   /// Без `refreshToken` сервер отзывает все сессии пользователя; поле
   /// необязательно (`RefreshTokenDto`), но требует access-токена.
-  Future<void> logout({String? refreshToken}) async {
+  ///
+  /// [accessToken] — выход от имени уже снятой локально сессии: заголовок
+  /// ставится явно, 401 не превращается в refresh (иначе интерцептор выпустил
+  /// бы новую пару, которую никто не отзовёт).
+  Future<void> logout({String? refreshToken, String? accessToken}) async {
     await _api.post(
       _logoutPath,
       data: <String, dynamic>{
         if (refreshToken != null && refreshToken.isNotEmpty) 'refreshToken': refreshToken,
       },
+      options: accessToken != null ? ApiClient.explicitAuth(accessToken) : null,
     );
   }
 

@@ -38,7 +38,10 @@ final chatOutboxProvider = Provider<ChatOutbox>((Ref ref) {
 
 /// Открытый сейчас чат: по нему список чатов не накручивает непрочитанные
 /// (`chat.md` §3.1).
-final activeChatIdProvider = StateProvider<String?>((Ref ref) => null);
+final activeChatIdProvider = StateProvider<String?>((Ref ref) {
+  ref.watch(sessionScopeProvider);
+  return null;
+});
 
 /// Черновики сообщений по чатам (`chat.md` §3.2).
 ///
@@ -47,7 +50,11 @@ final activeChatIdProvider = StateProvider<String?>((Ref ref) => null);
 /// восстанавливается — это зафиксировано в отчёте по вехе.
 class ChatDraftsController extends Notifier<Map<String, String>> {
   @override
-  Map<String, String> build() => const <String, String>{};
+  Map<String, String> build() {
+    // Данные пользователя: выход и вход другого пересобирают провайдер с нуля.
+    ref.watch(sessionScopeProvider);
+    return const <String, String>{};
+  }
 
   void save(String chatId, String text) {
     if (text.isEmpty) {
@@ -71,7 +78,10 @@ final chatDraftsProvider = NotifierProvider<ChatDraftsController, Map<String, St
 /// запускает запрос сам, иначе список чатов грузился бы на каждом экране.
 class ChatUnreadBadgeController extends Notifier<int> {
   @override
-  int build() => 0;
+  int build() {
+    ref.watch(sessionScopeProvider);
+    return 0;
+  }
 
   void set(int value) {
     if (state == value) return;
@@ -90,6 +100,7 @@ final chatUnreadBadgeProvider = NotifierProvider<ChatUnreadBadgeController, int>
 class ChatsListController extends AsyncNotifier<List<ChatSummary>> {
   @override
   Future<List<ChatSummary>> build() async {
+    ref.watch(sessionScopeProvider);
     // Любое входящее сообщение перестраивает список: последнее сообщение и
     // счётчик непрочитанных обновляются локально (`chat.md` §3.1).
     final ChatSocket socket = ref.watch(chatSocketProvider);
@@ -262,6 +273,7 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
 
   @override
   Future<ChatThreadState> build(String arg) async {
+    ref.watch(sessionScopeProvider);
     final String chatId = arg;
     // 403 «Вы не участник этого чата» приходит именно здесь — экран покажет
     // «Чат недоступен» без composer (`chat.md` §5, §10.3).
@@ -668,5 +680,6 @@ class ChatAttachmentResolver {
 }
 
 final chatAttachmentResolverProvider = Provider<ChatAttachmentResolver>((Ref ref) {
+  ref.watch(sessionScopeProvider);
   return ChatAttachmentResolver(ref.watch(filesApiProvider));
 });

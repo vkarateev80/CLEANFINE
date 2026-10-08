@@ -61,7 +61,7 @@ class FakeAuthRemote extends AuthRemoteDataSource {
   }
 
   @override
-  Future<void> logout({String? refreshToken}) async {
+  Future<void> logout({String? refreshToken, String? accessToken}) async {
     logoutCalls += 1;
     logoutRefreshTokens.add(refreshToken);
     if (logoutFailure != null) throw logoutFailure!;

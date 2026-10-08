@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_cache.dart';
 import '../database/database_provider.dart';
+import '../features/auth/presentation/providers/session_provider.dart';
 import 'sync_service.dart';
 
 /// Наблюдаемый прогресс синхронизации очереди (DS-002 `offline.md` §2, §7).
@@ -11,7 +12,10 @@ import 'sync_service.dart';
 /// виден и на маршруте, и в чек-листе, а не только на экране очереди.
 class SyncStatusController extends Notifier<SyncProgress> {
   @override
-  SyncProgress build() => const SyncProgress.idle();
+  SyncProgress build() {
+    ref.watch(sessionScopeProvider);
+    return const SyncProgress.idle();
+  }
 
   /// Один проход очереди с публикацией прогресса после каждой записи.
   Future<SyncProgress> runOnce() async {

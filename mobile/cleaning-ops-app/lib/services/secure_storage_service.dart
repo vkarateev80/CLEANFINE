@@ -13,6 +13,10 @@ class StorageKeys {
   static const String biometricKey = 'biometric_key';
   static const String userId = 'user_id';
   static const String role = 'user_role';
+
+  /// Чьи данные лежат в локальной базе и файловых кэшах. Переживает выход:
+  /// по нему вход другого пользователя понимает, что чужие данные надо стереть.
+  static const String dataOwner = 'data_owner_id';
 }
 
 /// Токены, биометрический ключ и данные сессии — в Keychain/EncryptedSharedPreferences.
@@ -66,12 +70,27 @@ class SecureStorageService implements TokenStore {
 
   Future<void> saveRole(String value) => _write(StorageKeys.role, value);
 
+  Future<String?> readDataOwner() => _read(StorageKeys.dataOwner);
+
+  Future<void> saveDataOwner(String value) => _write(StorageKeys.dataOwner, value);
+
   /// Полный выход: чистим только сессию, биометрический ключ устройства остаётся
   /// (иначе после выхода пришлось бы заново включать биометрию).
+  ///
+  /// После удаления токены перечитываются: если Keychain всё ещё отдаёт значение
+  /// (запись другой версии плагина/уровня доступа), удаление повторяется — иначе
+  /// следующий refresh поднял бы сессию прежнего пользователя.
   Future<void> clearSession() async {
     await clearTokens();
     await _delete(StorageKeys.userId);
     await _delete(StorageKeys.role);
+    for (int attempt = 0; attempt < 2; attempt++) {
+      final String? access = await _read(StorageKeys.accessToken);
+      final String? refresh = await _read(StorageKeys.refreshToken);
+      if (access == null && refresh == null) return;
+      await clearTokens();
+    }
+    throw const StorageException('Не удалось удалить токены сессии');
   }
 
   Future<String?> _read(String key) async {

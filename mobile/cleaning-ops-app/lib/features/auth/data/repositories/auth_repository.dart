@@ -105,26 +105,52 @@ class AuthRepository {
     });
   }
 
-  /// Выход: серверный отзыв сессии (`POST /api/auth/logout`) + локальная очистка.
+  /// Выход: локальная очистка + серверный отзыв сессии (`POST /api/auth/logout`).
   ///
   /// Ошибка сети не мешает выходу (`profile.md` п. 10.5): локальная сессия
   /// чистится в любом случае, поэтому результатом всегда успех.
+  ///
+  /// Порядок важен. Сначала пара токенов запоминается и сессия гасится локально
+  /// (`signOut` сдвигает эпоху `SessionBridge`): фоновые запросы и refresh
+  /// прежнего пользователя после этого ничего не запишут. Затем пара отзывается
+  /// явно, мимо хранилища: access-токен мог истечь — тогда она сперва
+  /// обновляется и отзывается уже новая, чтобы на сервере не осталось живой
+  /// сессии, которую никто не держит.
   Future<AuthResult<bool>> logout() {
     return _run(() async {
-      String? refreshToken;
-      try {
-        refreshToken = await _storage.readRefreshToken();
-      } on AppException {
-        refreshToken = null;
+      final String? accessToken = await _readOrNull(_storage.readAccessToken);
+      final String? refreshToken = await _readOrNull(_storage.readRefreshToken);
+      await _session.signOut(clearUserData: true);
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _revoke(accessToken: accessToken, refreshToken: refreshToken);
       }
-      try {
-        await _remote.logout(refreshToken: refreshToken);
-      } on AppException {
-        // Нет сети или токен уже отозван — выходим локально.
-      }
-      await _session.signOut();
       return true;
     });
+  }
+
+  Future<void> _revoke({String? accessToken, required String refreshToken}) async {
+    try {
+      await _remote.logout(refreshToken: refreshToken, accessToken: accessToken ?? '');
+      return;
+    } on UnauthorizedException {
+      // Access истёк — ниже обновим пару и отзовём уже её.
+    } on AppException {
+      return; // Нет сети или токен уже отозван — выходим локально.
+    }
+    try {
+      final AuthTokens fresh = await _remote.refresh(refreshToken: refreshToken, detached: true);
+      await _remote.logout(refreshToken: fresh.refreshToken, accessToken: fresh.accessToken);
+    } on AppException {
+      // Refresh-токен уже мёртв — отзывать нечего.
+    }
+  }
+
+  static Future<String?> _readOrNull(Future<String?> Function() read) async {
+    try {
+      return await read();
+    } on AppException {
+      return null;
+    }
   }
 
   /// Установка/смена PIN: `POST /api/auth/change-pin {currentPassword, newPin}`.
@@ -158,6 +184,8 @@ class AuthRepository {
         currentPassword: currentPassword,
         newPassword: newPassword,
       );
+      // Данные не стираются: войдёт тот же пользователь с новым паролем
+      // (очередь не теряется), а вход другого их сотрёт по владельцу данных.
       await _session.signOut();
       return true;
     });

@@ -42,4 +42,26 @@ void main() {
     await bridge.logout();
     expect(loggedOut, 1);
   });
+
+  test('новая сессия не присоединяется к refresh прежней и сдвигает эпоху', () async {
+    final bridge = SessionBridge();
+    final stale = Completer<bool>();
+    var calls = 0;
+    bridge.onRefresh = () {
+      calls += 1;
+      return calls == 1 ? stale.future : Future<bool>.value(true);
+    };
+
+    final int before = bridge.epoch;
+    final Future<bool> old = bridge.refresh();
+    bridge.startNewSession();
+    expect(bridge.epoch, before + 1);
+
+    // 401 новой сессии идёт в сеть сам, а не ждёт refresh прежней.
+    expect(await bridge.refresh(), isTrue);
+    expect(calls, 2);
+
+    stale.complete(false);
+    expect(await old, isFalse);
+  });
 }

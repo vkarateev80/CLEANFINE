@@ -18,6 +18,7 @@ import '../../../../shared/data/pending_actions.dart';
 import '../../../../shared/data/result.dart';
 import '../../../../shared/services/location_service.dart';
 import '../../../../shared/services/photo_service.dart';
+import '../../../auth/presentation/providers/session_provider.dart';
 import '../../../route_map/presentation/providers/route_providers.dart';
 import '../checklist_texts.dart';
 
@@ -250,6 +251,7 @@ class ChecklistArgs {
 /// Любая ошибка здесь не критична: завершение уходит без `totalOperations`,
 /// сервер его примет.
 final routeOperationsTotalProvider = FutureProvider.family<int?, String>((Ref ref, String eventId) async {
+  ref.watch(sessionScopeProvider);
   final Result<ScheduleEvent> eventResult =
       await ref.read(scheduleRepositoryProvider).eventById(eventId);
   final ScheduleEvent? event = eventResult.dataOrNull;
@@ -271,6 +273,8 @@ final routeOperationsTotalProvider = FutureProvider.family<int?, String>((Ref re
 class ChecklistController extends FamilyAsyncNotifier<ChecklistState, ChecklistArgs> {
   @override
   Future<ChecklistState> build(ChecklistArgs arg) async {
+    // Данные пользователя: выход и вход другого пересобирают провайдер с нуля.
+    ref.watch(sessionScopeProvider);
     final CacheStore cache = ref.watch(cacheStoreProvider);
     final ScheduleEvent? event = await cache.event(arg.eventId);
     final RoomDetail? room = await cache.room(arg.roomId);

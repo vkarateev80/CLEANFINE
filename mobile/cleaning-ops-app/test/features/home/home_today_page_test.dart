@@ -7,6 +7,7 @@ import 'package:cleaning_ops_app/shared/data/data_providers.dart';
 import 'package:cleaning_ops_app/shared/data/models/operator_models.dart';
 import 'package:cleaning_ops_app/shared/data/models/schedule_event.dart';
 import 'package:cleaning_ops_app/shared/services/location_service.dart';
+import 'package:cleaning_ops_app/features/auth/presentation/providers/session_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import '../../helpers/screen_harness.dart';
 import '../../helpers/offline_fakes.dart';
 import '../../helpers/operator_fakes.dart';
+import '../../helpers/auth_fakes.dart';
 
 /// М6.3: сценарии widget-тестов из `design/screens/mobile/home_today.md` §10.
 /// Экран читает кэш первым (М6.7), поэтому база — drift в памяти, отдельная на тест.
@@ -43,6 +45,7 @@ void main() {
     return ProviderScope(
       overrides: <Override>[
         appDatabaseProvider.overrideWithValue(database),
+        sessionProvider.overrideWith(SignedInSession.new),
         connectivityServiceProvider.overrideWithValue(FakeConnectivityService(online: online)),
         scheduleRepositoryProvider.overrideWithValue(schedule),
         coreRepositoryProvider.overrideWithValue(core ?? FakeCoreRepository()),

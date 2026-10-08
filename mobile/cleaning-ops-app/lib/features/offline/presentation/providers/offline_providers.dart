@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../database/database_provider.dart';
 import '../../../../services/sync_service.dart';
 import '../../../../shared/data/pending_actions.dart';
+import '../../../auth/presentation/providers/session_provider.dart';
 
 /// Состояние экрана очереди `/offline`.
 class OfflineState {
@@ -44,7 +45,11 @@ class OfflineState {
 /// Очередь действий и её синхронизация (М6.7).
 class OfflineController extends AsyncNotifier<OfflineState> {
   @override
-  Future<OfflineState> build() => _load();
+  Future<OfflineState> build() {
+    // Данные пользователя: выход и вход другого пересобирают провайдер с нуля.
+    ref.watch(sessionScopeProvider);
+    return _load();
+  }
 
   Future<OfflineState> _load({SyncProgress? progress, bool? syncing}) async {
     final PendingActionQueue queue = ref.read(pendingActionQueueProvider);

@@ -15,6 +15,7 @@ import '../../../../shared/data/pending_actions.dart';
 import '../../../../shared/data/result.dart';
 import '../../../../shared/services/location_service.dart';
 import '../../../../shared/services/photo_service.dart';
+import '../../../auth/presentation/providers/session_provider.dart';
 import '../../domain/emergency_category.dart';
 import '../sos_texts.dart';
 
@@ -145,6 +146,8 @@ class SosController extends FamilyAsyncNotifier<SosState, String?> {
 
   @override
   Future<SosState> build(String? arg) async {
+    // Данные пользователя: выход и вход другого пересобирают провайдер с нуля.
+    ref.watch(sessionScopeProvider);
     final String? roomId = arg;
     final ScheduleEvent? event = await _activeEvent();
 

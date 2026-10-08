@@ -17,5 +17,8 @@ abstract class AuthSessionWriter {
   Future<void> saveTokens({required String accessToken, required String refreshToken});
 
   /// Выход: локальная сессия чистится всегда, даже если серверный logout упал.
-  Future<void> signOut();
+  ///
+  /// [clearUserData] — явный выход: стираются и данные пользователя на
+  /// устройстве (кэш, очередь, GPS-буфер, файлы — `profile.md` §3.5).
+  Future<void> signOut({bool clearUserData = false});
 }

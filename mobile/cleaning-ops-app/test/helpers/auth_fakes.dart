@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:cleaning_ops_app/features/auth/data/datasources/pin_credentials_store.dart';
 import 'package:cleaning_ops_app/features/auth/data/models/pin_credentials.dart';
 import 'package:cleaning_ops_app/features/auth/data/repositories/auth_session_writer.dart';
+import 'package:cleaning_ops_app/features/auth/presentation/providers/session_provider.dart';
 import 'package:cleaning_ops_app/services/api_client.dart';
 import 'package:cleaning_ops_app/services/secure_storage_service.dart';
 import 'package:dio/dio.dart';
@@ -55,6 +56,12 @@ class InMemorySecureStorage extends SecureStorageService {
   Future<void> deleteBiometricKey() async => values.remove(StorageKeys.biometricKey);
 
   @override
+  Future<String?> readDataOwner() async => values[StorageKeys.dataOwner];
+
+  @override
+  Future<void> saveDataOwner(String value) async => values[StorageKeys.dataOwner] = value;
+
+  @override
   Future<void> clearSession() async {
     await clearTokens();
     values.remove(StorageKeys.userId);
@@ -89,6 +96,9 @@ class InMemoryPinStore implements PinCredentialsStore {
 class RecordingSessionWriter implements AuthSessionWriter {
   final List<Map<String, Object?>> signInCalls = [];
   int signOutCalls = 0;
+
+  /// Сколько раз выход просил стереть данные пользователя на устройстве.
+  int clearUserDataCalls = 0;
   Map<String, String>? lastTokens;
 
   @override
@@ -114,7 +124,10 @@ class RecordingSessionWriter implements AuthSessionWriter {
   }
 
   @override
-  Future<void> signOut() async => signOutCalls += 1;
+  Future<void> signOut({bool clearUserData = false}) async {
+    signOutCalls += 1;
+    if (clearUserData) clearUserDataCalls += 1;
+  }
 }
 
 /// Ответ сервера в тесте: тело и код.
@@ -161,4 +174,12 @@ ApiClient fakeApiClient(FakeHttpAdapter adapter, {String baseUrl = 'http://auth.
     sessionBridge: SessionBridge(),
     dio: Dio(BaseOptions(baseUrl: baseUrl))..httpClientAdapter = adapter,
   );
+}
+
+/// Вошедший оператор: экраны с данными пользователя (`sessionScopeProvider`)
+/// без сессии ничего не читают — как и в приложении, где их закрывает роутер.
+class SignedInSession extends SessionController {
+  @override
+  SessionState build() =>
+      const SessionState(status: SessionStatus.authenticated, userId: 'me', role: 'OPERATOR');
 }
