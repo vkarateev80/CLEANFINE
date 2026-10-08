@@ -79,5 +79,11 @@ rm -rf "$TMP"
 # --- установка ------------------------------------------------------------
 if [ "${DRY_RUN:-0}" = "1" ]; then echo "==> DRY_RUN: установка пропущена"; exit 0; fi
 echo "==> Устанавливаю…"
-xcrun devicectl device install app --device "$UDID" "$IPA"
+# Первая попытка после подключения нередко падает с IXRemoteErrorDomain 6
+# («Connection invalid») — служба установки на телефоне ещё не поднялась;
+# со второй проходит. Телефон должен быть разблокирован.
+if ! xcrun devicectl device install app --device "$UDID" "$IPA"; then
+  echo "==> Не вышло, повторяю через 5 с (разблокируйте iPhone)…"; sleep 5
+  xcrun devicectl device install app --device "$UDID" "$IPA"
+fi
 echo "==> Готово. Если iOS пишет «Ненадёжный разработчик»: Настройки → Основные → VPN и управление устройством → доверять разработчику."
