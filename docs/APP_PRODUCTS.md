@@ -84,9 +84,28 @@ iOS: `Info.plist` берёт `CFBundleDisplayName` из build setting `APP_DISPL
 `/client/tickets/new`, `/client/tickets/:id`. Тесты — `test/features/client/`.
 Нет пока: раздел «Отчёты» портала.
 
+## iOS по проводу (решение владельца 08.10.2026)
+
+«Команда» и «Оператор» на iPhone ставятся с Mac по кабелю, без App Store и
+TestFlight: `scripts/ios-install-cable.sh <файл.ipa> [UDID]` (`devicectl`;
+проверяет bundle, срок профиля и наличие iPhone в профиле, `DRY_RUN=1` —
+только проверка). Что для этого нужно:
+
+- В Xcode должна быть учётная запись Apple ID (Xcode → Settings → Accounts):
+  профиль под новый bundle `com.cleaningops.team` Xcode создаёт сам при
+  `flutter build ipa` (`ExportOptions.plist` — `method: debugging`,
+  `signingStyle: automatic`, `teamID 4BT6ZQ4JGA`). Без входа — ошибка
+  «No Accounts» / «No profiles for 'com.cleaningops.team'».
+- Команда `4BT6ZQ4JGA` сейчас **бесплатная личная**: профиль 7 дней, после
+  чего приложение не запускается — пересобрать и поставить заново; iPhone
+  должен быть в профиле (первый запуск на новом телефоне — из Xcode или
+  `flutter run -d <udid>`, Xcode регистрирует UDID). Платная Apple Developer
+  Program (99 $/год) даёт профиль на год и Ad Hoc до 100 устройств.
+- На телефоне при первом запуске: Настройки → Основные → VPN и управление
+  устройством → доверять разработчику.
+
 ## Дальше
 
 1. «Команда»: раздел «Отчёты» портала; пуши — `pushRoute` не должен вести на
-   операторские экраны; релизная IPA «Команды» (нужен профиль под bundle
-   `com.cleaningops.team` в Apple Developer).
+   операторские экраны; IPA «Команды» — после входа в Xcode (см. выше).
 2. Десктоп-обёртка менеджера — `desktop/manager` (Electron), см. его README.
