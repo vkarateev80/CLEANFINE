@@ -13,6 +13,8 @@ import '../features/chat/presentation/pages/chat_thread_page.dart';
 import '../features/chat/presentation/pages/chats_page.dart';
 import '../features/checklist/presentation/pages/checklist_page.dart';
 import '../features/client/presentation/pages/client_home_page.dart';
+import '../features/client/presentation/pages/client_ticket_detail_page.dart';
+import '../features/client/presentation/pages/client_tickets_page.dart';
 import '../features/home/presentation/pages/home_today_page.dart';
 import '../features/offline/presentation/pages/offline_page.dart';
 import '../features/profile/presentation/pages/change_password_page.dart';
@@ -41,6 +43,14 @@ class AppRoutes {
 
   /// Портал заказчика (CLIENT) в приложении «Команда».
   static const String client = '/client';
+  static const String clientTickets = '$client/tickets';
+  static const String clientTicketNew = '$client/tickets/new';
+
+  /// Список заявок с фильтром KPI-плитки: `/client/tickets?status=open|done`.
+  static String clientTicketsFiltered(String filter) => '$clientTickets?status=$filter';
+
+  /// Карточка заявки заказчика: `/client/tickets/<id>`.
+  static String clientTicketFor(String ticketId) => '$clientTickets/$ticketId';
 
   /// Подмаршруты профиля (DS-002 `profile.md` §1.1).
   static const String profilePassword = '$profile/password';
@@ -169,6 +179,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             GoRoute(
               path: AppRoutes.client,
               builder: (context, state) => const ClientHomePage(),
+              routes: <RouteBase>[
+                GoRoute(
+                  path: 'tickets',
+                  builder: (context, state) =>
+                      ClientTicketsPage(initialFilter: state.uri.queryParameters['status']),
+                  routes: <RouteBase>[
+                    GoRoute(
+                      path: 'new',
+                      builder: (context, state) => const ClientTicketCreatePage(),
+                    ),
+                    GoRoute(
+                      path: ':ticketId',
+                      builder: (context, state) =>
+                          ClientTicketDetailPage(ticketId: state.pathParameters['ticketId']!),
+                    ),
+                  ],
+                ),
+              ],
             ),
           GoRoute(
             path: AppRoutes.profile,

@@ -18,7 +18,7 @@
 | Продукт | Точка входа | Роли | Вкладки | Что внутри |
 |---|---|---|---|---|
 | **Оператор** `operator` | `lib/main.dart` = `lib/main_operator.dart` | OPERATOR, SUPERVISOR, ADMIN | Сегодня · Чаты · Профиль (+ SOS) | смены, маршрут, чек-листы, SOS, оффлайн, GPS-трекинг |
-| **Команда** `team` | `lib/main_team.dart` | SUPERVISOR, ADMIN, CLIENT | Доска (staff) / Объект (client) · Чаты · Профиль | доска действий; портал заказчика (пока заглушка, разделы переносятся из `web-client`) |
+| **Команда** `team` | `lib/main_team.dart` | SUPERVISOR, ADMIN, CLIENT | Доска (staff) / Объект (client) · Чаты · Профиль | доска действий; портал заказчика (`features/client`: статус объекта, заявки с фильтрами, создание, карточка с комментариями — зеркало `web-client`; отчёты — позже) |
 
 Продукт выбирается точкой входа (переопределение `appProductProvider`) или
 `--dart-define=APP_PRODUCT=operator|team` (десктоп, лончеры, тесты).
@@ -62,9 +62,23 @@ Android: `applicationId` оператора остался историческ�
 (`CLEANFINE.app`) и Windows (workflow `windows-build.yml`) остаются как
 сборки продукта `team` для бригадира/менеджера.
 
+## Портал заказчика в «Команде» (`lib/features/client`)
+
+Перенесён из `frontend/web-client` (DS-004) с теми же правилами: клиент читает
+объект и смены, из заявок — создаёт обычную и уточняет комментарием; статусы и
+назначения ему не показываются вовсе. Данные — `ClientRepository`
+(`GET /objects?ownerClientId`, `/objects/:id/detail`, `/tickets`, `/tickets/:id`,
+`POST /tickets`, `POST /tickets/:id/comments`, `GET /schedule/events?objectId`),
+провайдеры — зеркало `queries.ts` (KPI «открытые» = N запросов `take=1`,
+«выполнено за 30 дней» — по странице в 100 заявок с пометкой об усечении).
+Экраны: `/client` (статус объекта), `/client/tickets[?status=open|done]`,
+`/client/tickets/new`, `/client/tickets/:id`. Тесты — `test/features/client/`.
+Нет пока: раздел «Отчёты» портала.
+
 ## Дальше
 
-1. «Команда»: перенос портала заказчика (статус объекта, заявки, отчёты) из
-   `frontend/web-client` на Flutter; иконка-вариант; iOS-конфигурации `team`.
-2. Пуши: `pushRoute` в «Команде» не должен вести на операторские экраны.
-3. Десктоп-обёртка.
+1. iOS: конфигурации/схема `team` с bundle `com.cleaningops.team`; иконка-вариант
+   для «Команды» (сейчас обе с одной иконкой).
+2. «Команда»: раздел «Отчёты» портала; пуши — `pushRoute` не должен вести на
+   операторские экраны.
+3. Десктоп-обёртка менеджера над веб-админкой (Tauri/Electron, macOS + Windows).
