@@ -196,6 +196,16 @@ export class NotificationsService {
     return Array.from(recipients);
   }
 
+  /** Имя пользователя из справочника auth-service; null — недоступен/не найден. */
+  async resolveUserName(userId: string): Promise<string | null> {
+    try {
+      return await this.staff.userName(userId);
+    } catch (error) {
+      this.logger.warn(`Справочник сотрудников недоступен: ${errorMessage(error)}`);
+      return null;
+    }
+  }
+
   /** Активные бригадиры и админы (служебная аудитория). */
   async resolveStaffRecipients(): Promise<string[]> {
     try {

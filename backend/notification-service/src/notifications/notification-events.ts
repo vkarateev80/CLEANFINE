@@ -58,6 +58,13 @@ export interface ResolvedNotification {
   data: Record<string, unknown>;
 }
 
+/** Текст TICKET_STATUS: описание и, если известен, инициатор через « · ». */
+export function ticketStatusBody(description: string, actorName: string | undefined): string {
+  return [description, actorName]
+    .filter((part): part is string => typeof part === 'string' && part.length > 0)
+    .join(' · ');
+}
+
 /** Подписи статусов заявки для заголовка TICKET_STATUS. */
 export const TICKET_STATUS_TITLES: Record<string, string> = {
   new: 'Заявка создана',
@@ -288,13 +295,13 @@ export function resolveEvent(routingKey: string, payload: unknown): ResolvedNoti
       const actorName = asText(event.actorName);
       const typeLabel = TICKET_TYPE_LABELS[asText(event.type) ?? ''] ?? '';
       const title = TICKET_STATUS_TITLES[status] ?? `Заявка: ${status}`;
-      // Текст: «Влажная уборка холла (плановая) · Оператор Иванов».
-      const body = [
+      // Текст: «Влажная уборка холла (плановая) · Оператор Иванов». JWT не несёт
+      // имени, поэтому издатель кладёт логин; консьюмер заменит его именем из
+      // справочника (ticketStatusBody), если найдёт инициатора.
+      const body = ticketStatusBody(
         typeLabel ? `${description} (${typeLabel})` : description,
-        actorName ?? undefined,
-      ]
-        .filter((part): part is string => Boolean(part))
-        .join(' · ');
+        actorName,
+      );
       // Автор заявки (например, заказчик из портала) видит ход своей заявки;
       // исполнитель — нет: он сам её и двигает, а назначение приходит NEW_TICKET.
       const createdBy = asText(event.createdBy);
@@ -304,7 +311,11 @@ export function resolveEvent(routingKey: string, payload: unknown): ResolvedNoti
         userIds: createdBy === undefined ? [] : [createdBy],
         includeStaff: true,
         excludeUserIds: actorId === undefined ? [] : [actorId],
-        params: { title, body },
+        params: {
+          title,
+          body,
+          description: typeLabel ? `${description} (${typeLabel})` : description,
+        },
         data: {
           ticketId,
           status,

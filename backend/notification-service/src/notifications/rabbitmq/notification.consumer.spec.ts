@@ -63,7 +63,7 @@ function build(): {
   push: MockPushSender;
   rabbit: { subscribe: jest.Mock };
   consumer: NotificationConsumer;
-  staff: { staffIds: jest.Mock };
+  staff: { staffIds: jest.Mock; userName: jest.Mock };
 } {
   const prisma = createPrismaMock();
   prisma.notification.create.mockImplementation((args: { data: Record<string, unknown> }) =>
@@ -81,7 +81,10 @@ function build(): {
     publicKey: null,
     send: jest.fn().mockResolvedValue({ successCount: 0, failureCount: 0, invalidTokens: [] }),
   };
-  const staff = { staffIds: jest.fn().mockResolvedValue(STAFF_USERS) };
+  const staff = {
+    staffIds: jest.fn().mockResolvedValue(STAFF_USERS),
+    userName: jest.fn().mockResolvedValue(null),
+  };
   const service = new NotificationsService(
     prisma as unknown as PrismaService,
     push,
@@ -399,6 +402,8 @@ describe('NotificationConsumer', () => {
       const { prisma, consumer, staff } = build();
       devicesFindMany(prisma);
       staff.staffIds.mockResolvedValue(['u-admin', 'u-op']);
+      // Логин из JWT заменяется именем из справочника.
+      staff.userName.mockResolvedValue('Оператор Иванов');
 
       await consumer.handle(
         message('ticket.status_changed', {
@@ -420,7 +425,12 @@ describe('NotificationConsumer', () => {
         (call: [{ data: { userId: string; type: string; title: string } }]) => call[0].data,
       );
       expect(created.map((item) => item.userId).sort()).toEqual(['u-admin', 'u-client']);
-      expect(created[0]).toMatchObject({ type: 'TICKET_STATUS', title: '▶️ Заявка в работе' });
+      expect(created[0]).toMatchObject({
+        type: 'TICKET_STATUS',
+        title: '▶️ Заявка в работе',
+        body: 'Холл (плановая) · Оператор Иванов',
+      });
+      expect(staff.userName).toHaveBeenCalledWith('u-op');
     });
   });
 

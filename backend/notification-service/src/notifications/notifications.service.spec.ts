@@ -62,7 +62,7 @@ describe('NotificationsService', () => {
   let prisma: PrismaMock;
   let push: { name: string; send: jest.Mock };
   let webPush: { enabled: boolean; publicKey: string | null; send: jest.Mock };
-  let staff: { staffIds: jest.Mock };
+  let staff: { staffIds: jest.Mock; userName: jest.Mock };
   let service: NotificationsService;
 
   beforeEach(() => {
@@ -76,7 +76,7 @@ describe('NotificationsService', () => {
       publicKey: null,
       send: jest.fn().mockResolvedValue({ successCount: 1, failureCount: 0, invalidTokens: [] }),
     };
-    staff = { staffIds: jest.fn().mockResolvedValue([]) };
+    staff = { staffIds: jest.fn().mockResolvedValue([]), userName: jest.fn().mockResolvedValue(null) };
     service = new NotificationsService(
       prisma as unknown as PrismaService,
       push as unknown as PushSender,

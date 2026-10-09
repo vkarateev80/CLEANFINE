@@ -3,8 +3,10 @@ import { EVENT_QUEUES } from '@cleaning-ops/shared/constants/events';
 import {
   NOTIFICATION_ROUTING_KEYS,
   resolveEvent,
+  ticketStatusBody,
   type ResolvedNotification,
 } from '../notification-events';
+import type { TemplateParams } from '../notification-templates';
 import { NotificationsService } from '../notifications.service';
 import type { RabbitMessage } from './rabbitmq.service';
 import { RabbitmqService } from './rabbitmq.service';
@@ -56,12 +58,33 @@ export class NotificationConsumer implements OnModuleInit {
     const notified = await this.notifications.notifyUsers(
       recipients,
       resolved.template,
-      resolved.params,
+      await this.enrichParams(resolved),
       resolved.data,
     );
     this.logger.log(
       `Событие ${message.routingKey}: уведомлено ${notified} из ${recipients.length}`,
     );
+  }
+
+  /**
+   * Имя инициатора из справочника: ticket-service знает только логин из JWT,
+   * а в уведомлении админу нужен «Оператор Иванов», а не «operator».
+   */
+  async enrichParams(resolved: ResolvedNotification): Promise<TemplateParams> {
+    if (resolved.template !== 'TICKET_STATUS') {
+      return resolved.params;
+    }
+    const actorId = typeof resolved.data.actorId === 'string' ? resolved.data.actorId : '';
+    const description =
+      typeof resolved.params.description === 'string' ? resolved.params.description : '';
+    if (!actorId || !description) {
+      return resolved.params;
+    }
+    const actorName = await this.notifications.resolveUserName(actorId);
+    if (!actorName) {
+      return resolved.params;
+    }
+    return { ...resolved.params, body: ticketStatusBody(description, actorName) };
   }
 
   /** Получатели события: явные + служебная аудитория/broadcast, минус исключённые. */

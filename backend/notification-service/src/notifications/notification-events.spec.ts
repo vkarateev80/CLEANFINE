@@ -376,6 +376,7 @@ describe('resolveEvent: ticket.status_changed (09.10.2026)', () => {
     expect(resolved?.params).toEqual({
       title: '✅ Заявка выполнена',
       body: 'Влажная уборка холла (аварийная)',
+      description: 'Влажная уборка холла (аварийная)',
     });
     expect(resolved?.excludeUserIds).toEqual([]);
   });
