@@ -128,7 +128,6 @@ export function FloorPlan({
         };
       });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [minScale, maxScale, size.width, size.height],
   );
 

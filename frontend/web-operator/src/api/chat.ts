@@ -33,6 +33,16 @@ export function createDirectChat(participantId: string): Promise<ChatDetail> {
     .then((r) => r.data);
 }
 
+/** Чат с участниками (`GET /api/chat/chats/:id`); чужой chatId → 403. */
+export function getChat(chatId: string): Promise<ChatDetail> {
+  return apiClient.get(`/chat/chats/${chatId}`).then((r) => r.data);
+}
+
+/** REST-отметка прочтения (когда сокет не поднялся). */
+export function markReadRest(chatId: string, lastMessageId: string): Promise<unknown> {
+  return apiClient.post(`/chat/chats/${chatId}/read`, { lastMessageId }).then((r) => r.data);
+}
+
 /** Первая (самая свежая) страница истории: `limit` ≤ 100. */
 export function listMessages(chatId: string, limit = 50): Promise<MessagesPage> {
   return apiClient.get(`/chat/chats/${chatId}/messages`, { params: { limit } }).then((r) => r.data);

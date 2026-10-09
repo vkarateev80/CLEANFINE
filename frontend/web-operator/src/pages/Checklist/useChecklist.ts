@@ -213,7 +213,6 @@ export function useChecklist(eventId: string, roomId: string) {
         setBusyKey(null);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [canWork, ticketId, roomId, totalOperations, online, userName, enqueue, setOperation],
   );
 
@@ -272,7 +271,6 @@ export function useChecklist(eventId: string, roomId: string) {
     } finally {
       setBusyKey(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticketId, roomId, pointId, eventId, online, route.data?.points.length, room.data?.name]);
 
   return {

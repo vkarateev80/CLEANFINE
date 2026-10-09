@@ -222,7 +222,6 @@ function useTimer(startedAt: string | undefined): number {
     if (!startedAt) return undefined;
     const timer = window.setInterval(() => setSeconds(compute()), 1000);
     return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startedAt]);
   return seconds;
 }

@@ -1,5 +1,5 @@
 # ============================================================
-# Сборка SPA (web-admin | web-client) — один Dockerfile на оба фронтенда.
+# Сборка SPA (web-admin | web-client | web-operator) — один Dockerfile на три фронтенда.
 #
 # System Design v2, §2 и PRD FR-4. Контекст сборки — КОРЕНЬ репозитория:
 #   docker build -f deploy/vps/Dockerfile.web --build-arg APP=web-admin -t prj-cleanfine-web-admin .
@@ -19,7 +19,8 @@
 #   VITE_API_URL=/api  — относительный: фронт ходит в nginx того же origin,
 #                        а nginx раскидывает /api/* по сервисам (§4).
 #   VITE_BASE=/        — база публичных URL; для k3s-портала передаётся
-#                        /client/ (cleanfine.ru/client), см. vite.config.ts.
+#                        /client/ (cleanfine.ru/client), для рабочего места
+#                        оператора — /app/ (cleanfine.ru/app), см. vite.config.ts.
 #   VITE_WS_URL        — НЕ задаётся: в проде WebSocket-upgrade делает nginx
 #                        (location /socket.io/ → chat:3009), см. комментарий в
 #                        frontend/web-client/vite.config.ts.
@@ -81,12 +82,14 @@ ARG APP=web-admin
 # (ошибка воспроизведена при сборке).
 COPY deploy/vps/nginx-web-admin.conf /etc/nginx/kit/admin.conf
 COPY deploy/vps/nginx-web-client.conf /etc/nginx/kit/client.conf
+COPY deploy/vps/nginx-web-operator.conf /etc/nginx/kit/operator.conf
 COPY deploy/vps/nginx-proxy_params /etc/nginx/proxy_params
 # Рабочий дефолт: маршрутизация выбранного приложения.
 RUN case "$APP" in \
       web-admin) cp /etc/nginx/kit/admin.conf  /etc/nginx/conf.d/default.conf ;; \
       web-client) cp /etc/nginx/kit/client.conf /etc/nginx/conf.d/default.conf ;; \
-      *) echo "APP должен быть web-admin или web-client, получено: '$APP'" >&2; exit 1 ;; \
+      web-operator) cp /etc/nginx/kit/operator.conf /etc/nginx/conf.d/default.conf ;; \
+      *) echo "APP должен быть web-admin, web-client или web-operator, получено: '$APP'" >&2; exit 1 ;; \
     esac
 
 COPY --from=builder /build/frontend/${APP}/dist /usr/share/nginx/html

@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
+import { installQueueRunner } from './lib/syncQueue';
 import { installNetworkWatch } from './stores/netStore';
 import '../../../design/tokens/generated/tokens.css';
 import './main.css';
@@ -31,6 +32,16 @@ const queryClient = new QueryClient({
 });
 
 installNetworkWatch();
+installQueueRunner(queryClient);
+
+// Оболочка без сети: service worker только в прод-сборке (в dev мешал бы HMR).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
+      .catch(() => undefined);
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

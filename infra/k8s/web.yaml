@@ -118,3 +118,62 @@ spec:
             limits: { cpu: "250m", memory: "128Mi" }
           readinessProbe:
             httpGet: { path: /, port: 80 }
+---
+# Рабочее место оператора: cleanfine.ru/app → web-operator (решение владельца
+# 09.10.2026: веб вместо нативных сборок). Образ собирается тем же
+# Dockerfile.web с APP=web-operator и VITE_BASE=/app/.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-operator
+  namespace: cleaning-ops
+  labels:
+    app.kubernetes.io/name: web-operator
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: cleaning-ops
+spec:
+  selector:
+    app.kubernetes.io/name: web-operator
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: cleaning-ops
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-operator
+  namespace: cleaning-ops
+  labels:
+    app.kubernetes.io/name: web-operator
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: cleaning-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web-operator
+      app.kubernetes.io/component: frontend
+      app.kubernetes.io/part-of: cleaning-ops
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web-operator
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/part-of: cleaning-ops
+    spec:
+      containers:
+        - name: web-operator
+          image: cleaning-ops/web-operator:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits: { cpu: "250m", memory: "128Mi" }
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
