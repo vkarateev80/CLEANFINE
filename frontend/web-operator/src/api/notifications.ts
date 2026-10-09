@@ -34,7 +34,21 @@ export function updateNotificationSettings(
   return apiClient.patch('/notifications/settings', payload).then((r) => r.data);
 }
 
-/** Регистрация web-устройства (браузера) — используется, если включён Web Push. */
+/** Регистрация web-устройства (браузера): токен — JSON push-подписки. */
 export function registerDevice(payload: RegisterDevicePayload): Promise<unknown> {
   return apiClient.post('/notifications/device', payload).then((r) => r.data);
+}
+
+/** Отписка устройства (выход, отключение push). Чужой токен сервер не трогает. */
+export function unregisterDevice(token: string): Promise<void> {
+  return apiClient
+    .delete(`/notifications/device/${encodeURIComponent(token)}`)
+    .then(() => undefined);
+}
+
+/** Публичный ключ VAPID; null — Web Push на сервере не настроен. */
+export function getWebPushPublicKey(): Promise<string | null> {
+  return apiClient
+    .get<{ publicKey: string | null }>('/notifications/web-push/public-key')
+    .then((r) => r.data.publicKey ?? null);
 }

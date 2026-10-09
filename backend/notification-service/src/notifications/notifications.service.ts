@@ -14,7 +14,9 @@ import {
   type TemplateParams,
 } from './notification-templates';
 import { NOTIFICATION_TYPES, type NotificationType } from './notification-types';
+import { StaffDirectoryService } from '../integration/staff-directory.service';
 import { PUSH_SENDER, toPushData, type PushSender } from './push/push-sender';
+import { WebPushSender } from './push/web-push.sender';
 
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
@@ -53,7 +55,14 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(PUSH_SENDER) private readonly push: PushSender,
+    private readonly webPush: WebPushSender,
+    private readonly staff: StaffDirectoryService,
   ) {}
+
+  /** Публичный ключ VAPID для подписки браузера; null — Web Push не настроен. */
+  get webPushPublicKey(): string | null {
+    return this.webPush.enabled ? this.webPush.publicKey : null;
+  }
 
   /** Регистрация/обновление токена устройства: upsert по token. */
   async registerDevice(userId: string, dto: RegisterDeviceDto): Promise<Device> {
@@ -168,9 +177,11 @@ export class NotificationsService {
   }
 
   /**
-   * Получатели «широковещательного» уведомления: владельцы активных устройств.
-   * Используется, когда контракт события не содержит получателя
-   * (ticket.emergency / ticket.overdue / material.low).
+   * Получатели «широковещательного» уведомления: бригадиры и админы из
+   * справочника auth-service плюс владельцы активных устройств. Используется,
+   * когда контракт события не содержит получателя (ticket.emergency /
+   * ticket.overdue / material.low). До 09.10.2026 — только устройства, и
+   * веб-админка SOS не видела.
    */
   async resolveBroadcastRecipients(): Promise<string[]> {
     const devices = await this.prisma.device.findMany({
@@ -178,7 +189,21 @@ export class NotificationsService {
       distinct: ['userId'],
       select: { userId: true },
     });
-    return devices.map((device) => device.userId);
+    const recipients = new Set(devices.map((device) => device.userId));
+    for (const userId of await this.resolveStaffRecipients()) {
+      recipients.add(userId);
+    }
+    return Array.from(recipients);
+  }
+
+  /** Активные бригадиры и админы (служебная аудитория). */
+  async resolveStaffRecipients(): Promise<string[]> {
+    try {
+      return await this.staff.staffIds();
+    } catch (error) {
+      this.logger.warn(`Справочник сотрудников недоступен: ${errorMessage(error)}`);
+      return [];
+    }
   }
 
   /**
@@ -198,11 +223,11 @@ export class NotificationsService {
     }
 
     const rendered = renderTemplate(type, params);
-    const tokens = await this.getActiveTokens(userId);
-    if (tokens.length > 0) {
-      await this.pushToDevices(userId, type, rendered, tokens, data);
+    const devices = await this.getActiveDevices(userId);
+    if (devices.length > 0) {
+      await this.pushToDevices(userId, type, rendered, devices, data);
     } else {
-      this.logger.warn(`user=${userId} без активных устройств: push пропущен, только in-app`);
+      this.logger.log(`user=${userId} без активных устройств: push пропущен, только in-app`);
     }
 
     return this.prisma.notification.create({
@@ -254,33 +279,47 @@ export class NotificationsService {
     return { delivered };
   }
 
-  private async getActiveTokens(userId: string): Promise<string[]> {
-    const devices = await this.prisma.device.findMany({
+  private async getActiveDevices(userId: string): Promise<{ token: string; platform: string }[]> {
+    return this.prisma.device.findMany({
       where: { userId, isActive: true },
-      select: { token: true },
+      select: { token: true, platform: true },
     });
-    return devices.map((device) => device.token);
   }
 
+  /**
+   * Push по платформам: браузерные подписки (`web`) — Web Push (VAPID),
+   * остальные токены — провайдер PUSH_SENDER (ntfy/mock). Недействительные
+   * токены любого канала деактивируются.
+   */
   private async pushToDevices(
     userId: string,
     type: NotificationType,
     rendered: RenderedNotification,
-    tokens: string[],
+    devices: { token: string; platform: string }[],
     data: Record<string, unknown>,
   ): Promise<void> {
+    const webTokens = devices.filter((d) => d.platform === 'web').map((d) => d.token);
+    const nativeTokens = devices.filter((d) => d.platform !== 'web').map((d) => d.token);
+    const message = {
+      userId,
+      template: type,
+      title: rendered.title,
+      body: rendered.body,
+      priority: rendered.priority,
+      data: toPushData(data),
+    };
+    const invalid: string[] = [];
     try {
-      const result = await this.push.send({
-        userId,
-        template: type,
-        title: rendered.title,
-        body: rendered.body,
-        priority: rendered.priority,
-        tokens,
-        data: toPushData(data),
-      });
-      if (result.invalidTokens.length > 0) {
-        const count = await this.deactivateTokens(result.invalidTokens);
+      if (nativeTokens.length > 0) {
+        const result = await this.push.send({ ...message, tokens: nativeTokens });
+        invalid.push(...result.invalidTokens);
+      }
+      if (webTokens.length > 0) {
+        const result = await this.webPush.send({ ...message, tokens: webTokens });
+        invalid.push(...result.invalidTokens);
+      }
+      if (invalid.length > 0) {
+        const count = await this.deactivateTokens(invalid);
         this.logger.warn(`Невалидные токены user=${userId}: деактивировано устройств ${count}`);
       }
     } catch (error) {

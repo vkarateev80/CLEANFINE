@@ -33,5 +33,22 @@ export default () => ({
   push: {
     provider: process.env.PUSH_PROVIDER ?? 'mock',
     ntfyUrl: process.env.NTFY_BASE_URL ?? 'http://ntfy:8080',
+    // Web Push (VAPID) для PWA (09.10.2026); без ключей отправка в браузеры выключена.
+    webPush: {
+      publicKey: process.env.WEB_PUSH_VAPID_PUBLIC_KEY ?? '',
+      privateKey: process.env.WEB_PUSH_VAPID_PRIVATE_KEY ?? '',
+      subject: process.env.WEB_PUSH_SUBJECT ?? 'mailto:admin@cleanfine.ru',
+    },
+  },
+  /**
+   * Справочник пользователей auth-service (получатели SOS/эскалаций/смены
+   * статусов — бригадиры и админы): сервисный логин как у chat-service.
+   */
+  authService: {
+    baseUrl: (process.env.AUTH_SERVICE_URL ?? 'http://localhost:3001').replace(/\/+$/, ''),
+    email: process.env.SERVICE_AUTH_EMAIL || 'admin',
+    password: process.env.SERVICE_AUTH_PASSWORD || 'admin123',
+    timeoutMs: positiveInt(process.env.AUTH_SERVICE_TIMEOUT_MS, 5_000),
+    directoryTtlMs: positiveInt(process.env.NOTIFICATION_DIRECTORY_TTL_MS, 60_000),
   },
 });

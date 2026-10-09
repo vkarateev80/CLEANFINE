@@ -16,6 +16,8 @@ export const NOTIFICATION_TYPES = [
   'GEOFENCE_EXIT',
   'MATERIAL_LOW',
   'SCHEDULE_MISSED',
+  'CHAT_MESSAGE',
+  'TICKET_STATUS',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -27,6 +29,8 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   GEOFENCE_EXIT: 'Выход за периметр',
   MATERIAL_LOW: 'Мало материала',
   SCHEDULE_MISSED: 'Неявка на смену',
+  CHAT_MESSAGE: 'Сообщение в чате',
+  TICKET_STATUS: 'Статус заявки',
 };
 
 /** Иконка типа — компактная подсказка в списке (текстовые подписи рядом). */
@@ -37,7 +41,18 @@ export const NOTIFICATION_TYPE_ICONS: Record<NotificationType, string> = {
   GEOFENCE_EXIT: '📍',
   MATERIAL_LOW: '📦',
   SCHEDULE_MISSED: '🗓️',
+  CHAT_MESSAGE: '💬',
+  TICKET_STATUS: '🎫',
 };
+
+/** Строковое поле payload (ticketId, chatId) или null. */
+export function payloadString(
+  notification: { payload: Record<string, unknown> | null },
+  key: string,
+): string | null {
+  const value = notification.payload?.[key];
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
 
 export interface NotificationEntity {
   id: string;

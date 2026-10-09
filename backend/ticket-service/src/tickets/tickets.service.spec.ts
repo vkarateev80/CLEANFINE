@@ -595,8 +595,23 @@ describe('TicketsService (М3.4–М3.6)', () => {
           arrivalDeadline: new Date('2026-01-01T10:15:00.000Z'),
         }),
       });
-      // В OVERDUE не уходили — ticket.overdue не публикуется.
-      expect(publisher.publish).not.toHaveBeenCalled();
+      // В OVERDUE не уходили — ticket.overdue не публикуется, а смена статуса
+      // уходит отдельным событием для бригадира/админа/автора (09.10.2026).
+      expect(publisher.publish).toHaveBeenCalledTimes(1);
+      expect(publisher.publish).toHaveBeenCalledWith(
+        ROUTING_KEYS.TICKET_STATUS_CHANGED,
+        expect.objectContaining({
+          ticketId: 't-1',
+          status: 'assigned',
+          previousStatus: 'new',
+          description: 'Влажная уборка холла',
+          objectId: 'obj-1',
+          createdBy: 'u-admin',
+          actorId: 'u-admin',
+          actorName: 'Администратор',
+          changedAt: NOW.toISOString(),
+        }),
+      );
     });
 
     it('валидный переход assigned → in_progress фиксирует прибытие и дедлайн выполнения', async () => {
@@ -1007,6 +1022,147 @@ describe('TicketsService (М3.4–М3.6)', () => {
   });
 
   // --------------------------------------------- завершение помещения (М6.4)
+
+  describe('авто-переходы статуса по факту работы (09.10.2026)', () => {
+    const OPERATOR: AuthUser = {
+      id: 'u-op',
+      email: 'operator',
+      role: 'OPERATOR',
+      fullName: 'Оператор',
+    };
+    const completion = {
+      id: 'oc-1',
+      ticketId: 't-1',
+      operationId: 'op-1',
+      roomId: 'room-1',
+      completedAt: NOW,
+      photoUrl: null,
+      completedBy: 'u-op',
+      createdAt: NOW,
+    };
+
+    it('первая операция переводит assigned → in_progress и публикует ticket.status_changed', async () => {
+      const ticket = ticketFixture({ status: 'assigned', assigneeId: 'u-op', operationsTotal: 3 });
+      prisma.ticket.findUnique.mockResolvedValue(ticket);
+      prisma.ticketOperationCompletion.findUnique.mockResolvedValue(null);
+      prisma.ticketOperationCompletion.create.mockResolvedValue(completion);
+      prisma.ticketOperationCompletion.count.mockResolvedValue(1);
+      prisma.ticket.update.mockResolvedValue({ ...ticket, status: 'in_progress' });
+
+      await service.completeOperation('t-1', 'op-1', { roomId: 'room-1' }, OPERATOR);
+
+      expect(prisma.ticket.update).toHaveBeenCalledWith({
+        where: { id: 't-1' },
+        data: expect.objectContaining({ status: 'in_progress', arrivedAt: NOW }),
+      });
+      expect(publisher.publish).toHaveBeenCalledWith(
+        ROUTING_KEYS.TICKET_STATUS_CHANGED,
+        expect.objectContaining({
+          status: 'in_progress',
+          previousStatus: 'assigned',
+          assigneeId: 'u-op',
+          actorId: 'u-op',
+          actorName: 'Оператор',
+        }),
+      );
+    });
+
+    it('повторная операция у in_progress статус не трогает', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(
+        ticketFixture({ status: 'in_progress', assigneeId: 'u-op', operationsTotal: 3 }),
+      );
+      prisma.ticketOperationCompletion.findUnique.mockResolvedValue(null);
+      prisma.ticketOperationCompletion.create.mockResolvedValue(completion);
+      prisma.ticketOperationCompletion.count.mockResolvedValue(2);
+
+      await service.completeOperation('t-1', 'op-2', { roomId: 'room-1' }, OPERATOR);
+
+      expect(prisma.ticket.update).not.toHaveBeenCalled();
+      expect(publisher.publish).toHaveBeenCalledTimes(1);
+      expect(publisher.publish).toHaveBeenCalledWith(
+        ROUTING_KEYS.TICKET_OPERATION_COMPLETED,
+        expect.anything(),
+      );
+    });
+
+    it('неназначенная new-заявка не переводится: new → in_progress запрещён', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(ticketFixture({ status: 'new' }));
+      prisma.ticketOperationCompletion.findUnique.mockResolvedValue(null);
+      prisma.ticketOperationCompletion.create.mockResolvedValue(completion);
+      prisma.ticketOperationCompletion.count.mockResolvedValue(1);
+
+      await service.completeOperation('t-1', 'op-1', {}, OPERATOR);
+
+      expect(prisma.ticket.update).not.toHaveBeenCalled();
+    });
+
+    it('заявка на одно помещение закрывается последней операцией: in_progress → completed', async () => {
+      const ticket = ticketFixture({
+        status: 'in_progress',
+        assigneeId: 'u-op',
+        roomId: 'room-1',
+        operationsTotal: 2,
+      });
+      prisma.ticket.findUnique.mockResolvedValue(ticket);
+      prisma.ticketOperationCompletion.findUnique.mockResolvedValue(null);
+      prisma.ticketOperationCompletion.create.mockResolvedValue(completion);
+      prisma.ticketOperationCompletion.count.mockResolvedValue(2);
+      prisma.ticket.update.mockResolvedValue({ ...ticket, status: 'completed' });
+
+      await service.completeOperation('t-1', 'op-2', { roomId: 'room-1' }, OPERATOR);
+
+      expect(prisma.ticket.update).toHaveBeenCalledWith({
+        where: { id: 't-1' },
+        data: expect.objectContaining({ status: 'completed', completedAt: NOW }),
+      });
+      expect(publisher.publish).toHaveBeenCalledWith(
+        ROUTING_KEYS.TICKET_STATUS_CHANGED,
+        expect.objectContaining({ status: 'completed', previousStatus: 'in_progress' }),
+      );
+    });
+
+    it('маршрутная заявка (без roomId) последней операцией НЕ закрывается — ждёт помещений', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(
+        ticketFixture({ status: 'in_progress', assigneeId: 'u-op', operationsTotal: 2 }),
+      );
+      prisma.ticketOperationCompletion.findUnique.mockResolvedValue(null);
+      prisma.ticketOperationCompletion.create.mockResolvedValue(completion);
+      prisma.ticketOperationCompletion.count.mockResolvedValue(2);
+
+      await service.completeOperation('t-1', 'op-2', { roomId: 'room-1' }, OPERATOR);
+
+      expect(prisma.ticket.update).not.toHaveBeenCalled();
+    });
+
+    it('последнее помещение маршрута: assigned → in_progress → completed двумя переходами', async () => {
+      const ticket = ticketFixture({ status: 'assigned', assigneeId: 'u-op', roomsTotal: 1 });
+      prisma.ticket.findUnique.mockResolvedValue(ticket);
+      prisma.ticketRoomCompletion.findUnique.mockResolvedValue(null);
+      prisma.ticketRoomCompletion.create.mockResolvedValue({
+        id: 'rc-1',
+        ticketId: 't-1',
+        roomId: 'room-1',
+        completedAt: NOW,
+        completedBy: 'u-op',
+        createdAt: NOW,
+      });
+      prisma.ticketRoomCompletion.count.mockResolvedValue(1);
+      prisma.ticket.update
+        .mockResolvedValueOnce({ ...ticket, status: 'in_progress' })
+        .mockResolvedValueOnce({ ...ticket, status: 'completed' });
+
+      await service.completeRoom('t-1', 'room-1', {}, OPERATOR);
+
+      const statuses = prisma.ticket.update.mock.calls.map(
+        (call: [{ data: { status: string } }]) => call[0].data.status,
+      );
+      expect(statuses).toEqual(['in_progress', 'completed']);
+      const published = publisher.publish.mock.calls
+        .filter((call: [string]) => call[0] === ROUTING_KEYS.TICKET_STATUS_CHANGED)
+        .map((call: [string, { status: string }]) => call[1].status);
+      expect(published).toEqual(['in_progress', 'completed']);
+    });
+  });
 
   describe('completeRoom (М6.4)', () => {
     const roomCompletion = {

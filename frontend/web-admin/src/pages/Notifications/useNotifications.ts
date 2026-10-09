@@ -9,11 +9,13 @@ import type { ListNotificationsQuery, NotificationType } from '../../types/notif
 
 /**
  * Данные in-app уведомлений. Счётчик непрочитанных обновляется опросом раз в
- * 30 секунд (`POLL_INTERVAL_MS`): WebSocket в контракте М3 не заявлен, а
+ * 15 секунд (`UNREAD_POLL_MS`): WebSocket в контракте М3 не заявлен, а
  * опрос — самый дешёвый способ показать актуальный счётчик в колокольчике.
+ * 09.10.2026: интервал сокращён с 30 с, и по тому же запросу
+ * `NotificationToaster` показывает всплывающие карточки новых событий.
  */
 
-export const UNREAD_POLL_MS = 30_000;
+export const UNREAD_POLL_MS = 15_000;
 
 /** Полный список уведомлений (страница «Уведомления»). */
 export function useNotifications(query: ListNotificationsQuery) {
@@ -31,11 +33,14 @@ export function useNotifications(query: ListNotificationsQuery) {
 export function useUnreadNotifications(enabled = true) {
   return useQuery({
     queryKey: ['notifications-unread'],
-    queryFn: () => listNotifications({ page: 1, limit: 1, unreadOnly: true }),
+    // limit 10, а не 1: по первой странице непрочитанных тостер определяет,
+    // что именно появилось нового с прошлого опроса.
+    queryFn: () => listNotifications({ page: 1, limit: 10, unreadOnly: true }),
     enabled,
     refetchInterval: UNREAD_POLL_MS,
-    refetchIntervalInBackground: false,
-    staleTime: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 5_000,
   });
 }
 

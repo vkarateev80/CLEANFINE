@@ -11,6 +11,7 @@ import { ChecklistPage } from '../pages/Checklist/ChecklistPage';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
 import { OfflinePage } from '../pages/Offline/OfflinePage';
+import { NotificationsPage } from '../pages/Notifications/NotificationsPage';
 import { ChangePasswordPage } from '../pages/Profile/ChangePasswordPage';
 import { ProfilePage } from '../pages/Profile/ProfilePage';
 import { RouteMapPage } from '../pages/Route/RouteMapPage';
@@ -74,6 +75,7 @@ export const router = createBrowserRouter(
     { path: '/sos', element: guarded(<SosPage />) },
     { path: '/offline', element: guarded(<OfflinePage />) },
     { path: '/profile/password', element: guarded(<ChangePasswordPage />) },
+    { path: '/notifications', element: guarded(<NotificationsPage />) },
     { path: '*', element: <NotFoundPage /> },
   ],
   { basename: routerBasename(import.meta.env.BASE_URL) },

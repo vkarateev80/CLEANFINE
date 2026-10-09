@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { listMyChats } from '../api/chat';
+import { useNotificationWatcher, useUnreadNotificationsCount } from '../hooks/useNotifications';
+import { resubscribeIfGranted } from '../lib/webPush';
 import { CountDot } from '../components/ui/Badge';
 import { Toast } from '../components/ui/Toast';
 import { OfflineBanner } from '../components/shell/OfflineBanner';
@@ -44,6 +47,14 @@ export function OperatorLayout() {
   const title = useUiStore((s) => s.title);
   const keyboardOpen = useKeyboardOpen();
   const unread = useUnreadChats();
+  const unreadNotifications = useUnreadNotificationsCount();
+  useNotificationWatcher();
+
+  // Разрешение на push уже дано (прошлый вход) — тихо убеждаемся, что сервер
+  // знает подписку этого браузера под текущим пользователем.
+  useEffect(() => {
+    void resubscribeIfGranted().catch(() => undefined);
+  }, []);
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-neutral-50">
@@ -58,13 +69,17 @@ export function OperatorLayout() {
           </h1>
           <SyncCounter />
           <NavLink
-            to="/chats"
+            to="/notifications"
             className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1 rounded-lg text-neutral-500 hover:bg-neutral-100"
-            aria-label={unread > 0 ? `Непрочитанных сообщений: ${unread}` : 'Чаты'}
+            aria-label={
+              unreadNotifications > 0
+                ? `Непрочитанных уведомлений: ${unreadNotifications}`
+                : 'Уведомления'
+            }
             data-testid="op-notifications"
           >
             <span aria-hidden="true">🔔</span>
-            <CountDot value={unread} label="" />
+            <CountDot value={unreadNotifications} label="" />
           </NavLink>
         </div>
         <OfflineBanner />

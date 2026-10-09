@@ -7,6 +7,13 @@ import { getNotificationSettings, updateNotificationSettings } from '../../api/n
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ErrorBanner, errorMessage } from '../../components/ui/Feedback';
+import {
+  PUSH_SUPPORT_TEXT,
+  currentSubscription,
+  pushSupport,
+  subscribeWebPush,
+  unsubscribeWebPush,
+} from '../../lib/webPush';
 import { Sheet } from '../../components/ui/Sheet';
 import { useHeaderTitle } from '../../hooks/useHeaderTitle';
 import { useOnline } from '../../hooks/useOnline';
@@ -90,6 +97,8 @@ export function ProfilePage() {
   async function handleLogout() {
     setLeaving(true);
     try {
+      // Push этого браузера отвязывается от уходящего пользователя.
+      await unsubscribeWebPush().catch(() => undefined);
       await logout();
       // Локальные данные оператора не должны остаться на чужом телефоне.
       clearQueue();
@@ -349,6 +358,7 @@ function NotificationsSheet({
         </Button>
       }
     >
+      <PushToggle online={online} />
       {settings.isLoading ? (
         <div className="h-24 animate-pulse rounded-xl bg-neutral-200" />
       ) : settings.isError ? (
@@ -385,3 +395,85 @@ function NotificationsSheet({
     </Sheet>
   );
 }
+
+/**
+ * Push на это устройство (09.10.2026): подписка браузера регистрируется в
+ * notification-service, уведомления приходят и при закрытой вкладке. На iPhone
+ * push работает только у приложения, добавленного на экран «Домой».
+ */
+function PushToggle({ online }: { online: boolean }) {
+  const showToast = useUiStore((s) => s.showToast);
+  const [support, setSupport] = useState(() => pushSupport());
+  const [subscribed, setSubscribed] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void currentSubscription().then((subscription) => {
+      if (!cancelled) setSubscribed(Boolean(subscription) && Notification.permission === 'granted');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function toggle() {
+    if (!online) {
+      showToast('Нет соединения. Push можно включить только онлайн.', 'error');
+      return;
+    }
+    setBusy(true);
+    try {
+      if (subscribed) {
+        await unsubscribeWebPush();
+        setSubscribed(false);
+        showToast('Push на этом устройстве выключен', 'info');
+      } else {
+        const result = await subscribeWebPush();
+        setSupport(pushSupport());
+        if (result === 'ready') {
+          setSubscribed(true);
+          showToast('Push включён: уведомления придут даже при закрытом приложении', 'success');
+        } else {
+          showToast(PUSH_SUPPORT_TEXT[result], 'error');
+        }
+      }
+    } catch (error) {
+      showToast(`Не удалось включить push: ${errorMessage(error)}`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const statusText = subscribed
+    ? PUSH_SUPPORT_TEXT.ready
+    : support === 'ready'
+      ? 'Push на этом устройстве выключен'
+      : PUSH_SUPPORT_TEXT[support];
+  const canToggle = support === 'ready' || subscribed;
+
+  return (
+    <div
+      className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3"
+      data-testid="profile_push_toggle"
+    >
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-neutral-900">Push на это устройство</div>
+        <div className="text-xs text-neutral-500" data-testid="profile_push_status_text">
+          {subscribed === null ? 'Проверяем…' : statusText}
+        </div>
+      </div>
+      <Button
+        variant={subscribed ? 'secondary' : 'primary'}
+        className="min-h-[44px] shrink-0"
+        loading={busy}
+        disabled={!canToggle || subscribed === null}
+        onClick={() => void toggle()}
+        data-testid="profile_push_button"
+      >
+        {subscribed ? 'Выключить' : 'Включить'}
+      </Button>
+    </div>
+  );
+}
+

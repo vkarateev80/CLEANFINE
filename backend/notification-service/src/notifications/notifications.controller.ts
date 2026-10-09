@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/guards/roles.guard';
 import {
@@ -42,6 +43,18 @@ export class NotificationsController {
   @ApiResponse({ status: 401, description: 'Нет access-токена' })
   async unregisterDevice(@CurrentUser() user: AuthUser, @Param('token') token: string) {
     await this.notifications.unregisterDevice(user.id, decodeURIComponent(token));
+  }
+
+  /**
+   * Публичный ключ VAPID: по нему браузер создаёт push-подписку (PWA оператора,
+   * админка). Без JWT — ключ не секрет, а запрос идёт до регистрации устройства.
+   */
+  @Get('web-push/public-key')
+  @Public()
+  @ApiOperation({ summary: 'Публичный ключ VAPID для Web Push (null — не настроен)' })
+  @ApiResponse({ status: 200, description: '{ publicKey: string | null }' })
+  webPushPublicKey() {
+    return { publicKey: this.notifications.webPushPublicKey };
   }
 
   @Get()

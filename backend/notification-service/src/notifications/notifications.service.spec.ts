@@ -5,6 +5,8 @@ import type { RegisterDeviceDto } from './dto/notifications.dto';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, NotificationsService } from './notifications.service';
 import { NOTIFICATION_TYPES } from './notification-types';
 import type { PushMessage, PushSender } from './push/push-sender';
+import type { WebPushSender } from './push/web-push.sender';
+import type { StaffDirectoryService } from '../integration/staff-directory.service';
 
 const VALID_TOKEN = 'fcm-token-abcdefghijklmnopqrstuvwxyz-0123456789';
 
@@ -59,6 +61,8 @@ function notificationOf(overrides: Partial<Notification> = {}): Notification {
 describe('NotificationsService', () => {
   let prisma: PrismaMock;
   let push: { name: string; send: jest.Mock };
+  let webPush: { enabled: boolean; publicKey: string | null; send: jest.Mock };
+  let staff: { staffIds: jest.Mock };
   let service: NotificationsService;
 
   beforeEach(() => {
@@ -67,9 +71,17 @@ describe('NotificationsService', () => {
       name: 'mock',
       send: jest.fn().mockResolvedValue({ successCount: 1, failureCount: 0, invalidTokens: [] }),
     };
+    webPush = {
+      enabled: false,
+      publicKey: null,
+      send: jest.fn().mockResolvedValue({ successCount: 1, failureCount: 0, invalidTokens: [] }),
+    };
+    staff = { staffIds: jest.fn().mockResolvedValue([]) };
     service = new NotificationsService(
       prisma as unknown as PrismaService,
       push as unknown as PushSender,
+      webPush as unknown as WebPushSender,
+      staff as unknown as StaffDirectoryService,
     );
   });
 
@@ -234,6 +246,60 @@ describe('NotificationsService', () => {
         distinct: ['userId'],
         select: { userId: true },
       });
+    });
+  
+    it('добавляет бригадиров и админов из справочника (веб-админка без устройств)', async () => {
+      prisma.device.findMany.mockResolvedValue([{ userId: 'u-1' }]);
+      staff.staffIds.mockResolvedValue(['u-admin', 'u-1']);
+
+      await expect(service.resolveBroadcastRecipients()).resolves.toEqual(['u-1', 'u-admin']);
+    });
+
+    it('недоступный справочник не ломает broadcast — остаются владельцы устройств', async () => {
+      prisma.device.findMany.mockResolvedValue([{ userId: 'u-1' }]);
+      staff.staffIds.mockRejectedValue(new Error('auth down'));
+
+      await expect(service.resolveBroadcastRecipients()).resolves.toEqual(['u-1']);
+    });
+  });
+
+  describe('web push', () => {
+    it('браузерные подписки (platform=web) уходят в WebPushSender, остальные — в PUSH_SENDER', async () => {
+      prisma.device.findMany.mockResolvedValue([
+        { token: VALID_TOKEN, platform: 'android' },
+        { token: '{"endpoint":"https://push","keys":{"p256dh":"k","auth":"a"}}', platform: 'web' },
+      ]);
+      prisma.notification.create.mockResolvedValue(notificationOf());
+
+      await service.notifyUser('u-1', 'NEW_TICKET', { ticketDescription: 'Помыть' });
+
+      expect(push.send).toHaveBeenCalledWith(expect.objectContaining({ tokens: [VALID_TOKEN] }));
+      expect(webPush.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tokens: ['{"endpoint":"https://push","keys":{"p256dh":"k","auth":"a"}}'],
+        }),
+      );
+    });
+
+    it('отозванная подписка (invalidTokens от WebPushSender) деактивирует устройство', async () => {
+      const sub = '{"endpoint":"https://push","keys":{"p256dh":"k","auth":"a"}}';
+      prisma.device.findMany.mockResolvedValue([{ token: sub, platform: 'web' }]);
+      webPush.send.mockResolvedValue({ successCount: 0, failureCount: 1, invalidTokens: [sub] });
+      prisma.notification.create.mockResolvedValue(notificationOf());
+
+      await service.notifyUser('u-1', 'NEW_TICKET');
+
+      expect(prisma.device.updateMany).toHaveBeenCalledWith({
+        where: { token: { in: [sub] } },
+        data: { isActive: false },
+      });
+    });
+
+    it('публичный ключ отдаётся только при настроенном Web Push', () => {
+      expect(service.webPushPublicKey).toBeNull();
+      webPush.enabled = true;
+      webPush.publicKey = 'BPUBLIC';
+      expect(service.webPushPublicKey).toBe('BPUBLIC');
     });
   });
 

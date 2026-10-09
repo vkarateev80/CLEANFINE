@@ -94,6 +94,9 @@ export function useTicketSummary() {
     queryKey: ['reports', 'tickets', 'summary'],
     queryFn: getTicketSummary,
     staleTime: 60 * 1000,
+    // Доска действий открыта у админа весь день: «в работе/просрочено» должны
+    // меняться без перезагрузки страницы (09.10.2026).
+    refetchInterval: 60 * 1000,
   });
 }
 

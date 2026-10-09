@@ -110,3 +110,50 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+// ---------------------------------------------------------------- Web Push
+// Сервер (notification-service, VAPID) присылает JSON {title, body, type, data}.
+// Показываем системное уведомление и по нажатию открываем нужный экран PWA.
+function targetPath(data) {
+  const base = new URL('./', SCOPE).pathname; // /app/
+  if (data && data.chatId) return `${base}chats/${data.chatId}`;
+  if (data && data.ticketId) return `${base}today?ticket=${data.ticketId}`;
+  return `${base}notifications`;
+}
+
+self.addEventListener('push', (event) => {
+  let payload = { title: 'CLEANFINE', body: '', data: {} };
+  try {
+    payload = Object.assign(payload, event.data ? event.data.json() : {});
+  } catch {
+    payload.body = event.data ? event.data.text() : '';
+  }
+  const options = {
+    body: payload.body || '',
+    icon: new URL('./icons/icon-192.png', SCOPE).toString(),
+    badge: new URL('./icons/icon-192.png', SCOPE).toString(),
+    tag: (payload.data && (payload.data.chatId || payload.data.ticketId)) || undefined,
+    renotify: true,
+    vibrate: payload.priority === 'high' ? [200, 100, 200, 100, 200] : [100],
+    data: Object.assign({}, payload.data || {}, { type: payload.type }),
+  };
+  event.waitUntil(self.registration.showNotification(payload.title || 'CLEANFINE', options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const path = targetPath(event.notification.data);
+  const url = new URL(path, self.location.origin).toString();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ('focus' in client) {
+          if ('navigate' in client) client.navigate(url).catch(() => undefined);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
+});
+

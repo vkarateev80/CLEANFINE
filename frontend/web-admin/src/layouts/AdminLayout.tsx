@@ -7,6 +7,7 @@ import { MobileDrawer } from '../components/layout/MobileDrawer';
 import { Button } from '../components/ui/Button';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { NotificationBell } from '../pages/Notifications/NotificationBell';
+import { NotificationToaster } from '../pages/Notifications/NotificationToaster';
 import { useAuthStore } from '../stores/authStore';
 import { useUiStore } from '../stores/uiStore';
 
@@ -222,6 +223,8 @@ export function AdminLayout() {
 
       <BottomNav items={items} />
       <MobileDrawer items={items} user={user} />
+      {/* Всплывающие карточки новых уведомлений (SOS, сообщения, статусы заявок). */}
+      <NotificationToaster />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { ROUTING_KEYS } from '@cleaning-ops/shared/constants/events';
 import type { AuthUser } from '../auth/guards/roles.guard';
 import {
   notificationTargets,
+  statusChangedPayload,
   type TicketCreatedPayload,
   type TicketEmergencyPayload,
   type TicketOverduePayload,
@@ -369,7 +370,7 @@ export class TicketsService {
   /** Смена статуса (М3.4): невалидный переход → 400 «Invalid status transition». */
   async changeStatus(id: string, dto: UpdateStatusDto, user: AuthUser): Promise<Ticket> {
     const ticket = await this.getTicketOrFail(id);
-    return this.applyStatus(ticket, dto.status, new Date(), user.email);
+    return this.applyStatus(ticket, dto.status, new Date(), user);
   }
 
   /**
@@ -556,7 +557,20 @@ export class TicketsService {
       completedAt: created.completedAt.toISOString(),
     });
 
-    return this.operationResult(ticket, created, false, operationsTotal);
+    const result = await this.operationResult(ticket, created, false, operationsTotal);
+
+    // Факт работы по заявке двигает её статус сам (09.10.2026): оператор в вебе
+    // отмечает операции, а не жмёт «в работу»/«выполнено», и без этого заявка
+    // оставалась assigned → overdue, а доска действий не видела «в работе».
+    // Заявка на одно помещение (roomId задан) закрывается последней операцией;
+    // маршрутная — последним помещением (completeRoom), т.к. operationsTotal
+    // запоминается по первому помещению и не покрывает весь маршрут.
+    const inProgress = await this.autoTransition(ticket, 'in_progress', completedAt, user);
+    if (ticket.roomId !== null && result.allOperationsCompleted) {
+      await this.autoTransition(inProgress, 'completed', completedAt, user);
+    }
+
+    return result;
   }
 
   /**
@@ -612,16 +626,43 @@ export class TicketsService {
       throw error;
     }
 
-    return this.roomResult(ticket, created, false, roomsTotal);
+    const result = await this.roomResult(ticket, created, false, roomsTotal);
+
+    // Помещение без операций (нет техкарты) тоже означает начало работы;
+    // последнее помещение маршрута завершает заявку.
+    const inProgress = await this.autoTransition(ticket, 'in_progress', completedAt, user);
+    if (result.allRoomsCompleted) {
+      await this.autoTransition(inProgress, 'completed', completedAt, user);
+    }
+
+    return result;
   }
 
   // ------------------------------------------------------------------ helpers
+
+  /**
+   * Переход статуса по факту работы оператора. Недопустимый по state machine
+   * переход (например, new → in_progress у неназначенной заявки или повтор
+   * in_progress → in_progress) молча пропускается: это побочный эффект, а не
+   * действие пользователя, и 400 здесь сломал бы отметку операции.
+   */
+  private async autoTransition(
+    ticket: Ticket,
+    to: TicketStatus,
+    now: Date,
+    actor: AuthUser,
+  ): Promise<Ticket> {
+    if (ticket.status === to || !canTransition(ticket.status, to)) {
+      return ticket;
+    }
+    return this.applyStatus(ticket, to, now, actor);
+  }
 
   private async applyStatus(
     ticket: Ticket,
     to: TicketStatus,
     now: Date,
-    actor: string,
+    actor: AuthUser | null,
   ): Promise<Ticket> {
     if (!canTransition(ticket.status, to)) {
       throw new BadRequestException(INVALID_TRANSITION_MESSAGE);
@@ -636,7 +677,9 @@ export class TicketsService {
         }),
       },
     });
-    this.logger.log(`Заявка ${ticket.id}: ${ticket.status} → ${to} (${actor})`);
+    this.logger.log(
+      `Заявка ${ticket.id}: ${ticket.status} → ${to} (${actor?.email ?? 'система'})`,
+    );
 
     if (to === 'overdue') {
       const overduePayload: TicketOverduePayload = {
@@ -645,7 +688,14 @@ export class TicketsService {
         ...notificationTargets(updated),
       };
       await this.publisher.publish(ROUTING_KEYS.TICKET_OVERDUE, overduePayload);
+      return updated;
     }
+
+    // Остальные переходы — событие для бригадира/админа/автора заявки (09.10.2026).
+    await this.publisher.publish(
+      ROUTING_KEYS.TICKET_STATUS_CHANGED,
+      statusChangedPayload(updated, to, ticket.status, actor, now),
+    );
     return updated;
   }
 

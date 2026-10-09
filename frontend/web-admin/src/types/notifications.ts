@@ -17,6 +17,7 @@ export const NOTIFICATION_TYPES = [
   'MATERIAL_LOW',
   'SCHEDULE_MISSED',
   'CHAT_MESSAGE',
+  'TICKET_STATUS',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -29,6 +30,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   MATERIAL_LOW: 'Мало материала',
   SCHEDULE_MISSED: 'Неявка на смену',
   CHAT_MESSAGE: 'Сообщение в чате',
+  TICKET_STATUS: 'Статус заявки',
 };
 
 /** Иконка типа — компактная подсказка в списке (текстовые подписи рядом). */
@@ -40,6 +42,7 @@ export const NOTIFICATION_TYPE_ICONS: Record<NotificationType, string> = {
   MATERIAL_LOW: '📦',
   SCHEDULE_MISSED: '🗓️',
   CHAT_MESSAGE: '💬',
+  TICKET_STATUS: '🎫',
 };
 
 export interface NotificationEntity {
@@ -92,6 +95,12 @@ export interface UpdateNotificationSettingsPayload {
 /** `payload.ticketId` — ссылка на заявку, если событие её содержит. */
 export function ticketIdFromPayload(notification: NotificationEntity): string | null {
   const value = notification.payload?.ticketId;
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+/** `payload.chatId` — чат, о сообщении которого уведомление (CHAT_MESSAGE). */
+export function chatIdFromPayload(notification: NotificationEntity): string | null {
+  const value = notification.payload?.chatId;
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
