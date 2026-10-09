@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-sans), system-ui, sans-serif;
+    color: var(--color-neutral-900);
+    background: var(--color-neutral-50);
+  }
+
+  /* Таб-бар fixed: горизонтальный скролл от длинного слова гасим по X. */
+  body {
+    overflow-x: hidden;
+    /* PWA на iPhone: не «тянуть» страницу за край. */
+    overscroll-behavior-y: none;
+  }
+
+  /* iOS Safari зумит поле со шрифтом < 16 px. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@layer components {
+  /*
+   * Safe-area (токенов для env() нет — см. design/screens/mobile/README.md,
+   * пробел 5). `+ 0px` в calc — чтобы браузер без env() не отбросил свойство.
+   * Высота таб-бара — 4rem, под ним ещё FAB SOS, поэтому запас 7rem.
+   */
+  .op-main {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .op-main-fullscreen {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .op-tabbar {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* FAB SOS над таб-баром и домашним индикатором. */
+  .op-fab {
+    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .op-sheet-footer {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Нижняя кнопка полноэкранных маршрутов (чек-лист, маршрут, SOS). */
+  .op-bottom-bar {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .op-chat-composer {
+    bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .op-chat-new-pill {
+    bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 1024px) {
+    .op-chat-composer {
+      bottom: 0;
+    }
+
+    .op-chat-new-pill {
+      bottom: 4rem;
+    }
+  }
+
+  /* Пульсация текущей точки маршрута (route_map.md §3.2). */
+  @keyframes op-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.15);
+    }
+  }
+
+  .op-pulse {
+    animation: op-pulse 0.8s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .op-pulse {
+      animation: none;
+    }
+  }
+}
