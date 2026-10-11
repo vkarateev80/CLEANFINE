@@ -4,10 +4,14 @@ import {
   COLOR_ZONE_LABELS,
   COLOR_ZONE_META,
   colorZoneDescription,
+  colorZoneFromEquipment,
   colorZoneFromRoomType,
   colorZoneFromZoneField,
+  equipmentChip,
   operationColorZone,
+  operationInventoryZone,
   roomColorZone,
+  stripColorWord,
 } from '@cleaning-ops/shared/types/color-coding';
 import { PRESET_LIBRARIES } from '../templates/presets';
 
@@ -74,6 +78,68 @@ describe('цветовая кодировка инвентаря', () => {
     expect(operationColorZone('Вымыть окна', 'GREEN')).toBe('YELLOW');
     expect(operationColorZone('Помыть пол', 'RED')).toBe('RED');
     expect(operationColorZone('Вынести мусор', 'GREEN')).toBe('GREEN');
+  });
+
+  it('слово цвета в оборудовании — прилагательное целым словом', () => {
+    expect(colorZoneFromEquipment('синие швабра')).toBe('BLUE');
+    expect(colorZoneFromEquipment('Красная швабра')).toBe('RED');
+    expect(colorZoneFromEquipment('швабра зелёная')).toBe('GREEN');
+    expect(colorZoneFromEquipment('ЖЁЛТЫЕ стеклосгон')).toBe('YELLOW');
+    expect(colorZoneFromEquipment('салфетки синего цвета')).toBe('BLUE');
+    // Вхождение «син»/«красн» внутри другого слова — не цвет.
+    expect(colorZoneFromEquipment('синтетические салфетки')).toBeNull();
+    expect(colorZoneFromEquipment('краснодарская губка')).toBeNull();
+    expect(colorZoneFromEquipment('ведро')).toBeNull();
+    expect(colorZoneFromEquipment('')).toBeNull();
+    expect(colorZoneFromEquipment(null)).toBeNull();
+    // Цветные наборы пресетов формы операции распознаются все четыре.
+    const presetZones = PRESET_LIBRARIES.equipment.values.map((option) =>
+      colorZoneFromEquipment(typeof option === 'string' ? option : option.value),
+    );
+    expect(new Set(presetZones)).toEqual(new Set([...COLOR_ZONES, null]));
+  });
+
+  it('с подписи снимается ведущее слово цвета', () => {
+    expect(stripColorWord('синие швабра')).toBe('швабра');
+    expect(stripColorWord('Синие швабра')).toBe('Швабра');
+    expect(stripColorWord('жёлтые: стеклосгон')).toBe('стеклосгон');
+    expect(stripColorWord('швабра синяя')).toBe('швабра синяя');
+    expect(stripColorWord('синтетические салфетки')).toBe('синтетические салфетки');
+    expect(stripColorWord('синие')).toBe('синие');
+    expect(stripColorWord('синие   ')).toBe('синие   ');
+  });
+
+  it('цвет, названный в оборудовании, — у всего инвентаря операции', () => {
+    // Сид техкарты: «синие швабра, ведро…» в санузле — синие все позиции.
+    const seeded = ['синие швабра', 'ведро', 'салфетки', 'распылитель', 'перчатки'];
+    expect(operationInventoryZone('Протереть рабочие поверхности', seeded, 'RED')).toBe('BLUE');
+    // Цвет может стоять не на первой позиции; побеждает первый названный.
+    expect(operationInventoryZone('Помыть пол', ['ведро', 'зелёные швабра'], 'RED')).toBe('GREEN');
+    expect(
+      operationInventoryZone('Помыть пол', ['красные швабра', 'синие салфетки'], 'GREEN'),
+    ).toBe('RED');
+    // Цвет не назван — прежнее правило: стёкла жёлтые, остальное — цвет помещения.
+    expect(operationInventoryZone('Помыть пол', ['швабра', 'ведро'], 'RED')).toBe('RED');
+    expect(operationInventoryZone('Протереть зеркала', ['салфетки'], 'RED')).toBe('YELLOW');
+    expect(operationInventoryZone('Протереть зеркала', ['жёлтые стеклосгон'], 'RED')).toBe(
+      'YELLOW',
+    );
+    // Явное слово важнее выведенного — и цвета помещения, и правила стёкол.
+    expect(operationInventoryZone('Протереть зеркала', ['красные салфетки'], 'BLUE')).toBe('RED');
+    // Техкарта на помещения разных цветов (админка): без слова цвета — null.
+    expect(operationInventoryZone('Помыть пол', ['швабра'], null)).toBeNull();
+    expect(operationInventoryZone('Помыть пол', ['синие швабра'], null)).toBe('BLUE');
+    expect(operationInventoryZone('Помыть пол', [], 'GREEN')).toBe('GREEN');
+  });
+
+  it('чип инвентаря: цвет операции без слова цвета, чужой цвет — как написано', () => {
+    expect(equipmentChip('синие швабра', 'BLUE')).toEqual({ label: 'швабра', zone: 'BLUE' });
+    expect(equipmentChip('ведро', 'BLUE')).toEqual({ label: 'ведро', zone: 'BLUE' });
+    expect(equipmentChip('красные перчатки', 'BLUE')).toEqual({
+      label: 'красные перчатки',
+      zone: 'RED',
+    });
+    expect(equipmentChip('ведро', null)).toEqual({ label: 'ведро', zone: null });
   });
 
   it('метаданные полные, пресеты зон покрывают все четыре цвета', () => {

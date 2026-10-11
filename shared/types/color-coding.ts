@@ -159,8 +159,99 @@ export function roomColorZone(room: {
  * операции наследуют цвет помещения, в котором выполняются.
  */
 export function operationColorZone(operationName: string, roomZone: ColorZone): ColorZone {
+  return isGlassOperation(operationName) ? 'YELLOW' : roomZone;
+}
+
+/** Операция со стёклами, зеркалами, окнами, витринами — жёлтый инвентарь. */
+export function isGlassOperation(operationName: string): boolean {
   const normalized = normalize(operationName);
-  return GLASS_OPERATION_KEYWORDS.some((word) => normalized.includes(word)) ? 'YELLOW' : roomZone;
+  return GLASS_OPERATION_KEYWORDS.some((word) => normalized.includes(word));
+}
+
+/**
+ * Слово цвета в оборудовании — прилагательное **целым словом** («синие»,
+ * «Красная», «жёлтый:»), а не вхождением, как в поле «Зона»: цвет одной
+ * позиции красит весь набор операции, и «синтетические салфетки» не должны
+ * перекрасить его в синий.
+ */
+const EQUIPMENT_COLOR_WORD =
+  /^(красн|син|зелен|желт)(ый|ий|ая|яя|ое|ее|ые|ие|ого|его|ом|ем|ой|ей|ую|юю|ым|им|ых|их|ыми|ими)$/;
+
+const EQUIPMENT_COLOR_STEMS: Record<string, ColorZone> = {
+  красн: 'RED',
+  син: 'BLUE',
+  зелен: 'GREEN',
+  желт: 'YELLOW',
+};
+
+function colorWordZone(word: string): ColorZone | null {
+  const match = EQUIPMENT_COLOR_WORD.exec(normalize(word));
+  return match ? EQUIPMENT_COLOR_STEMS[match[1]] : null;
+}
+
+/** Цвет, названный в подписи инвентаря («синие швабра» → синий); `null` — не назван. */
+export function colorZoneFromEquipment(label: string | null | undefined): ColorZone | null {
+  for (const word of (label ?? '').split(/[^a-zа-яё]+/i)) {
+    const zone = colorWordZone(word);
+    if (zone !== null) return zone;
+  }
+  return null;
+}
+
+/**
+ * Подпись без ведущего слова цвета: «синие швабра» → «швабра», «Синие швабра»
+ * → «Швабра». Цвет показывает сам чип; подпись из одного слова цвета не трогаем.
+ */
+export function stripColorWord(label: string): string {
+  const match = /^\s*([a-zа-яё]+)[\s:,.;—–-]+(.+)$/i.exec(label);
+  if (!match || colorWordZone(match[1]) === null) return label;
+  const rest = match[2].trim();
+  if (rest === '') return label;
+  return match[1][0] === match[1][0].toUpperCase() ? rest[0].toUpperCase() + rest.slice(1) : rest;
+}
+
+/**
+ * Цвет инвентаря операции — один на весь набор. Технолог пишет цвет один раз
+ * («синие швабра, ведро, салфетки; перчатки»), и он относится ко всем позициям,
+ * включая СИЗ. Порядок: цвет, названный в оборудовании (первый по порядку
+ * позиций) → стёкла и зеркала — жёлтый → цвет помещения. Явное слово важнее
+ * выведенного, как поле «Зона» важнее типа помещения.
+ */
+export function operationInventoryZone(
+  operationName: string,
+  equipment: readonly string[],
+  roomZone: ColorZone,
+): ColorZone;
+export function operationInventoryZone(
+  operationName: string,
+  equipment: readonly string[],
+  roomZone: ColorZone | null,
+): ColorZone | null;
+export function operationInventoryZone(
+  operationName: string,
+  equipment: readonly string[],
+  roomZone: ColorZone | null,
+): ColorZone | null {
+  for (const label of equipment) {
+    const named = colorZoneFromEquipment(label);
+    if (named !== null) return named;
+  }
+  return isGlassOperation(operationName) ? 'YELLOW' : roomZone;
+}
+
+/**
+ * Чип инвентаря в цвете операции (`operationInventoryZone`): слово цвета
+ * снимается — его говорит цвет чипа. Позиция, названная другим цветом
+ * («…; красные перчатки» в синем наборе), остаётся своего цвета и с подписью
+ * как написал технолог.
+ */
+export function equipmentChip<Z extends ColorZone | null>(
+  label: string,
+  inventoryZone: Z,
+): { label: string; zone: ColorZone | Z } {
+  const own = colorZoneFromEquipment(label);
+  if (own !== null && own !== inventoryZone) return { label, zone: own };
+  return { label: stripColorWord(label), zone: inventoryZone };
 }
 
 /** «Красный инвентарь — санитарные зоны (туалеты, унитазы, писсуары)». */

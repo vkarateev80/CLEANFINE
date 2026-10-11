@@ -1,7 +1,8 @@
 import {
   COLOR_ZONE_META,
-  colorZoneFromZoneField,
-  operationColorZone,
+  equipmentChip,
+  isGlassOperation,
+  operationInventoryZone,
   roomColorZone,
   type ColorZone,
 } from '@cleaning-ops/shared/types/color-coding';
@@ -552,10 +553,15 @@ function OperationRow({
   onDelete,
 }: OperationRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  // Стёкла и зеркала — всегда жёлтый инвентарь; остальное — цвет помещения.
-  const glassZone = operationColorZone(operation.name, 'BLUE') === 'YELLOW' ? 'YELLOW' : null;
-  const equipmentZone: ColorZone | null = glassZone ?? roomZone;
   const parts = equipmentParts(operation.equipment);
+  // Один цвет на весь инвентарь операции: слово цвета в оборудовании («синие
+  // швабра, ведро…») → стёкла и зеркала — жёлтый → цвет помещения.
+  const equipmentZone = operationInventoryZone(
+    operation.name,
+    parts === null ? [] : [...parts.items, ...parts.ppe],
+    roomZone,
+  );
+  const glassInventory = equipmentZone === 'YELLOW' && isGlassOperation(operation.name);
 
   return (
     <div
@@ -688,7 +694,7 @@ function OperationRow({
               {equipmentZone !== null && operation.equipment !== null && (
                 <span>
                   · {COLOR_ZONE_META[equipmentZone].name.toLowerCase()} инвентарь
-                  {glassZone !== null
+                  {glassInventory
                     ? ' (стёкла и зеркала)'
                     : ` — ${COLOR_ZONE_META[equipmentZone].zoneName.toLowerCase()}`}
                 </span>
@@ -700,15 +706,15 @@ function OperationRow({
               // Инвентарь — цветные «пилюли» зоны, СИЗ — нейтральные.
               <div className="flex flex-wrap gap-1.5" data-testid="operation-equipment-chips">
                 {parts.items.map((item) => {
-                  // Слово цвета в самом названии («красные швабра») важнее
-                  // цвета помещения: так написал технолог — так и показываем.
-                  const itemZone = colorZoneFromZoneField(item) ?? equipmentZone;
+                  // Слово цвета снято с чипа — цвет назван в строке выше;
+                  // позиция другого цвета остаётся своего цвета (`equipmentChip`).
+                  const { label, zone: itemZone } = equipmentChip(item, equipmentZone);
                   return itemZone === null ? (
                     <span
                       key={`item-${item}`}
                       className="rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-xs text-neutral-700"
                     >
-                      {item}
+                      {label}
                     </span>
                   ) : (
                     <span
@@ -721,7 +727,7 @@ function OperationRow({
                       }}
                     >
                       <ColorZoneDot zone={itemZone} size={7} />
-                      {item}
+                      {label}
                     </span>
                   );
                 })}

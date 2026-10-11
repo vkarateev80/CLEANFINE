@@ -1,4 +1,4 @@
-import { COLOR_ZONE_META, colorZoneFromZoneField } from '@cleaning-ops/shared/types/color-coding';
+import { COLOR_ZONE_META, colorZoneFromEquipment } from '@cleaning-ops/shared/types/color-coding';
 import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import type { CreateOperationPayload, TechOperationWithMaterials } from '../../types/core';
 import { ColorZoneDot } from '../../components/ui/ColorZone';
@@ -46,9 +46,12 @@ export interface OperationFormModalProps {
   onSubmit: (payload: CreateOperationPayload) => Promise<void>;
 }
 
-/** Шрифт поля «Оборудование» в цвете инвентаря, если в тексте есть слово цвета. */
+/**
+ * Шрифт поля «Оборудование» в цвете инвентаря, если в тексте есть слово цвета:
+ * первое слово цвета красит весь набор операции (`operationInventoryZone`).
+ */
 function equipmentTextStyle(text: string): { color: string; fontWeight: number } | undefined {
-  const zone = colorZoneFromZoneField(text);
+  const zone = colorZoneFromEquipment(text);
   return zone === null ? undefined : { color: COLOR_ZONE_META[zone].hexDark, fontWeight: 500 };
 }
 
@@ -314,11 +317,11 @@ export function OperationFormModal({
             placeholder="швабра, ведро; перчатки"
             options={presetOptions('equipment')}
             // Цветные наборы («красные швабра, ведро…») — шрифт и точка в цвете
-            // инвентаря: слово цвета в тексте распознаётся тем же правилом, что
-            // и поле «Зона» помещения.
+            // инвентаря: слово цвета распознаётся тем же правилом, что и в
+            // чек-листе оператора (`colorZoneFromEquipment`).
             style={equipmentTextStyle(values.equipmentText)}
             optionMarker={(value) => {
-              const zone = colorZoneFromZoneField(value);
+              const zone = colorZoneFromEquipment(value);
               return zone === null ? null : <ColorZoneDot zone={zone} size={8} />;
             }}
             optionStyle={equipmentTextStyle}

@@ -130,7 +130,26 @@ enum ColorZone {
     MapEntry<ColorZone, List<String>>(ColorZone.blue, <String>['син']),
   ];
 
+  /// Слово цвета в оборудовании — прилагательное целым словом («синие»,
+  /// «Красная»), а не вхождением, как в поле «Зона»: цвет одной позиции красит
+  /// весь набор операции, и «синтетические салфетки» не должны его перекрасить.
+  static final RegExp _equipmentColorWord = RegExp(
+    r'^(красн|син|зелен|желт)(ый|ий|ая|яя|ое|ее|ые|ие|ого|его|ом|ем|ой|ей|ую|юю|ым|им|ых|их|ыми|ими)$',
+  );
+
+  static const Map<String, ColorZone> _equipmentColorStems = <String, ColorZone>{
+    'красн': ColorZone.red,
+    'син': ColorZone.blue,
+    'зелен': ColorZone.green,
+    'желт': ColorZone.yellow,
+  };
+
   static String _normalize(String? value) => (value ?? '').toLowerCase().replaceAll('ё', 'е').trim();
+
+  static ColorZone? _colorWord(String word) {
+    final RegExpMatch? match = _equipmentColorWord.firstMatch(_normalize(word));
+    return match == null ? null : _equipmentColorStems[match.group(1)];
+  }
 
   static ColorZone? _match(String value, List<MapEntry<ColorZone, List<String>>> table) {
     for (final MapEntry<ColorZone, List<String>> entry in table) {
@@ -165,5 +184,44 @@ enum ColorZone {
   static ColorZone forOperation(String operationName, ColorZone roomZone) {
     final String normalized = _normalize(operationName);
     return _glassOperationKeywords.any(normalized.contains) ? ColorZone.yellow : roomZone;
+  }
+
+  /// Цвет, названный в подписи инвентаря («синие швабра» → синий); `null` — не назван.
+  static ColorZone? fromEquipment(String? label) {
+    for (final String word in _normalize(label).split(RegExp('[^a-zа-я]+'))) {
+      final ColorZone? zone = _colorWord(word);
+      if (zone != null) return zone;
+    }
+    return null;
+  }
+
+  /// Подпись без ведущего слова цвета: «синие швабра» → «швабра», «Синие
+  /// швабра» → «Швабра». Подпись из одного слова цвета не трогаем.
+  static String stripColorWord(String label) {
+    final RegExpMatch? match = RegExp(r'^\s*([a-zA-Zа-яА-ЯёЁ]+)[\s:,.;—–-]+(.+)$').firstMatch(label);
+    if (match == null || _colorWord(match.group(1)!) == null) return label;
+    final String word = match.group(1)!;
+    final String rest = match.group(2)!.trim();
+    if (rest.isEmpty) return label;
+    return word[0] == word[0].toUpperCase() ? rest[0].toUpperCase() + rest.substring(1) : rest;
+  }
+
+  /// Цвет инвентаря операции — один на весь набор («синие швабра, ведро,
+  /// салфетки; перчатки» — синие все, включая СИЗ). Порядок: цвет, названный в
+  /// оборудовании (первый по порядку) → стёкла и зеркала — жёлтый → цвет помещения.
+  static ColorZone forInventory(String operationName, List<String> equipment, ColorZone roomZone) {
+    for (final String label in equipment) {
+      final ColorZone? named = fromEquipment(label);
+      if (named != null) return named;
+    }
+    return forOperation(operationName, roomZone);
+  }
+
+  /// Чип инвентаря в цвете операции, слово цвета снято — его говорит цвет чипа.
+  /// Позиция, названная другим цветом, остаётся своего цвета и как написана.
+  static ({String label, ColorZone zone}) equipmentChip(String label, ColorZone inventoryZone) {
+    final ColorZone? own = fromEquipment(label);
+    if (own != null && own != inventoryZone) return (label: label, zone: own);
+    return (label: stripColorWord(label), zone: inventoryZone);
   }
 }

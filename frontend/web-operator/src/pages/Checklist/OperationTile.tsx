@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
   COLOR_ZONE_META,
-  colorZoneFromZoneField,
-  operationColorZone,
+  equipmentChip,
+  operationInventoryZone,
   type ColorZone,
 } from '@cleaning-ops/shared/types/color-coding';
 import { Button } from '../../components/ui/Button';
@@ -37,8 +37,13 @@ export function OperationTile({
   const [expanded, setExpanded] = useState(false);
   const seconds = useTimer(current && canWork && !done ? local.startedAt : undefined);
   const overBy = seconds - op.estimatedTimeMin * 60;
-  const opZone = operationColorZone(op.name, roomZone);
   const equipment = parseEquipment(op.equipment);
+  // Один цвет на весь инвентарь операции: «синие швабра, ведро…» — синие все.
+  const opZone = operationInventoryZone(
+    op.name,
+    equipment.map((item) => item.label),
+    roomZone,
+  );
   const statusLabel = done
     ? local.pendingSync
       ? 'Отправляется…'
@@ -141,10 +146,21 @@ export function OperationTile({
         <div className="flex flex-col gap-2 border-t border-neutral-200 px-3 py-2 text-sm">
           {op.description && <p className="text-neutral-700">{op.description}</p>}
           {equipment.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div
+              className="flex flex-wrap items-center gap-1.5"
+              data-testid={`checklist_op_equipment_${op.id}`}
+            >
+              {/* Цвет словами — слово цвета снято с чипов, а цвет не всем различим. */}
+              <span
+                className="text-xs font-medium"
+                style={{ color: COLOR_ZONE_META[opZone].hexDark }}
+                data-testid={`checklist_op_inventory_zone_${op.id}`}
+              >
+                {COLOR_ZONE_META[opZone].name} инвентарь:
+              </span>
               {equipment.map((item) => {
-                const zone = colorZoneFromZoneField(item.label) ?? opZone;
-                const meta = COLOR_ZONE_META[zone];
+                const chip = equipmentChip(item.label, opZone);
+                const meta = COLOR_ZONE_META[chip.zone];
                 return (
                   <span
                     key={`${item.group}-${item.label}`}
@@ -156,7 +172,7 @@ export function OperationTile({
                     }}
                   >
                     {item.group === 'ppe' ? '🧤 ' : ''}
-                    {item.label}
+                    {chip.label}
                   </span>
                 );
               })}
