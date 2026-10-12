@@ -14,7 +14,7 @@ import {
   Select,
   errorMessage,
 } from '../../components/ui';
-import { presetValues } from '../../templates/presets';
+import { presetGroups, presetValues, type PresetOptionGroup } from '../../templates/presets';
 import type { TechCardListItem } from '../../types/core';
 import { isCoordsError, rectAreaHint, type PlanSize } from './floorPlanUtils';
 import { rectFromForm, type RoomFormErrors, type RoomFormValues } from './roomForm';
@@ -70,10 +70,14 @@ export function RoomFormFields({
   const rect = rectFromForm(values);
   const areaHint = rectAreaHint(rect, planScale);
   const coordsServerError = isCoordsError(serverError) ? errorMessage(serverError) : null;
-  // Тип помещения: уже встречавшиеся на этаже значения + библиотека
-  // (виды помещений и покрытия) — единый список без дублей.
-  const typeOptions = [
-    ...new Set([...floorTypeOptions, ...presetValues('room-types', 'floor-coverings')]),
+  // Тип помещения: библиотека по категориям (виды помещений, затем покрытия);
+  // свои значения, уже встречавшиеся на этаже и не входящие в библиотеку, —
+  // первой группой, чтобы повторить их одним кликом.
+  const libraryValues = new Set(presetValues('room-types', 'floor-coverings'));
+  const customOnFloor = floorTypeOptions.filter((option) => !libraryValues.has(option));
+  const typeGroups: PresetOptionGroup[] = [
+    ...(customOnFloor.length > 0 ? [{ label: 'Свои на этом этаже', values: customOnFloor }] : []),
+    ...presetGroups('room-types', 'floor-coverings'),
   ];
   // Цвет инвентаря выводится из типа и зоны на лету — человек видит его до
   // сохранения и понимает, какую табличку вешать на пост.
@@ -126,7 +130,7 @@ export function RoomFormFields({
           htmlFor={`${idPrefix}-type`}
           required
           error={errors.floorType}
-          hint="Виды помещения и покрытия из библиотеки — или своё значение"
+          hint="Виды помещения по категориям и покрытия из библиотеки — или своё значение"
         >
           <PresetInput
             id={`${idPrefix}-type`}
@@ -134,7 +138,7 @@ export function RoomFormFields({
             value={values.floorType}
             disabled={disabled}
             invalid={Boolean(errors.floorType)}
-            options={typeOptions}
+            groups={typeGroups}
             optionMarker={(value) => <ColorZoneDot zone={colorZoneFromRoomType(value)} size={8} />}
             onValueChange={(next) => onChange({ floorType: next })}
           />

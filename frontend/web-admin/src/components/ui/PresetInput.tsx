@@ -1,5 +1,12 @@
-import { useId, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import type { PresetOptionValue } from '../../templates/presets';
+import {
+  Fragment,
+  useId,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
+import type { PresetOptionGroup, PresetOptionValue } from '../../templates/presets';
 import { Input, type InputProps } from './Input';
 
 /**
@@ -15,13 +22,19 @@ import { Input, type InputProps } from './Input';
  * Клавиатура: ↑/↓ — выбор, Enter — подтвердить, Escape — закрыть.
  * Клик по пункту использует onMouseDown с preventDefault, чтобы поле не
  * теряло фокус и не закрывало список до выбора.
+ *
+ * Библиотека с категориями (`groups`) рисуется с заголовками групп; пустые
+ * после фильтра группы скрываются, повтор значения в двух группах показывается
+ * один раз (первая группа выигрывает). ↑/↓ идут сквозь группы.
  */
 
 export interface PresetInputProps extends Omit<InputProps, 'onChange' | 'value' | 'list'> {
   value: string;
   onValueChange: (value: string) => void;
   /** Вся библиотека значений: строки или пары «значение → человеческая подпись». */
-  options: PresetOptionValue[];
+  options?: readonly PresetOptionValue[];
+  /** Библиотека по категориям — вместо `options`; заголовки групп в списке. */
+  groups?: readonly PresetOptionGroup[];
   /**
    * Маркер слева от подписи пункта (например, точка цвета инвентаря по типу
    * помещения). `null`/`undefined` — пункт без маркера.
@@ -31,10 +44,27 @@ export interface PresetInputProps extends Omit<InputProps, 'onChange' | 'value' 
   optionStyle?: (value: string) => CSSProperties | undefined;
 }
 
+interface NormalizedOption {
+  value: string;
+  label: string;
+}
+
+interface NormalizedGroup {
+  label: string | null;
+  options: NormalizedOption[];
+}
+
+function normalizeOptions(options: readonly PresetOptionValue[]): NormalizedOption[] {
+  return options.map((option) =>
+    typeof option === 'string' ? { value: option, label: option } : option,
+  );
+}
+
 export function PresetInput({
   value,
   onValueChange,
   options,
+  groups,
   optionMarker,
   optionStyle,
   ...inputProps
@@ -45,16 +75,27 @@ export function PresetInput({
   const [typed, setTyped] = useState(false);
   const [active, setActive] = useState(-1);
 
-  const normalized = options.map((option) =>
-    typeof option === 'string' ? { value: option, label: option } : option,
-  );
+  const sourceGroups: NormalizedGroup[] = groups
+    ? groups.map((group) => ({ label: group.label, options: normalizeOptions(group.values) }))
+    : [{ label: null, options: normalizeOptions(options ?? []) }];
+  const seen = new Set<string>();
   const query = typed ? value.trim().toLowerCase() : '';
-  const filtered = query
-    ? normalized.filter(
-        (option) =>
-          option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query),
-      )
-    : normalized;
+  const filteredGroups = sourceGroups
+    .map((group) => ({
+      label: group.label,
+      options: group.options.filter((option) => {
+        if (seen.has(option.value)) return false;
+        seen.add(option.value);
+        return (
+          query === '' ||
+          option.label.toLowerCase().includes(query) ||
+          option.value.toLowerCase().includes(query)
+        );
+      }),
+    }))
+    .filter((group) => group.options.length > 0);
+  /** Плоский список для клавиатуры: индекс сквозной через все группы. */
+  const filtered = filteredGroups.flatMap((group) => group.options);
 
   function choose(option: string) {
     onValueChange(option);
@@ -112,29 +153,51 @@ export function PresetInput({
           id={listId}
           role="listbox"
           data-testid="preset-list"
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-neutral-200 bg-white py-1 shadow-lg"
+          className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-neutral-200 bg-white py-1 shadow-lg"
         >
-          {filtered.map((option, index) => (
-            <li
-              key={option.value}
-              role="option"
-              aria-selected={index === active}
-              data-testid={`preset-option-${option.value}`}
-              className={[
-                'flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm',
-                index === active ? 'bg-primary-50 text-primary-700' : 'text-neutral-700',
-                'hover:bg-neutral-50',
-              ].join(' ')}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                choose(option.value);
-              }}
-              onMouseEnter={() => setActive(index)}
-            >
-              {optionMarker?.(option.value)}
-              <span style={optionStyle?.(option.value)}>{option.label}</span>
-            </li>
-          ))}
+          {filteredGroups.map((group, groupIndex) => {
+            // Сквозной индекс пункта: сумма размеров предыдущих групп.
+            const offset = filteredGroups
+              .slice(0, groupIndex)
+              .reduce((sum, previous) => sum + previous.options.length, 0);
+            return (
+              <Fragment key={group.label ?? '__flat'}>
+                {group.label !== null && (
+                  <li
+                    role="presentation"
+                    data-testid="preset-group"
+                    className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-neutral-400"
+                  >
+                    {group.label}
+                  </li>
+                )}
+                {group.options.map((option, optionIndex) => {
+                  const index = offset + optionIndex;
+                  return (
+                    <li
+                      key={option.value}
+                      role="option"
+                      aria-selected={index === active}
+                      data-testid={`preset-option-${option.value}`}
+                      className={[
+                        'flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm',
+                        index === active ? 'bg-primary-50 text-primary-700' : 'text-neutral-700',
+                        'hover:bg-neutral-50',
+                      ].join(' ')}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        choose(option.value);
+                      }}
+                      onMouseEnter={() => setActive(index)}
+                    >
+                      {optionMarker?.(option.value)}
+                      <span style={optionStyle?.(option.value)}>{option.label}</span>
+                    </li>
+                  );
+                })}
+              </Fragment>
+            );
+          })}
         </ul>
       )}
     </div>

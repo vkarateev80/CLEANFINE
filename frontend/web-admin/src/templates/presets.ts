@@ -27,11 +27,113 @@ export type PresetId =
 /** Значение списка: строка либо пара «значение → человеческая подпись». */
 export type PresetOptionValue = string | { value: string; label: string };
 
-export interface PresetLibrary {
-  id: PresetId;
+/** Категория внутри библиотеки: заголовок группы в выпадающем списке. */
+export interface PresetOptionGroup {
   label: string;
   values: readonly PresetOptionValue[];
 }
+
+export interface PresetLibrary {
+  id: PresetId;
+  label: string;
+  /** Плоский список (для подсказок и склейки); у библиотек с группами — склейка групп. */
+  values: readonly PresetOptionValue[];
+  /** Разбиение по категориям — показывается заголовками в PresetInput. */
+  groups?: readonly PresetOptionGroup[];
+}
+
+/** Склейка групп в плоский список без дублей (порядок групп сохраняется). */
+function flattenGroups(groups: readonly PresetOptionGroup[]): PresetOptionValue[] {
+  const seen = new Set<string>();
+  const result: PresetOptionValue[] = [];
+  for (const group of groups) {
+    for (const option of group.values) {
+      const value = typeof option === 'string' ? option : option.value;
+      if (!seen.has(value)) {
+        seen.add(value);
+        result.push(option);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Виды помещений по категориям (12.10.2026, запрос владельца: «добавь
+ * столовую и ещё типы, сгруппируй»). Цвет инвентаря выводится из названия
+ * ключевыми словами (`shared/types/color-coding`): санитарные — красный,
+ * пищевые — зелёный, витрины/стёкла — жёлтый, остальное — синий.
+ */
+const ROOM_TYPE_GROUPS: readonly PresetOptionGroup[] = [
+  {
+    label: 'Рабочие зоны',
+    values: [
+      'Офис',
+      'Кабинет',
+      'Открытая зона',
+      'Переговорная',
+      'Приёмная',
+      'Колл-центр',
+      'Учебный класс',
+    ],
+  },
+  {
+    label: 'Общие зоны',
+    values: [
+      'Холл',
+      'Ресепшен',
+      'Входная группа',
+      'Лифтовой холл',
+      'Коридор',
+      'Лестничная клетка',
+      'Зона ожидания',
+      'Гардероб',
+      'Актовый зал',
+      'Конференц-зал',
+    ],
+  },
+  {
+    label: 'Санитарные зоны',
+    values: ['Санузел', 'Душевая', 'Санитарная зона', 'Раздевалка', 'Комната матери и ребёнка'],
+  },
+  {
+    label: 'Пищевые зоны',
+    values: ['Столовая', 'Кухня', 'Буфет', 'Кофе-пойнт', 'Кафе', 'Обеденная зона'],
+  },
+  {
+    label: 'Торговые зоны',
+    values: ['Торговый зал', 'Витрина', 'Кассовая зона', 'Примерочная'],
+  },
+  {
+    label: 'Служебные и технические',
+    values: [
+      'Кладовая',
+      'Подсобное помещение',
+      'Комната уборочного инвентаря',
+      'Склад',
+      'Архив',
+      'Серверная',
+      'Техническое помещение',
+      'Электрощитовая',
+      'Пост охраны',
+    ],
+  },
+  {
+    label: 'Медицинские и спортивные',
+    values: [
+      'Палата',
+      'Процедурный кабинет',
+      'Регистратура',
+      'Спортзал',
+      'Тренажёрный зал',
+      'Бассейн',
+    ],
+  },
+  {
+    label: 'Прочее',
+    values: ['Терраса', 'Балкон', 'Парковка', 'Курительная комната'],
+  },
+];
 
 export const PRESET_LIBRARIES: Record<PresetId, PresetLibrary> = {
   'object-types': {
@@ -57,26 +159,8 @@ export const PRESET_LIBRARIES: Record<PresetId, PresetLibrary> = {
   'room-types': {
     id: 'room-types',
     label: 'Виды помещения',
-    values: [
-      'Офис',
-      'Открытая зона',
-      'Переговорная',
-      'Ресепшен',
-      'Холл',
-      'Кабинет',
-      'Санузел',
-      'Душевая',
-      'Санитарная зона',
-      'Кухня',
-      'Кладовая',
-      'Подсобное помещение',
-      'Коридор',
-      'Лестничная клетка',
-      'Серверная',
-      'Актовый зал',
-      'Торговый зал',
-      'Витрина',
-    ],
+    groups: ROOM_TYPE_GROUPS,
+    values: flattenGroups(ROOM_TYPE_GROUPS),
   },
   'floor-coverings': {
     id: 'floor-coverings',
@@ -191,4 +275,15 @@ export function presetValues(...ids: PresetId[]): string[] {
 /** Сырые опции для PresetInput: строки и пары «значение/подпись» как есть. */
 export function presetOptions(...ids: PresetId[]): PresetOptionValue[] {
   return ids.flatMap((id) => [...PRESET_LIBRARIES[id].values]);
+}
+
+/**
+ * Группы для PresetInput с заголовками: библиотека с категориями отдаёт их
+ * как есть, без категорий — одну группу с подписью библиотеки.
+ */
+export function presetGroups(...ids: PresetId[]): PresetOptionGroup[] {
+  return ids.flatMap((id) => {
+    const library = PRESET_LIBRARIES[id];
+    return library.groups ? [...library.groups] : [{ label: library.label, values: library.values }];
+  });
 }
