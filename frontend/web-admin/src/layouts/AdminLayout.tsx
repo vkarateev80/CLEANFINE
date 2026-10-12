@@ -28,11 +28,13 @@ export interface NavItem {
 const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Доска действий', icon: '📊', end: true },
   { to: '/objects', label: 'Объекты', icon: '🏢' },
-  // Маршруты и техкарты — рабочие места ADMIN/SUPERVISOR: ровно те роли,
+  // Техкарты и маршруты — рабочие места ADMIN/SUPERVISOR: ровно те роли,
   // которым core-service разрешает создание и правку (@Roles). У оператора
   // пункт не показывается, а RoleGuard закрывает и прямой заход по URL.
-  { to: '/routes', label: 'Маршруты', icon: '🗺️', roles: ['ADMIN', 'SUPERVISOR'] },
+  // Порядок «техкарты → маршруты» — по ходу работы (решение владельца 12.10):
+  // сначала описывают, что делать в помещении, потом собирают обход.
   { to: '/tech-cards', label: 'Техкарты', icon: '🧾', roles: ['ADMIN', 'SUPERVISOR'] },
+  { to: '/routes', label: 'Маршруты', icon: '🗺️', roles: ['ADMIN', 'SUPERVISOR'] },
   // Шаблоны: демо-заготовки техкарт/маршрутов/объектов. Создание из шаблона
   // ходит в те же POST, что и обычные экраны, — виден ролям с правом создания.
   { to: '/templates', label: 'Шаблоны', icon: '📚', roles: ['ADMIN', 'SUPERVISOR'] },
