@@ -260,5 +260,5 @@ export interface CreateOperationPayload {
 
 export type UpdateOperationPayload = Partial<CreateOperationPayload>;
 
-export type UploadKind = 'photo' | 'plan' | 'avatar' | 'document';
+export type UploadKind = 'photo' | 'plan' | 'avatar' | 'document' | 'chat';
 export type EntityTypeName = 'FLOOR_PLAN' | 'TICKET' | 'CHAT_MESSAGE' | 'AVATAR' | 'DOCUMENT';

@@ -100,9 +100,9 @@ describe('FilesService', () => {
       );
     });
 
-    it('отклоняет файл больше 10 МБ', async () => {
+    it('отклоняет файл больше 50 МБ', async () => {
       const file = multerFile(Buffer.alloc(10), 'image/png', 'big.png');
-      file.size = 11 * 1024 * 1024;
+      file.size = 51 * 1024 * 1024;
       await expect(service.upload(file, { kind: 'photo' })).rejects.toThrow(/превышает лимит/);
     });
 
@@ -133,7 +133,10 @@ describe('FilesService', () => {
       expect(storage.putObject).toHaveBeenCalledTimes(2);
       const [bucketArg, keyArg, bodyArg, contentTypeArg] = storage.putObject.mock.calls[0];
       expect(bucketArg).toBe('photos');
-      expect(keyArg).toMatch(/^2026\/09\/[0-9a-f-]+\.png$/);
+      // Ключ — текущий год/месяц: тест не должен протухать со сменой месяца.
+      const now = new Date();
+      const yearMonth = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+      expect(keyArg).toMatch(new RegExp(`^${yearMonth}/[0-9a-f-]+\\.png$`));
       expect(contentTypeArg).toBe('image/jpeg');
       expect((await sharp(bodyArg as Buffer).metadata()).format).toBe('jpeg');
 

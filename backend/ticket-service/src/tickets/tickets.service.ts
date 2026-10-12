@@ -41,7 +41,7 @@ import {
  * Счётчики связей для листинга. Значение по умолчанию — для заявок без связей:
  * его же читает админка (`TicketsPage.tsx`), поэтому форма ответа неизменна.
  */
-const EMPTY_RELATION_COUNTS = { assignments: 0, comments: 0, operations: 0 } as const;
+const EMPTY_RELATION_COUNTS = { assignments: 0, comments: 0, operations: 0, rooms: 0 } as const;
 
 /** Вход создания заявки: DTO API и внутренние вызовы (SOS) сведены к одной форме. */
 export interface CreateTicketInput {
@@ -298,13 +298,18 @@ export class TicketsService {
    */
   private async relationCounts(
     ticketIds: string[],
-  ): Promise<Map<string, { assignments: number; comments: number; operations: number }>> {
-    const counts = new Map<string, { assignments: number; comments: number; operations: number }>();
+  ): Promise<
+    Map<string, { assignments: number; comments: number; operations: number; rooms: number }>
+  > {
+    const counts = new Map<
+      string,
+      { assignments: number; comments: number; operations: number; rooms: number }
+    >();
     if (ticketIds.length === 0) {
       return counts;
     }
 
-    const [assignments, comments, operations] = await Promise.all([
+    const [assignments, comments, operations, rooms] = await Promise.all([
       this.prisma.ticketAssignment.groupBy({
         by: ['ticketId'],
         where: { ticketId: { in: ticketIds } },
@@ -316,6 +321,12 @@ export class TicketsService {
         _count: { _all: true },
       }),
       this.prisma.ticketOperationCompletion.groupBy({
+        by: ['ticketId'],
+        where: { ticketId: { in: ticketIds } },
+        _count: { _all: true },
+      }),
+      // Завершённые помещения — прогресс маршрута в списке/на доске (12.10.2026).
+      this.prisma.ticketRoomCompletion.groupBy({
         by: ['ticketId'],
         where: { ticketId: { in: ticketIds } },
         _count: { _all: true },
@@ -337,6 +348,10 @@ export class TicketsService {
       const entry = counts.get(row.ticketId);
       if (entry) entry.operations = row._count._all;
     }
+    for (const row of rooms) {
+      const entry = counts.get(row.ticketId);
+      if (entry) entry.rooms = row._count._all;
+    }
 
     return counts;
   }
@@ -349,12 +364,18 @@ export class TicketsService {
         assignments: { orderBy: { assignedAt: 'asc' } },
         comments: { orderBy: { createdAt: 'asc' } },
         operations: { orderBy: { completedAt: 'asc' } },
+        // Завершённые помещения маршрута — для цветового прогресса у админа (12.10.2026).
+        rooms: { orderBy: { completedAt: 'asc' } },
       },
     });
     if (!ticket) {
       throw new NotFoundException('Заявка не найдена');
     }
-    return { ...ticket, operationsCompleted: ticket.operations.length };
+    return {
+      ...ticket,
+      operationsCompleted: ticket.operations.length,
+      roomsCompleted: ticket.rooms.length,
+    };
   }
 
   async getTicketOrFail(id: string): Promise<Ticket> {

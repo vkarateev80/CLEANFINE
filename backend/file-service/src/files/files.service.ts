@@ -35,6 +35,7 @@ const BUCKET_ENUM: Record<UploadKind, Bucket> = {
   plan: 'PLANS',
   avatar: 'AVATARS',
   document: 'DOCUMENTS',
+  chat: 'DOCUMENTS',
 };
 
 @Injectable()

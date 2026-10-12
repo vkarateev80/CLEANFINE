@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { getObjectDetail, getRoom, getTechCard, listObjects } from '../../api/core';
+import { getObjectDetail, getRoom, getRoute, getTechCard, listObjects } from '../../api/core';
+import { listEvents } from '../../api/schedule';
 import { getTicket, listTickets } from '../../api/tickets';
 import { listUsers } from '../../api/users';
 import { useCanAssignTicket } from '../../hooks/usePermissions';
 import type { SessionUser } from '../../types';
-import type { ListTicketsQuery } from '../../types/tickets';
+import type { ListTicketsQuery, TicketDetailEntity } from '../../types/tickets';
+import { ticketShiftDate } from './routeProgress';
 
 /**
  * Данные экранов «Заявки». Хуки собирают и кэшируют справочники, которые нужны
@@ -110,4 +112,37 @@ export function userName(users: SessionUser[] | undefined, id: string | null): s
   if (!id) return null;
   const found = users?.find((user) => user.id === id);
   return found?.fullName ?? null;
+}
+
+/**
+ * Маршрут, по которому идёт заявка (12.10.2026). У заявки нет routeId: связь
+ * живёт в смене schedule-service (`ScheduleEvent.ticketId` + `routeId`), поэтому
+ * ищем смену того же объекта в день заявки, а затем маршрут из core-service.
+ */
+export function useTicketRoute(
+  ticket: Pick<TicketDetailEntity, 'id' | 'objectId' | 'description' | 'createdAt'> | undefined,
+) {
+  const date = ticket ? ticketShiftDate(ticket) : null;
+  const events = useQuery({
+    queryKey: ['ticket-route-events', ticket?.objectId, date],
+    enabled: Boolean(ticket),
+    staleTime: 5 * 60 * 1000,
+    queryFn: () => listEvents({ objectId: ticket?.objectId, date: date ?? undefined }),
+  });
+  const routeId =
+    events.data?.find((event) => event.ticketId === ticket?.id)?.routeId ?? null;
+  const route = useQuery({
+    queryKey: ['ticket-route', routeId],
+    enabled: routeId !== null,
+    staleTime: 5 * 60 * 1000,
+    queryFn: () => getRoute(routeId as string),
+  });
+  return {
+    routeId,
+    route: route.data ?? null,
+    isLoading: events.isLoading || (routeId !== null && route.isLoading),
+    error: events.error ?? route.error ?? null,
+    /** Смены найдены, но ни одна не ссылается на заявку — маршрута нет. */
+    notFound: events.isSuccess && routeId === null,
+  };
 }

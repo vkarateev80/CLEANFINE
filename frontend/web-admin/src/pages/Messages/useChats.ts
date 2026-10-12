@@ -8,6 +8,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query';
 import { createChat, getChat, listChatMessages, listMyChats } from '../../api/chat';
+import { attachFile } from '../../api/files';
 import { listUsers } from '../../api/users';
 import { CHAT_PAGE_LIMIT, type ChatSocketApi } from '../../hooks/useChatSocket';
 import { useCanAssignTicket } from '../../hooks/usePermissions';
@@ -219,7 +220,8 @@ export interface ChatRoomData {
   loadOlder: () => Promise<void>;
   sending: boolean;
   sendError: unknown;
-  send: (text: string) => Promise<void>;
+  /** Отправка: текст и/или id вложений file-service (12.10.2026). */
+  send: (text: string, attachmentIds?: string[]) => Promise<void>;
 }
 
 /**
@@ -240,13 +242,21 @@ export function useChatRoom(chatId: string | null, socket: ChatSocketApi): ChatR
   const { sendMessage, markRead } = socket;
 
   const send = useCallback(
-    async (text: string): Promise<void> => {
+    async (text: string, attachmentIds: string[] = []): Promise<void> => {
       const target = chatId;
       if (!target) return;
       setSending(true);
       setSendError(null);
       try {
-        const message = await sendMessage(target, { text });
+        const message = await sendMessage(target, {
+          text,
+          ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
+        });
+        // Привязка файлов к сообщению — для «вложений сущности» в file-service;
+        // не критично: сообщение уже ушло, id вложений лежат в нём самом.
+        for (const fileId of attachmentIds) {
+          attachFile(fileId, 'CHAT_MESSAGE', message.id).catch(() => undefined);
+        }
         appendMessageToCache(queryClient, message);
         // Своё сообщение не увеличивает счётчик непрочитанных (открытый чат — прочитан).
         bumpChatList(queryClient, message, target, currentUserId);

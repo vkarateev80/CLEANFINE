@@ -207,6 +207,7 @@ export function ObjectDetailPage() {
     },
   });
 
+  const [planProgress, setPlanProgress] = useState<number | null>(null);
   const planMutation = useMutation({
     mutationFn: ({
       floorId,
@@ -216,11 +217,15 @@ export function ObjectDetailPage() {
       floorId: string;
       file: File;
       planScale?: number;
-    }) => uploadFloorPlan(floorId, file, planScale),
+    }) => {
+      setPlanProgress(0);
+      return uploadFloorPlan(floorId, file, planScale, setPlanProgress);
+    },
     onSuccess: () => {
       invalidateFloors();
       setModal(null);
     },
+    onSettled: () => setPlanProgress(null),
   });
 
   const deleteFloorMutation = useMutation({
@@ -871,6 +876,7 @@ export function ObjectDetailPage() {
           <UploadPlanModal
             floor={planFloor}
             saving={planMutation.isPending}
+            progress={planProgress}
             error={planMutation.error}
             onCancel={() => setModal(null)}
             onSubmit={(file, planScale) =>

@@ -404,6 +404,13 @@ describe('parseSendPayload / parseReadPayload', () => {
     });
   });
 
+  it('пустой текст допустим, если есть вложения (фото/видео в чате)', () => {
+    expect(parseSendPayload({ chatId: 'c-1', text: '', attachmentIds: ['f-1'] })).toEqual({
+      ok: true,
+      value: { chatId: 'c-1', text: '', attachmentIds: ['f-1'] },
+    });
+  });
+
   it('отклоняет пустой текст, длинный текст и неверные вложения', () => {
     expect(parseSendPayload({ chatId: 'c-1', text: '   ' })).toEqual({
       ok: false,

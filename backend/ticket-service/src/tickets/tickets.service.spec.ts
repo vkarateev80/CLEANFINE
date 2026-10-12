@@ -35,7 +35,12 @@ interface PrismaMock {
     count: jest.Mock;
     groupBy: jest.Mock;
   };
-  ticketRoomCompletion: { create: jest.Mock; findUnique: jest.Mock; count: jest.Mock };
+  ticketRoomCompletion: {
+    create: jest.Mock;
+    findUnique: jest.Mock;
+    count: jest.Mock;
+    groupBy: jest.Mock;
+  };
   $transaction: jest.Mock;
 }
 
@@ -60,6 +65,7 @@ function createPrismaMock(): PrismaMock {
       create: jest.fn(),
       findUnique: jest.fn(),
       count: jest.fn(),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
     $transaction: jest.fn(),
   };
@@ -421,7 +427,12 @@ describe('TicketsService (М3.4–М3.6)', () => {
       const result = await service.list({});
 
       // Контракт ответа не изменился: _count на месте и заполнен.
-      expect(result.items[0]._count).toEqual({ assignments: 2, comments: 3, operations: 0 });
+      expect(result.items[0]._count).toEqual({
+        assignments: 2,
+        comments: 3,
+        operations: 0,
+        rooms: 0,
+      });
       // Агрегаты ограничены id страницы, а не всей таблицей.
       for (const groupBy of [
         prisma.ticketAssignment.groupBy,
@@ -553,6 +564,7 @@ describe('TicketsService (М3.4–М3.6)', () => {
         assignments: [{ id: 'a-1' }],
         comments: [{ id: 'c-1' }],
         operations: [{ id: 'o-1' }, { id: 'o-2' }],
+        rooms: [{ id: 'r-1' }],
       });
 
       const result = await service.getDetail('t-1');
@@ -563,9 +575,11 @@ describe('TicketsService (М3.4–М3.6)', () => {
           assignments: { orderBy: { assignedAt: 'asc' } },
           comments: { orderBy: { createdAt: 'asc' } },
           operations: { orderBy: { completedAt: 'asc' } },
+          rooms: { orderBy: { completedAt: 'asc' } },
         },
       });
       expect(result.operationsCompleted).toBe(2);
+      expect(result.roomsCompleted).toBe(1);
     });
 
     it('несуществующая заявка → 404', async () => {

@@ -23,7 +23,12 @@ import type { MessageReadEvent, MessageView, WsAck } from '../types/chat';
 export interface UseChatSocketResult {
   status: 'connecting' | 'online' | 'offline';
   /** Отправка сообщения с подтверждением сервера (ack) либо ошибкой. */
-  send: (chatId: string, text: string, clientMessageId?: string) => Promise<MessageView>;
+  send: (
+    chatId: string,
+    text: string,
+    clientMessageId?: string,
+    attachmentIds?: string[],
+  ) => Promise<MessageView>;
   /** Отметка прочтения: `lastMessageId` — последнее видимое сообщение чата. */
   markRead: (chatId: string, lastMessageId: string) => void;
   /** Новые сообщения из сокета (экран решает, к какому чату они относятся). */
@@ -86,7 +91,12 @@ export function useChatSocket(enabled: boolean): UseChatSocketResult {
   }, [enabled, accessToken]);
 
   const send = useCallback(
-    (chatId: string, text: string, clientMessageId?: string): Promise<MessageView> => {
+    (
+      chatId: string,
+      text: string,
+      clientMessageId?: string,
+      attachmentIds: string[] = [],
+    ): Promise<MessageView> => {
       return new Promise((resolve, reject) => {
         const socket = socketRef.current;
         if (!socket || !socket.connected) {
@@ -101,6 +111,7 @@ export function useChatSocket(enabled: boolean): UseChatSocketResult {
             chatId,
             text,
             ...(clientMessageId ? { clientMessageId } : {}),
+            ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
           },
           (timeoutError: Error | null, response: WsAck<{ message: MessageView }>) => {
             if (timeoutError) {

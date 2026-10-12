@@ -9,6 +9,7 @@ import { notificationTypeIcon, type NotificationEntity } from '../../types/notif
 import { TICKET_PRIORITY_LABELS, type TicketListItem } from '../../types/tickets';
 import { notificationTarget } from '../Notifications/NotificationBell';
 import { useRecentNotifications } from '../Notifications/useNotifications';
+import { PROGRESS_BG, PROGRESS_LABELS, overallProgress } from '../Tickets/routeProgress';
 import {
   TicketPriorityBadge,
   TicketStatusBadge,
@@ -120,6 +121,25 @@ export function DashboardLive() {
                   : ticket._count.operations > 0
                     ? `${ticket._count.operations} операций`
                     : null;
+              // Цвет прохода по маршруту (12.10.2026): серый — не начато, жёлтый —
+              // идёт, зелёный — все помещения закрыты. Помещений нет у заявки без
+              // маршрута — тогда судим по операциям.
+              const roomsDone = ticket._count.rooms ?? 0;
+              const started =
+                roomsDone > 0 || ticket._count.operations > 0 || ticket.status === 'in_progress';
+              const tone = overallProgress(roomsDone, ticket.roomsTotal, started);
+              const roomsText =
+                ticket.roomsTotal && ticket.roomsTotal > 0
+                  ? `помещений ${Math.min(roomsDone, ticket.roomsTotal)}/${ticket.roomsTotal}`
+                  : null;
+              const percent =
+                ticket.roomsTotal && ticket.roomsTotal > 0
+                  ? Math.min(100, Math.round((roomsDone / ticket.roomsTotal) * 100))
+                  : tone === 'done'
+                    ? 100
+                    : tone === 'active'
+                      ? 50
+                      : 0;
               return (
                 <li key={ticket.id} data-testid={`dashboard-live-ticket-${ticket.id}`}>
                   <Link
@@ -134,6 +154,21 @@ export function DashboardLive() {
                       />
                       <span className="truncate text-sm font-medium text-neutral-900">
                         {ticket.description}
+                      </span>
+                    </span>
+                    <span
+                      className="flex items-center gap-2"
+                      data-testid={`dashboard-live-progress-${ticket.id}`}
+                      data-tone={tone}
+                    >
+                      <span className="h-1.5 w-32 overflow-hidden rounded-full bg-neutral-200">
+                        <span
+                          className={['block h-full rounded-full', PROGRESS_BG[tone]].join(' ')}
+                          style={{ width: `${Math.max(percent, tone === 'pending' ? 0 : 8)}%` }}
+                        />
+                      </span>
+                      <span className={['text-[11px]', tone === 'pending' ? 'text-neutral-400' : 'text-neutral-600'].join(' ')}>
+                        {roomsText ?? PROGRESS_LABELS[tone]}
                       </span>
                     </span>
                     <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-neutral-500">

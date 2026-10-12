@@ -568,8 +568,10 @@ export class ChatsService {
     }
     await this.assertCanView(chat, user);
 
-    const text = dto.text.trim();
-    if (text === '') {
+    const text = (dto.text ?? '').trim();
+    const attachmentIds = this.unique(dto.attachmentIds ?? []);
+    // Пустой текст допустим только при вложениях (фото/видео в чате, 12.10.2026).
+    if (text === '' && attachmentIds.length === 0) {
       throw new BadRequestException('Сообщение не может быть пустым');
     }
     const clientMessageId = dto.clientMessageId?.trim() || null;
@@ -590,7 +592,7 @@ export class ChatsService {
           chatId,
           authorId: user.id,
           text,
-          attachmentIds: this.unique(dto.attachmentIds ?? []),
+          attachmentIds,
           ...(clientMessageId ? { clientMessageId } : {}),
         },
       });
@@ -653,10 +655,7 @@ export class ChatsService {
       await this.push.notifyOffline({
         userIds: offlineIds,
         title: chat.title ?? 'Новое сообщение',
-        body:
-          message.text.length > this.previewLength
-            ? `${message.text.slice(0, this.previewLength)}…`
-            : message.text,
+        body: previewText(message, this.previewLength),
         data: { chatId: chat.id, messageId: message.id, type: chat.type },
       });
     } catch (error) {
@@ -865,9 +864,7 @@ export class ChatsService {
       id: message.id,
       authorId: message.authorId,
       text:
-        message.text.length > this.previewLength
-          ? `${message.text.slice(0, this.previewLength)}…`
-          : message.text,
+        previewText(message, this.previewLength),
       attachmentIds: message.attachmentIds,
       createdAt: message.createdAt.toISOString(),
     };
@@ -879,4 +876,17 @@ export function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002'
   );
+}
+
+/** Превью сообщения: текст, а у сообщения без текста — подпись о вложении. */
+export function previewText(
+  message: { text: string; attachmentIds: string[] },
+  limit: number,
+): string {
+  if (message.text.length === 0) {
+    return message.attachmentIds.length > 1
+      ? `📎 Вложения: ${message.attachmentIds.length}`
+      : '📎 Вложение';
+  }
+  return message.text.length > limit ? `${message.text.slice(0, limit)}…` : message.text;
 }

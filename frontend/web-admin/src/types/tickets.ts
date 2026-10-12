@@ -47,6 +47,8 @@ export interface TicketEntity {
   completionDeadline: string | null;
   /** Ожидаемое число операций техкарты (М3.6). */
   operationsTotal: number | null;
+  /** Ожидаемое число помещений маршрута (М6.4). */
+  roomsTotal: number | null;
 
   createdAt: string;
   updatedAt: string;
@@ -57,6 +59,8 @@ export interface TicketCounts {
   assignments: number;
   comments: number;
   operations: number;
+  /** Завершённые помещения маршрута (12.10.2026) — прогресс на доске. */
+  rooms: number;
 }
 
 /** Элемент `GET /api/tickets`: заявка + счётчики связей. */
@@ -88,8 +92,20 @@ export interface TicketOperationCompletionEntity {
   id: string;
   ticketId: string;
   operationId: string;
+  /** Помещение маршрута; "" — операция без привязки к помещению. */
+  roomId?: string;
   completedAt: string;
   photoUrl: string | null;
+  completedBy: string | null;
+  createdAt: string;
+}
+
+/** Факт завершения помещения маршрута (`ticket_room_completions`). */
+export interface TicketRoomCompletionEntity {
+  id: string;
+  ticketId: string;
+  roomId: string;
+  completedAt: string;
   completedBy: string | null;
   createdAt: string;
 }
@@ -99,8 +115,11 @@ export interface TicketDetailEntity extends TicketEntity {
   assignments: TicketAssignmentEntity[];
   comments: TicketCommentEntity[];
   operations: TicketOperationCompletionEntity[];
+  /** Завершённые помещения маршрута (12.10.2026); у старых ответов может отсутствовать. */
+  rooms?: TicketRoomCompletionEntity[];
   /** Удобное поле бэкенда: `ticket.operations.length`. */
   operationsCompleted: number;
+  roomsCompleted?: number;
 }
 
 /** Ответ SOS-эндпоинта: заявка + найденные gps-service операторы. */

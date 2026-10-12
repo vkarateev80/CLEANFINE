@@ -36,8 +36,40 @@ export function uploadPhoto(
 /** Привязка файла к сущности — так фото SOS оказывается во вложениях заявки. */
 export function attachFile(
   fileId: string,
-  entityType: 'TICKET',
+  entityType: 'TICKET' | 'CHAT_MESSAGE',
   entityId: string,
 ): Promise<{ id: string }> {
   return apiClient.post(`/files/${fileId}/attach`, { entityType, entityId }).then((r) => r.data);
+}
+
+/** Таймаут загрузки вложений: видео с телефона на мобильной сети идёт минутами. */
+export const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+
+/**
+ * Вложение чата (12.10.2026): `kind=chat` — без водяного знака и проверки
+ * разрешения, фото/видео/PDF до 50 МБ. `onProgress` — проценты отправки.
+ */
+export function uploadChatFile(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<FileView> {
+  const form = new FormData();
+  form.append('file', file, file.name);
+  form.append('kind', 'chat');
+  return apiClient
+    .post('/files/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: UPLOAD_TIMEOUT_MS,
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) {
+          onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        }
+      },
+    })
+    .then((r) => r.data);
+}
+
+/** Метаданные файла (вложение сообщения): url, миниатюра, тип, размер. */
+export function getFile(id: string): Promise<FileView> {
+  return apiClient.get(`/files/${id}`).then((r) => r.data);
 }

@@ -18,8 +18,12 @@ export type BucketName = (typeof BUCKETS)[keyof typeof BUCKETS];
 
 export const ALL_BUCKETS: BucketName[] = Object.values(BUCKETS);
 
-/** Лимиты загрузки (приёмка устава: ≤10 МБ, фото ≥1280×720). */
-export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+/**
+ * Лимиты загрузки: фото ≥1280×720; размер — 50 МБ (12.10.2026: было 10 МБ по
+ * уставу, но видео из чата с телефона в 10 МБ не умещается; nginx подов —
+ * `client_max_body_size 60m`).
+ */
+export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 export const MIN_PHOTO_WIDTH = 1280;
 export const MIN_PHOTO_HEIGHT = 720;
 

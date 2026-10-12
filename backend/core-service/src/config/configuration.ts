@@ -21,7 +21,8 @@ export default () => ({
    */
   fileService: {
     baseUrl: process.env.FILE_SERVICE_URL ?? 'http://localhost:3002',
-    timeoutMs: positiveInt(process.env.FILE_SERVICE_TIMEOUT_MS, 15_000),
+    // 120 с: план этажа до 10 МБ (PDF растеризуется в file-service) не укладывался в 15 с.
+    timeoutMs: positiveInt(process.env.FILE_SERVICE_TIMEOUT_MS, 120_000),
   },
   /**
    * auth-service — нужен для проверки аккаунта заказчика при записи `ownerClientId`
