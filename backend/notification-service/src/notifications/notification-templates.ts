@@ -78,6 +78,12 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, NotificationTempla
     body: '{body}',
     priority: 'normal',
   },
+  SYSTEM: {
+    type: 'SYSTEM',
+    title: '{title}',
+    body: '{body}',
+    priority: 'high',
+  },
 };
 
 export interface RenderedNotification {

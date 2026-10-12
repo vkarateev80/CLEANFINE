@@ -11,7 +11,13 @@ import type { StaffDirectoryService } from '../integration/staff-directory.servi
 const VALID_TOKEN = 'fcm-token-abcdefghijklmnopqrstuvwxyz-0123456789';
 
 interface PrismaMock {
-  device: { upsert: jest.Mock; findMany: jest.Mock; updateMany: jest.Mock; deleteMany: jest.Mock };
+  device: {
+    upsert: jest.Mock;
+    findMany: jest.Mock;
+    updateMany: jest.Mock;
+    deleteMany: jest.Mock;
+    count: jest.Mock;
+  };
   notification: {
     create: jest.Mock;
     findMany: jest.Mock;
@@ -29,6 +35,7 @@ function createPrismaMock(): PrismaMock {
       findMany: jest.fn().mockResolvedValue([]),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+      count: jest.fn().mockResolvedValue(0),
     },
     notification: {
       create: jest.fn(),
@@ -260,6 +267,34 @@ describe('NotificationsService', () => {
       staff.staffIds.mockRejectedValue(new Error('auth down'));
 
       await expect(service.resolveBroadcastRecipients()).resolves.toEqual(['u-1']);
+    });
+  });
+
+  describe('selfTest', () => {
+    it('создаёт SYSTEM-уведомление и возвращает число активных устройств', async () => {
+      prisma.device.count = jest.fn().mockResolvedValue(1);
+      prisma.device.findMany.mockResolvedValue([{ token: VALID_TOKEN, platform: 'android' }]);
+      prisma.notification.create.mockResolvedValue(notificationOf({ id: 'n-test', type: 'SYSTEM' }));
+
+      const result = await service.selfTest('u-1');
+
+      expect(result).toEqual({ devices: 1, notificationId: 'n-test' });
+      expect(push.send).toHaveBeenCalledWith(expect.objectContaining({ template: 'SYSTEM' }));
+      expect(prisma.notification.create.mock.calls[0][0].data).toMatchObject({
+        type: 'SYSTEM',
+        title: '🔔 Проверка уведомлений',
+      });
+    });
+
+    it('без устройств объясняет это в тексте и не шлёт push', async () => {
+      prisma.device.count = jest.fn().mockResolvedValue(0);
+      prisma.notification.create.mockResolvedValue(notificationOf({ id: 'n-2', type: 'SYSTEM' }));
+
+      const result = await service.selfTest('u-1');
+
+      expect(result.devices).toBe(0);
+      expect(push.send).not.toHaveBeenCalled();
+      expect(prisma.notification.create.mock.calls[0][0].data.body).toMatch(/не включён/);
     });
   });
 

@@ -102,16 +102,25 @@ function Attachment({ id, mine }: { id: string; mine: boolean }) {
 }
 
 /** Что можно прикрепить в чате: фото, видео, PDF. Совпадает с `ALLOWED_MIME.chat` file-service. */
-export const CHAT_ATTACHMENT_ACCEPT = 'image/*,video/*,application/pdf';
+export const CHAT_ATTACHMENT_ACCEPT = 'image/*,video/*,application/pdf,.xml,application/xml,text/xml';
 export const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
 export const CHAT_ATTACHMENT_MAX_COUNT = 10;
+
+export function isXmlAttachment(file: Pick<File, 'name' | 'type'>): boolean {
+  return (
+    file.type === 'application/xml' ||
+    file.type === 'text/xml' ||
+    file.name.toLowerCase().endsWith('.xml')
+  );
+}
 
 export function attachmentError(file: File): string | null {
   const okType =
     file.type.startsWith('image/') ||
     file.type.startsWith('video/') ||
-    file.type === 'application/pdf';
-  if (!okType) return `«${file.name}»: можно прикрепить фото, видео или PDF`;
+    file.type === 'application/pdf' ||
+    isXmlAttachment(file);
+  if (!okType) return `«${file.name}»: можно прикрепить фото, видео, PDF или XML`;
   if (file.size > CHAT_ATTACHMENT_MAX_BYTES) return `«${file.name}» больше 50 МБ`;
   return null;
 }

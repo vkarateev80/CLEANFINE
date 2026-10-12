@@ -169,7 +169,8 @@ export function planFileError(file: File): string | null {
   const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
   const allowedExtensions = ['.png', '.jpg', '.jpeg', '.pdf', '.svg'];
   const allowed = PLAN_MIME_TYPES.includes(file.type) || allowedExtensions.includes(extension);
-  if (!allowed) return 'Допустимы только PNG, JPG, PDF или SVG';
+  if (!allowed)
+    return 'Допустимы только PNG, JPG, PDF или SVG. Sweet Home 3D (.sh3d) и XML — на странице плана этажа';
   if (file.size > MAX_PLAN_BYTES) return 'Файл больше 10 МБ';
   return null;
 }

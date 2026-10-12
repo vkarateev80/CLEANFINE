@@ -18,6 +18,7 @@ export const NOTIFICATION_TYPES = [
   'SCHEDULE_MISSED',
   'CHAT_MESSAGE',
   'TICKET_STATUS',
+  'SYSTEM',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -31,6 +32,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   SCHEDULE_MISSED: 'Неявка на смену',
   CHAT_MESSAGE: 'Сообщение в чате',
   TICKET_STATUS: 'Статус заявки',
+  SYSTEM: 'Системное',
 };
 
 /** Иконка типа — компактная подсказка в списке (текстовые подписи рядом). */
@@ -43,6 +45,7 @@ export const NOTIFICATION_TYPE_ICONS: Record<NotificationType, string> = {
   SCHEDULE_MISSED: '🗓️',
   CHAT_MESSAGE: '💬',
   TICKET_STATUS: '🎫',
+  SYSTEM: '🔔',
 };
 
 export interface NotificationEntity {

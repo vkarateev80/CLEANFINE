@@ -251,6 +251,29 @@ export class NotificationsService {
     });
   }
 
+  /**
+   * Проверка доставки на устройства пользователя (кнопка «Проверить push»,
+   * 12.10.2026): обычный путь notifyUser — настройки, push по всем активным
+   * устройствам, in-app запись. Возвращает число устройств, чтобы клиент
+   * объяснил «0 устройств — push на этом телефоне не включён».
+   */
+  async selfTest(userId: string): Promise<{ devices: number; notificationId: string | null }> {
+    const devices = await this.prisma.device.count({ where: { userId, isActive: true } });
+    const notification = await this.notifyUser(
+      userId,
+      'SYSTEM',
+      {
+        title: '🔔 Проверка уведомлений',
+        body:
+          devices > 0
+            ? 'Push работает: это уведомление пришло на ваше устройство.'
+            : 'Push на этом устройстве не включён — уведомление только в приложении.',
+      },
+      { kind: 'self-test' },
+    );
+    return { devices, notificationId: notification?.id ?? null };
+  }
+
   /** Уведомить список пользователей (дубликаты отбрасываются). */
   async notifyUsers(
     userIds: string[],

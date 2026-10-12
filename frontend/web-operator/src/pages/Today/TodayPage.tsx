@@ -5,6 +5,7 @@ import { Badge, type Tone } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyState, ErrorBanner } from '../../components/ui/Feedback';
+import { PushPromptBanner } from '../../components/shell/PushPromptBanner';
 import { Sheet } from '../../components/ui/Sheet';
 import { useHeaderTitle } from '../../hooks/useHeaderTitle';
 import { useOnline } from '../../hooks/useOnline';
@@ -65,6 +66,9 @@ export function TodayPage() {
           </div>
         )}
       </div>
+
+      {/* Push предлагается прямо здесь, а не только в профиле (12.10.2026). */}
+      <PushPromptBanner />
 
       {events.isLoading && !events.data ? (
         <>

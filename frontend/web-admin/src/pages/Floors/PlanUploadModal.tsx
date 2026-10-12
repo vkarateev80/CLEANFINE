@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Button, ErrorBanner, Field, Input, Modal, SoftWarning } from '../../components/ui';
 import { PlanDropZone } from './PlanDropZone';
-import { PLAN_FORMATS_HINT, isSh3dFile } from './floorPlanUtils';
-import { readSh3dScene, renderSh3dPlan, type ImportRoom, type RenderedPlan } from './sh3d';
+import { PLAN_FORMATS_HINT, isSh3dFile, isXmlPlanFile } from './floorPlanUtils';
+import {
+  readPlanXml,
+  readSh3dScene,
+  renderSh3dPlan,
+  type ImportRoom,
+  type RenderedPlan,
+} from './sh3d';
 
 interface PlanUploadModalProps {
   open: boolean;
@@ -90,21 +96,37 @@ export function PlanUploadModal({
     onSubmit(file, parsed);
   }
 
-  /** Выбор файла: для .sh3d — конвертация в PNG до отправки (ошибки — сюда же). */
+  /**
+   * Выбор файла: .sh3d и Home.xml конвертируются в PNG до отправки (ошибки —
+   * сюда же); XML, оказавшийся SVG, подменяется файлом image/svg+xml.
+   */
   async function handleFile(next: File) {
     setFile(next);
     setSh3d(null);
     setLocalError(null);
-    if (!isSh3dFile(next)) return;
+    const xml = !isSh3dFile(next) && isXmlPlanFile(next);
+    if (!isSh3dFile(next) && !xml) return;
     setSh3dBusy(true);
     try {
-      const scene = await readSh3dScene(next);
+      let scene;
+      if (xml) {
+        const parsed = await readPlanXml(next);
+        if (parsed.kind === 'svg') {
+          setFile(parsed.file);
+          return;
+        }
+        scene = parsed.scene;
+      } else {
+        scene = await readSh3dScene(next);
+      }
       const rendered = await renderSh3dPlan(next, scene);
       setSh3d(rendered);
       setScale(String(rendered.scale));
     } catch (caught) {
       setFile(null);
-      setLocalError(caught instanceof Error ? caught.message : 'Не удалось разобрать .sh3d');
+      setLocalError(
+        caught instanceof Error ? caught.message : `Не удалось разобрать ${xml ? 'XML' : '.sh3d'}`,
+      );
     } finally {
       setSh3dBusy(false);
     }
@@ -183,7 +205,7 @@ export function PlanUploadModal({
             />
             <div className="text-xs text-neutral-500">
               {sh3dBusy ? (
-                'Читаем .sh3d и рисуем план…'
+                'Читаем сцену и рисуем план…'
               ) : file ? (
                 <>
                   Выбран файл: <span className="font-mono">{file.name}</span>
