@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState, ErrorBanner, SoftWarning, errorMessage } from '../../components/ui/Feedback';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { FullscreenLayout } from '../../layouts/FullscreenLayout';
+import { alertUser } from '../../lib/alerts';
 import { localDate, localTime } from '../../lib/date';
 import { isForbidden } from '../../lib/http';
 import { useAuthStore } from '../../stores/authStore';
@@ -99,11 +100,14 @@ export function ChatThreadPage() {
     socket.markRead(chatId, last.id);
   }, [chatId, messages.length, me]);
 
-  // Новые входящие по сокету обновляют счётчики в списке чатов.
+  // Новые входящие по сокету обновляют счётчики в списке чатов и дают
+  // короткую вибрацию (12.10.2026) — экран открыт, push на него не приходит.
   useEffect(() => {
-    if (socket.incoming.length > 0)
-      void queryClient.invalidateQueries({ queryKey: ['chat', 'chats'] });
-  }, [socket.incoming.length, queryClient]);
+    if (socket.incoming.length === 0) return;
+    void queryClient.invalidateQueries({ queryKey: ['chat', 'chats'] });
+    const last = socket.incoming[socket.incoming.length - 1];
+    if (last && last.authorId !== me) alertUser({ vibrate: [80], silent: true });
+  }, [socket.incoming.length, queryClient, me]);
 
   const readIds = useMemo(() => {
     const ids = new Set<string>();

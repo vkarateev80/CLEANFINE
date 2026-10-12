@@ -9,7 +9,7 @@ import {
   ticketIdFromPayload,
   type NotificationEntity,
 } from '../../types/notifications';
-import { browserNotificationsState, enableBrowserNotifications } from './NotificationToaster';
+import { PushControls } from './PushControls';
 import { formatDateTime } from '../Tickets/ticketHelpers';
 import {
   useMarkNotificationRead,
@@ -62,7 +62,6 @@ export function NotificationBell() {
     navigate(notificationTarget(item));
   }
 
-  const [browserState, setBrowserState] = useState(browserNotificationsState());
 
   return (
     <div ref={containerRef} className="relative">
@@ -142,23 +141,8 @@ export function NotificationBell() {
             </ul>
           )}
 
-          {browserState === 'default' && (
-            <div className="flex items-center justify-between gap-2 border-t border-neutral-200 bg-neutral-50 px-4 py-2 text-xs text-neutral-600">
-              <span>Показывать уведомления браузера, даже если вкладка свёрнута</span>
-              <Button
-                variant="secondary"
-                size="sm"
-                data-testid="notification-browser-enable"
-                onClick={() => {
-                  void enableBrowserNotifications().then(() =>
-                    setBrowserState(browserNotificationsState()),
-                  );
-                }}
-              >
-                Включить
-              </Button>
-            </div>
-          )}
+          {/* Push при закрытой вкладке + проверка доставки (12.10.2026). */}
+          <PushControls />
 
           <div className="flex items-center justify-between gap-2 border-t border-neutral-200 px-4 py-2">
             <Link

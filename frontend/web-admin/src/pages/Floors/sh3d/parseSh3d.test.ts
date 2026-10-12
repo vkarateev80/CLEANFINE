@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import JSZip from 'jszip';
-import { Sh3dParseError, parseHomeXml, polygonAreaM2, readSh3dScene } from './parseSh3d';
+import {
+  Sh3dParseError,
+  parseHomeXml,
+  polygonAreaM2,
+  readPlanXml,
+  readSh3dScene,
+} from './parseSh3d';
 
 /** Минимальная сцена: 2 стены, прямоугольная комната 400×300 см (12 м²) и безымянная. */
 const FIXTURE_XML = `<?xml version='1.0'?>
@@ -95,5 +101,36 @@ describe('readSh3dScene', () => {
   it('архив без Home.xml → понятная ошибка', async () => {
     const file = await fixtureFile({ 'readme.txt': 'нет сцены' });
     await expect(readSh3dScene(file)).rejects.toThrow('нет Home.xml');
+  });
+});
+
+describe('readPlanXml (12.10.2026)', () => {
+  it('Home.xml без архива разбирается как сцена Sweet Home 3D', async () => {
+    const xml =
+      '<?xml version="1.0"?><home><wall xStart="0" yStart="0" xEnd="400" yEnd="0" thickness="10"/>' +
+      '<room name="Холл"><point x="0" y="0"/><point x="400" y="0"/><point x="400" y="300"/><point x="0" y="300"/></room></home>';
+    const parsed = await readPlanXml(new File([xml], 'Home.xml', { type: 'text/xml' }));
+    expect(parsed.kind).toBe('home');
+    if (parsed.kind === 'home') {
+      expect(parsed.scene.walls).toHaveLength(1);
+      expect(parsed.scene.rooms).toHaveLength(1);
+    }
+  });
+
+  it('SVG с расширением .xml превращается в файл image/svg+xml', async () => {
+    const svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>';
+    const parsed = await readPlanXml(new File([svg], 'plan.xml', { type: 'application/xml' }));
+    expect(parsed.kind).toBe('svg');
+    if (parsed.kind === 'svg') {
+      expect(parsed.file.name).toBe('plan.svg');
+      expect(parsed.file.type).toBe('image/svg+xml');
+    }
+  });
+
+  it('посторонний XML отклоняется с понятным сообщением', async () => {
+    await expect(
+      readPlanXml(new File(['<catalog><item/></catalog>'], 'data.xml', { type: 'text/xml' })),
+    ).rejects.toThrow(/не распознан/);
   });
 });

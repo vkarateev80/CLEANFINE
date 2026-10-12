@@ -57,6 +57,15 @@ export class NotificationsController {
     return { publicKey: this.notifications.webPushPublicKey };
   }
 
+  /** «Проверить push» в профиле: тестовое уведомление себе по всем каналам. */
+  @Post('self-test')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Тестовое уведомление текущему пользователю (push + in-app)' })
+  @ApiResponse({ status: 200, description: '{ devices, notificationId }' })
+  async selfTest(@CurrentUser() user: AuthUser) {
+    return this.notifications.selfTest(user.id);
+  }
+
   @Get()
   @ApiOperation({ summary: 'In-app уведомления пользователя (пагинация, фильтр непрочитанных)' })
   @ApiResponse({ status: 200, description: '{ items, total, page, limit, unreadCount }' })

@@ -46,6 +46,11 @@ export function unregisterDevice(token: string): Promise<void> {
     .then(() => undefined);
 }
 
+/** «Проверить push»: тестовое уведомление себе; `devices` — сколько устройств получило push. */
+export function sendSelfTest(): Promise<{ devices: number; notificationId: string | null }> {
+  return apiClient.post('/notifications/self-test').then((r) => r.data);
+}
+
 /** Публичный ключ VAPID; null — Web Push на сервере не настроен. */
 export function getWebPushPublicKey(): Promise<string | null> {
   return apiClient

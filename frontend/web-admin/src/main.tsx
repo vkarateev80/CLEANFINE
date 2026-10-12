@@ -12,6 +12,13 @@ const queryClient = new QueryClient({
   },
 });
 
+// Service worker — только Web Push (public/sw.js), без кэширования; в dev мешал бы HMR.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => undefined);
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

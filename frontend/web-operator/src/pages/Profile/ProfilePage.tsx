@@ -3,7 +3,11 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ROLE_LABELS } from '@cleaning-ops/shared/types/roles';
 import { logout } from '../../api/auth';
-import { getNotificationSettings, updateNotificationSettings } from '../../api/notifications';
+import {
+  getNotificationSettings,
+  sendSelfTest,
+  updateNotificationSettings,
+} from '../../api/notifications';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ErrorBanner, errorMessage } from '../../components/ui/Feedback';
@@ -406,6 +410,29 @@ function PushToggle({ online }: { online: boolean }) {
   const [support, setSupport] = useState(() => pushSupport());
   const [subscribed, setSubscribed] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  /** «Проверить»: сервер шлёт тестовое уведомление по всем каналам этого пользователя. */
+  async function runTest() {
+    if (!online) {
+      showToast('Нет соединения — проверка недоступна', 'error');
+      return;
+    }
+    setTesting(true);
+    try {
+      const result = await sendSelfTest();
+      showToast(
+        result.devices > 0
+          ? `Отправили тестовое уведомление на ${result.devices} устр.: ждите push`
+          : 'Push-устройств нет: включите push выше, затем проверьте снова',
+        result.devices > 0 ? 'success' : 'info',
+      );
+    } catch (error) {
+      showToast(`Проверка не удалась: ${errorMessage(error)}`, 'error');
+    } finally {
+      setTesting(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -463,16 +490,27 @@ function PushToggle({ online }: { online: boolean }) {
           {subscribed === null ? 'Проверяем…' : statusText}
         </div>
       </div>
-      <Button
-        variant={subscribed ? 'secondary' : 'primary'}
-        className="min-h-[44px] shrink-0"
-        loading={busy}
-        disabled={!canToggle || subscribed === null}
-        onClick={() => void toggle()}
-        data-testid="profile_push_button"
-      >
-        {subscribed ? 'Выключить' : 'Включить'}
-      </Button>
+      <div className="flex shrink-0 flex-col gap-1">
+        <Button
+          variant={subscribed ? 'secondary' : 'primary'}
+          className="min-h-[44px]"
+          loading={busy}
+          disabled={!canToggle || subscribed === null}
+          onClick={() => void toggle()}
+          data-testid="profile_push_button"
+        >
+          {subscribed ? 'Выключить' : 'Включить'}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          loading={testing}
+          onClick={() => void runTest()}
+          data-testid="profile_push_test_button"
+        >
+          Проверить
+        </Button>
+      </div>
     </div>
   );
 }

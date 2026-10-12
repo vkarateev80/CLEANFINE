@@ -10,16 +10,33 @@ import type { RoomEntity, RoomWithTechCard } from '../../types/core';
 export const PLAN_MAX_BYTES = 10 * 1024 * 1024;
 
 export const PLAN_ACCEPT =
-  '.png,.jpg,.jpeg,.svg,.pdf,.sh3d,image/png,image/jpeg,image/svg+xml,application/pdf';
+  '.png,.jpg,.jpeg,.svg,.pdf,.sh3d,.xml,image/png,image/jpeg,image/svg+xml,application/pdf,application/xml,text/xml';
 
-export const PLAN_FORMATS_HINT = 'PNG, JPG, SVG, PDF или Sweet Home 3D (.sh3d), не более 10 МБ';
+export const PLAN_FORMATS_HINT =
+  'PNG, JPG, SVG, PDF, Sweet Home 3D (.sh3d) или XML (Home.xml из Sweet Home 3D, SVG), не более 10 МБ';
 
-const PLAN_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.pdf', '.sh3d'];
-const PLAN_MIME_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'application/pdf'];
+const PLAN_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.svg', '.pdf', '.sh3d', '.xml'];
+const PLAN_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/svg+xml',
+  'application/pdf',
+  'application/xml',
+  'text/xml',
+];
 
-/** Файл Sweet Home 3D — конвертируется в PNG прямо в браузере админки. */
+/** Sweet Home 3D: распознаём по расширению — у .sh3d нет своего MIME в браузере. */
 export function isSh3dFile(file: File): boolean {
   return file.name.toLowerCase().endsWith('.sh3d');
+}
+
+/**
+ * XML-план (12.10.2026): либо `Home.xml` из Sweet Home 3D (сцена без архива),
+ * либо SVG, сохранённый с расширением .xml. Разбирается на клиенте, как .sh3d.
+ */
+export function isXmlPlanFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return name.endsWith('.xml') || file.type === 'application/xml' || file.type === 'text/xml';
 }
 
 /** Пределы зума из спецификации: 25–400 %, шаг кнопок — 25 %. */

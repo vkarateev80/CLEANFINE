@@ -153,3 +153,32 @@ export async function readSh3dScene(file: Blob): Promise<Sh3dScene> {
   }
   return parseHomeXml(await entry.async('string'));
 }
+
+/** Что оказалось внутри .xml: сцена Sweet Home 3D или SVG-чертёж. */
+export type PlanXml = { kind: 'home'; scene: Sh3dScene } | { kind: 'svg'; file: File };
+
+/**
+ * Разбор отдельного XML-файла плана (12.10.2026). Sweet Home 3D хранит сцену
+ * в `Home.xml` внутри .sh3d; некоторые выгружают сам XML — корень `<home>`.
+ * SVG — тоже XML (корень `<svg>`): такой файл отдаём как есть, но с правильным
+ * типом и расширением, чтобы file-service принял его как image/svg+xml.
+ */
+export async function readPlanXml(file: File): Promise<PlanXml> {
+  const text = await file.text();
+  const document = new DOMParser().parseFromString(text, 'application/xml');
+  if (document.querySelector('parsererror')) {
+    throw new Sh3dParseError('Файл не разбирается как XML');
+  }
+  const root = document.documentElement?.tagName.toLowerCase() ?? '';
+  if (root === 'svg') {
+    const name = file.name.replace(/\.xml$/i, '') + '.svg';
+    return { kind: 'svg', file: new File([text], name, { type: 'image/svg+xml' }) };
+  }
+  if (root === 'home') {
+    return { kind: 'home', scene: parseHomeXml(text) };
+  }
+  throw new Sh3dParseError(
+    `XML с корнем <${root}> не распознан: ожидается Home.xml из Sweet Home 3D или SVG`,
+  );
+}
+

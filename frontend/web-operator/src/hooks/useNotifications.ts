@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { listNotifications, markNotificationRead } from '../api/notifications';
+import { alertUser } from '../lib/alerts';
 import { useAuthStore } from '../stores/authStore';
 import { showToast } from '../stores/uiStore';
 import type { NotificationEntity, NotificationsPage } from '../types/notifications';
@@ -82,6 +83,10 @@ export function useNotificationWatcher(): void {
       fresh.length === 1 ? `${first.title}: ${first.body}` : `Новых уведомлений: ${fresh.length}`,
       'info',
     );
+    // Звук и вибрация при открытой странице (12.10.2026): SOS — длиннее.
+    alertUser({
+      vibrate: first.type === 'EMERGENCY' ? [300, 100, 300, 100, 300] : [200, 100, 200],
+    });
     if (document.visibilityState === 'hidden') {
       void systemNotification(first);
     }

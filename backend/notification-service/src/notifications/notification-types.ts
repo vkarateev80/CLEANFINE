@@ -22,6 +22,8 @@ export const NOTIFICATION_TYPES = [
   // Смена статуса заявки (в работе/выполнена/…) — бригадиру, админу и автору
   // заявки (09.10.2026, событие ticket.status_changed).
   'TICKET_STATUS',
+  // Служебное: проверка доставки «Проверить push» из профиля (12.10.2026).
+  'SYSTEM',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

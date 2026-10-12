@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { alertUser } from '../../lib/alerts';
+import { resubscribeIfGranted } from '../../lib/webPush';
 import {
   notificationTypeIcon,
   type NotificationEntity,
@@ -84,10 +86,19 @@ export function NotificationToaster() {
     seen.current = newest.id;
     if (fresh.length === 0) return;
     setToasts((current) => [...fresh, ...current].slice(0, MAX_TOASTS));
+    // Звук (и вибрация на телефоне) при открытой вкладке; SOS — настойчивее.
+    alertUser({
+      vibrate: fresh[0].type === 'EMERGENCY' ? [300, 100, 300, 100, 300] : [200, 100, 200],
+    });
     if (document.visibilityState === 'hidden') {
       systemNotification(fresh[0]);
     }
   }, [unread.data]);
+
+  // Разрешение уже дано — убеждаемся, что сервер знает подписку этого браузера.
+  useEffect(() => {
+    void resubscribeIfGranted().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (toasts.length === 0) return undefined;

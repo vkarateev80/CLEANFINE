@@ -38,6 +38,7 @@ import {
   formatArea,
   isPdfPlanUrl,
   isSh3dFile,
+  isXmlPlanFile,
   roomRect,
   zoomPercent,
   type PlanSize,
@@ -640,9 +641,9 @@ export function FloorPlanPage() {
             onCreateRect={handleCreateRect}
             onRectChange={handleRectChange}
             onUploadFile={(file) => {
-              // .sh3d мимо модалки не отправляем: нужна конвертация и вопрос
-              // про импорт помещений — открываем модалку с этим файлом.
-              if (isSh3dFile(file)) {
+              // .sh3d и XML мимо модалки не отправляем: нужна конвертация и
+              // вопрос про импорт помещений — открываем модалку с этим файлом.
+              if (isSh3dFile(file) || isXmlPlanFile(file)) {
                 setSh3dInitialFile(file);
                 setUploadOpen(true);
                 return;

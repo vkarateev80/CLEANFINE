@@ -21,7 +21,14 @@ export const ALLOWED_MIME: Record<UploadKind, string[]> = {
   photo: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4'],
   plan: ['image/png', 'image/jpeg', 'application/pdf', 'image/svg+xml'],
   avatar: ['image/jpeg', 'image/png', 'image/webp'],
-  document: ['application/pdf', 'text/plain', 'application/octet-stream'],
+  document: [
+    'application/pdf',
+    'text/plain',
+    'application/octet-stream',
+    // XML-документы (12.10.2026): выгрузки из сторонних систем.
+    'application/xml',
+    'text/xml',
+  ],
   chat: [
     'image/jpeg',
     'image/png',
@@ -33,6 +40,8 @@ export const ALLOWED_MIME: Record<UploadKind, string[]> = {
     'video/webm',
     'video/3gpp',
     'application/pdf',
+    'application/xml',
+    'text/xml',
   ],
 };
 
