@@ -69,7 +69,7 @@ describe('библиотеки пресетов полей', () => {
   it('presetGroups: библиотека с категориями — её группы, без категорий — одна группа', () => {
     const groups = presetGroups('room-types', 'floor-coverings');
     expect(groups.slice(0, -1)).toEqual([...(PRESET_LIBRARIES['room-types'].groups ?? [])]);
-    expect(groups.at(-1)).toEqual({
+    expect(groups[groups.length - 1]).toEqual({
       label: 'Виды покрытий',
       values: PRESET_LIBRARIES['floor-coverings'].values,
     });
