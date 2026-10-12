@@ -15,6 +15,7 @@ import type { NotificationType } from './notification-types';
  * | geofence.exit        | GEOFENCE_EXIT  | userId из payload                              |
  * | material.low         | MATERIAL_LOW   | userIds из payload, иначе broadcast            |
  * | schedule.missed_checkin | SCHEDULE_MISSED | userId из payload, иначе broadcast         |
+ * | ticket.status_changed | TICKET_STATUS  | бригадиры+админы и автор заявки, без инициатора |
  *
  * `ticket.operation.completed` консьюмер не слушает: очередь
  * material.ticket.operation.completed обрабатывает material-service.
@@ -22,9 +23,10 @@ import type { NotificationType } from './notification-types';
  *
  * ВАЖНО про emergency/overdue/material.low: контракт 3.2 не содержит списка
  * получателей, поэтому при их отсутствии применяется broadcast — уведомление
- * уходит всем владельцам активных устройств. Когда издатель начнёт передавать
- * assigneeId/userIds (аддитивное расширение payload), выборка сузится
- * автоматически, без изменения кода.
+ * уходит бригадирам и админам из справочника auth-service плюс всем владельцам
+ * активных устройств (09.10.2026: раньше только устройствам, и веб-админка не
+ * получала SOS/эскалации). Когда издатель передаёт assigneeId/userIds
+ * (аддитивное расширение payload), выборка сужается автоматически.
  */
 export const NOTIFICATION_ROUTING_KEYS = [
   ROUTING_KEYS.TICKET_CREATED,
@@ -34,6 +36,7 @@ export const NOTIFICATION_ROUTING_KEYS = [
   ROUTING_KEYS.GEOFENCE_EXIT,
   ROUTING_KEYS.MATERIAL_LOW,
   ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN,
+  ROUTING_KEYS.TICKET_STATUS_CHANGED,
 ] as const;
 
 export type NotificationRoutingKey = (typeof NOTIFICATION_ROUTING_KEYS)[number];
@@ -43,10 +46,43 @@ export interface ResolvedNotification {
   template: NotificationType;
   /** Явные получатели из payload; пустой список означает broadcast. */
   userIds: string[];
+  /**
+   * Служебная аудитория: к получателям добавляются активные бригадиры и админы
+   * из справочника (ticket.status_changed). Для broadcast они добавляются всегда.
+   */
+  includeStaff?: boolean;
+  /** Кого исключить (инициатор действия не получает уведомление о себе). */
+  excludeUserIds?: string[];
   params: TemplateParams;
   /** Данные уведомления: уходят в push.data и в notifications.payload. */
   data: Record<string, unknown>;
 }
+
+/** Текст TICKET_STATUS: описание и, если известен, инициатор через « · ». */
+export function ticketStatusBody(description: string, actorName: string | undefined): string {
+  return [description, actorName]
+    .filter((part): part is string => typeof part === 'string' && part.length > 0)
+    .join(' · ');
+}
+
+/** Подписи статусов заявки для заголовка TICKET_STATUS. */
+export const TICKET_STATUS_TITLES: Record<string, string> = {
+  new: 'Заявка создана',
+  assigned: '👤 Заявка назначена',
+  in_progress: '▶️ Заявка в работе',
+  paused: '⏸ Заявка приостановлена',
+  completed: '✅ Заявка выполнена',
+  verified: '☑️ Заявка проверена',
+  rejected: '✖️ Заявка отклонена',
+  closed: '🔒 Заявка закрыта',
+  overdue: '⚠️ Заявка просрочена',
+};
+
+export const TICKET_TYPE_LABELS: Record<string, string> = {
+  planned: 'плановая',
+  unscheduled: 'внеплановая',
+  emergency: 'аварийная',
+};
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -244,6 +280,50 @@ export function resolveEvent(routingKey: string, payload: unknown): ResolvedNoti
           objectName,
           plannedStart,
           detectedAt: asText(event.detectedAt) ?? '',
+        },
+      };
+    }
+
+    case ROUTING_KEYS.TICKET_STATUS_CHANGED: {
+      const ticketId = asText(event.ticketId);
+      const status = asText(event.status);
+      if (ticketId === undefined || status === undefined) {
+        return null;
+      }
+      const description = asText(event.description) ?? `Заявка ${ticketId}`;
+      const actorId = asText(event.actorId);
+      const actorName = asText(event.actorName);
+      const typeLabel = TICKET_TYPE_LABELS[asText(event.type) ?? ''] ?? '';
+      const title = TICKET_STATUS_TITLES[status] ?? `Заявка: ${status}`;
+      // Текст: «Влажная уборка холла (плановая) · Оператор Иванов». JWT не несёт
+      // имени, поэтому издатель кладёт логин; консьюмер заменит его именем из
+      // справочника (ticketStatusBody), если найдёт инициатора.
+      const body = ticketStatusBody(
+        typeLabel ? `${description} (${typeLabel})` : description,
+        actorName,
+      );
+      // Автор заявки (например, заказчик из портала) видит ход своей заявки;
+      // исполнитель — нет: он сам её и двигает, а назначение приходит NEW_TICKET.
+      const createdBy = asText(event.createdBy);
+      return {
+        routingKey,
+        template: 'TICKET_STATUS',
+        userIds: createdBy === undefined ? [] : [createdBy],
+        includeStaff: true,
+        excludeUserIds: actorId === undefined ? [] : [actorId],
+        params: {
+          title,
+          body,
+          description: typeLabel ? `${description} (${typeLabel})` : description,
+        },
+        data: {
+          ticketId,
+          status,
+          previousStatus: asText(event.previousStatus) ?? '',
+          objectId: asText(event.objectId) ?? '',
+          assigneeId: asText(event.assigneeId) ?? '',
+          actorId: actorId ?? '',
+          changedAt: asText(event.changedAt) ?? '',
         },
       };
     }

@@ -35,6 +35,10 @@ data:
   CHAT_SERVICE_URL: "http://chat:3009"
 
   SERVICE_AUTH_EMAIL: "admin"
+  # Rate limit входа (auth-service): клиент за traefik + nginx пода → 2 hop'а
+  # X-Forwarded-For; 20 попыток в минуту на реальный адрес (офис за одним NAT).
+  AUTH_TRUST_PROXY_HOPS: "2"
+  THROTTLE_LOGIN_LIMIT: "20"
 
   JWT_ACCESS_TTL: "15m"
   JWT_REFRESH_TTL: "30d"

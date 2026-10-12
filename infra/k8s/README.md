@@ -19,6 +19,7 @@
 | `backend.yaml` | 9 Deployment + Service (auth…chat, :3001–:3009) |
 | `web.yaml` | web-admin / web-client (nginx) |
 | `ingress.yaml` | Ingress + cert-manager ClusterIssuer (TLS) |
+| `traefik-config.yaml` | HelmChartConfig встроенного traefik: `externalTrafficPolicy: Local` — реальный адрес клиента для rate limit; копируется на узел в `/var/lib/rancher/k3s/server/manifests/`, не `kubectl apply` |
 | `networkpolicy.yaml` | Ограничение доступа к БД/брокеру только из своего ns |
 
 ## Применение

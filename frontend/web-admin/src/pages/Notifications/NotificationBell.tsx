@@ -3,10 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button, Spinner } from '../../components/ui';
 import { ROUTES } from '../../router/routes';
 import {
+  chatIdFromPayload,
   notificationTypeIcon,
   notificationTypeLabel,
   ticketIdFromPayload,
+  type NotificationEntity,
 } from '../../types/notifications';
+import { browserNotificationsState, enableBrowserNotifications } from './NotificationToaster';
 import { formatDateTime } from '../Tickets/ticketHelpers';
 import {
   useMarkNotificationRead,
@@ -53,11 +56,13 @@ export function NotificationBell() {
     };
   }, [open]);
 
-  function openNotification(id: string, ticketId: string | null) {
-    markRead.mutate(id);
+  function openNotification(item: NotificationEntity) {
+    markRead.mutate(item.id);
     setOpen(false);
-    if (ticketId) navigate(ROUTES.ticket(ticketId));
+    navigate(notificationTarget(item));
   }
+
+  const [browserState, setBrowserState] = useState(browserNotificationsState());
 
   return (
     <div ref={containerRef} className="relative">
@@ -110,7 +115,6 @@ export function NotificationBell() {
           ) : (
             <ul className="max-h-96 overflow-y-auto">
               {recent.data?.items.map((item) => {
-                const ticketId = ticketIdFromPayload(item);
                 return (
                   <li key={item.id} className="border-b border-neutral-100 last:border-b-0">
                     <button
@@ -121,7 +125,7 @@ export function NotificationBell() {
                         'flex w-full flex-col gap-1 px-4 py-3 text-left hover:bg-neutral-50',
                         item.readAt ? 'bg-white' : 'bg-primary-50',
                       ].join(' ')}
-                      onClick={() => openNotification(item.id, ticketId)}
+                      onClick={() => openNotification(item)}
                     >
                       <span className="flex items-center justify-between gap-2 text-xs text-neutral-500">
                         <span>
@@ -136,6 +140,24 @@ export function NotificationBell() {
                 );
               })}
             </ul>
+          )}
+
+          {browserState === 'default' && (
+            <div className="flex items-center justify-between gap-2 border-t border-neutral-200 bg-neutral-50 px-4 py-2 text-xs text-neutral-600">
+              <span>Показывать уведомления браузера, даже если вкладка свёрнута</span>
+              <Button
+                variant="secondary"
+                size="sm"
+                data-testid="notification-browser-enable"
+                onClick={() => {
+                  void enableBrowserNotifications().then(() =>
+                    setBrowserState(browserNotificationsState()),
+                  );
+                }}
+              >
+                Включить
+              </Button>
+            </div>
           )}
 
           <div className="flex items-center justify-between gap-2 border-t border-neutral-200 px-4 py-2">
@@ -156,4 +178,13 @@ export function NotificationBell() {
       )}
     </div>
   );
+}
+
+/** Куда ведёт уведомление: чат → «Сообщения» с открытым чатом, заявка → карточка, иначе список. */
+export function notificationTarget(item: NotificationEntity): string {
+  const chatId = chatIdFromPayload(item);
+  if (chatId) return `${ROUTES.messages}?chat=${encodeURIComponent(chatId)}`;
+  const ticketId = ticketIdFromPayload(item);
+  if (ticketId) return ROUTES.ticket(ticketId);
+  return ROUTES.notifications;
 }

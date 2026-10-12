@@ -21,6 +21,7 @@ import {
   useTicketExecutionReport,
   useTicketSummary,
 } from '../Reports/useReports';
+import { DashboardLive } from './DashboardLive';
 import { KpiCard } from './KpiCard';
 
 /**
@@ -217,6 +218,9 @@ export function DashboardPage() {
       </section>
 
       {kpiLoading && <LoadingBlock label="Считаем KPI…" />}
+
+      {/* Что происходит прямо сейчас: открытые заявки и последние события (09.10.2026). */}
+      <DashboardLive />
 
       {!kpiFailed && (
         <section className="grid gap-4 lg:grid-cols-2">

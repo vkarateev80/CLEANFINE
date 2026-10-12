@@ -11,6 +11,7 @@ describe('NOTIFICATION_ROUTING_KEYS', () => {
       'geofence.exit',
       'material.low',
       'schedule.missed_checkin',
+      'ticket.status_changed',
     ]);
 
     // Контракт — источник истины: новую очередь в EVENT_QUEUES нельзя забыть
@@ -331,5 +332,57 @@ describe('resolveEvent', () => {
       // В очередь может попасть мусор: парсер обязан вернуть null, а не бросить.
       expect(resolveEvent(ROUTING_KEYS.TICKET_CREATED, payload)).toBeNull();
     });
+  });
+});
+
+describe('resolveEvent: ticket.status_changed (09.10.2026)', () => {
+  const base = {
+    ticketId: 't-1',
+    status: 'in_progress',
+    previousStatus: 'assigned',
+    type: 'planned',
+    description: 'Влажная уборка холла',
+    objectId: 'obj-1',
+    assigneeId: 'u-op',
+    createdBy: 'u-client',
+    actorId: 'u-op',
+    actorName: 'Оператор Иванов',
+    changedAt: '2026-10-09T12:00:00.000Z',
+  };
+
+  it('адресует бригадирам/админам и автору заявки, исключая инициатора', () => {
+    const resolved = resolveEvent(ROUTING_KEYS.TICKET_STATUS_CHANGED, base);
+    expect(resolved).toMatchObject({
+      template: 'TICKET_STATUS',
+      userIds: ['u-client'],
+      includeStaff: true,
+      excludeUserIds: ['u-op'],
+      params: {
+        title: '▶️ Заявка в работе',
+        body: 'Влажная уборка холла (плановая) · Оператор Иванов',
+      },
+      data: { ticketId: 't-1', status: 'in_progress', previousStatus: 'assigned' },
+    });
+  });
+
+  it('выполнена: заголовок по статусу, без инициатора — только описание', () => {
+    const resolved = resolveEvent(ROUTING_KEYS.TICKET_STATUS_CHANGED, {
+      ...base,
+      status: 'completed',
+      actorId: null,
+      actorName: null,
+      type: 'emergency',
+    });
+    expect(resolved?.params).toEqual({
+      title: '✅ Заявка выполнена',
+      body: 'Влажная уборка холла (аварийная)',
+      description: 'Влажная уборка холла (аварийная)',
+    });
+    expect(resolved?.excludeUserIds).toEqual([]);
+  });
+
+  it('без ticketId или status → null', () => {
+    expect(resolveEvent(ROUTING_KEYS.TICKET_STATUS_CHANGED, { status: 'completed' })).toBeNull();
+    expect(resolveEvent(ROUTING_KEYS.TICKET_STATUS_CHANGED, { ticketId: 't-1' })).toBeNull();
   });
 });

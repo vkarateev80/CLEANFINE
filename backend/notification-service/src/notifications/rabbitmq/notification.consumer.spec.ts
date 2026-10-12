@@ -4,6 +4,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications.service';
 import { MockPushSender } from '../push/mock-push.sender';
 import { NotificationConsumer } from './notification.consumer';
+import type { WebPushSender } from '../push/web-push.sender';
+import type { StaffDirectoryService } from '../../integration/staff-directory.service';
 import type { RabbitMessage } from './rabbitmq.service';
 import { RabbitmqService } from './rabbitmq.service';
 
@@ -49,11 +51,19 @@ function devicesFindMany(prisma: PrismaMock): void {
   );
 }
 
+/**
+ * Бригадиры/админы из справочника auth-service (служебная аудитория). По
+ * умолчанию совпадает с владельцем устройства u-1, чтобы сценарии broadcast
+ * ниже считали получателей как прежде; отдельный тест переопределяет список.
+ */
+const STAFF_USERS = ['u-1'];
+
 function build(): {
   prisma: PrismaMock;
   push: MockPushSender;
   rabbit: { subscribe: jest.Mock };
   consumer: NotificationConsumer;
+  staff: { staffIds: jest.Mock; userName: jest.Mock };
 } {
   const prisma = createPrismaMock();
   prisma.notification.create.mockImplementation((args: { data: Record<string, unknown> }) =>
@@ -66,10 +76,24 @@ function build(): {
   );
   const push = new MockPushSender();
   const rabbit = { subscribe: jest.fn() };
-  const service = new NotificationsService(prisma as unknown as PrismaService, push);
+  const webPush = {
+    enabled: false,
+    publicKey: null,
+    send: jest.fn().mockResolvedValue({ successCount: 0, failureCount: 0, invalidTokens: [] }),
+  };
+  const staff = {
+    staffIds: jest.fn().mockResolvedValue(STAFF_USERS),
+    userName: jest.fn().mockResolvedValue(null),
+  };
+  const service = new NotificationsService(
+    prisma as unknown as PrismaService,
+    push,
+    webPush as unknown as WebPushSender,
+    staff as unknown as StaffDirectoryService,
+  );
   const consumer = new NotificationConsumer(rabbit as unknown as RabbitmqService, service);
 
-  return { prisma, push, rabbit, consumer };
+  return { prisma, push, rabbit, consumer, staff };
 }
 
 function message(routingKey: string, payload: unknown): RabbitMessage {
@@ -103,6 +127,7 @@ describe('NotificationConsumer', () => {
         'notification.geofence.exit',
         'notification.material.low',
         'notification.schedule.missed_checkin',
+        'notification.ticket.status_changed',
       ]);
       expect(rabbit.subscribe.mock.calls.map((call) => call[1])).toEqual([
         'ticket.created',
@@ -112,6 +137,7 @@ describe('NotificationConsumer', () => {
         'geofence.exit',
         'material.low',
         'schedule.missed_checkin',
+        'ticket.status_changed',
       ]);
       // Очередь material.ticket.operation.completed обрабатывает material-service.
       expect(rabbit.subscribe.mock.calls.map((call) => call[0])).not.toContain(
@@ -194,7 +220,7 @@ describe('NotificationConsumer', () => {
       // Broadcast-выборка (без select.token) не выполнялась.
       expect(prisma.device.findMany).toHaveBeenCalledWith({
         where: { userId: 'u-7', isActive: true },
-        select: { token: true },
+        select: { token: true, platform: true },
       });
       expect(push.sent).toHaveLength(1);
       expect(push.sent[0].userId).toBe('u-7');
@@ -324,7 +350,7 @@ describe('NotificationConsumer', () => {
       // 3) broadcast не сработал: уведомление адресное, а не «всем».
       expect(prisma.device.findMany).toHaveBeenCalledWith({
         where: { userId: 'u-8', isActive: true },
-        select: { token: true },
+        select: { token: true, platform: true },
       });
       expect(prisma.device.findMany).not.toHaveBeenCalledWith(
         expect.objectContaining({ distinct: ['userId'] }),
@@ -343,6 +369,68 @@ describe('NotificationConsumer', () => {
         distinct: ['userId'],
         select: { userId: true },
       });
+    });
+  });
+
+  describe('служебная аудитория (09.10.2026)', () => {
+    it('SOS без получателей доходит до админа без устройств — in-app запись', async () => {
+      const { prisma, consumer, push, staff } = build();
+      devicesFindMany(prisma);
+      staff.staffIds.mockResolvedValue(['u-admin']);
+      prisma.device.findMany.mockImplementation(
+        (args: { where?: { userId?: string }; select?: { token?: boolean } }) => {
+          if (args.select?.token === true) {
+            return Promise.resolve(args.where?.userId === 'u-admin' ? [] : [{ token: VALID_TOKEN }]);
+          }
+          return Promise.resolve(BROADCAST_USERS.map((userId) => ({ userId })));
+        },
+      );
+
+      await consumer.handle(
+        message('ticket.emergency', { ticketId: 't-9', type: 'Протечка', objectName: 'БЦ' }),
+      );
+
+      const recipients = prisma.notification.create.mock.calls.map(
+        (call: [{ data: { userId: string } }]) => call[0].data.userId,
+      );
+      expect(recipients.sort()).toEqual(['u-1', 'u-2', 'u-admin']);
+      // push — только владельцам устройств; админ получил in-app.
+      expect(push.sent.map((item) => item.userId).sort()).toEqual(['u-1', 'u-2']);
+    });
+
+    it('ticket.status_changed уходит админам и автору, но не инициатору', async () => {
+      const { prisma, consumer, staff } = build();
+      devicesFindMany(prisma);
+      staff.staffIds.mockResolvedValue(['u-admin', 'u-op']);
+      // Логин из JWT заменяется именем из справочника.
+      staff.userName.mockResolvedValue('Оператор Иванов');
+
+      await consumer.handle(
+        message('ticket.status_changed', {
+          ticketId: 't-1',
+          status: 'in_progress',
+          previousStatus: 'assigned',
+          type: 'planned',
+          description: 'Холл',
+          objectId: 'obj-1',
+          assigneeId: 'u-op',
+          createdBy: 'u-client',
+          actorId: 'u-op',
+          actorName: 'Оператор',
+          changedAt: '2026-10-09T12:00:00.000Z',
+        }),
+      );
+
+      const created = prisma.notification.create.mock.calls.map(
+        (call: [{ data: { userId: string; type: string; title: string } }]) => call[0].data,
+      );
+      expect(created.map((item) => item.userId).sort()).toEqual(['u-admin', 'u-client']);
+      expect(created[0]).toMatchObject({
+        type: 'TICKET_STATUS',
+        title: '▶️ Заявка в работе',
+        body: 'Холл (плановая) · Оператор Иванов',
+      });
+      expect(staff.userName).toHaveBeenCalledWith('u-op');
     });
   });
 
@@ -389,7 +477,9 @@ describe('NotificationConsumer', () => {
     });
 
     it('при отсутствии получателей ничего не отправляется', async () => {
-      const { prisma, push, consumer } = build();
+      const { prisma, push, consumer, staff } = build();
+      // Без устройств и без сотрудников в справочнике получателей действительно нет.
+      staff.staffIds.mockResolvedValue([]);
       prisma.device.findMany.mockResolvedValue([]);
 
       await consumer.handle(message('ticket.overdue', { ticketId: 't-8', minutesOverdue: 5 }));

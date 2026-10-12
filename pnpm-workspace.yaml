@@ -3,3 +3,15 @@ packages:
   - 'frontend/*'
   - 'shared'
   - 'test'
+
+# pnpm ≥10 не запускает postinstall без явного списка (иначе bcrypt остаётся без
+# бинарника, prisma — без движков). Список = предупреждение «Ignored build scripts»
+# при `pnpm install` 09.10.2026.
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - bcrypt
+  - esbuild
+  - prisma
+  - sharp

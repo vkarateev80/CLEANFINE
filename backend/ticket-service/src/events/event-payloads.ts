@@ -14,6 +14,7 @@ import type {
   TicketCreatedEvent,
   TicketEmergencyEvent,
   TicketOverdueEvent,
+  TicketStatusChangedEvent,
 } from '@cleaning-ops/shared/types/events';
 
 /** Кому адресовать уведомление (потребитель — notification-service). */
@@ -33,6 +34,44 @@ export interface NotificationTargeting {
 export type TicketCreatedPayload = TicketCreatedEvent & NotificationTargeting;
 export type TicketEmergencyPayload = TicketEmergencyEvent & NotificationTargeting;
 export type TicketOverduePayload = TicketOverdueEvent & NotificationTargeting;
+export type TicketStatusChangedPayload = TicketStatusChangedEvent & NotificationTargeting;
+
+/** Минимум полей заявки, нужный событию смены статуса. */
+export interface StatusChangeSource {
+  id: string;
+  type: string;
+  description: string;
+  objectId: string;
+  assigneeId: string | null;
+  createdBy: string;
+}
+
+/**
+ * Payload ticket.status_changed. Получателей здесь нет намеренно: ticket-service не
+ * знает ролей пользователей, список бригадиров/админов собирает notification-service.
+ * `actorId` нужен, чтобы инициатор не получил уведомление о собственном действии.
+ */
+export function statusChangedPayload(
+  ticket: StatusChangeSource,
+  status: string,
+  previousStatus: string,
+  actor: { id: string; fullName?: string | null; email?: string } | null,
+  changedAt: Date,
+): TicketStatusChangedPayload {
+  return {
+    ticketId: ticket.id,
+    status,
+    previousStatus,
+    type: ticket.type,
+    description: ticket.description,
+    objectId: ticket.objectId,
+    assigneeId: ticket.assigneeId ?? null,
+    createdBy: ticket.createdBy,
+    actorId: actor?.id ?? null,
+    actorName: actor ? (actor.fullName?.trim() || actor.email || null) : null,
+    changedAt: changedAt.toISOString(),
+  };
+}
 
 /**
  * Целевые получатели по заявке. Отдельная функция — чтобы правило было одно на все события

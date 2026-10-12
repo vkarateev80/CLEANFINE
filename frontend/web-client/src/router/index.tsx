@@ -35,6 +35,17 @@ import { TicketsPage } from '../pages/Tickets/TicketsPage';
  * `VITE_BASE=/client/`, и без basename роутер искал бы `/login` вместо
  * `/client/login`. Все `Navigate`/`Link` внутри остаются относительными.
  */
+/**
+ * `basename` без хвостового слеша. Vite отдаёт `BASE_URL` как `/app/`
+ * (`/client/`), а react-router с basename `/app/` не сопоставляет адрес
+ * `https://cleanfine.ru/app` (без слеша) и рисует пустую страницу — именно
+ * такой адрес люди вводят руками. С basename `/app` подходят оба варианта.
+ * В dev `BASE_URL` = `/` и остаётся как есть.
+ */
+export function routerBasename(baseUrl: string): string {
+  return baseUrl === '/' ? '/' : baseUrl.replace(/\/+$/, '');
+}
+
 export const router = createBrowserRouter(
   [
     {
@@ -100,5 +111,5 @@ export const router = createBrowserRouter(
     },
     { path: '*', element: <NotFoundPage /> },
   ],
-  { basename: import.meta.env.BASE_URL },
+  { basename: routerBasename(import.meta.env.BASE_URL) },
 );

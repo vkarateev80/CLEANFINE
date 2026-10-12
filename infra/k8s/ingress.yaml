@@ -93,6 +93,40 @@ spec:
       middlewares:
         - name: portal-strip
 ---
+# Рабочее место оператора: cleanfine.ru/app → web-operator (решение владельца
+# 09.10.2026). Тот же приём, что у портала: сборка с VITE_BASE=/app/, traefik
+# срезает префикс, nginx пода отдаёт статику от корня. priority 60 — выше
+# кэтч-алла админки (~40).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: operator-strip
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  stripPrefix:
+    prefixes:
+      - /app
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: cleanfine-operator
+  namespace: cleaning-ops
+  labels: { app.kubernetes.io/part-of: cleaning-ops }
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: (Host(`cleanfine.ru`) || Host(`www.cleanfine.ru`)) && PathPrefix(`/app`)
+      kind: Rule
+      priority: 60
+      services:
+        - name: web-operator
+          port: 80
+      middlewares:
+        - name: operator-strip
+---
 # Файлы MinIO (планы, фото): https://cleanfine.ru/minio/<bucket>/<key>.
 # Срезаем префикс — бакеты лежат в корне minio; без этого file-service
 # отдавал бы http://minio:9000 (внутренний DNS, браузер не откроет).

@@ -364,7 +364,7 @@ class _Details extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<String> equipment = state.operation.equipmentLines;
-    final ColorZone zone = ColorZone.forOperation(state.operation.name, roomZone);
+    final ColorZone zone = ColorZone.forInventory(state.operation.name, equipment, roomZone);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -377,17 +377,19 @@ class _Details extends StatelessWidget {
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: <Widget>[
-              // Слово цвета в названии («красные швабра») важнее цвета помещения.
-              for (final String item in equipment)
-                ColorZoneChip(zone: ColorZone.fromZoneField(item) ?? zone, label: item, compact: true),
+              // Один цвет на весь набор: «синие швабра, ведро…» — синие все.
+              for (final ({String label, ColorZone zone}) chip
+                  in equipment.map((String item) => ColorZone.equipmentChip(item, zone)))
+                ColorZoneChip(zone: chip.zone, label: chip.label, compact: true),
             ],
           ),
           if (zone != roomZone) ...<Widget>[
             const SizedBox(height: AppSpacing.xs),
+            // Набор не цвета помещения — словами: стёкла или цвет, названный технологом.
             Text(
-              ChecklistTexts.glassInventory,
+              zone == ColorZone.yellow ? ChecklistTexts.glassInventory : zone.description,
               key: Key('checklist_op_glass_${state.operation.id}'),
-              style: TextStyle(fontSize: AppTypography.sizeXS, color: ColorZone.yellow.dark),
+              style: TextStyle(fontSize: AppTypography.sizeXS, color: zone.dark),
             ),
           ],
         ],

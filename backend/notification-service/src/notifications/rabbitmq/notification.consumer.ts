@@ -1,6 +1,12 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EVENT_QUEUES } from '@cleaning-ops/shared/constants/events';
-import { NOTIFICATION_ROUTING_KEYS, resolveEvent } from '../notification-events';
+import {
+  NOTIFICATION_ROUTING_KEYS,
+  resolveEvent,
+  ticketStatusBody,
+  type ResolvedNotification,
+} from '../notification-events';
+import type { TemplateParams } from '../notification-templates';
 import { NotificationsService } from '../notifications.service';
 import type { RabbitMessage } from './rabbitmq.service';
 import { RabbitmqService } from './rabbitmq.service';
@@ -39,11 +45,10 @@ export class NotificationConsumer implements OnModuleInit {
     }
 
     // Контракт 3.2 не содержит получателя для emergency/overdue/material.low:
-    // пока издатель не передал assigneeId/userIds, уведомляем владельцев активных устройств.
-    const recipients =
-      resolved.userIds.length > 0
-        ? resolved.userIds
-        : await this.notifications.resolveBroadcastRecipients();
+    // без assigneeId/userIds уведомляем бригадиров, админов и владельцев устройств.
+    // Служебная аудитория (includeStaff) добавляется к явным получателям —
+    // так смену статуса видят и админ, и автор заявки.
+    const recipients = await this.resolveRecipients(resolved);
 
     if (recipients.length === 0) {
       this.logger.warn(`Событие ${message.routingKey}: получателей нет — пропущено`);
@@ -53,11 +58,50 @@ export class NotificationConsumer implements OnModuleInit {
     const notified = await this.notifications.notifyUsers(
       recipients,
       resolved.template,
-      resolved.params,
+      await this.enrichParams(resolved),
       resolved.data,
     );
     this.logger.log(
       `Событие ${message.routingKey}: уведомлено ${notified} из ${recipients.length}`,
     );
+  }
+
+  /**
+   * Имя инициатора из справочника: ticket-service знает только логин из JWT,
+   * а в уведомлении админу нужен «Оператор Иванов», а не «operator».
+   */
+  async enrichParams(resolved: ResolvedNotification): Promise<TemplateParams> {
+    if (resolved.template !== 'TICKET_STATUS') {
+      return resolved.params;
+    }
+    const actorId = typeof resolved.data.actorId === 'string' ? resolved.data.actorId : '';
+    const description =
+      typeof resolved.params.description === 'string' ? resolved.params.description : '';
+    if (!actorId || !description) {
+      return resolved.params;
+    }
+    const actorName = await this.notifications.resolveUserName(actorId);
+    if (!actorName) {
+      return resolved.params;
+    }
+    return { ...resolved.params, body: ticketStatusBody(description, actorName) };
+  }
+
+  /** Получатели события: явные + служебная аудитория/broadcast, минус исключённые. */
+  async resolveRecipients(resolved: ResolvedNotification): Promise<string[]> {
+    const recipients = new Set(resolved.userIds);
+    if (resolved.includeStaff) {
+      for (const userId of await this.notifications.resolveStaffRecipients()) {
+        recipients.add(userId);
+      }
+    } else if (recipients.size === 0) {
+      for (const userId of await this.notifications.resolveBroadcastRecipients()) {
+        recipients.add(userId);
+      }
+    }
+    for (const userId of resolved.excludeUserIds ?? []) {
+      recipients.delete(userId);
+    }
+    return Array.from(recipients);
   }
 }

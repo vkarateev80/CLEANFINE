@@ -30,4 +30,7 @@ export default () => ({
     ttlMs: positiveInt(process.env.THROTTLE_TTL_MS, DEFAULT_THROTTLE_TTL_MS),
   },
   port: Number(process.env.PORT) || 3001,
+  // Сколько прокси перед сервисом (nginx пода = 1, traefik + nginx на k3s = 2):
+  // по ним Express восстанавливает адрес клиента для rate limit.
+  trustProxyHops: positiveInt(process.env.AUTH_TRUST_PROXY_HOPS, 1),
 });

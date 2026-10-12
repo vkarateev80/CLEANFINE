@@ -4,8 +4,28 @@
     {
       "name": "web-admin-5176",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend/web-admin", "run", "dev", "--", "--port", "5176", "--strictPort"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend/web-admin",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5176",
+        "--strictPort"
+      ],
       "port": 5176
+    },
+    {
+      "name": "web-operator-5177",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend/web-operator",
+        "run",
+        "dev"
+      ],
+      "port": 5177
     }
   ]
 }

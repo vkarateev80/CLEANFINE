@@ -19,6 +19,9 @@ export const NOTIFICATION_TYPES = [
   // внутренним REST-вызовом chat-service — routing key `chat.message` в
   // shared/constants/events.ts отсутствует.
   'CHAT_MESSAGE',
+  // Смена статуса заявки (в работе/выполнена/…) — бригадиру, админу и автору
+  // заявки (09.10.2026, событие ticket.status_changed).
+  'TICKET_STATUS',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

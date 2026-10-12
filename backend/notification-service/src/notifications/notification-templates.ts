@@ -70,6 +70,14 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, NotificationTempla
     body: '{body}',
     priority: 'high',
   },
+  // Заголовок зависит от нового статуса («▶️ Заявка в работе», «✅ Заявка
+  // выполнена»), поэтому его собирает resolveEvent, а шаблон только подставляет.
+  TICKET_STATUS: {
+    type: 'TICKET_STATUS',
+    title: '{title}',
+    body: '{body}',
+    priority: 'normal',
+  },
 };
 
 export interface RenderedNotification {

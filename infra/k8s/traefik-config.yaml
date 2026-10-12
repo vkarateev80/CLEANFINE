@@ -1,0 +1,19 @@
+# Настройка встроенного traefik k3s (12.10.2026). Файл кладётся на узел в
+# /var/lib/rancher/k3s/server/manifests/traefik-config.yaml — k3s применяет его сам
+# (helm-install-traefik перезапускается, ~30 с). `kubectl apply` для него НЕ нужен.
+#
+# Зачем: с политикой Cluster kube-proxy маскирует источник, и traefik видел у всех
+# клиентов 10.42.0.1. Дальше X-Forwarded-For нёс этот адрес, auth-service считал
+# rate limit «5 попыток входа в минуту на IP» на всех пользователей сразу
+# (ThrottlerException: Too Many Requests у владельца на тесте). С Local kube-proxy
+# не делает SNAT, traefik видит реальный адрес; узел один, трафик теряться не может.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    service:
+      spec:
+        externalTrafficPolicy: Local

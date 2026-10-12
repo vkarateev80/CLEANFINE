@@ -29,6 +29,28 @@ export interface TicketOverdueEvent {
   minutesOverdue: number;
 }
 
+/**
+ * Смена статуса заявки (09.10.2026, аддитивно к контракту 3.2). Публикует
+ * ticket-service на каждый переход state machine, кроме `overdue` (у него
+ * своё событие ticket.overdue). Получатели у notification-service: бригадиры
+ * и админы плюс автор заявки, без самого инициатора перехода.
+ */
+export interface TicketStatusChangedEvent {
+  ticketId: string;
+  status: string;
+  previousStatus: string;
+  /** Тип и описание — чтобы текст уведомления не требовал запроса в ticket-service. */
+  type: string;
+  description: string;
+  objectId: string;
+  assigneeId: string | null;
+  createdBy: string;
+  /** Кто перевёл статус; null — системный переход (сканер, авто-завершение). */
+  actorId: string | null;
+  actorName: string | null;
+  changedAt: string;
+}
+
 /** Завершение операции техкарты → material-service списывает материалы. */
 export interface TicketOperationCompletedEvent {
   operationId: string;
