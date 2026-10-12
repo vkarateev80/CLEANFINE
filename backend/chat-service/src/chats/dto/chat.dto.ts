@@ -63,11 +63,15 @@ export class CreateChatDto {
 }
 
 export class SendMessageDto {
-  @ApiProperty({ description: 'Текст сообщения', example: 'Добрый день, заявка принята' })
+  @ApiPropertyOptional({
+    description:
+      'Текст сообщения. Может быть пустым, если есть вложения (12.10.2026: фото/видео в чате)',
+    example: 'Добрый день, заявка принята',
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'Сообщение не может быть пустым' })
   @MaxLength(MAX_MESSAGE_LENGTH, { message: `Сообщение длиннее ${MAX_MESSAGE_LENGTH} символов` })
-  text!: string;
+  text?: string;
 
   @ApiPropertyOptional({
     description: 'Id вложений (file-service, bucket documents)',

@@ -69,11 +69,13 @@ export function sendMessageRest(
   chatId: string,
   text: string,
   clientMessageId?: string,
+  attachmentIds: string[] = [],
 ): Promise<MessageView> {
   return apiClient
     .post(`/chat/chats/${chatId}/messages`, {
       text,
       ...(clientMessageId ? { clientMessageId } : {}),
+      ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
     })
     .then((r) => r.data);
 }

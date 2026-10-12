@@ -39,6 +39,8 @@ data:
   # X-Forwarded-For; 20 попыток в минуту на реальный адрес (офис за одним NAT).
   AUTH_TRUST_PROXY_HOPS: "2"
   THROTTLE_LOGIN_LIMIT: "20"
+  # core → file-service: план этажа (PDF растеризуется) не укладывался в 15 с.
+  FILE_SERVICE_TIMEOUT_MS: "120000"
 
   JWT_ACCESS_TTL: "15m"
   JWT_REFRESH_TTL: "30d"

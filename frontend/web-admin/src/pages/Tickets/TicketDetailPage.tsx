@@ -23,6 +23,7 @@ import {
 } from '../../components/ui';
 import { useCanAssignTicket, useCanTransitionTicketStatus } from '../../hooks/usePermissions';
 import { ChatPanel } from '../Messages/ChatPanel';
+import { TicketRouteProgress } from './TicketRouteProgress';
 import { ROUTES } from '../../router/routes';
 import {
   TICKET_PRIORITY_LABELS,
@@ -470,6 +471,9 @@ export function TicketDetailPage() {
             чат создаётся идемпотентно по ticketId, поэтому блок монтируется
             при каждом открытии карточки без риска «второго» чата.
           */}
+          {/* Проход оператора по маршруту: серый → жёлтый → зелёный (12.10.2026). */}
+          <TicketRouteProgress ticket={ticket} />
+
           <ChatPanel
             kind="ticket"
             refId={ticket.id}

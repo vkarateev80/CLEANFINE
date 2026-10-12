@@ -111,9 +111,6 @@ export function parseSendPayload(
     return { ok: false, error: 'Укажите chatId' };
   }
   const text = typeof payload?.text === 'string' ? payload.text.trim() : '';
-  if (text === '') {
-    return { ok: false, error: 'Сообщение не может быть пустым' };
-  }
   if (text.length > MAX_MESSAGE_LENGTH) {
     return { ok: false, error: `Сообщение длиннее ${MAX_MESSAGE_LENGTH} символов` };
   }
@@ -127,6 +124,10 @@ export function parseSendPayload(
       return { ok: false, error: `Слишком много вложений (максимум ${MAX_ATTACHMENTS})` };
     }
     attachmentIds = rawAttachments as string[];
+  }
+  // Пустой текст допустим только с вложениями (фото/видео в чате, 12.10.2026).
+  if (text === '' && attachmentIds.length === 0) {
+    return { ok: false, error: 'Сообщение не может быть пустым' };
   }
   // Ключ идемпотентности (М6): повтор того же send с тем же ключом не создаёт
   // дубль. Отсутствие ключа допустимо (старые клиенты) — идемпотентность не включена.

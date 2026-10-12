@@ -26,6 +26,21 @@
         "dev"
       ],
       "port": 5177
+    },
+    {
+      "name": "web-operator-5178",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend/web-operator",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5178",
+        "--strictPort"
+      ],
+      "port": 5178
     }
   ]
 }

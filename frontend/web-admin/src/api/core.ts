@@ -98,17 +98,35 @@ export function deleteFloor(id: string): Promise<void> {
  * пробрасывает наш токен, поэтому отдельный запрос к :3002 здесь не нужен.
  * Поле обязательно называется `file` — так задано в FileInterceptor бэкенда.
  */
+/**
+ * Таймаут загрузки файлов — 10 минут вместо общих 10 с (12.10.2026): на
+ * медленном канале план в несколько мегабайт уходит дольше, и браузер сам
+ * обрывал запрос (nginx видел 499 «client closed»), а владелец — «не могу
+ * загрузить планы».
+ */
+export const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+
 export function uploadFloorPlan(
   floorId: string,
   file: File,
   planScale?: number,
+  onProgress?: (percent: number) => void,
 ): Promise<FloorEntity> {
   const form = new FormData();
   form.append('file', file);
   if (planScale !== undefined) {
     form.append('planScale', String(planScale));
   }
-  return apiClient.post(`/floors/${floorId}/plan`, form).then((r) => r.data);
+  return apiClient
+    .post(`/floors/${floorId}/plan`, form, {
+      timeout: UPLOAD_TIMEOUT_MS,
+      onUploadProgress: (event) => {
+        if (onProgress && event.total) {
+          onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        }
+      },
+    })
+    .then((r) => r.data);
 }
 
 /** Привязка уже загруженного плана по URL (альтернатива multipart-загрузке). */

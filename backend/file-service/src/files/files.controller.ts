@@ -47,7 +47,8 @@ export class FilesController {
     summary: 'Загрузка файла',
     description:
       'Поле `file` + метаданные. Для `kind=photo` накладывается водяной знак (имя, дата, координаты), ' +
-      'генерируется миниатюра и проверяется разрешение ≥1280×720. Лимит размера — 10 МБ.',
+      'генерируется миниатюра и проверяется разрешение ≥1280×720. `kind=chat` — вложения переписки ' +
+      '(фото/видео/PDF без водяного знака). Лимит размера — 50 МБ.',
   })
   @ApiBody({
     schema: {
@@ -55,7 +56,7 @@ export class FilesController {
       required: ['file', 'kind'],
       properties: {
         file: { type: 'string', format: 'binary' },
-        kind: { type: 'string', enum: ['photo', 'plan', 'avatar', 'document'] },
+        kind: { type: 'string', enum: ['photo', 'plan', 'avatar', 'document', 'chat'] },
         userName: { type: 'string', example: 'Иванов Иван' },
         takenAt: { type: 'string', example: '2026-09-14T18:00:00.000Z' },
         lat: { type: 'number', example: 55.7558 },

@@ -14,6 +14,8 @@ import {
 export interface UploadPlanModalProps {
   floor: FloorEntity;
   saving: boolean;
+  /** Прогресс отправки файла 0–100; null — ещё не начата или уже на сервере. */
+  progress?: number | null;
   error: unknown;
   onSubmit: (file: File, planScale?: number) => void;
   onCancel: () => void;
@@ -26,6 +28,7 @@ export interface UploadPlanModalProps {
 export function UploadPlanModal({
   floor,
   saving,
+  progress = null,
   error,
   onSubmit,
   onCancel,
@@ -146,6 +149,24 @@ export function UploadPlanModal({
           alt={`Предпросмотр плана: ${floor.name}`}
           className="max-h-48 w-full rounded-md border border-neutral-200 object-contain"
         />
+      )}
+
+      {/* Прогресс отправки (12.10.2026): на медленном канале файл идёт минуту и
+          больше, без полосы казалось, что «ничего не происходит». */}
+      {saving && (
+        <div className="flex flex-col gap-1" data-testid="floor-plan-progress">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200">
+            <div
+              className="h-full rounded-full bg-primary-500 transition-[width]"
+              style={{ width: `${progress ?? 100}%` }}
+            />
+          </div>
+          <span className="text-xs text-neutral-500">
+            {progress !== null && progress < 100
+              ? `Отправка файла… ${progress} %`
+              : 'Файл отправлен, сервер обрабатывает план…'}
+          </span>
+        </div>
       )}
 
       <Field label="Масштаб плана, м/пкс" htmlFor="upload-plan-scale" hint={scaleHint}>

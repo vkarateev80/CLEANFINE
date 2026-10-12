@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import { IsIn, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 /** Категории загрузки → бакеты MinIO (устав, п.1). */
-export const UPLOAD_KINDS = ['photo', 'plan', 'avatar', 'document'] as const;
+export const UPLOAD_KINDS = ['photo', 'plan', 'avatar', 'document', 'chat'] as const;
 export type UploadKind = (typeof UPLOAD_KINDS)[number];
 
 export const BUCKET_BY_KIND = {
@@ -11,6 +11,9 @@ export const BUCKET_BY_KIND = {
   plan: 'plans',
   avatar: 'avatars',
   document: 'documents',
+  // Вложения чата (12.10.2026): фото/видео/документы без водяного знака и
+  // проверки разрешения — это переписка, а не фотоотчёт по операции.
+  chat: 'documents',
 } as const;
 
 /** Разрешённые MIME по категориям (приёмка: JPEG/PNG/MP4; планы + PDF/SVG). */
@@ -19,6 +22,18 @@ export const ALLOWED_MIME: Record<UploadKind, string[]> = {
   plan: ['image/png', 'image/jpeg', 'application/pdf', 'image/svg+xml'],
   avatar: ['image/jpeg', 'image/png', 'image/webp'],
   document: ['application/pdf', 'text/plain', 'application/octet-stream'],
+  chat: [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'image/heic',
+    'video/mp4',
+    'video/quicktime',
+    'video/webm',
+    'video/3gpp',
+    'application/pdf',
+  ],
 };
 
 export const ENTITY_TYPES = ['FLOOR_PLAN', 'TICKET', 'CHAT_MESSAGE', 'AVATAR', 'DOCUMENT'] as const;
@@ -27,7 +42,7 @@ export type EntityTypeName = (typeof ENTITY_TYPES)[number];
 /** Метаданные загрузки: для фото — автор, время и координаты водяного знака. */
 export class UploadMetadataDto {
   @ApiProperty({ description: 'Категория загрузки', enum: UPLOAD_KINDS, example: 'photo' })
-  @IsIn(UPLOAD_KINDS, { message: 'kind: ожидается photo | plan | avatar | document' })
+  @IsIn(UPLOAD_KINDS, { message: 'kind: ожидается photo | plan | avatar | document | chat' })
   kind!: UploadKind;
 
   @ApiPropertyOptional({ description: 'Имя сотрудника для водяного знака', example: 'Иванов Иван' })

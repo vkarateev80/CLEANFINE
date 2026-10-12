@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { UPLOAD_TIMEOUT_MS } from './core';
 import type { EntityTypeName, FileView, Paginated, PageQuery, UploadKind } from '../types/core';
 
 /**
@@ -15,6 +16,8 @@ export interface UploadFileOptions {
   takenAt?: string;
   lat?: number;
   lng?: number;
+  /** Прогресс отправки тела запроса, 0–100 (вложения чата показывают «45 %»). */
+  onProgress?: (percent: number) => void;
 }
 
 export interface ListFilesQuery extends PageQuery {
@@ -33,7 +36,17 @@ export function uploadFile(file: File, options: UploadFileOptions): Promise<File
   if (options.takenAt) form.append('takenAt', options.takenAt);
   if (options.lat !== undefined) form.append('lat', String(options.lat));
   if (options.lng !== undefined) form.append('lng', String(options.lng));
-  return apiClient.post('/files/upload', form).then((r) => r.data);
+  return apiClient
+    .post('/files/upload', form, {
+      // Файлы идут дольше общих 10 с на медленном канале (см. UPLOAD_TIMEOUT_MS).
+      timeout: UPLOAD_TIMEOUT_MS,
+      onUploadProgress: (event) => {
+        if (options.onProgress && event.total) {
+          options.onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        }
+      },
+    })
+    .then((r) => r.data);
 }
 
 export function getFile(id: string): Promise<FileView> {

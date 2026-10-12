@@ -1,6 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useParams } from 'react-router-dom';
+import { attachFile, uploadChatFile } from '../../api/files';
+import {
+  CHAT_ATTACHMENT_ACCEPT,
+  CHAT_ATTACHMENT_MAX_COUNT,
+  MessageAttachments,
+  attachmentError,
+  formatBytes,
+} from '../../components/chat/MessageAttachments';
 import { Button } from '../../components/ui/Button';
 import { EmptyState, ErrorBanner, SoftWarning, errorMessage } from '../../components/ui/Feedback';
 import { useChatSocket } from '../../hooks/useChatSocket';
@@ -44,6 +52,12 @@ export function ChatThreadPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [sentLocally, setSentLocally] = useState<MessageView[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Вложения (12.10.2026): фото/видео копятся до отправки; без сети не уходят —
+  // файл нельзя положить в localStorage-очередь, а IndexedDB-очередь фото
+  // заточена под операции. Онлайн: upload по одному → сообщение с id.
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState<{ index: number; percent: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const DRAFT_KEY = `op-chat-draft:${chatId}`;
   const loadedRef = useRef<string | null>(null);
@@ -110,15 +124,36 @@ export function ChatThreadPage() {
             ? `участников: ${members.length}`
             : undefined;
 
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const next: File[] = [];
+    for (const file of Array.from(list)) {
+      const error = attachmentError(file);
+      if (error) {
+        setSendError(error);
+        return;
+      }
+      next.push(file);
+    }
+    setSendError(null);
+    setFiles((current) => [...current, ...next].slice(0, CHAT_ATTACHMENT_MAX_COUNT));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
   async function handleSend() {
     const text = draft.trim();
-    if (!chatId || text === '' || sendMutation.isPending) return;
+    if (!chatId || (text === '' && files.length === 0) || sendMutation.isPending || uploading)
+      return;
     if (text.length > MAX_MESSAGE_LENGTH) {
       setSendError('Сообщение длиннее 4000 символов');
       return;
     }
     setSendError(null);
     const clientMessageId = crypto.randomUUID();
+    if (!online && files.length > 0) {
+      setSendError('Нет соединения — фото и видео можно отправить только онлайн');
+      return;
+    }
     if (!online) {
       enqueue({
         kind: 'chat_message',
@@ -129,14 +164,37 @@ export function ChatThreadPage() {
       setDraft('');
       return;
     }
+    const attachmentIds: string[] = [];
+    try {
+      for (let index = 0; index < files.length; index += 1) {
+        setUploading({ index, percent: 0 });
+        const uploaded = await uploadChatFile(files[index], (percent) =>
+          setUploading({ index, percent }),
+        );
+        attachmentIds.push(uploaded.id);
+      }
+    } catch (caught) {
+      setUploading(null);
+      setSendError(
+        `Не удалось загрузить «${files[attachmentIds.length]?.name ?? 'файл'}»: ${errorMessage(caught)}`,
+      );
+      return;
+    }
+    setUploading(null);
     try {
       const sent = await sendMutation.mutateAsync({
         text,
         clientMessageId,
-        socketSend: (id) => socket.send(chatId, text, id),
+        attachmentIds,
+        socketSend: (id) => socket.send(chatId, text, id, attachmentIds),
       });
+      // Привязка файлов к сообщению — не критична: id вложений уже в сообщении.
+      for (const fileId of attachmentIds) {
+        attachFile(fileId, 'CHAT_MESSAGE', sent.id).catch(() => undefined);
+      }
       setSentLocally((current) => [...current, sent]);
       setDraft('');
+      setFiles([]);
       void history.refetch();
       void queryClient.invalidateQueries({ queryKey: ['chat', 'chats'] });
     } catch (caught) {
@@ -271,7 +329,59 @@ export function ChatThreadPage() {
 
           <div className="op-bottom-bar sticky bottom-0 border-t border-neutral-200 bg-white px-3 pt-2">
             {sendError && <p className="mb-1 text-xs text-danger-600">{sendError}</p>}
+            {files.length > 0 && (
+              <ul className="mb-2 flex flex-wrap gap-2" data-testid="chat_pending_attachments">
+                {files.map((file, index) => (
+                  <li
+                    key={`${file.name}-${index}`}
+                    className="inline-flex max-w-full items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-700"
+                  >
+                    {file.type.startsWith('image/')
+                      ? '🖼'
+                      : file.type.startsWith('video/')
+                        ? '🎬'
+                        : '📎'}
+                    <span className="max-w-[40vw] truncate">{file.name}</span>
+                    <span className="text-neutral-400">{formatBytes(file.size)}</span>
+                    {uploading && uploading.index === index ? (
+                      <span className="text-primary-600">{uploading.percent} %</span>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-label={`Убрать ${file.name}`}
+                        className="min-h-[28px] min-w-[28px] text-neutral-400"
+                        disabled={Boolean(uploading)}
+                        onClick={() =>
+                          setFiles((current) => current.filter((_, i) => i !== index))
+                        }
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
             <div className="flex items-end gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={CHAT_ATTACHMENT_ACCEPT}
+                multiple
+                className="sr-only"
+                data-testid="chat_attach_input"
+                onChange={(event) => addFiles(event.target.files)}
+              />
+              <button
+                type="button"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-xl text-neutral-600 hover:bg-neutral-100 disabled:opacity-60"
+                aria-label="Прикрепить фото или видео"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={Boolean(uploading) || sendMutation.isPending || forbidden}
+                data-testid="chat_attach_button"
+              >
+                📎
+              </button>
               <textarea
                 ref={inputRef}
                 rows={1}
@@ -288,10 +398,15 @@ export function ChatThreadPage() {
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-60"
                 aria-label="Отправить сообщение"
                 onClick={() => void handleSend()}
-                disabled={draft.trim() === '' || sendMutation.isPending || forbidden}
+                disabled={
+                  (draft.trim() === '' && files.length === 0) ||
+                  sendMutation.isPending ||
+                  Boolean(uploading) ||
+                  forbidden
+                }
                 data-testid="chat_send_button"
               >
-                ➤
+                {uploading ? '…' : '➤'}
               </button>
             </div>
             {draft.length >= 3800 && (
@@ -331,10 +446,8 @@ function Bubble({
             : 'rounded-2xl rounded-bl-md border border-neutral-200 bg-white text-neutral-900',
         ].join(' ')}
       >
+        <MessageAttachments ids={message.attachmentIds} mine={mine} />
         {message.text}
-        {message.attachmentIds.length > 0 && (
-          <span className="ml-1 text-xs opacity-80">📎 {message.attachmentIds.length}</span>
-        )}
         <span
           className={[
             'ml-2 font-mono text-[10px]',

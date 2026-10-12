@@ -118,16 +118,19 @@ export function useSendMessage(chatId: string | null) {
     mutationFn: async ({
       text,
       clientMessageId,
+      attachmentIds = [],
       socketSend,
     }: {
       text: string;
       clientMessageId: string;
+      /** id вложений file-service (фото/видео, 12.10.2026). */
+      attachmentIds?: string[];
       socketSend: (id: string) => Promise<MessageView>;
     }) => {
       try {
         return await socketSend(clientMessageId);
       } catch {
-        return await sendMessageRest(chatId as string, text, clientMessageId);
+        return await sendMessageRest(chatId as string, text, clientMessageId, attachmentIds);
       }
     },
   });

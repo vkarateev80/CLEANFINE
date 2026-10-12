@@ -20,7 +20,7 @@ describe('configuration (core-service)', () => {
     expect(cfg.port).toBe(DEFAULT_PORT);
     expect(cfg.jwt.accessSecret).toBe('dev-access-secret');
     expect(cfg.fileService.baseUrl).toBe('http://localhost:3002');
-    expect(cfg.fileService.timeoutMs).toBe(15_000);
+    expect(cfg.fileService.timeoutMs).toBe(120_000);
   });
 
   it('переопределяется переменными окружения', () => {
@@ -51,7 +51,7 @@ describe('configuration (core-service)', () => {
   it('дефолтный таймаут file-service, если переменная задана мусором', () => {
     process.env.FILE_SERVICE_TIMEOUT_MS = 'soon';
 
-    expect(configuration().fileService.timeoutMs).toBe(15_000);
+    expect(configuration().fileService.timeoutMs).toBe(120_000);
   });
 });
 

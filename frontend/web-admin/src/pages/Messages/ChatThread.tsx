@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { uploadFile } from '../../api/files';
 import { Button, ErrorBanner, LoadingBlock, Textarea } from '../../components/ui';
 import type { ChatConnectionStatus } from '../../hooks/useChatSocket';
 import { MAX_CHAT_MESSAGE_LENGTH } from '../../types/chat';
+import { formatBytes } from '../Objects/utils';
 import { formatDateTime } from '../Tickets/ticketHelpers';
+import {
+  CHAT_ATTACHMENT_ACCEPT,
+  CHAT_ATTACHMENT_MAX_COUNT,
+  MessageAttachments,
+  attachmentError,
+} from './MessageAttachments';
 import { chatUserName, type ChatRoomData } from './useChats';
 
 /**
@@ -40,6 +48,12 @@ export function ChatThread({
   placeholder = 'Сообщение…',
 }: ChatThreadProps) {
   const [text, setText] = useState('');
+  // Вложения (12.10.2026): файлы копятся до отправки, уходят в file-service
+  // (kind=chat) по одному, затем сообщение с их id.
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<{ index: number; percent: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMessageIdRef = useRef<string | null>(null);
 
@@ -89,12 +103,50 @@ export function ChatThread({
     if (node.scrollTop <= 40) void loadOlder();
   }
 
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const next: File[] = [];
+    for (const file of Array.from(list)) {
+      const error = attachmentError(file);
+      if (error) {
+        setFileError(error);
+        return;
+      }
+      next.push(file);
+    }
+    setFileError(null);
+    setFiles((current) => [...current, ...next].slice(0, CHAT_ATTACHMENT_MAX_COUNT));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
   async function submit() {
     const value = text.trim();
-    if (value === '' || room.sending) return;
+    if ((value === '' && files.length === 0) || room.sending || uploading) return;
+    const attachmentIds: string[] = [];
     try {
-      await room.send(value);
+      for (let index = 0; index < files.length; index += 1) {
+        setUploading({ index, percent: 0 });
+        const uploaded = await uploadFile(files[index], {
+          kind: 'chat',
+          onProgress: (percent) => setUploading({ index, percent }),
+        });
+        attachmentIds.push(uploaded.id);
+      }
+    } catch (error) {
+      setFileError(
+        `Не удалось загрузить «${files[attachmentIds.length]?.name ?? 'файл'}»: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      setUploading(null);
+      return;
+    }
+    setUploading(null);
+    try {
+      await room.send(value, attachmentIds);
       setText('');
+      setFiles([]);
+      setFileError(null);
     } catch {
       // Текст остаётся в поле, а причина видна в баннере над ним — так пользователь
       // не набирает сообщение заново после обрыва соединения.
@@ -181,6 +233,7 @@ export function ChatThread({
                     >
                       {message.text}
                     </span>
+                    <MessageAttachments ids={message.attachmentIds} mine={mine} />
                     {mine && readUntil && readUntil >= message.createdAt && (
                       <span className="mt-0.5 text-xs text-neutral-400">прочитано</span>
                     )}
@@ -194,7 +247,55 @@ export function ChatThread({
 
       <div className="flex flex-col gap-2 border-t border-neutral-200 px-4 py-3">
         {room.sendError ? <ErrorBanner error={room.sendError} /> : null}
+        {fileError ? <ErrorBanner error={new Error(fileError)} /> : null}
+        {files.length > 0 && (
+          <ul className="flex flex-wrap gap-2" data-testid="messages-pending-attachments">
+            {files.map((file, index) => (
+              <li
+                key={`${file.name}-${index}`}
+                className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-700"
+              >
+                {file.type.startsWith('image/') ? '🖼' : file.type.startsWith('video/') ? '🎬' : '📎'}
+                <span className="max-w-[160px] truncate">{file.name}</span>
+                <span className="text-neutral-400">{formatBytes(file.size)}</span>
+                {uploading && uploading.index === index ? (
+                  <span className="text-primary-600">{uploading.percent} %</span>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`Убрать ${file.name}`}
+                    className="text-neutral-400 hover:text-danger-600"
+                    disabled={Boolean(uploading)}
+                    onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
+                  >
+                    ✕
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={CHAT_ATTACHMENT_ACCEPT}
+            multiple
+            className="sr-only"
+            data-testid="messages-attach-input"
+            onChange={(event) => addFiles(event.target.files)}
+          />
+          <Button
+            variant="secondary"
+            type="button"
+            aria-label="Прикрепить фото, видео или файл"
+            title="Прикрепить фото, видео или PDF (до 50 МБ)"
+            data-testid="messages-attach"
+            disabled={Boolean(uploading) || room.sending}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            📎
+          </Button>
           <Textarea
             data-testid="messages-input"
             aria-label={`Сообщение в чат «${title}»`}
@@ -213,11 +314,11 @@ export function ChatThread({
           />
           <Button
             data-testid="messages-send"
-            loading={room.sending}
-            disabled={text.trim() === ''}
+            loading={room.sending || Boolean(uploading)}
+            disabled={text.trim() === '' && files.length === 0}
             onClick={() => void submit()}
           >
-            Отправить
+            {uploading ? `Загрузка ${uploading.index + 1}/${files.length}…` : 'Отправить'}
           </Button>
         </div>
         <span className="text-xs text-neutral-400">
