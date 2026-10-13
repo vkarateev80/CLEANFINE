@@ -5,7 +5,14 @@ import JSZip from 'jszip';
  *
  * .sh3d — zip-архив: внутри `Home.xml` (сцена) и OBJ-модели (не нужны — план
  * рисуется по стенам и контурам помещений). Единицы координат сцены — сантиметры,
- * ось Y направлена вверх (в отличие от экранных координат; flip делает layout).
+ * ось Y направлена ВНИЗ, как на экране (план Sweet Home 3D — вид сверху в
+ * экранных координатах), поэтому layout переносит координаты без переворота.
+ *
+ * Свойства помещения (13.10.2026): «Планировщик 3D» пишет у `<room>` дочерние
+ * `<property name='…' value='…'/>` — стандарт Sweet Home 3D для свойств объекта.
+ * Читаются `roomType` (тип помещения, как в пресетах «Виды помещения») и
+ * `heightCm` (высота этажа); остальные (`areaM2`, `perimeterM`, `cleanZone`, …)
+ * игнорируются: площадь считается по контуру, зона выводится из типа.
  *
  * Многоуровневые сцены складываются в один вид сверху: в экосистеме план —
  * одна картинка на этаж, а уровни SH3D часто служат служебными (размерные),
@@ -33,6 +40,10 @@ export interface Sh3dRoom {
   points: Sh3dPoint[];
   /** Площадь по контуру (формула Шейла), м². */
   areaM2: number;
+  /** Тип помещения из `<property name='roomType'>` («Планировщик 3D»); в .sh3d нет. */
+  type?: string;
+  /** Высота этажа, см, из `<property name='heightCm'>`. */
+  heightCm?: number;
 }
 
 export interface Sh3dBounds {
@@ -67,6 +78,20 @@ export function polygonAreaM2(points: Sh3dPoint[]): number {
     sum += current.x * next.y - next.x * current.y;
   }
   return Math.abs(sum) / 2 / 10_000;
+}
+
+/**
+ * Свойства `<property name value>` помещения → словарь. Пустые имена и
+ * значения пропускаются; при повторе имени побеждает последнее.
+ */
+function roomProperties(element: Element): Map<string, string> {
+  const result = new Map<string, string>();
+  for (const property of Array.from(element.getElementsByTagName('property'))) {
+    const name = (property.getAttribute('name') ?? '').trim();
+    const value = (property.getAttribute('value') ?? '').trim();
+    if (name !== '' && value !== '') result.set(name, value);
+  }
+  return result;
 }
 
 function boundsOf(walls: Sh3dWall[], rooms: Sh3dRoom[]): Sh3dBounds {
@@ -124,11 +149,16 @@ export function parseHomeXml(xml: string): Sh3dScene {
     }
     if (points.length < 3) continue; // вырожденный контур — не помещение
     index += 1;
+    const properties = roomProperties(element);
+    const type = properties.get('roomType');
+    const heightCm = parseNumber(properties.get('heightCm') ?? null, Number.NaN);
     rooms.push({
       id: element.getAttribute('id') ?? `room-${index}`,
       name: (element.getAttribute('name') ?? '').trim(),
       points,
       areaM2: polygonAreaM2(points),
+      ...(type !== undefined ? { type } : {}),
+      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
     });
   }
 

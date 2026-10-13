@@ -63,6 +63,8 @@ export function PlanUploadModal({
   const [sh3d, setSh3d] = useState<Sh3dPreview | null>(null);
   const [sh3dBusy, setSh3dBusy] = useState(false);
   const [importRooms, setImportRooms] = useState(true);
+  /** Сколько помещений файла пришли со своим типом («Планировщик 3D»). */
+  const typedRooms = sh3d?.typedRooms ?? 0;
 
   function handleSubmit() {
     const parsed = parseScale(scale);
@@ -232,6 +234,12 @@ export function PlanUploadModal({
                   <span>
                     Создать помещения из файла ({sh3d.rooms.length}) — с названиями, площадью и
                     координатами на плане
+                    {typedRooms > 0 && (
+                      <>
+                        ; с типом из файла — {typedRooms}
+                        {typedRooms < sh3d.rooms.length && ', остальные «Офис»'}
+                      </>
+                    )}
                   </span>
                 </label>
               </div>
