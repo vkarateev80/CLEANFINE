@@ -13,6 +13,8 @@ export interface MobileDrawerProps {
   items: NavItem[];
   /** На телефоне шапка показывает только иконки, поэтому имя и роль — здесь. */
   user: SessionUser | null;
+  /** Открыть редактор порядка пунктов («Порядок меню» внизу списка). */
+  onEditOrder?: () => void;
 }
 
 /**
@@ -24,7 +26,7 @@ export interface MobileDrawerProps {
  * же приём, что в `src/components/ui/Modal.tsx` (сам файл модалки не трогаем:
  * его параллельно правит другой исполнитель).
  */
-export function MobileDrawer({ items, user }: MobileDrawerProps) {
+export function MobileDrawer({ items, user, onEditOrder }: MobileDrawerProps) {
   const open = useUiStore((s) => s.drawerOpen);
   const closeDrawer = useUiStore((s) => s.closeDrawer);
   const closeAll = useUiStore((s) => s.closeAll);
@@ -128,6 +130,21 @@ export function MobileDrawer({ items, user }: MobileDrawerProps) {
             </NavLink>
           ))}
         </nav>
+        {onEditOrder && (
+          <div className="shrink-0 border-t border-neutral-800 p-3">
+            <button
+              type="button"
+              data-testid="drawer-nav-order-open"
+              onClick={onEditOrder}
+              className="flex min-h-[44px] w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-white"
+            >
+              <span aria-hidden="true" className="text-base leading-none">
+                ⇅
+              </span>
+              <span>Порядок меню</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

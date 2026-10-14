@@ -1,15 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import type { Role } from '@cleaning-ops/shared/types/roles';
 import { logout } from '../api/auth';
 import { BottomNav } from '../components/layout/BottomNav';
 import { MobileDrawer } from '../components/layout/MobileDrawer';
+import { NavOrderEditor } from '../components/layout/NavOrderEditor';
 import { Button } from '../components/ui/Button';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { NotificationBell } from '../pages/Notifications/NotificationBell';
 import { NotificationToaster } from '../pages/Notifications/NotificationToaster';
 import { useAuthStore } from '../stores/authStore';
+import { useNavOrderStore } from '../stores/navOrderStore';
 import { useUiStore } from '../stores/uiStore';
+import { applyNavOrder, isDefaultOrder } from './navOrder';
 
 export interface NavItem {
   to: string;
@@ -94,7 +97,28 @@ export function AdminLayout() {
   // `md` (768 px) — граница, на которой drawer заменяется рейкой/сайдбаром.
   const isTabletOrWider = useMediaQuery('(min-width: 768px)');
 
-  const items = navForRole(user?.role);
+  // Личный порядок пунктов (14.10.2026): стандартный ролевой список
+  // переставляется по сохранённому порядку этого пользователя; редактор
+  // открывается кнопкой «Порядок меню» внизу сайдбара и drawer'а.
+  const defaultItems = useMemo(() => navForRole(user?.role), [user?.role]);
+  const userId = user?.id ?? 'anonymous';
+  const savedOrder = useNavOrderStore((s) => s.orders[userId]);
+  const setOrder = useNavOrderStore((s) => s.setOrder);
+  const resetOrder = useNavOrderStore((s) => s.resetOrder);
+  const items = useMemo(() => applyNavOrder(defaultItems, savedOrder), [defaultItems, savedOrder]);
+  const orderIsDefault = isDefaultOrder(
+    defaultItems,
+    items.map((item) => item.to),
+  );
+  const [orderEditorOpen, setOrderEditorOpen] = useState(false);
+
+  function handleReorder(paths: string[]) {
+    if (isDefaultOrder(defaultItems, paths)) {
+      resetOrder(userId);
+    } else {
+      setOrder(userId, paths);
+    }
+  }
 
   // Смена маршрута закрывает drawer: пункт меню мог быть выбран в drawer,
   // а мог быть достигнут программным `navigate` (кнопка «назад», редирект
@@ -170,6 +194,23 @@ export function AdminLayout() {
             </NavLink>
           ))}
         </nav>
+        {/* «Порядок меню» — внизу панели, отдельно от разделов: на рейке только
+            значок с aria-label, на desktop — подпись. */}
+        <div className="mt-auto p-3 md:max-lg:flex md:max-lg:justify-center md:max-lg:p-2">
+          <button
+            type="button"
+            data-testid="nav-order-open"
+            title="Порядок меню"
+            aria-label="Порядок меню"
+            onClick={() => setOrderEditorOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-xs text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-white md:max-lg:min-h-[44px] md:max-lg:min-w-[44px] md:max-lg:px-2 lg:justify-start"
+          >
+            <span aria-hidden="true" className="text-base leading-none">
+              ⇅
+            </span>
+            <span className="hidden lg:inline">Порядок меню</span>
+          </button>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -224,7 +265,22 @@ export function AdminLayout() {
       </div>
 
       <BottomNav items={items} />
-      <MobileDrawer items={items} user={user} />
+      <MobileDrawer
+        items={items}
+        user={user}
+        onEditOrder={() => {
+          closeAll();
+          setOrderEditorOpen(true);
+        }}
+      />
+      <NavOrderEditor
+        open={orderEditorOpen}
+        items={items}
+        isDefault={orderIsDefault}
+        onReorder={handleReorder}
+        onReset={() => resetOrder(userId)}
+        onClose={() => setOrderEditorOpen(false)}
+      />
       {/* Всплывающие карточки новых уведомлений (SOS, сообщения, статусы заявок). */}
       <NotificationToaster />
     </div>
