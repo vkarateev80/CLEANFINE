@@ -1,3 +1,4 @@
+import legacy from '@vitejs/plugin-legacy';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -36,7 +37,29 @@ const proxy = Object.fromEntries(
 );
 
 export default defineConfig({
-  plugins: [react()],
+  /**
+   * Совместимость с браузерами (14.10.2026, «в Chrome белая страница»):
+   * Vite по умолчанию собирает под Chrome 87+/Safari 14+, и более старый
+   * браузер падал на SyntaxError ещё до запуска React — пустой экран без
+   * единого слова. Теперь:
+   *  • современный бандл транспилируется под Chrome 67+, Safari 14+,
+   *    Firefox 68+, Edge 79+ (modernTargets задаёт и esbuild-таргет — плагин
+   *    переопределяет build.target сам) и получает полифилы по факту использования;
+   *  • для браузеров без ESM собирается legacy-бандл (SystemJS + core-js),
+   *    подключаемый через <script nomodule>.
+   * Остальное — страховка в index.html (текст вместо белого экрана) и
+   * AppErrorBoundary (ошибка рендера вместо пустой страницы).
+   */
+  plugins: [
+    react(),
+    legacy({
+      targets: ['defaults', 'not IE 11', 'chrome >= 55', 'safari >= 11', 'ios >= 11', 'android >= 55'],
+      // Нижняя граница современного бандла — BigInt-литералы в mapbox-gl 3
+      // (Chrome 67, Firefox 68, Safari 14): ниже esbuild их не понижает.
+      modernTargets: 'edge>=79, firefox>=68, chrome>=67, safari>=14, chromeAndroid>=67, iOS>=14',
+      modernPolyfills: true,
+    }),
+  ],
   /**
    * База публичных URL. В dev — `/`; на k3s приложение живёт под
    * cleanfine.ru/app (сборка с `VITE_BASE=/app/`, см. deploy/vps/Dockerfile.web),
