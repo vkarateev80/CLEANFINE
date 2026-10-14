@@ -55,6 +55,7 @@ describe('UsersController (HTTP)', () => {
     register: jest.fn(),
     update: jest.fn(),
     purge: jest.fn(),
+    setPassword: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -291,6 +292,40 @@ describe('UsersController (HTTP)', () => {
         .set('Authorization', asAdmin())
         .send({ isActive: 'yes' })
         .expect(400);
+    });
+  });
+
+  describe('POST /api/users/:id/password (пароль от администратора)', () => {
+    it('ADMIN назначает пароль → 204, сервис получает id и пароль', async () => {
+      usersService.setPassword.mockResolvedValue(undefined);
+      await request(app.getHttpServer())
+        .post('/api/users/u2/password')
+        .set('Authorization', asAdmin())
+        .send({ password: 'new-pass-123' })
+        .expect(204);
+      expect(usersService.setPassword).toHaveBeenCalledWith('u2', 'new-pass-123');
+    });
+
+    it('короткий пароль → 400, сервис не вызывается', async () => {
+      await request(app.getHttpServer())
+        .post('/api/users/u2/password')
+        .set('Authorization', asAdmin())
+        .send({ password: '123' })
+        .expect(400);
+      expect(usersService.setPassword).not.toHaveBeenCalled();
+    });
+
+    it('SUPERVISOR получает 403, без токена — 401', async () => {
+      await request(app.getHttpServer())
+        .post('/api/users/u2/password')
+        .set('Authorization', bearer('SUPERVISOR'))
+        .send({ password: 'new-pass-123' })
+        .expect(403);
+      await request(app.getHttpServer())
+        .post('/api/users/u2/password')
+        .send({ password: 'new-pass-123' })
+        .expect(401);
+      expect(usersService.setPassword).not.toHaveBeenCalled();
     });
   });
 

@@ -16,6 +16,7 @@ import {
   useDeactivateEmployee,
   useDeleteEmployee,
   useEmployees,
+  useSetEmployeePassword,
   useUpdateEmployee,
 } from './useEmployees';
 
@@ -27,13 +28,14 @@ import {
  * `DELETE`). DELETE — мягкая деактивация: строка остаётся, вход блокируется (401),
  * возврат — `PATCH { isActive: true }` (UAT A8, раздел docs/UAT_ADMIN.md).
  *
- * Роль — закрытый enum (Select), пароль задаётся при создании и дальше не
- * редактируется: API смены пароля для админки нет.
+ * Роль — закрытый enum (Select). Пароль задаётся при создании, а сменить его
+ * сотруднику может ADMIN кнопкой «Пароль» (`POST /users/:id/password`,
+ * 14.10.2026): текущий пароль не нужен, сеансы сотрудника завершаются.
  */
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
-type DialogKind = 'create' | 'edit' | 'deactivate' | 'delete';
+type DialogKind = 'create' | 'edit' | 'password' | 'deactivate' | 'delete';
 
 interface ActiveDialog {
   kind: DialogKind;
@@ -54,6 +56,13 @@ interface EditFormState {
   phone: string;
   role: Role;
 }
+
+interface PasswordFormState {
+  password: string;
+  repeat: string;
+}
+
+const EMPTY_PASSWORD: PasswordFormState = { password: '', repeat: '' };
 
 const EMPTY_CREATE: CreateFormState = {
   fullName: '',
@@ -87,6 +96,10 @@ export function EmployeesPage() {
     role: 'OPERATOR',
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
+  const [passwordForm, setPasswordForm] = useState<PasswordFormState>(EMPTY_PASSWORD);
+  const [showPassword, setShowPassword] = useState(false);
+  /** Подтверждение удачного действия без модалки (смена пароля). */
+  const [notice, setNotice] = useState<string | null>(null);
 
   const trimmedSearch = debouncedSearch.trim();
   const params = useMemo(
@@ -103,6 +116,7 @@ export function EmployeesPage() {
   const { data, isLoading, isFetching, error, refetch } = useEmployees(params);
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
+  const setEmployeePassword = useSetEmployeePassword();
   const deactivateEmployee = useDeactivateEmployee();
   const deleteEmployee = useDeleteEmployee();
 
@@ -112,6 +126,7 @@ export function EmployeesPage() {
   const busy =
     createEmployee.isPending ||
     updateEmployee.isPending ||
+    setEmployeePassword.isPending ||
     deactivateEmployee.isPending ||
     deleteEmployee.isPending;
 
@@ -136,6 +151,14 @@ export function EmployeesPage() {
       role: employee.role,
     });
     setDialog({ kind: 'edit', employee });
+  }
+
+  function openPassword(employee: SessionUser) {
+    setDialogError(null);
+    setFieldErrors({});
+    setPasswordForm(EMPTY_PASSWORD);
+    setShowPassword(false);
+    setDialog({ kind: 'password', employee });
   }
 
   function openDeactivate(employee: SessionUser) {
@@ -194,6 +217,33 @@ export function EmployeesPage() {
           role: editForm.role,
         },
       });
+      setDialog(null);
+    } catch (err) {
+      setDialogError(err);
+    }
+  }
+
+  async function handleSetPassword(event: FormEvent) {
+    event.preventDefault();
+    if (!dialog?.employee) return;
+    const errors: Record<string, string | null> = {
+      password:
+        passwordForm.password.length >= 6 ? null : 'Пароль должен быть не короче 6 символов',
+      repeat: passwordForm.repeat === passwordForm.password ? null : 'Пароли не совпадают',
+    };
+    setFieldErrors(errors);
+    if (Object.values(errors).some(Boolean)) return;
+
+    setDialogError(null);
+    try {
+      await setEmployeePassword.mutateAsync({
+        id: dialog.employee.id,
+        password: passwordForm.password,
+      });
+      setNotice(
+        `Пароль для «${dialog.employee.fullName}» обновлён. Активные сеансы сотрудника завершены — ему нужно войти заново.`,
+      );
+      setPasswordForm(EMPTY_PASSWORD);
       setDialog(null);
     } catch (err) {
       setDialogError(err);
@@ -286,6 +336,16 @@ export function EmployeesPage() {
               onClick={() => openEdit(employee)}
             >
               Изменить
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="max-md:px-2 max-md:text-xs"
+              aria-label={`Сменить пароль «${employee.fullName}»`}
+              data-testid={`employee-password-${employee.id}`}
+              onClick={() => openPassword(employee)}
+            >
+              Пароль
             </Button>
             {employee.isActive ? (
               <Button
@@ -430,6 +490,102 @@ export function EmployeesPage() {
           />
         </div>
       </Card>
+
+      {notice !== null && (
+        <div
+          role="status"
+          data-testid="employees-notice"
+          className="flex items-start justify-between gap-3 rounded-lg border border-success-500 bg-neutral-50 px-3 py-2 text-sm text-neutral-800"
+        >
+          <span>{notice}</span>
+          <button
+            type="button"
+            className="shrink-0 text-xs text-success-600 underline"
+            onClick={() => setNotice(null)}
+          >
+            Скрыть
+          </button>
+        </div>
+      )}
+
+      {/* ------------------------------------------------- пароль сотрудника */}
+      <Modal
+        open={dialog?.kind === 'password'}
+        title={`Новый пароль — ${dialog?.employee?.fullName ?? ''}`}
+        onClose={() => (busy ? undefined : setDialog(null))}
+        busy={busy}
+        footer={
+          <>
+            <Button variant="secondary" disabled={busy} onClick={() => setDialog(null)}>
+              Отмена
+            </Button>
+            <Button
+              type="submit"
+              form="employee-password-form"
+              loading={busy}
+              data-testid="employee-password-submit"
+            >
+              Сохранить пароль
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="employee-password-form"
+          className="flex flex-col gap-4"
+          onSubmit={(event) => void handleSetPassword(event)}
+        >
+          <p className="text-sm text-neutral-600">
+            Сотрудник <span className="font-medium">{dialog?.employee?.email}</span> получит
+            этот пароль от вас. После сохранения его активные сеансы на телефоне и в
+            браузере завершатся — потребуется войти заново.
+          </p>
+          <Field
+            label="Новый пароль"
+            htmlFor="employee-new-password"
+            required
+            error={fieldErrors.password}
+            hint="Не короче 6 символов"
+          >
+            <Input
+              id="employee-new-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={passwordForm.password}
+              invalid={Boolean(fieldErrors.password)}
+              onChange={(event) =>
+                setPasswordForm((prev) => ({ ...prev, password: event.target.value }))
+              }
+            />
+          </Field>
+          <Field
+            label="Повторите пароль"
+            htmlFor="employee-new-password-repeat"
+            required
+            error={fieldErrors.repeat}
+          >
+            <Input
+              id="employee-new-password-repeat"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={passwordForm.repeat}
+              invalid={Boolean(fieldErrors.repeat)}
+              onChange={(event) =>
+                setPasswordForm((prev) => ({ ...prev, repeat: event.target.value }))
+              }
+            />
+          </Field>
+          <label className="flex items-center gap-2 text-sm text-neutral-600">
+            <input
+              type="checkbox"
+              checked={showPassword}
+              onChange={(event) => setShowPassword(event.target.checked)}
+            />
+            Показать пароль
+          </label>
+          {dialogError !== null && <ErrorBanner error={dialogError} />}
+        </form>
+      </Modal>
 
       {/* ----------------------------------------------------------- создание */}
       <Modal

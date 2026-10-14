@@ -118,6 +118,21 @@ export class UsersService {
   }
 
   /**
+   * Новый пароль сотруднику по решению администратора (14.10.2026): хэш
+   * обновляется, все refresh-токены отзываются — как при самостоятельной смене
+   * пароля, иначе украденный/старый сеанс пережил бы сброс.
+   */
+  async setPassword(id: string, password: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    await this.prisma.user.update({ where: { id }, data: { passwordHash } });
+    await this.tokens.revokeAllForUser(id);
+  }
+
+  /**
    * Полное удаление пользователя (`?permanent=true`).
    *
    * В своей БД каскадом уходят refresh-токены (onDelete: Cascade в схеме).

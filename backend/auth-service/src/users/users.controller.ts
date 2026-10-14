@@ -17,6 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 // DTO импортируются как ЗНАЧЕНИЯ: класс должен существовать в рантайме, иначе
 // ValidationPipe с whitelist:true вырежет все поля тела (метатип = Object).
 import { RegisterDto } from './dto/register.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import type { ListUsersQuery } from './users.service';
 import { UsersService } from './users.service';
@@ -98,6 +99,25 @@ export class UsersController {
   @ApiResponse({ status: 409, description: 'Email или телефон уже заняты' })
   async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.users.update(id, dto);
+  }
+
+  /** Новый пароль сотруднику — только ADMIN; старые сеансы сотрудника завершаются. */
+  @Post(':id/password')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Назначить сотруднику новый пароль (только ADMIN)',
+    description:
+      'Пароль хэшируется, все refresh-токены сотрудника отзываются — на устройствах ' +
+      'придётся войти заново. Текущий пароль не запрашивается: это сброс по запросу ' +
+      'сотрудника, а не самообслуживание (`/api/auth/change-password`).',
+  })
+  @ApiResponse({ status: 204, description: 'Пароль обновлён, сеансы сотрудника завершены' })
+  @ApiResponse({ status: 400, description: 'Пароль короче 6 символов' })
+  @ApiResponse({ status: 403, description: 'Роль не ADMIN' })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async setPassword(@Param('id') id: string, @Body() dto: SetPasswordDto) {
+    await this.users.setPassword(id, dto.password);
   }
 
   /** Мягкая деактивация; `?permanent=true` — полное удаление (см. UsersService.purge). */

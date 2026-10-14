@@ -206,6 +206,31 @@ describe('UsersService', () => {
     });
   });
 
+  describe('setPassword', () => {
+    it('хэширует новый пароль и отзывает refresh-токены сотрудника', async () => {
+      prisma.user.findUnique.mockResolvedValue(userRecord);
+      prisma.user.update.mockResolvedValue(userRecord);
+      await service.setPassword('u1', 'new-pass-123');
+      const call = prisma.user.update.mock.calls[0][0] as {
+        where: { id: string };
+        data: { passwordHash: string };
+      };
+      expect(call.where).toEqual({ id: 'u1' });
+      expect(call.data.passwordHash).not.toBe('new-pass-123');
+      expect(bcrypt.compareSync('new-pass-123', call.data.passwordHash)).toBe(true);
+      expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u1');
+    });
+
+    it('бросает NotFoundException, если пользователя нет, ничего не меняя', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      await expect(service.setPassword('missing', 'new-pass-123')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
+    });
+  });
+
   describe('purge', () => {
     it('полное удаление: user.delete по id (refresh-токены — каскадом в схеме)', async () => {
       prisma.user.findUnique.mockResolvedValue(userRecord);

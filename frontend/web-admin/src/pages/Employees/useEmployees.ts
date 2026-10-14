@@ -5,6 +5,7 @@ import {
   deactivateUser,
   deleteUser,
   listUsers,
+  setUserPassword,
   updateUser,
   type CreateUserPayload,
   type UpdateUserPayload,
@@ -73,6 +74,14 @@ export function useUpdateEmployee() {
     mutationFn: ({ id, payload }: { id: string; payload: UpdateUserPayload }) =>
       updateUser(id, payload),
     onSuccess: invalidate,
+  });
+}
+
+/** Назначение пароля администратором: список не меняется, инвалидировать нечего. */
+export function useSetEmployeePassword() {
+  return useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) =>
+      setUserPassword(id, password),
   });
 }
 
