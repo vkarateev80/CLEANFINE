@@ -1,3 +1,4 @@
+import { roundArea } from '../rooms/rooms.service';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Object as CoreObject, Prisma } from '@prisma/client';
 import type { ObjectStatus } from '@cleaning-ops/shared/types/core';
@@ -53,7 +54,7 @@ export class ObjectsService {
         lat: dto.lat,
         lng: dto.lng,
         type: dto.type,
-        totalArea: dto.totalArea,
+        totalArea: roundArea(dto.totalArea),
         floorsCount: dto.floorsCount,
         clientName: dto.clientName,
         clientContact: dto.clientContact,
@@ -157,7 +158,7 @@ export class ObjectsService {
         lat: dto.lat,
         lng: dto.lng,
         type: dto.type,
-        totalArea: dto.totalArea,
+        totalArea: dto.totalArea === undefined ? undefined : roundArea(dto.totalArea),
         floorsCount: dto.floorsCount,
         clientName: dto.clientName,
         clientContact: dto.clientContact,

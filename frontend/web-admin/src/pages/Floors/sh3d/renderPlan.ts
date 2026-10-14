@@ -59,7 +59,8 @@ const COLORS = {
 export function toImportRoom(room: RoomLayout, index: number): ImportRoom {
   return {
     name: room.name === '' ? `Помещение ${index + 1}` : room.name,
-    areaM2: Math.round(room.areaM2 * 100) / 100,
+    // Площадь — с точностью 0,1 м², как везде в системе (14.10.2026).
+    areaM2: Math.round(room.areaM2 * 10) / 10,
     floorType: hasFileType(room) ? (room.type as string).trim() : DEFAULT_IMPORT_FLOOR_TYPE,
     coordsX: room.rect.x,
     coordsY: room.rect.y,

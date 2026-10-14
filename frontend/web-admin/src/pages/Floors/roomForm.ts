@@ -69,6 +69,11 @@ export function withRect(values: RoomFormValues, rect: Rect): RoomFormValues {
   };
 }
 
+/** Площадь уходит на сервер с точностью 0,1 м² (14.10.2026) — как и хранится. */
+export function roundArea(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 function parseNumber(value: string): number | null {
   const trimmed = value.trim();
   if (trimmed === '') return null;
@@ -168,7 +173,7 @@ function coordsPayload(values: RoomFormValues): Partial<CreateRoomPayload> {
 export function roomCreatePayload(values: RoomFormValues): CreateRoomPayload {
   const payload: CreateRoomPayload = {
     name: values.name.trim(),
-    areaM2: parseNumber(values.areaM2) ?? 0,
+    areaM2: roundArea(parseNumber(values.areaM2) ?? 0),
     floorType: values.floorType.trim(),
     ...coordsPayload(values),
   };
@@ -182,7 +187,7 @@ export function roomCreatePayload(values: RoomFormValues): CreateRoomPayload {
 export function roomUpdatePayload(values: RoomFormValues): UpdateRoomPayload {
   return {
     name: values.name.trim(),
-    areaM2: parseNumber(values.areaM2) ?? 0,
+    areaM2: roundArea(parseNumber(values.areaM2) ?? 0),
     floorType: values.floorType.trim(),
     zone: values.zone.trim(),
     techCardId: values.techCardId === '' ? null : values.techCardId,

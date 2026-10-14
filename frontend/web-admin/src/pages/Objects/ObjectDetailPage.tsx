@@ -555,7 +555,7 @@ export function ObjectDetailPage() {
       thClassName: 'w-[120px]',
       align: 'right',
       mono: true,
-      cell: ({ room }) => formatNumber(room.areaM2, 2),
+      cell: ({ room }) => formatNumber(room.areaM2, 1),
       card: 'field',
       cardLabel: 'Площадь, м²',
     },

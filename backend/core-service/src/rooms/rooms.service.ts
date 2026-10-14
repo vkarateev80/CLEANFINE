@@ -24,7 +24,7 @@ export class RoomsService {
       data: {
         floorId,
         name: dto.name,
-        areaM2: dto.areaM2,
+        areaM2: roundArea(dto.areaM2),
         floorType: dto.floorType,
         coordsX: dto.coordsX,
         coordsY: dto.coordsY,
@@ -75,7 +75,7 @@ export class RoomsService {
       where: { id },
       data: {
         name: dto.name,
-        areaM2: dto.areaM2,
+        areaM2: dto.areaM2 === undefined ? undefined : roundArea(dto.areaM2),
         floorType: dto.floorType,
         coordsX: dto.coordsX,
         coordsY: dto.coordsY,
@@ -171,4 +171,14 @@ export class RoomsService {
       );
     }
   }
+}
+
+/**
+ * Площадь хранится с точностью 0,1 м² (решение владельца 14.10.2026): так
+ * сводки, экспликация, CSV и портал заказчика показывают одно и то же число,
+ * а не 27,83 в одном месте и 27,8 в другом. Минимум 0,1 — ниже округление
+ * дало бы 0 и упало бы на проверке «больше 0».
+ */
+export function roundArea(value: number): number {
+  return Math.max(0.1, Math.round(value * 10) / 10);
 }

@@ -452,7 +452,13 @@ function PointSheet({
           <div className="text-neutral-700">
             {floorNumber !== null ? `${floorNumber} этаж` : ''}
             {view.point.room.zone ? ` · ${view.point.room.zone}` : ''} ·{' '}
-            <span className="font-mono">{view.point.room.areaM2}</span> м²
+            <span className="font-mono">
+              {view.point.room.areaM2.toLocaleString('ru-RU', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}
+            </span>{' '}
+            м²
           </div>
           {techCard.data ? (
             <div className="text-neutral-700">

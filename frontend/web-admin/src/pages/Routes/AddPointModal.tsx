@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, ErrorBanner, Field, Input, Modal, Select } from '../../components/ui';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import type { RoomEntity } from '../../types/core';
+import { formatNumber } from '../Objects/utils';
 import { floorTypeLabel, inputToTime, zoneLabel } from './helpers';
 
 /**
@@ -232,7 +233,7 @@ export function AddPointModal({
         {selectedRoom && (
           <div className="rounded-md bg-neutral-100 px-3 py-2 text-xs text-neutral-500">
             {selectedRoom.name} · {zoneLabel(selectedRoom)} · {floorTypeLabel(selectedRoom)} ·{' '}
-            {selectedRoom.areaM2} м²
+            {formatNumber(selectedRoom.areaM2)} м²
             {selectedRoom.techCardId === null && (
               <span className="text-warning-600"> · техкарта не привязана</span>
             )}
