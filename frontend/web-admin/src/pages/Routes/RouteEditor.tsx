@@ -598,7 +598,6 @@ export function RouteEditor({ routeId, objectId, floorId, canEdit, isAdmin }: Ro
           roomsError={roomsQuery.isError ? roomsQuery.error : null}
           onRetryRooms={() => void roomsQuery.refetch()}
           objectId={planObjectId}
-          compact
         />
       </div>
 

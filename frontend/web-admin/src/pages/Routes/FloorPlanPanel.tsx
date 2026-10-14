@@ -43,14 +43,11 @@ export interface FloorPlanPanelProps {
   onRetryRooms: () => void;
   /** Для ссылки «Загрузить план»: экран плана этажа требует объект и этаж. */
   objectId: string | null;
-  /** На tablet-ширине маркеров много — показываем первые 20 до нажатия «Показать все». */
-  compact: boolean;
   className?: string;
 }
 
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 3;
-const COMPACT_MARKER_LIMIT = 20;
 
 export function FloorPlanPanel({
   floor,
@@ -65,13 +62,11 @@ export function FloorPlanPanel({
   roomsError,
   onRetryRooms,
   objectId,
-  compact,
   className,
 }: FloorPlanPanelProps) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panFrom, setPanFrom] = useState<{ x: number; y: number } | null>(null);
-  const [showAllMarkers, setShowAllMarkers] = useState(false);
 
   const activeFloor = floor ?? floorFallback;
   const planImageUrl = activeFloor.planImageUrl;
@@ -81,7 +76,10 @@ export function FloorPlanPanel({
    * разрешает, но очевидный дубль в конструкторе создавать нельзя — строки размножатся. */
   const pointRoomIds = useMemo(() => new Set(points.map((point) => point.room.id)), [points]);
 
-  const numberedMarkers = useMemo(
+  // Маркеры — на все точки маршрута без ограничения (15.10.2026): прежний
+  // «компактный» режим прятал всё после 20-й за кнопкой «Показать все», и
+  // владелец видел это как «метки перестают проставляться после 20».
+  const visibleMarkers = useMemo(
     () =>
       points.flatMap((point, index) => {
         const center = roomCenter(point.room);
@@ -89,10 +87,6 @@ export function FloorPlanPanel({
       }),
     [points],
   );
-
-  const visibleMarkers =
-    compact && !showAllMarkers ? numberedMarkers.slice(0, COMPACT_MARKER_LIMIT) : numberedMarkers;
-  const hiddenCount = numberedMarkers.length - visibleMarkers.length;
 
   const selectedRoomId = points.find((point) => point.id === selectedPointId)?.room.id ?? null;
 
@@ -308,14 +302,6 @@ export function FloorPlanPanel({
               Нарисовать помещения на плане
             </Link>
           )}
-        </div>
-      )}
-
-      {hiddenCount > 0 && (
-        <div className="mt-3">
-          <Button variant="secondary" size="sm" onClick={() => setShowAllMarkers(true)}>
-            Показать все маркеры (+{hiddenCount})
-          </Button>
         </div>
       )}
 
