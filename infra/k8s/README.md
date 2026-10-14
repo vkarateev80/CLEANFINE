@@ -102,3 +102,27 @@ docker buildx build --builder cf-limited --load -f deploy/vps/Dockerfile.web \
 
 Сборка идёт дольше, зато сервисы не падают. Пробы у всех деплойментов —
 timeoutSeconds 5 / failureThreshold 5 (`kubectl patch`, то же в манифестах).
+
+## Сборка образов на Mac (15.10.2026) — основной способ
+
+Сборка на хосте даже через `cf-limited` довела сервер до жёсткого сброса
+(14.10 21:55, журнал обрывается без shutdown). Поэтому образы собираются на
+Mac (colima с Rosetta: `colima start --vz-rosetta --cpu 6 --memory 8`,
+`brew install docker-buildx`) и уезжают сжатым потоком:
+
+```bash
+deploy/vps/build-local.sh 1015-markers web-admin          # один образ
+deploy/vps/build-local.sh 1015-all core tickets web-operator
+NO_ROLLOUT=1 deploy/vps/build-local.sh <тег> <образы>     # только собрать и импортировать
+```
+
+Скрипт сам собирает `shared/dist`, делает `docker buildx build --platform linux/amd64`,
+`docker save | zstd | ssh vps2 'zstd -d | k3s ctr images import -'` и
+`kubectl rollout restart`. Админка собирается ~9 мин, отправка 30 МБ — ~30 с при 1,8 МБ/с.
+На сервере `docker build` больше не запускать.
+
+После сброса 14.10 бэкенд-сервисы не успевали подняться за время liveness
+(20 с) при одновременном старте 17 подов и перезапускались по кругу — у 9 сервисов
+и ntfy выставлено `livenessProbe.initialDelaySeconds: 120`, `failureThreshold: 6`
+(`kubectl patch`; в манифестах backend.yaml liveness не описан — добавить при
+следующем `kubectl apply`, иначе значения откатятся).
