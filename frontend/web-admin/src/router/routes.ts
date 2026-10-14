@@ -12,6 +12,9 @@ export const ROUTES = {
 
   floors: (objectId: string) => `/objects/${objectId}/floors`,
   floorPlan: (objectId: string, floorId: string) => `/objects/${objectId}/floors/${floorId}`,
+  /** План этажа с сразу открытой карточкой помещения (`?room=`), 14.10.2026. */
+  floorRoom: (objectId: string, floorId: string, roomId: string) =>
+    `/objects/${objectId}/floors/${floorId}?room=${encodeURIComponent(roomId)}`,
 
   routes: '/routes',
   route: (id: string) => `/routes/${id}`,

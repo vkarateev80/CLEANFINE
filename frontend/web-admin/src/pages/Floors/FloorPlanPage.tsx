@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   attachFloorPlanUrl,
   createRoom,
@@ -76,6 +76,11 @@ export function FloorPlanPage() {
   const queryClient = useQueryClient();
   const canEdit = useCanEdit();
   const isAdmin = useIsAdmin();
+  // `?room=<id>` (14.10.2026): переход из «Сводки помещений» объекта сразу в
+  // карточку помещения. Параметр снимается после применения, чтобы закрытая
+  // карточка не открывалась заново при каждом рендере.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedRoomId = searchParams.get('room');
 
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
@@ -262,6 +267,22 @@ export function FloorPlanPage() {
    * UI-кита (`max-lg:`), здесь только само поведение.
    */
   const drawEnabled = drawingAvailable && isTabletUp;
+
+  useEffect(() => {
+    if (!requestedRoomId || !floor) return;
+    if (rooms.some((room) => room.id === requestedRoomId)) {
+      setSelectedRoomId(requestedRoomId);
+      setPanelOpen(false);
+    }
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete('room');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [requestedRoomId, floor, rooms, setSearchParams]);
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
   const deleteTargetRoom = rooms.find((room) => room.id === deleteTarget) ?? null;

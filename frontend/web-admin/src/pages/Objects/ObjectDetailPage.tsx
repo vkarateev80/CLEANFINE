@@ -592,6 +592,30 @@ export function ObjectDetailPage() {
       card: 'field',
       cardLabel: 'Техкарта',
     },
+    {
+      // Переход в настройки помещения (14.10.2026): план этажа открывается с
+      // уже раскрытой карточкой этого помещения. Строка кликабельна целиком,
+      // кнопка — явный вход для тех, кто не ждёт клика по строке.
+      key: 'open',
+      header: '',
+      thClassName: 'w-[120px]',
+      align: 'right',
+      cell: ({ floor, room }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`Настройки помещения «${room.name}»`}
+          data-testid={`room-open-${room.id}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            navigate(ROUTES.floorRoom(id, floor.id, room.id));
+          }}
+        >
+          Настроить →
+        </Button>
+      ),
+      card: 'actions',
+    },
   ];
 
   const routeColumns: ResponsiveColumn<{ floor: FloorEntity; route: RouteWithPoints }>[] = [
@@ -796,6 +820,7 @@ export function ObjectDetailPage() {
             items={allRooms}
             getKey={({ room }) => room.id}
             columns={roomColumns}
+            onRowClick={({ floor, room }) => navigate(ROUTES.floorRoom(id, floor.id, room.id))}
             empty={<span className={PHONE_EMPTY}>Помещения не заведены</span>}
           />
         </Card>
