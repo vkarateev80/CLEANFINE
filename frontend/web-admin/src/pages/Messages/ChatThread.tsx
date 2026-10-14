@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { uploadFile } from '../../api/files';
 import { Button, ErrorBanner, LoadingBlock, Textarea } from '../../components/ui';
+import { ConfirmDialog } from '../../components/ui/Modal';
 import type { ChatConnectionStatus } from '../../hooks/useChatSocket';
+import { useIsAdmin } from '../../hooks/usePermissions';
 import { MAX_CHAT_MESSAGE_LENGTH } from '../../types/chat';
 import { formatBytes } from '../Objects/utils';
 import { formatDateTime } from '../Tickets/ticketHelpers';
@@ -10,6 +12,7 @@ import {
   CHAT_ATTACHMENT_MAX_COUNT,
   MessageAttachments,
   attachmentError,
+  attachmentIcon,
 } from './MessageAttachments';
 import { chatUserName, type ChatRoomData } from './useChats';
 
@@ -56,6 +59,9 @@ export function ChatThread({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastMessageIdRef = useRef<string | null>(null);
+  // Удаление сообщений (14.10.2026): только ADMIN, с подтверждением.
+  const isAdmin = useIsAdmin();
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const messages = room.messages;
   const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
@@ -222,8 +228,21 @@ export function ChatThread({
                     data-testid={`messages-message-${message.id}`}
                     className={mine ? 'flex flex-col items-end' : 'flex flex-col items-start'}
                   >
-                    <span className="text-xs text-neutral-500">
+                    <span className="flex items-center gap-2 text-xs text-neutral-500">
                       {mine ? 'Вы' : author} · {formatDateTime(message.createdAt)}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          aria-label="Удалить сообщение"
+                          title="Удалить сообщение"
+                          data-testid={`messages-delete-${message.id}`}
+                          disabled={room.removingId !== null}
+                          onClick={() => setPendingDelete(message.id)}
+                          className="rounded px-1 text-neutral-400 hover:bg-neutral-100 hover:text-danger-600 disabled:opacity-50"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </span>
                     <span
                       className={[
@@ -247,6 +266,7 @@ export function ChatThread({
 
       <div className="flex flex-col gap-2 border-t border-neutral-200 px-4 py-3">
         {room.sendError ? <ErrorBanner error={room.sendError} /> : null}
+        {room.removeError ? <ErrorBanner error={room.removeError} /> : null}
         {fileError ? <ErrorBanner error={new Error(fileError)} /> : null}
         {files.length > 0 && (
           <ul className="flex flex-wrap gap-2" data-testid="messages-pending-attachments">
@@ -255,7 +275,7 @@ export function ChatThread({
                 key={`${file.name}-${index}`}
                 className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-700"
               >
-                {file.type.startsWith('image/') ? '🖼' : file.type.startsWith('video/') ? '🎬' : '📎'}
+                {attachmentIcon(file)}
                 <span className="max-w-[160px] truncate">{file.name}</span>
                 <span className="text-neutral-400">{formatBytes(file.size)}</span>
                 {uploading && uploading.index === index ? (
@@ -327,6 +347,22 @@ export function ChatThread({
             : 'WebSocket недоступен: сообщение уйдёт обычным запросом (REST-фолбэк).'}
         </span>
       </div>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Удалить сообщение?"
+        message="Сообщение исчезнет у всех участников чата. Отменить удаление нельзя."
+        confirmLabel="Удалить"
+        busy={room.removingId !== null}
+        onConfirm={() => {
+          const id = pendingDelete;
+          if (!id) return;
+          void room
+            .remove(id)
+            .catch(() => undefined)
+            .finally(() => setPendingDelete(null));
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

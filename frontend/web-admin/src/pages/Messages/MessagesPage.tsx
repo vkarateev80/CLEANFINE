@@ -21,6 +21,7 @@ import { formatDateTime, shortId } from '../Tickets/ticketHelpers';
 import { ChatThread } from './ChatThread';
 import {
   appendMessageToCache,
+  removeMessageFromCache,
   bumpChatList,
   chatUserName,
   useChatDetail,
@@ -86,6 +87,9 @@ export function MessagesPage() {
     },
     onMessageRead: (event) => {
       setReadUntil((previous) => ({ ...previous, [event.chatId]: event.readAt }));
+    },
+    onMessageDeleted: (event) => {
+      removeMessageFromCache(queryClient, event.chatId, event.messageId);
     },
   });
 

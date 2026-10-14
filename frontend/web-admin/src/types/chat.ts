@@ -135,6 +135,13 @@ export interface ChatMessageReadEvent {
   readAt: string;
 }
 
+/** Событие `message:deleted` (14.10.2026): админ удалил сообщение — убрать из ленты. */
+export interface ChatMessageDeletedEvent {
+  chatId: string;
+  messageId: string;
+  deletedBy: string;
+}
+
 /** Ack `message:send`/`message:read` из `chat.gateway.ts`. */
 export type ChatAck<T> = ({ ok: true } & T) | { ok: false; error: string; status?: number };
 

@@ -7,7 +7,7 @@ import {
   type InfiniteData,
   type QueryClient,
 } from '@tanstack/react-query';
-import { createChat, getChat, listChatMessages, listMyChats } from '../../api/chat';
+import { createChat, deleteChatMessage, getChat, listChatMessages, listMyChats } from '../../api/chat';
 import { attachFile } from '../../api/files';
 import { listUsers } from '../../api/users';
 import { CHAT_PAGE_LIMIT, type ChatSocketApi } from '../../hooks/useChatSocket';
@@ -97,6 +97,28 @@ export function appendMessageToCache(queryClient: QueryClient, message: ChatMess
       return { ...data, pages };
     },
   );
+}
+
+/**
+ * Убирает удалённое сообщение из кэша переписки (14.10.2026) и перезапрашивает
+ * список чатов: превью «последнее сообщение» могло указывать на него.
+ */
+export function removeMessageFromCache(
+  queryClient: QueryClient,
+  chatId: string,
+  messageId: string,
+): void {
+  queryClient.setQueryData<InfiniteData<ChatMessagesPage>>(chatMessagesKey(chatId), (data) => {
+    if (!data) return data;
+    let touched = false;
+    const pages = data.pages.map((page) => {
+      if (!page.items.some((item) => item.id === messageId)) return page;
+      touched = true;
+      return { ...page, items: page.items.filter((item) => item.id !== messageId) };
+    });
+    return touched ? { ...data, pages } : data;
+  });
+  void queryClient.invalidateQueries({ queryKey: CHAT_CHATS_KEY });
 }
 
 /** Обновляет превью и счётчик непрочитанных в списке чатов по входящему сообщению. */
@@ -222,6 +244,10 @@ export interface ChatRoomData {
   sendError: unknown;
   /** Отправка: текст и/или id вложений file-service (12.10.2026). */
   send: (text: string, attachmentIds?: string[]) => Promise<void>;
+  /** Удаление сообщения администратором (14.10.2026). */
+  remove: (messageId: string) => Promise<void>;
+  removingId: string | null;
+  removeError: unknown;
 }
 
 /**
@@ -296,6 +322,29 @@ export function useChatRoom(chatId: string | null, socket: ChatSocketApi): ChatR
     await query.fetchNextPage();
   }, [query]);
 
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<unknown>(null);
+  const remove = useCallback(
+    async (messageId: string): Promise<void> => {
+      const target = chatId;
+      if (!target) return;
+      setRemovingId(messageId);
+      setRemoveError(null);
+      try {
+        await deleteChatMessage(messageId);
+        // Своё событие `message:deleted` тоже придёт по сокету — удаление из
+        // кэша идемпотентно, двойной вызов безвреден.
+        removeMessageFromCache(queryClient, target, messageId);
+      } catch (error) {
+        setRemoveError(error);
+        throw error;
+      } finally {
+        setRemovingId(null);
+      }
+    },
+    [chatId, queryClient],
+  );
+
   const refetch = useCallback((): void => {
     void query.refetch();
   }, [query]);
@@ -314,6 +363,9 @@ export function useChatRoom(chatId: string | null, socket: ChatSocketApi): ChatR
     sending,
     sendError,
     send,
+    remove,
+    removingId,
+    removeError,
   };
 }
 

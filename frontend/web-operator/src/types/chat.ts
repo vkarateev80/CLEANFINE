@@ -86,6 +86,13 @@ export interface MessageReadEvent {
   readAt: string;
 }
 
+/** `message:deleted` (14.10.2026): админ удалил сообщение — убрать из ленты. */
+export interface MessageDeletedEvent {
+  chatId: string;
+  messageId: string;
+  deletedBy: string;
+}
+
 export interface UserStatusEvent {
   userId: string;
   online: boolean;

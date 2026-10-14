@@ -29,21 +29,76 @@ export const ALLOWED_MIME: Record<UploadKind, string[]> = {
     'application/xml',
     'text/xml',
   ],
+  // Чат (14.10.2026, «перекидывать фото и другие файлы»): любые рабочие файлы —
+  // изображения, видео, аудио, офисные документы, архивы и неизвестные типы
+  // (`application/octet-stream` браузер ставит .dwg, .xlsb и т.п.). Опасные
+  // расширения отсекаются отдельно (`BLOCKED_EXTENSIONS`): html/svg могли бы
+  // выполнить скрипт с нашего домена, exe/bat — на компьютере получателя.
   chat: [
     'image/jpeg',
     'image/png',
     'image/webp',
     'image/gif',
     'image/heic',
+    'image/heif',
+    'image/bmp',
+    'image/tiff',
     'video/mp4',
     'video/quicktime',
     'video/webm',
     'video/3gpp',
+    'video/x-msvideo',
+    'video/x-matroska',
+    'audio/mpeg',
+    'audio/mp4',
+    'audio/x-m4a',
+    'audio/aac',
+    'audio/ogg',
+    'audio/wav',
+    'audio/x-wav',
+    'audio/webm',
     'application/pdf',
     'application/xml',
     'text/xml',
+    'text/plain',
+    'text/csv',
+    'text/rtf',
+    'application/rtf',
+    'application/json',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.oasis.opendocument.spreadsheet',
+    'application/vnd.oasis.opendocument.presentation',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/x-rar-compressed',
+    'application/vnd.rar',
+    'application/x-7z-compressed',
+    'application/gzip',
+    'application/octet-stream',
   ],
 };
+
+/**
+ * Расширения, которые нельзя прикреплять в чат и документы ни под каким MIME:
+ * исполняемые файлы и скрипты, а также html/svg — файлы отдаются с нашего
+ * домена, и такой «документ» выполнил бы скрипт в контексте сайта.
+ */
+export const BLOCKED_EXTENSIONS = [
+  '.exe', '.msi', '.bat', '.cmd', '.com', '.scr', '.pif', '.ps1', '.sh', '.bash',
+  '.js', '.mjs', '.cjs', '.vbs', '.vbe', '.wsf', '.jar', '.php', '.phtml', '.cgi',
+  '.html', '.htm', '.xhtml', '.svg', '.svgz', '.hta', '.dll', '.so', '.dmg', '.app',
+] as const;
+
+export function isBlockedExtension(originalName: string): boolean {
+  const lower = originalName.toLowerCase();
+  return BLOCKED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
 
 export const ENTITY_TYPES = ['FLOOR_PLAN', 'TICKET', 'CHAT_MESSAGE', 'AVATAR', 'DOCUMENT'] as const;
 export type EntityTypeName = (typeof ENTITY_TYPES)[number];

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '../stores/authStore';
 import { WS_PATH, WS_URL } from '../api/config';
-import type { MessageReadEvent, MessageView, WsAck } from '../types/chat';
+import type { MessageDeletedEvent, MessageReadEvent, MessageView, WsAck } from '../types/chat';
 
 /**
  * Соединение чата (DS-004, `chat.md` п. 7.1). Приём взят из
@@ -35,6 +35,8 @@ export interface UseChatSocketResult {
   incoming: MessageView[];
   /** События прочтения: нужны для галочек `✓` → `✓✓`. */
   reads: MessageReadEvent[];
+  /** Удалённые администратором сообщения (14.10.2026) — экран прячет их из ленты. */
+  deleted: MessageDeletedEvent[];
   /** Онлайн-статус собеседника по `user:status`. */
   onlineUsers: Set<string>;
   /** Очистить накопленные события после обработки. */
@@ -47,6 +49,7 @@ export function useChatSocket(enabled: boolean): UseChatSocketResult {
   const [status, setStatus] = useState<'connecting' | 'online' | 'offline'>('connecting');
   const [incoming, setIncoming] = useState<MessageView[]>([]);
   const [reads, setReads] = useState<MessageReadEvent[]>([]);
+  const [deleted, setDeleted] = useState<MessageDeletedEvent[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -73,6 +76,9 @@ export function useChatSocket(enabled: boolean): UseChatSocketResult {
     });
     socket.on('message:read', (event: MessageReadEvent) => {
       setReads((current) => [...current, event]);
+    });
+    socket.on('message:deleted', (event: MessageDeletedEvent) => {
+      setDeleted((current) => [...current, event]);
     });
     socket.on('user:status', (event: { userId: string; online: boolean }) => {
       setOnlineUsers((current) => {
@@ -140,5 +146,5 @@ export function useChatSocket(enabled: boolean): UseChatSocketResult {
 
   const consumeIncoming = useCallback(() => setIncoming([]), []);
 
-  return { status, send, markRead, incoming, reads, onlineUsers, consumeIncoming };
+  return { status, send, markRead, incoming, reads, deleted, onlineUsers, consumeIncoming };
 }

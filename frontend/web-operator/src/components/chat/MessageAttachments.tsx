@@ -22,20 +22,45 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 }
 
-export const CHAT_ATTACHMENT_ACCEPT = 'image/*,video/*,application/pdf,.xml,application/xml,text/xml';
+/**
+ * Любые рабочие файлы (14.10.2026): фото, видео, аудио, документы, архивы.
+ * Запрещены только исполняемые файлы, скрипты и html/svg — список тот же,
+ * что `BLOCKED_EXTENSIONS` в file-service.
+ */
+export const CHAT_ATTACHMENT_ACCEPT = '*/*';
 export const CHAT_ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024;
 export const CHAT_ATTACHMENT_MAX_COUNT = 10;
+export const CHAT_BLOCKED_EXTENSIONS = [
+  '.exe', '.msi', '.bat', '.cmd', '.com', '.scr', '.pif', '.ps1', '.sh', '.bash',
+  '.js', '.mjs', '.cjs', '.vbs', '.vbe', '.wsf', '.jar', '.php', '.phtml', '.cgi',
+  '.html', '.htm', '.xhtml', '.svg', '.svgz', '.hta', '.dll', '.so', '.dmg', '.app',
+];
+
+export function isBlockedAttachment(file: Pick<File, 'name'>): boolean {
+  const lower = file.name.toLowerCase();
+  return CHAT_BLOCKED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+export function attachmentIcon(file: { mimeType?: string; type?: string; name?: string }): string {
+  const mime = (file.mimeType ?? file.type ?? '').toLowerCase();
+  const name = (file.name ?? '').toLowerCase();
+  if (mime.startsWith('image/')) return '🖼';
+  if (mime.startsWith('video/')) return '🎬';
+  if (mime.startsWith('audio/')) return '🎵';
+  if (mime === 'application/pdf' || name.endsWith('.pdf')) return '📕';
+  if (/word|rtf|odt|\.docx?$/.test(mime + ' ' + name)) return '📝';
+  if (/sheet|excel|csv|ods|\.xlsx?$/.test(mime + ' ' + name)) return '📊';
+  if (/presentation|powerpoint|odp|\.pptx?$/.test(mime + ' ' + name)) return '📽';
+  if (/zip|rar|7z|gzip|\.(zip|rar|7z|gz)$/.test(mime + ' ' + name)) return '📦';
+  return '📎';
+}
 
 export function attachmentError(file: File): string | null {
-  const okType =
-    file.type.startsWith('image/') ||
-    file.type.startsWith('video/') ||
-    file.type === 'application/pdf' ||
-    file.type === 'application/xml' ||
-    file.type === 'text/xml' ||
-    file.name.toLowerCase().endsWith('.xml');
-  if (!okType) return `«${file.name}»: можно прикрепить фото, видео, PDF или XML`;
+  if (isBlockedAttachment(file)) {
+    return `«${file.name}»: исполняемые файлы, скрипты, HTML и SVG прикреплять нельзя`;
+  }
   if (file.size > CHAT_ATTACHMENT_MAX_BYTES) return `«${file.name}» больше 50 МБ`;
+  if (file.size === 0) return `«${file.name}»: файл пустой`;
   return null;
 }
 
@@ -110,7 +135,8 @@ function Attachment({ id, mine }: { id: string; mine: boolean }) {
         mine ? 'border-white/40 text-white' : 'border-neutral-200 bg-neutral-50 text-neutral-700',
       ].join(' ')}
     >
-      📎 <span className="truncate">{data.originalName}</span>
+      {attachmentIcon({ mimeType: data.mimeType, name: data.originalName })}{' '}
+      <span className="truncate">{data.originalName}</span>
       <span className={mine ? 'text-white/70' : 'text-neutral-400'}>
         {formatBytes(data.sizeBytes)}
       </span>

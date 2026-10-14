@@ -9,6 +9,7 @@ import { ImageService } from './image.service';
 import {
   ALLOWED_MIME,
   BUCKET_BY_KIND,
+  isBlockedExtension,
   type AttachFileDto,
   type UploadKind,
   type UploadMetadataDto,
@@ -59,6 +60,7 @@ export class FilesService {
     const kind = dto.kind;
     const bucket = BUCKET_BY_KIND[kind];
     this.assertMime(kind, file!.mimetype);
+    this.assertExtensionAllowed(kind, file!.originalname);
     this.assertSize(file!.size);
 
     const isImage = file!.mimetype.startsWith('image/');
@@ -236,6 +238,15 @@ export class FilesService {
     if (!allowed.includes(mime)) {
       throw new BadRequestException(
         `Недопустимый тип файла для ${kind}: ${mime}. Разрешены: ${allowed.join(', ')}`,
+      );
+    }
+  }
+
+  /** Чат и документы принимают почти всё, кроме исполняемых и html/svg. */
+  private assertExtensionAllowed(kind: UploadKind, originalName: string): void {
+    if ((kind === 'chat' || kind === 'document') && isBlockedExtension(originalName)) {
+      throw new BadRequestException(
+        `Файл «${originalName}» прикрепить нельзя: исполняемые файлы, скрипты, HTML и SVG не принимаются`,
       );
     }
   }

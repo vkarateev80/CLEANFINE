@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/guards/roles.guard';
 import { ChatGateway } from './chat.gateway';
 import { ChatsService } from './chats.service';
@@ -71,6 +72,25 @@ export class ChatsController {
   @ApiResponse({ status: 403, description: 'Вы не участник этого чата' })
   async search(@Query() query: SearchMessagesQueryDto, @CurrentUser() user: AuthUser) {
     return this.chats.search(query, user);
+  }
+
+  // ----------------------------------------------------------------- удаление
+
+  @Delete('messages/:id')
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Удалить сообщение (только ADMIN)',
+    description:
+      'Сообщение удаляется насовсем, всем участникам чата уходит `message:deleted` ' +
+      '{ chatId, messageId, deletedBy }. Файлы вложений в file-service остаются.',
+  })
+  @ApiResponse({ status: 200, description: '{ chatId, messageId }' })
+  @ApiResponse({ status: 403, description: 'Роль не ADMIN' })
+  @ApiResponse({ status: 404, description: 'Сообщение не найдено' })
+  async deleteMessage(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    const event = await this.chats.deleteMessage(id, user);
+    this.gateway.emitMessageDeleted(event);
+    return { chatId: event.chatId, messageId: event.messageId };
   }
 
   // ------------------------------------------------------------------- деталь

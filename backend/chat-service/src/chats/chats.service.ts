@@ -114,6 +114,15 @@ export interface MarkReadResult {
   authorId: string | null;
 }
 
+/** Результат удаления сообщения: кому разослать `message:deleted`. */
+export interface MessageDeletedEvent {
+  chatId: string;
+  messageId: string;
+  deletedBy: string;
+  /** Все участники чата, включая инициатора (его другие вкладки). */
+  memberIds: string[];
+}
+
 /** Роли, которые видят чаты объектов и заявок целиком (М5.1, п.7). */
 const STAFF_ROLES: readonly Role[] = ['ADMIN', 'SUPERVISOR', 'MANAGER'];
 
@@ -489,6 +498,30 @@ export class ChatsService {
       select: { userId: true },
     });
     return members.map((member) => member.userId);
+  }
+
+  // ----------------------------------------------------------------- удаление
+
+  /**
+   * Удаление сообщения администратором (14.10.2026). Строка удаляется
+   * физически: переписка — не учётный документ, а «скрытие» потребовало бы
+   * флага и фильтров во всех выборках. Файлы вложений в file-service не
+   * трогаем: они могут быть привязаны и к другим сущностям. Участникам чата
+   * (включая самого администратора — его другим вкладкам) уходит
+   * `message:deleted`.
+   */
+  async deleteMessage(messageId: string, user: AuthUser): Promise<MessageDeletedEvent> {
+    if (user.role !== 'ADMIN') {
+      throw new ForbiddenException('Удалять сообщения может только ADMIN');
+    }
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) {
+      throw new NotFoundException('Сообщение не найдено');
+    }
+    await this.prisma.message.delete({ where: { id: messageId } });
+    const memberIds = await this.getMemberIds(message.chatId);
+    this.logger.log(`Сообщение ${messageId} чата ${message.chatId} удалено ${user.id}`);
+    return { chatId: message.chatId, messageId, deletedBy: user.id, memberIds };
   }
 
   // ------------------------------------------------------------------ история

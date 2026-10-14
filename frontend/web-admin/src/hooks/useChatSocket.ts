@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { markChatRead, sendChatMessage } from '../api/chat';
 import { useAuthStore } from '../stores/authStore';
-import type { ChatAck, ChatMessage, ChatMessageReadEvent, SendMessagePayload } from '../types/chat';
+import type {
+  ChatAck,
+  ChatMessage,
+  ChatMessageDeletedEvent,
+  ChatMessageReadEvent,
+  SendMessagePayload,
+} from '../types/chat';
 
 /**
  * WebSocket-канал чата (М5.3) поверх chat-service: namespace `/chat`
@@ -44,6 +50,8 @@ export interface ChatSocketHandlers {
   onMessageNew?: (message: ChatMessage) => void;
   /** Собеседник прочитал сообщение (событие приходит автору прочитанного). */
   onMessageRead?: (event: ChatMessageReadEvent) => void;
+  /** Админ удалил сообщение — приходит всем участникам чата (и инициатору). */
+  onMessageDeleted?: (event: ChatMessageDeletedEvent) => void;
 }
 
 export interface ChatSocketApi {
@@ -128,6 +136,8 @@ export function useChatSocket(handlers: ChatSocketHandlers = {}): ChatSocketApi 
     const onMessageNew = (message: ChatMessage) => handlersRef.current.onMessageNew?.(message);
     const onMessageRead = (event: ChatMessageReadEvent) =>
       handlersRef.current.onMessageRead?.(event);
+    const onMessageDeleted = (event: ChatMessageDeletedEvent) =>
+      handlersRef.current.onMessageDeleted?.(event);
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
@@ -135,6 +145,7 @@ export function useChatSocket(handlers: ChatSocketHandlers = {}): ChatSocketApi 
     socket.io.on('reconnect_attempt', onReconnectAttempt);
     socket.on('message:new', onMessageNew);
     socket.on('message:read', onMessageRead);
+    socket.on('message:deleted', onMessageDeleted);
 
     return () => {
       disposed = true;
@@ -145,6 +156,7 @@ export function useChatSocket(handlers: ChatSocketHandlers = {}): ChatSocketApi 
       socket.io.off('reconnect_attempt', onReconnectAttempt);
       socket.off('message:new', onMessageNew);
       socket.off('message:read', onMessageRead);
+      socket.off('message:deleted', onMessageDeleted);
       // `disconnect()`, а не `close()`: соединение снимается полностью, иначе
       // после размонтирования остался бы живой менеджер с авто-переподключением.
       socket.disconnect();

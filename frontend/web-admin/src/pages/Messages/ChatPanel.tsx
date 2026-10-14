@@ -3,7 +3,12 @@ import { Card, ErrorBanner, LoadingBlock, SoftWarning } from '../../components/u
 import { useChatSocket } from '../../hooks/useChatSocket';
 import { useCanAssignTicket } from '../../hooks/usePermissions';
 import { useQueryClient } from '@tanstack/react-query';
-import { appendMessageToCache, useChatByReference, useChatRoom } from './useChats';
+import {
+  appendMessageToCache,
+  removeMessageFromCache,
+  useChatByReference,
+  useChatRoom,
+} from './useChats';
 import { ChatThread } from './ChatThread';
 
 /**
@@ -42,6 +47,9 @@ export function ChatPanel({ kind, refId, title, testId, emptyHint }: ChatPanelPr
     },
     onMessageRead: (event) => {
       if (chat !== null && event.chatId === chat.id) setReadUntil(event.readAt);
+    },
+    onMessageDeleted: (event) => {
+      removeMessageFromCache(queryClient, event.chatId, event.messageId);
     },
   });
 

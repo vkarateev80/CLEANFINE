@@ -100,6 +100,18 @@ describe('FilesService', () => {
       );
     });
 
+    it('чат: офисные документы и архивы принимаются по MIME, исполняемые — нет', async () => {
+      const exe = multerFile(Buffer.from('MZ...'), 'application/octet-stream', 'setup.exe');
+      await expect(service.upload(exe, { kind: 'chat' })).rejects.toThrow(/прикрепить нельзя/);
+      const html = multerFile(Buffer.from('<html>'), 'text/plain', 'page.HTML');
+      await expect(service.upload(html, { kind: 'chat' })).rejects.toThrow(/прикрепить нельзя/);
+      const svg = multerFile(Buffer.from('<svg/>'), 'application/octet-stream', 'logo.svg');
+      await expect(service.upload(svg, { kind: 'chat' })).rejects.toThrow(/прикрепить нельзя/);
+      // Нечатовые категории про расширения не знают: план — только по MIME.
+      const plan = multerFile(Buffer.from('x'), 'text/html', 'plan.html');
+      await expect(service.upload(plan, { kind: 'plan' })).rejects.toThrow(/Недопустимый тип/);
+    });
+
     it('отклоняет файл больше 50 МБ', async () => {
       const file = multerFile(Buffer.alloc(10), 'image/png', 'big.png');
       file.size = 51 * 1024 * 1024;

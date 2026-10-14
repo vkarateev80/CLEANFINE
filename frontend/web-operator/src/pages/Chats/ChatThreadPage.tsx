@@ -7,6 +7,7 @@ import {
   CHAT_ATTACHMENT_MAX_COUNT,
   MessageAttachments,
   attachmentError,
+  attachmentIcon,
   formatBytes,
 } from '../../components/chat/MessageAttachments';
 import { Button } from '../../components/ui/Button';
@@ -80,12 +81,22 @@ export function ChatThreadPage() {
   const title = summary ? chatTitle(summary) : detail.data ? chatTitle(detail.data) : 'Чат';
 
   const messages = useMemo(() => {
+    const removed = new Set(
+      socket.deleted.filter((event) => event.chatId === chatId).map((event) => event.messageId),
+    );
     const map = new Map<string, MessageView>();
     for (const message of [...history.items, ...socket.incoming, ...sentLocally]) {
-      if (message.chatId === chatId) map.set(message.id, message);
+      if (message.chatId === chatId && !removed.has(message.id)) map.set(message.id, message);
     }
     return Array.from(map.values()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  }, [chatId, history.items, sentLocally, socket.incoming]);
+  }, [chatId, history.items, sentLocally, socket.incoming, socket.deleted]);
+
+  // Удаление админом (14.10.2026): кэш истории и превью списка чатов — заново.
+  useEffect(() => {
+    if (socket.deleted.length === 0) return;
+    void queryClient.invalidateQueries({ queryKey: ['chat', 'messages', chatId] });
+    void queryClient.invalidateQueries({ queryKey: ['chat', 'chats'] });
+  }, [socket.deleted.length, queryClient, chatId]);
 
   const { containerRef, hasNewBelow, scrollToBottom } = useAutoScroll(
     messages.length + queued.length || undefined,
@@ -340,11 +351,7 @@ export function ChatThreadPage() {
                     key={`${file.name}-${index}`}
                     className="inline-flex max-w-full items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs text-neutral-700"
                   >
-                    {file.type.startsWith('image/')
-                      ? '🖼'
-                      : file.type.startsWith('video/')
-                        ? '🎬'
-                        : '📎'}
+                    {attachmentIcon(file)}
                     <span className="max-w-[40vw] truncate">{file.name}</span>
                     <span className="text-neutral-400">{formatBytes(file.size)}</span>
                     {uploading && uploading.index === index ? (

@@ -12,7 +12,12 @@ import {
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 import type { AuthUser } from '../auth/guards/roles.guard';
-import { ChatsService, type DeliveryPlan, type MarkReadResult } from './chats.service';
+import {
+  ChatsService,
+  type DeliveryPlan,
+  type MarkReadResult,
+  type MessageDeletedEvent,
+} from './chats.service';
 import {
   authenticateSocket,
   CHAT_NAMESPACE,
@@ -211,6 +216,18 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       readBy: result.userId,
       readAt: result.readAt,
     });
+  }
+
+  /** `message:deleted` всем участникам чата, включая инициатора (его другие вкладки). */
+  emitMessageDeleted(event: MessageDeletedEvent): void {
+    const payload = {
+      chatId: event.chatId,
+      messageId: event.messageId,
+      deletedBy: event.deletedBy,
+    };
+    for (const userId of event.memberIds) {
+      this.server.to(userRoom(userId)).emit('message:deleted', payload);
+    }
   }
 
   /** Есть ли у пользователя активное соединение. */

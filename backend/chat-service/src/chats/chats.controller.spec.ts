@@ -14,11 +14,13 @@ function build() {
     sendMessage: jest.fn(),
     markRead: jest.fn(),
     search: jest.fn(),
+    deleteMessage: jest.fn(),
   };
   const gateway = {
     getOnlineUserIds: jest.fn(() => ['u-admin']),
     emitMessageNew: jest.fn(),
     emitMessageRead: jest.fn(),
+    emitMessageDeleted: jest.fn(),
   };
   const controller = new ChatsController(
     chats as unknown as ChatsService,
@@ -132,6 +134,19 @@ describe('ChatsController', () => {
       result,
     );
     expect(gateway.emitMessageRead).toHaveBeenCalledWith(result);
+  });
+
+  it('DELETE /messages/:id удаляет сообщение, рассылает message:deleted и закрыт ролью ADMIN', async () => {
+    const { controller, chats, gateway } = build();
+    const event = { chatId: 'c-1', messageId: 'm-1', deletedBy: 'u-admin', memberIds: ['u-admin', 'u-2'] };
+    chats.deleteMessage.mockResolvedValue(event);
+    await expect(controller.deleteMessage('m-1', admin)).resolves.toEqual({
+      chatId: 'c-1',
+      messageId: 'm-1',
+    });
+    expect(chats.deleteMessage).toHaveBeenCalledWith('m-1', admin);
+    expect(gateway.emitMessageDeleted).toHaveBeenCalledWith(event);
+    expect(Reflect.getMetadata('roles', ChatsController.prototype.deleteMessage)).toEqual(['ADMIN']);
   });
 
   it('GET /messages/search ищет только по своим чатам', async () => {

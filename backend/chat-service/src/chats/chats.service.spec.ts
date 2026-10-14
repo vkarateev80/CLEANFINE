@@ -98,6 +98,7 @@ function createPrismaMock() {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
       updateMany: jest.fn(),
       count: jest.fn(),
     },
@@ -970,6 +971,36 @@ describe('ChatsService', () => {
   });
 
   // ------------------------------------------------------------- поиск
+
+  describe('deleteMessage (только ADMIN, 14.10.2026)', () => {
+    const adminUser = { id: 'u-admin', email: 'a@b.c', role: 'ADMIN' as const, fullName: '' };
+    const operatorUser = { id: 'u-op', email: 'o@b.c', role: 'OPERATOR' as const, fullName: '' };
+
+    it('удаляет строку и отдаёт участников чата для рассылки', async () => {
+      prisma.message.findUnique.mockResolvedValue({ id: 'm-1', chatId: 'c-1', authorId: 'u-op' });
+      prisma.message.delete.mockResolvedValue({ id: 'm-1' });
+      prisma.chatMember.findMany.mockResolvedValue([{ userId: 'u-admin' }, { userId: 'u-op' }]);
+      await expect(service.deleteMessage('m-1', adminUser)).resolves.toEqual({
+        chatId: 'c-1',
+        messageId: 'm-1',
+        deletedBy: 'u-admin',
+        memberIds: ['u-admin', 'u-op'],
+      });
+      expect(prisma.message.delete).toHaveBeenCalledWith({ where: { id: 'm-1' } });
+    });
+
+    it('не ADMIN → 403 без обращения к базе', async () => {
+      await expect(service.deleteMessage('m-1', operatorUser)).rejects.toThrow(ForbiddenException);
+      expect(prisma.message.findUnique).not.toHaveBeenCalled();
+      expect(prisma.message.delete).not.toHaveBeenCalled();
+    });
+
+    it('нет сообщения → 404', async () => {
+      prisma.message.findUnique.mockResolvedValue(null);
+      await expect(service.deleteMessage('missing', adminUser)).rejects.toThrow(NotFoundException);
+      expect(prisma.message.delete).not.toHaveBeenCalled();
+    });
+  });
 
   describe('search', () => {
     it('пустая строка → 400', async () => {

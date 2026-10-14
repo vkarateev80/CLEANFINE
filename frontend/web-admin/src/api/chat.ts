@@ -56,6 +56,13 @@ export function sendChatMessage(chatId: string, payload: SendMessagePayload): Pr
  * Отметка прочтения. `lastReadAt` участника = `createdAt` указанного сообщения
  * (не «сейчас»), повторный вызов идемпотентен — «назад» отметка не откатывается.
  */
+/** Удаление сообщения (`DELETE /chat/messages/:id`, только ADMIN, 14.10.2026). */
+export function deleteChatMessage(
+  messageId: string,
+): Promise<{ chatId: string; messageId: string }> {
+  return apiClient.delete(`/chat/messages/${messageId}`).then((r) => r.data);
+}
+
 export function markChatRead(chatId: string, lastMessageId: string): Promise<ChatReadResult> {
   return apiClient.post(`/chat/chats/${chatId}/read`, { lastMessageId }).then((r) => r.data);
 }
