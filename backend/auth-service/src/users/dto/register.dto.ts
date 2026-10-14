@@ -12,7 +12,7 @@ import type { Role } from '@cleaning-ops/shared/types/roles';
 
 // Значения совпадают с shared/types/roles.ts (ROLES). Runtime-значение shared
 // подключается после сборки shared (М2/М3); пока — литерал.
-const ROLE_VALUES = ['OPERATOR', 'SUPERVISOR', 'ADMIN', 'CLIENT'] as const;
+const ROLE_VALUES = ['OPERATOR', 'SUPERVISOR', 'MANAGER', 'ADMIN', 'CLIENT'] as const;
 
 export class RegisterDto {
   @ApiProperty({

@@ -84,7 +84,7 @@ export class GpsController {
   }
 
   @Post('geofences')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Создать геозону объекта (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 201, description: 'Геозона создана' })
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })

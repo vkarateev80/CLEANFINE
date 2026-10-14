@@ -64,6 +64,15 @@ export function updateUser(id: string, payload: UpdateUserPayload): Promise<Sess
   return apiClient.patch(`/users/${id}`, payload).then((r) => r.data);
 }
 
+/**
+ * Новый пароль сотруднику от администратора (`POST /users/:id/password`, только
+ * ADMIN, 14.10.2026). Текущий пароль не нужен; все сеансы сотрудника завершаются —
+ * на телефоне и в браузере ему придётся войти заново.
+ */
+export function setUserPassword(id: string, password: string): Promise<void> {
+  return apiClient.post(`/users/${id}/password`, { password }).then(() => undefined);
+}
+
 /** Мягкая деактивация: сотрудник остаётся в базе, вход блокируется (401). */
 export function deactivateUser(id: string): Promise<void> {
   return apiClient.delete(`/users/${id}`).then(() => undefined);

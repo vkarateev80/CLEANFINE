@@ -55,6 +55,40 @@ describe('parseHomeXml', () => {
     expect(scene.walls[1].thickness).toBe(20);
   });
 
+  it('свойства «Планировщика 3D»: roomType → type, heightCm → число, прочие игнорируются', () => {
+    const xml = `<?xml version='1.0'?>
+<home version='7400'>
+  <room id='k' name='Кухня 1'>
+    <property name='roomType' value='Кухня'/>
+    <property name='areaM2' value='30'/>
+    <property name='perimeterM' value='22'/>
+    <property name='heightCm' value='250'/>
+    <property name='cleanZone' value='Зелёная зона'/>
+    <property name='custom' value='что-то'/>
+    <point x='0' y='0'/><point x='400' y='0'/><point x='400' y='300'/><point x='0' y='300'/>
+  </room>
+  <room id='plain' name='Без свойств'>
+    <point x='500' y='0'/><point x='600' y='0'/><point x='600' y='100'/><point x='500' y='100'/>
+  </room>
+  <room id='bad' name='Кривая высота'>
+    <property name='roomType' value='  Санузел  '/>
+    <property name='heightCm' value='высокий'/>
+    <point x='700' y='0'/><point x='800' y='0'/><point x='800' y='100'/><point x='700' y='100'/>
+  </room>
+</home>`;
+    const scene = parseHomeXml(xml);
+    const [kitchen, plain, bad] = scene.rooms;
+    expect(kitchen.type).toBe('Кухня');
+    expect(kitchen.heightCm).toBe(250);
+    // Площадь — по контуру, а не из свойства areaM2.
+    expect(kitchen.areaM2).toBeCloseTo(12, 5);
+    expect(kitchen).not.toHaveProperty('cleanZone');
+    expect(plain.type).toBeUndefined();
+    expect(plain.heightCm).toBeUndefined();
+    expect(bad.type).toBe('Санузел');
+    expect(bad.heightCm).toBeUndefined();
+  });
+
   it('мусорный XML → Sh3dParseError', () => {
     expect(() => parseHomeXml('это не xml <home>')).toThrow(Sh3dParseError);
   });

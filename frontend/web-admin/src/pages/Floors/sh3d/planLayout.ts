@@ -1,8 +1,10 @@
 import type { Sh3dPoint, Sh3dScene } from './parseSh3d';
 
 /**
- * Перевод сцены Sweet Home 3D (см, Y вверх) в пиксели изображения плана
- * (Y вниз). Чистая геометрия без canvas — юнит-тесты гоняют её в jsdom.
+ * Перевод сцены Sweet Home 3D (см) в пиксели изображения плана. Ось Y у сцены,
+ * как и у картинки, направлена вниз, поэтому переворота нет — только сдвиг к
+ * началу координат и масштаб. Чистая геометрия без canvas — юнит-тесты гоняют
+ * её в jsdom.
  */
 
 /** Желаемая ширина плана; фактическая подгоняется под пропорции и лимиты. */
@@ -22,6 +24,10 @@ export interface RoomLayout {
   id: string;
   name: string;
   areaM2: number;
+  /** Тип помещения из файла («Планировщик 3D»), если задан. */
+  type?: string;
+  /** Высота этажа, см, если задана в файле. */
+  heightCm?: number;
   /** Контур в пикселях (для отрисовки). */
   polygon: Sh3dPoint[];
   /** Описанная прямоугольник — то, что кладётся в Room.coords*. */
@@ -118,10 +124,10 @@ export function layoutPlan(scene: Sh3dScene, options: LayoutOptions = {}): PlanL
   const width = Math.min(MAX_PLAN_DIMENSION, Math.max(1, Math.ceil(spanX * pxPerCm) + margin * 2));
   const height = Math.min(MAX_PLAN_DIMENSION, Math.max(1, Math.ceil(spanY * pxPerCm) + margin * 2));
 
-  /** См → пиксели, с flip по Y (Y сцены вверх, Y картинки вниз). */
+  /** См → пиксели: сдвиг к minX/minY и масштаб, Y без переворота (обе оси вниз). */
   const toPx = (point: Sh3dPoint): Sh3dPoint => ({
     x: (point.x - bounds.minX) * pxPerCm + margin,
-    y: (bounds.maxY - point.y) * pxPerCm + margin,
+    y: (point.y - bounds.minY) * pxPerCm + margin,
   });
 
   const walls: WallLayout[] = scene.walls.map((wall) => {
@@ -152,6 +158,8 @@ export function layoutPlan(scene: Sh3dScene, options: LayoutOptions = {}): PlanL
       id: room.id,
       name: room.name,
       areaM2,
+      ...(room.type !== undefined ? { type: room.type } : {}),
+      ...(room.heightCm !== undefined ? { heightCm: room.heightCm } : {}),
       polygon,
       rect,
       label: {

@@ -177,8 +177,8 @@ describe('FloorItemController (операции над этажом)', () => {
 
     expect(Reflect.getMetadata(METHOD_METADATA, controller.uploadPlan)).toBe(RequestMethod.POST);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.remove)).toBe(RequestMethod.DELETE);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.uploadPlan)).toEqual(['ADMIN', 'SUPERVISOR']);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.attachPlan)).toEqual(['ADMIN', 'SUPERVISOR']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.uploadPlan)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.attachPlan)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
     expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual(['ADMIN']);
     // Просмотр этажа открыт любому аутентифицированному пользователю.
     expect(Reflect.getMetadata(ROLES_KEY, controller.getDetail)).toBeUndefined();

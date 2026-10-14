@@ -226,7 +226,7 @@ export function TechCardsPage() {
 
       {!canEdit && (
         <p className="rounded-lg bg-neutral-100 px-4 py-3 text-sm text-neutral-600">
-          Режим просмотра: создание, переименование и удаление доступны ролям ADMIN и SUPERVISOR.
+          Режим просмотра: создание, переименование и удаление доступны ролям ADMIN, SUPERVISOR и MANAGER.
         </p>
       )}
 

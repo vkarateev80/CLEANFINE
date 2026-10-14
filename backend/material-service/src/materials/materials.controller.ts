@@ -27,7 +27,7 @@ export class MaterialsController {
   // -------------------------------------------------------------- справочник
 
   @Post()
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Создать материал (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 201, description: 'Материал создан' })
   @ApiResponse({ status: 400, description: 'Ошибка валидации' })
@@ -57,7 +57,7 @@ export class MaterialsController {
   }
 
   @Post('movements')
-  @Roles('ADMIN', 'SUPERVISOR', 'OPERATOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER', 'OPERATOR')
   @ApiOperation({
     summary: 'Движение материала: IN / OUT / TRANSFER / WRITE_OFF',
     description:
@@ -110,7 +110,7 @@ export class MaterialsController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({
     summary: 'Изменить материал (ADMIN, SUPERVISOR)',
     description: 'supplier: null очищает поставщика, отсутствие поля — не менять.',
@@ -122,7 +122,7 @@ export class MaterialsController {
 
   @Delete(':id')
   @HttpCode(204)
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({
     summary: 'Удалить материал (ADMIN, SUPERVISOR)',
     description:

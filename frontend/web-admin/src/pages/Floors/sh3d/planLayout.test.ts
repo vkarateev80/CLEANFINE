@@ -37,17 +37,30 @@ describe('layoutPlan', () => {
     expect(layout.height).toBe(Math.ceil(500 * 2.4) + 80);
   });
 
-  it('Y переворачивается: верх сцены (maxY) → верх картинки', () => {
+  it('Y не переворачивается: верх сцены (minY) → верх картинки', () => {
+    // Ось Y у Sweet Home 3D направлена вниз, как у картинки: точка с
+    // минимальным Y сцены ложится к верхнему отступу, с максимальным — к нижнему.
     const layout = layoutPlan(sceneFixture());
-    const pointTop = { x: 0, y: 500 };
-    const pointBottom = { x: 0, y: 0 };
-    // Прямая проверка через контур: комната касается minY сцены → её низ ниже.
-    const room = layout.rooms[0];
+    const room = layout.rooms[0]; // контур y ∈ [0, 300] при сцене y ∈ [0, 500]
     const ys = room.polygon.map((point) => point.y);
-    expect(Math.min(...ys)).toBeGreaterThanOrEqual(40);
-    expect(Math.max(...ys)).toBeLessThanOrEqual(layout.height - 40);
-    expect(pointTop.y).toBe(500);
-    expect(pointBottom.y).toBe(0);
+    expect(Math.min(...ys)).toBeCloseTo(40, 6); // minY сцены → y = margin
+    expect(Math.max(...ys)).toBeCloseTo(40 + 300 * layout.pxPerCm, 6);
+    // Стена у нижнего края сцены (y = 500) — у нижнего края картинки.
+    const bottomWall = layoutPlan(
+      sceneFixture({ walls: [{ xStart: 0, yStart: 500, xEnd: 1000, yEnd: 500, thickness: 10 }] }),
+    ).walls[0];
+    expect(bottomWall.y1).toBeCloseTo(40 + 500 * layout.pxPerCm, 6);
+  });
+
+  it('тип и высота помещения из сцены проходят в раскладку', () => {
+    const scene = sceneFixture();
+    scene.rooms = [{ ...scene.rooms[0], type: 'Кухня', heightCm: 250 }];
+    const [room] = layoutPlan(scene).rooms;
+    expect(room.type).toBe('Кухня');
+    expect(room.heightCm).toBe(250);
+    const [plain] = layoutPlan(sceneFixture()).rooms;
+    expect(plain.type).toBeUndefined();
+    expect(plain.heightCm).toBeUndefined();
   });
 
   it('прямоугольник помещения — целые пиксели, ≥1, внутри плана', () => {

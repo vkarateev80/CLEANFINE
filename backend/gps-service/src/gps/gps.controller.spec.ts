@@ -110,10 +110,7 @@ describe('GpsController (gps-service)', () => {
   });
 
   it('RBAC: создание геозон только ADMIN/SUPERVISOR', () => {
-    expect(Reflect.getMetadata(ROLES_KEY, GpsController.prototype.createGeofence)).toEqual([
-      'ADMIN',
-      'SUPERVISOR',
-    ]);
+    expect(Reflect.getMetadata(ROLES_KEY, GpsController.prototype.createGeofence)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
   });
 
   it('RBAC: чтение доступно любому аутентифицированному (без @Roles)', () => {

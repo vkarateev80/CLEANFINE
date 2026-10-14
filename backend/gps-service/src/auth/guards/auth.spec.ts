@@ -67,13 +67,13 @@ describe('RolesGuard (gps-service)', () => {
   });
 
   it('пропускает пользователя с нужной ролью (создание геозон — ADMIN)', () => {
-    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['ADMIN', 'SUPERVISOR']);
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['ADMIN', 'SUPERVISOR', 'MANAGER']);
 
     expect(guard.canActivate(contextWith({ role: 'SUPERVISOR' }))).toBe(true);
   });
 
   it('запрещает роль вне списка', () => {
-    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['ADMIN', 'SUPERVISOR']);
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['ADMIN', 'SUPERVISOR', 'MANAGER']);
 
     expect(() => guard.canActivate(contextWith({ role: 'OPERATOR' }))).toThrow(ForbiddenException);
     expect(() => guard.canActivate(contextWith({ role: 'OPERATOR' }))).toThrow(
@@ -98,9 +98,9 @@ describe('декораторы (gps-service)', () => {
 
   it('Roles сохраняет список ролей', () => {
     class Target {}
-    Roles('ADMIN', 'SUPERVISOR')(Target);
+    Roles('ADMIN', 'SUPERVISOR', 'MANAGER')(Target);
 
-    expect(Reflect.getMetadata(ROLES_KEY, Target)).toEqual(['ADMIN', 'SUPERVISOR']);
+    expect(Reflect.getMetadata(ROLES_KEY, Target)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
   });
 
   it('CurrentUser объявлен как параметр-декоратор', () => {

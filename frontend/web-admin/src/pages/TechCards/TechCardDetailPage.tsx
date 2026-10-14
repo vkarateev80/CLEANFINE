@@ -471,7 +471,7 @@ export function TechCardDetailPage() {
 
           {!canEdit && (
             <p className="rounded-lg bg-neutral-100 px-4 py-3 text-xs text-neutral-600">
-              Режим просмотра: правка операций доступна ролям ADMIN и SUPERVISOR.
+              Режим просмотра: правка операций доступна ролям ADMIN, SUPERVISOR и MANAGER.
             </p>
           )}
         </div>

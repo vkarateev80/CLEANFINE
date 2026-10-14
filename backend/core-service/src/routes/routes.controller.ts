@@ -18,7 +18,7 @@ export class FloorRoutesController {
   constructor(private readonly routes: RoutesService) {}
 
   @Post()
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Создать маршрут на этаже (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 201, description: 'Маршрут создан (статус DRAFT)' })
   async create(@Param('floorId') floorId: string, @Body() dto: CreateRouteDto) {
@@ -64,7 +64,7 @@ export class RoutesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Изменить маршрут или его статус (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 400, description: 'Недопустимый переход статуса' })
   async update(@Param('id') id: string, @Body() dto: UpdateRouteDto) {
@@ -80,7 +80,7 @@ export class RoutesController {
   }
 
   @Post(':id/points')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Добавить точку в конец маршрута (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 400, description: 'Помещение с другого этажа' })
   async addPoint(@Param('id') id: string, @Body() dto: AddRoutePointDto) {
@@ -88,7 +88,7 @@ export class RoutesController {
   }
 
   @Patch(':id/reorder')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({
     summary: 'Переупорядочить точки маршрута (ADMIN, SUPERVISOR)',
     description:
@@ -109,7 +109,7 @@ export class RoutePointsController {
   constructor(private readonly routes: RoutesService) {}
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Изменить точку маршрута (ADMIN, SUPERVISOR)' })
   async update(@Param('id') id: string, @Body() dto: UpdateRoutePointDto) {
     return this.routes.updatePoint(id, dto);
@@ -117,7 +117,7 @@ export class RoutePointsController {
 
   @Delete(':id')
   @HttpCode(204)
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({
     summary: 'Удалить точку маршрута (ADMIN, SUPERVISOR)',
     description: 'Порядковые номера оставшихся точек пересобираются без «дыр».',

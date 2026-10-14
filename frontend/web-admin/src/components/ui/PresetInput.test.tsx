@@ -76,6 +76,68 @@ describe('PresetInput — выпадающая библиотека', () => {
     expect(mockChange).toHaveBeenCalledWith('; маска');
   });
 
+  it('группы: заголовки категорий, порядок пунктов сквозной, повтор показан один раз', () => {
+    const mockChange = vi.fn();
+    render(
+      <PresetInput
+        id="type"
+        data-testid="type"
+        value=""
+        groups={[
+          { label: 'Свои на этом этаже', values: ['Лобби'] },
+          { label: 'Пищевые зоны', values: ['Столовая', 'Кухня'] },
+          { label: 'Виды покрытий', values: ['Линолеум', 'Столовая'] },
+        ]}
+        onValueChange={mockChange}
+      />,
+    );
+    fireEvent.focus(screen.getByTestId('type'));
+    expect(screen.getAllByTestId('preset-group').map((el) => el.textContent)).toEqual([
+      'Свои на этом этаже',
+      'Пищевые зоны',
+      'Виды покрытий',
+    ]);
+    expect(optionTexts()).toEqual(['Лобби', 'Столовая', 'Кухня', 'Линолеум']);
+    fireEvent.mouseDown(screen.getByTestId('preset-option-Кухня'));
+    expect(mockChange).toHaveBeenCalledWith('Кухня');
+  });
+
+  it('группы: фильтр скрывает опустевшие категории, стрелки идут сквозь группы', () => {
+    function GroupedHarness() {
+      const [value, setValue] = useState('');
+      return (
+        <PresetInput
+          id="type"
+          data-testid="type"
+          value={value}
+          groups={[
+            { label: 'Рабочие зоны', values: ['Офис', 'Кабинет'] },
+            { label: 'Пищевые зоны', values: ['Столовая', 'Кухня'] },
+          ]}
+          onValueChange={setValue}
+        />
+      );
+    }
+    render(<GroupedHarness />);
+    const input = screen.getByTestId('type') as HTMLInputElement;
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'стол' } });
+    expect(screen.getAllByTestId('preset-group').map((el) => el.textContent)).toEqual([
+      'Пищевые зоны',
+    ]);
+    expect(optionTexts()).toEqual(['Столовая']);
+
+    // Полный список: третий пункт сверху — первый во второй группе.
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input.value).toBe('Столовая');
+  });
+
   it('свободный ввод сохраняется: своё значение не из списка', () => {
     render(<Harness />);
     const input = screen.getByTestId('op-name') as HTMLInputElement;

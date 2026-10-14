@@ -11,7 +11,7 @@ export class ObjectsController {
   constructor(private readonly objects: ObjectsService) {}
 
   @Post()
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Создать объект (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 201, description: 'Объект создан' })
   @ApiResponse({ status: 400, description: 'Ошибка валидации' })
@@ -43,7 +43,7 @@ export class ObjectsController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Изменить объект (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 400, description: 'Недопустимый переход статуса' })
   async update(@Param('id') id: string, @Body() dto: UpdateObjectDto) {

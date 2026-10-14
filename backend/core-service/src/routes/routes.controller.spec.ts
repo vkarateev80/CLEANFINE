@@ -127,7 +127,7 @@ describe('RoutesController (операции над маршрутом)', () => 
     expect(Reflect.getMetadata(ROLES_KEY, controller.list)).toBeUndefined();
     expect(Reflect.getMetadata(METHOD_METADATA, controller.reorder)).toBe(RequestMethod.PATCH);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.addPoint)).toBe(RequestMethod.POST);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.reorder)).toEqual(['ADMIN', 'SUPERVISOR']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.reorder)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
     expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual(['ADMIN']);
     expect(Reflect.getMetadata(ROLES_KEY, controller.getById)).toBeUndefined();
   });
@@ -164,7 +164,7 @@ describe('RoutePointsController (точки маршрута)', () => {
     expect(Reflect.getMetadata(PATH_METADATA, RoutePointsController)).toBe('api/route-points');
     expect(Reflect.getMetadata(METHOD_METADATA, controller.update)).toBe(RequestMethod.PATCH);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.remove)).toBe(RequestMethod.DELETE);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.update)).toEqual(['ADMIN', 'SUPERVISOR']);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual(['ADMIN', 'SUPERVISOR']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.update)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
   });
 });

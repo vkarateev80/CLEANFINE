@@ -120,7 +120,7 @@ describe('TechCardsController (техкарты)', () => {
     expect(Reflect.getMetadata(PATH_METADATA, TechCardsController)).toBe('api/tech-cards');
     expect(Reflect.getMetadata(METHOD_METADATA, controller.list)).toBe(RequestMethod.GET);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.reorder)).toBe(RequestMethod.PATCH);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.reorder)).toEqual(['ADMIN', 'SUPERVISOR']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.reorder)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
     expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual(['ADMIN']);
     expect(Reflect.getMetadata(ROLES_KEY, controller.getById)).toBeUndefined();
   });
@@ -159,7 +159,7 @@ describe('TechOperationsController (операции техкарты)', () => {
     );
     expect(Reflect.getMetadata(METHOD_METADATA, controller.update)).toBe(RequestMethod.PATCH);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.remove)).toBe(RequestMethod.DELETE);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.update)).toEqual(['ADMIN', 'SUPERVISOR']);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual(['ADMIN', 'SUPERVISOR']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.update)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
   });
 });

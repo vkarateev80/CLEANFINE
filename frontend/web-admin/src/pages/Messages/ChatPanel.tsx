@@ -65,7 +65,7 @@ export function ChatPanel({ kind, refId, title, testId, emptyHint }: ChatPanelPr
           <SoftWarning>
             {canCreate
               ? 'Чат ещё не создан — обновите блок, чтобы создать его.'
-              : 'Чат ещё не создан. Его открывает ADMIN или SUPERVISOR, после чего переписка появится у участников.'}
+              : 'Чат ещё не создан. Его открывает ADMIN, SUPERVISOR или MANAGER, после чего переписка появится у участников.'}
           </SoftWarning>
         </div>
       ) : (

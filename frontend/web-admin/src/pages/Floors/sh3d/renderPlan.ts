@@ -9,7 +9,10 @@ import { layoutPlan, type RoomLayout } from './planLayout';
  * картинок. Сервер и мобильный клиент ничего не знают о Sweet Home 3D.
  */
 
-/** Тип помещения по умолчанию для импорта — из пресетов «Виды помещения». */
+/**
+ * Тип помещения по умолчанию для импорта — из пресетов «Виды помещения».
+ * Используется, когда в файле нет `<property name='roomType'>` (обычный .sh3d).
+ */
 export const DEFAULT_IMPORT_FLOOR_TYPE = 'Офис';
 
 export interface ImportRoom {
@@ -30,6 +33,13 @@ export interface RenderedPlan {
   height: number;
   /** Помещения для создания после загрузки плана. */
   rooms: ImportRoom[];
+  /** Сколько помещений пришли со своим типом из файла («Планировщик 3D»). */
+  typedRooms: number;
+}
+
+/** Есть ли у помещения файла непустой тип. */
+export function hasFileType(room: Pick<RoomLayout, 'type'>): boolean {
+  return (room.type?.trim() ?? '') !== '';
 }
 
 const COLORS = {
@@ -41,11 +51,16 @@ const COLORS = {
   area: '#64748B',
 } as const;
 
-function toImportRoom(room: RoomLayout, index: number): ImportRoom {
+/**
+ * Помещение файла → payload создания. Тип — из `roomType` файла («Планировщик
+ * 3D»), иначе типовой «Офис». `cleanZone` файла в `zone` не переносится: цвет
+ * инвентаря выводится из типа (roomColorZone), а явная зона перебила бы тип.
+ */
+export function toImportRoom(room: RoomLayout, index: number): ImportRoom {
   return {
     name: room.name === '' ? `Помещение ${index + 1}` : room.name,
     areaM2: Math.round(room.areaM2 * 100) / 100,
-    floorType: DEFAULT_IMPORT_FLOOR_TYPE,
+    floorType: hasFileType(room) ? (room.type as string).trim() : DEFAULT_IMPORT_FLOOR_TYPE,
     coordsX: room.rect.x,
     coordsY: room.rect.y,
     coordsWidth: room.rect.width,
@@ -143,5 +158,6 @@ export async function renderSh3dPlan(file: File, scene: Sh3dScene): Promise<Rend
     width: layout.width,
     height: layout.height,
     rooms: layout.rooms.map(toImportRoom),
+    typedRooms: layout.rooms.filter(hasFileType).length,
   };
 }

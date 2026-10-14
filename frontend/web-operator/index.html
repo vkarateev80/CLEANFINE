@@ -19,6 +19,39 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      Страховка от белого экрана (14.10.2026): если модуль приложения не загрузился
+      или упал до монтирования React (старый браузер → SyntaxError, оборванный
+      бандл), показываем текст с кнопкой «Обновить». Только ES5 — скрипт обязан
+      работать в самом старом браузере. После успешного монтирования React
+      заменяет содержимое #root, и проверка firstChild всё отключает.
+    -->
+    <script>
+      (function () {
+        var shown = false;
+        function show(text) {
+          if (shown) return;
+          var root = document.getElementById('root');
+          if (!root || root.firstChild) return;
+          shown = true;
+          root.innerHTML =
+            '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:48px auto;padding:0 16px;color:#1e293b;line-height:1.5">' +
+            '<div style="font-size:20px;font-weight:600;margin:0 0 12px">CLEANFINE не запустился</div>' +
+            '<p style="margin:0 0 12px">' + text + '</p>' +
+            '<p style="margin:0 0 16px;color:#64748b;font-size:14px">Обновите страницу. Если не помогает — обновите браузер до последней версии или откройте сайт в другом браузере (Chrome, Safari, Firefox, Яндекс).</p>' +
+            '<button type="button" onclick="location.reload()" style="font:inherit;padding:10px 16px;border-radius:8px;border:0;background:#2563eb;color:#fff;cursor:pointer">Обновить</button>' +
+            '<p style="margin:16px 0 0;color:#94a3b8;font-size:12px;word-break:break-all">' + navigator.userAgent + '</p>' +
+            '</div>';
+        }
+        window.addEventListener('error', function (event) {
+          var message = event && event.message ? String(event.message) : 'не удалось выполнить скрипт приложения';
+          show('Ошибка: ' + message.replace(/</g, '&lt;'));
+        });
+        window.setTimeout(function () {
+          show('Приложение грузится слишком долго или не запустилось.');
+        }, 15000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

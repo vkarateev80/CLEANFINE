@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PRESET_LIBRARIES, presetValues, type PresetId } from './presets';
+import { PRESET_LIBRARIES, presetGroups, presetValues, type PresetId } from './presets';
 
 describe('библиотеки пресетов полей', () => {
   it('все группы заполнены, внутри группы нет дублей', () => {
@@ -41,6 +41,38 @@ describe('библиотеки пресетов полей', () => {
     // Подпись отличается от значения у пункта «только СИЗ».
     const ppeOnly = equipment.find((o) => typeof o !== 'string');
     expect(ppeOnly).toEqual({ value: '; перчатки', label: 'перчатки (только СИЗ)' });
+  });
+
+  it('виды помещений разбиты по категориям, склейка без дублей, есть «Столовая»', () => {
+    const library = PRESET_LIBRARIES['room-types'];
+    expect(library.groups).toBeDefined();
+    const groups = library.groups ?? [];
+    expect(groups.length).toBeGreaterThanOrEqual(6);
+    const labels = groups.map((group) => group.label);
+    expect(labels).toContain('Санитарные зоны');
+    expect(labels).toContain('Пищевые зоны');
+    for (const group of groups) {
+      expect(group.label.trim()).not.toBe('');
+      expect(group.values.length).toBeGreaterThan(0);
+    }
+    // Плоский список — ровно склейка групп по порядку, без повторов.
+    const flat = groups.flatMap((group) => [...group.values]);
+    expect(library.values).toEqual(flat);
+    expect(new Set(library.values).size).toBe(library.values.length);
+    const food = groups.find((group) => group.label === 'Пищевые зоны');
+    expect(food?.values).toContain('Столовая');
+    expect(library.values).toContain('Столовая');
+    expect(library.values).toContain('Офис');
+    expect(library.values).toContain('Санузел');
+  });
+
+  it('presetGroups: библиотека с категориями — её группы, без категорий — одна группа', () => {
+    const groups = presetGroups('room-types', 'floor-coverings');
+    expect(groups.slice(0, -1)).toEqual([...(PRESET_LIBRARIES['room-types'].groups ?? [])]);
+    expect(groups[groups.length - 1]).toEqual({
+      label: 'Виды покрытий',
+      values: PRESET_LIBRARIES['floor-coverings'].values,
+    });
   });
 
   it('presetValues склеивает группы и убирает дубли', () => {

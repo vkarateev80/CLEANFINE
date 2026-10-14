@@ -29,7 +29,7 @@ export class TechCardsController {
   constructor(private readonly techCards: TechCardsService) {}
 
   @Post()
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Создать техкарту (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 201, description: 'Техкарта создана' })
   async create(@Body() dto: CreateTechCardDto) {
@@ -60,7 +60,7 @@ export class TechCardsController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Переименовать техкарту (ADMIN, SUPERVISOR)' })
   async update(@Param('id') id: string, @Body() dto: UpdateTechCardDto) {
     return this.techCards.update(id, dto);
@@ -78,7 +78,7 @@ export class TechCardsController {
   }
 
   @Post(':id/operations')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Добавить операцию (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 201, description: 'Операция создана' })
   async addOperation(@Param('id') id: string, @Body() dto: CreateOperationDto) {
@@ -86,7 +86,7 @@ export class TechCardsController {
   }
 
   @Patch(':id/reorder')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({
     summary: 'Переупорядочить операции техкарты (ADMIN, SUPERVISOR)',
     description:
@@ -105,7 +105,7 @@ export class TechOperationsController {
   constructor(private readonly techCards: TechCardsService) {}
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({
     summary: 'Изменить операцию (ADMIN, SUPERVISOR)',
     description: 'materials заменяет список материалов операции целиком.',
@@ -116,7 +116,7 @@ export class TechOperationsController {
 
   @Delete(':id')
   @HttpCode(204)
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({
     summary: 'Удалить операцию (ADMIN, SUPERVISOR)',
     description: 'Порядковые номера оставшихся операций пересобираются.',

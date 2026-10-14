@@ -64,7 +64,7 @@ describe('RolesGuard (schedule-service)', () => {
   });
 
   it('пропускает, если роль входит в список разрешённых', () => {
-    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['ADMIN', 'SUPERVISOR']);
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['ADMIN', 'SUPERVISOR', 'MANAGER']);
     expect(guard.canActivate(contextWith({ role: 'SUPERVISOR' }))).toBe(true);
   });
 
@@ -122,8 +122,8 @@ describe('декораторы (schedule-service)', () => {
 
   it('Roles сохраняет список ролей', () => {
     class Target {}
-    Roles('ADMIN', 'SUPERVISOR')(Target);
-    expect(Reflect.getMetadata(ROLES_KEY, Target)).toEqual(['ADMIN', 'SUPERVISOR']);
+    Roles('ADMIN', 'SUPERVISOR', 'MANAGER')(Target);
+    expect(Reflect.getMetadata(ROLES_KEY, Target)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
   });
 
   it('CurrentUser объявлен как параметр-декоратор', () => {

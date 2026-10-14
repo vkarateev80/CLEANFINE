@@ -102,7 +102,7 @@ export class NotificationsController {
    */
   @Post('internal/chat-message')
   @HttpCode(200)
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Внутренний: уведомить оффлайн-получателей о сообщении чата' })
   @ApiResponse({ status: 200, description: '{ delivered } — сколько получателей уведомлено' })
   @ApiResponse({ status: 400, description: 'Ошибка валидации (пустой список получателей и т. п.)' })

@@ -111,7 +111,7 @@ describe('ObjectsController', () => {
     expect(Reflect.getMetadata(METHOD_METADATA, controller.list)).toBe(RequestMethod.GET);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.update)).toBe(RequestMethod.PATCH);
     expect(Reflect.getMetadata(METHOD_METADATA, controller.remove)).toBe(RequestMethod.DELETE);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.create)).toEqual(['ADMIN', 'SUPERVISOR']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.create)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
     expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual(['ADMIN']);
     // Чтение доступно всем аутентифицированным — @Roles на list/getById быть не должно.
     expect(Reflect.getMetadata(ROLES_KEY, controller.list)).toBeUndefined();

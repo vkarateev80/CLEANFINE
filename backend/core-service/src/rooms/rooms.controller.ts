@@ -11,7 +11,7 @@ export class RoomsController {
   constructor(private readonly rooms: RoomsService) {}
 
   @Post()
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Добавить помещение на этаж (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 201, description: 'Помещение создано' })
   @ApiResponse({ status: 400, description: 'Площадь ≤ 0 или координаты вне плана' })
@@ -41,7 +41,7 @@ export class RoomItemController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({
     summary: 'Изменить помещение (ADMIN, SUPERVISOR)',
     description: 'techCardId: null отвязывает техкарту, отсутствие поля — не менять.',
