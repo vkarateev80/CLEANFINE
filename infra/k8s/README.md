@@ -77,3 +77,28 @@ kubectl -n cleaning-ops exec deploy/auth -- npx prisma migrate deploy
 | ports на tailnet | ClusterIP + Ingress |
 | mem_limit/cpus | resources.requests/limits |
 | json-file logging | cluster logging (по умолчанию k8s) |
+
+## Сборка образов на боевом хосте (14.10.2026)
+
+Обычный `docker build` занимал все 4 ядра и диск: пробы живости не успевали,
+kubelet перезапускал postgres и сервисы (exit 137), HPA раздувал реплики.
+Поэтому на vps2 создан builder с жёстким лимитом — два ядра из четырёх,
+низкий приоритет CPU, 3 ГБ памяти:
+
+```bash
+docker buildx create --name cf-limited --driver docker-container \
+  --driver-opt cpuset-cpus=2-3 --driver-opt cpu-shares=256 --driver-opt memory=3g --bootstrap
+```
+
+Собирать ТОЛЬКО через него (`--load` кладёт образ в локальный docker, дальше
+`docker save | k3s ctr images import -` как раньше):
+
+```bash
+docker buildx build --builder cf-limited --load -f backend/core-service/Dockerfile \
+  -t cleaning-ops/core:latest .
+docker buildx build --builder cf-limited --load -f deploy/vps/Dockerfile.web \
+  --build-arg APP=web-operator --build-arg VITE_BASE=/app/ -t cleaning-ops/web-operator:latest .
+```
+
+Сборка идёт дольше, зато сервисы не падают. Пробы у всех деплойментов —
+timeoutSeconds 5 / failureThreshold 5 (`kubectl patch`, то же в манифестах).

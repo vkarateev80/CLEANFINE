@@ -19,6 +19,9 @@ spec:
       port: 3001
       targetPort: 3001
 ---
+# Пробы (14.10.2026): timeoutSeconds 5 / failureThreshold 5 — с дефолтным 1 с
+# сервисы перезапускались (exit 137) во время сборки образов на этом же хосте.
+# На проде также добавлен liveness tcpSocket с теми же порогами (kubectl patch).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -59,6 +62,8 @@ spec:
             limits: { cpu: "500m", memory: "320Mi" }
           readinessProbe:
             httpGet: { path: /api/docs, port: 3001 }
+            timeoutSeconds: 5
+            failureThreshold: 5
 ---
 apiVersion: v1
 kind: Service
@@ -119,6 +124,8 @@ spec:
             limits: { cpu: "500m", memory: "320Mi" }
           readinessProbe:
             httpGet: { path: /api/docs, port: 3002 }
+            timeoutSeconds: 5
+            failureThreshold: 5
 ---
 apiVersion: v1
 kind: Service
@@ -179,6 +186,8 @@ spec:
             limits: { cpu: "500m", memory: "320Mi" }
           readinessProbe:
             httpGet: { path: /api/docs, port: 3003 }
+            timeoutSeconds: 5
+            failureThreshold: 5
 ---
 apiVersion: v1
 kind: Service
@@ -239,6 +248,8 @@ spec:
             limits: { cpu: "500m", memory: "320Mi" }
           readinessProbe:
             httpGet: { path: /api/docs, port: 3004 }
+            timeoutSeconds: 5
+            failureThreshold: 5
 ---
 apiVersion: v1
 kind: Service
@@ -299,6 +310,8 @@ spec:
             limits: { cpu: "500m", memory: "320Mi" }
           readinessProbe:
             httpGet: { path: /api/docs, port: 3005 }
+            timeoutSeconds: 5
+            failureThreshold: 5
 ---
 apiVersion: v1
 kind: Service
@@ -359,6 +372,8 @@ spec:
             limits: { cpu: "500m", memory: "320Mi" }
           readinessProbe:
             httpGet: { path: /api/docs, port: 3006 }
+            timeoutSeconds: 5
+            failureThreshold: 5
 ---
 apiVersion: v1
 kind: Service
@@ -419,6 +434,8 @@ spec:
             limits: { cpu: "500m", memory: "320Mi" }
           readinessProbe:
             httpGet: { path: /api/docs, port: 3007 }
+            timeoutSeconds: 5
+            failureThreshold: 5
 ---
 apiVersion: v1
 kind: Service
@@ -479,6 +496,8 @@ spec:
             limits: { cpu: "500m", memory: "320Mi" }
           readinessProbe:
             httpGet: { path: /api/docs, port: 3008 }
+            timeoutSeconds: 5
+            failureThreshold: 5
 ---
 apiVersion: v1
 kind: Service
@@ -539,3 +558,5 @@ spec:
             limits: { cpu: "500m", memory: "320Mi" }
           readinessProbe:
             httpGet: { path: /api/chat/health, port: 3009 }
+            timeoutSeconds: 5
+            failureThreshold: 5
