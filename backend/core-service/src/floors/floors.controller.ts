@@ -35,7 +35,7 @@ export class FloorsController {
   constructor(private readonly floors: FloorsService) {}
 
   @Post()
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Добавить этаж объекту (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 201, description: 'Этаж создан' })
   @ApiResponse({ status: 404, description: 'Объект не найден' })
@@ -71,7 +71,7 @@ export class FloorItemController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Изменить этаж (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 409, description: 'Этаж с таким номером уже есть' })
   async update(@Param('id') id: string, @Body() dto: UpdateFloorDto) {
@@ -87,7 +87,7 @@ export class FloorItemController {
   }
 
   @Post(':id/plan')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Загрузить план этажа (ADMIN, SUPERVISOR)',
@@ -118,7 +118,7 @@ export class FloorItemController {
   }
 
   @Post(':id/plan-url')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({
     summary: 'Привязать уже загруженный план по URL (ADMIN, SUPERVISOR)',
     description: 'Альтернатива multipart-загрузке: файл уже лежит в file-service.',

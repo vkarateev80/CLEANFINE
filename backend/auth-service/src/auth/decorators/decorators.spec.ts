@@ -54,8 +54,8 @@ describe('декораторы auth', () => {
   describe('Roles', () => {
     it('сохраняет несколько ролей', () => {
       class Target {}
-      Roles('ADMIN', 'SUPERVISOR')(Target);
-      expect(Reflect.getMetadata(ROLES_KEY, Target)).toEqual(['ADMIN', 'SUPERVISOR']);
+      Roles('ADMIN', 'SUPERVISOR', 'MANAGER')(Target);
+      expect(Reflect.getMetadata(ROLES_KEY, Target)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
     });
 
     it('сохраняет одну роль', () => {

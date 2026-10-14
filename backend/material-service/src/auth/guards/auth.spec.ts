@@ -31,10 +31,10 @@ describe('RolesGuard (RBAC)', () => {
   });
 
   it('пропускает разрешённую роль и отклоняет остальные (403)', () => {
-    const guard = new RolesGuard(createReflector({ roles: ['ADMIN', 'SUPERVISOR'] }));
+    const guard = new RolesGuard(createReflector({ roles: ['ADMIN', 'SUPERVISOR', 'MANAGER'] }));
     expect(guard.canActivate(createContext(admin))).toBe(true);
 
-    const operatorGuard = new RolesGuard(createReflector({ roles: ['ADMIN', 'SUPERVISOR'] }));
+    const operatorGuard = new RolesGuard(createReflector({ roles: ['ADMIN', 'SUPERVISOR', 'MANAGER'] }));
     expect(() => operatorGuard.canActivate(createContext({ ...admin, role: 'OPERATOR' }))).toThrow(
       ForbiddenException,
     );

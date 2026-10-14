@@ -386,7 +386,7 @@ export function TicketDetailPage() {
 
             {!canAssign && (
               <p className="rounded-lg bg-neutral-100 px-4 py-2 text-xs text-neutral-600">
-                Назначение исполнителя доступно ролям ADMIN и SUPERVISOR.
+                Назначение исполнителя доступно ролям ADMIN, SUPERVISOR и MANAGER.
               </p>
             )}
 

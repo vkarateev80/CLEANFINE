@@ -142,12 +142,13 @@ export class GpsService {
     if (dto.tracks.length > maxBatchSize) {
       throw new BadRequestException(`За один запрос не более ${maxBatchSize} точек`);
     }
-    // Треки пишутся только за себя: подмена userId — прерогатива ADMIN/SUPERVISOR.
+    // Треки пишутся только за себя: подмена userId — прерогатива ADMIN/SUPERVISOR/MANAGER.
     if (
       dto.userId &&
       dto.userId !== user.id &&
       user.role !== 'ADMIN' &&
-      user.role !== 'SUPERVISOR'
+      user.role !== 'SUPERVISOR' &&
+      user.role !== 'MANAGER'
     ) {
       throw new ForbiddenException('Можно отправлять треки только за себя');
     }

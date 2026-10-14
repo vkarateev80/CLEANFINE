@@ -36,16 +36,16 @@ const NAV: NavItem[] = [
   // пункт не показывается, а RoleGuard закрывает и прямой заход по URL.
   // Порядок «техкарты → маршруты» — по ходу работы (решение владельца 12.10):
   // сначала описывают, что делать в помещении, потом собирают обход.
-  { to: '/tech-cards', label: 'Техкарты', icon: '🧾', roles: ['ADMIN', 'SUPERVISOR'] },
-  { to: '/routes', label: 'Маршруты', icon: '🗺️', roles: ['ADMIN', 'SUPERVISOR'] },
+  { to: '/tech-cards', label: 'Техкарты', icon: '🧾', roles: ['ADMIN', 'SUPERVISOR', 'MANAGER'] },
+  { to: '/routes', label: 'Маршруты', icon: '🗺️', roles: ['ADMIN', 'SUPERVISOR', 'MANAGER'] },
   // Шаблоны: демо-заготовки техкарт/маршрутов/объектов. Создание из шаблона
   // ходит в те же POST, что и обычные экраны, — виден ролям с правом создания.
-  { to: '/templates', label: 'Шаблоны', icon: '📚', roles: ['ADMIN', 'SUPERVISOR'] },
+  { to: '/templates', label: 'Шаблоны', icon: '📚', roles: ['ADMIN', 'SUPERVISOR', 'MANAGER'] },
   { to: '/tickets', label: 'Заявки', icon: '🎫' },
   // Карта — геозоны объектов и ближние сотрудники: чтение gps-service открыто
   // всем авторизованным ролям, поэтому пункт виден без ограничения по ролям.
   { to: '/map', label: 'Карта', icon: '📍' },
-  { to: '/employees', label: 'Сотрудники', icon: '👥', roles: ['ADMIN', 'SUPERVISOR'] },
+  { to: '/employees', label: 'Сотрудники', icon: '👥', roles: ['ADMIN', 'SUPERVISOR', 'MANAGER'] },
   // Материалы (М4.3): чтение справочника, остатков, истории и отчёта в
   // material-service открыто всем авторизованным ролям, поэтому пункт виден без
   // ограничения по ролям. Правка справочника (ADMIN/SUPERVISOR) и движения

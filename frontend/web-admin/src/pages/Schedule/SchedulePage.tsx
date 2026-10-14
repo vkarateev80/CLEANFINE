@@ -129,7 +129,7 @@ export function SchedulePage() {
           <>
             {tab === 'list' && canManage && (
               <span className="text-xs text-neutral-400">
-                Правка графиков доступна ADMIN и SUPERVISOR
+                Правка графиков доступна ADMIN, SUPERVISOR и MANAGER
               </span>
             )}
           </>

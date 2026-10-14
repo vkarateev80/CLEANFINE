@@ -363,7 +363,7 @@ export function MessagesPage() {
           {createChat.isError ? <ErrorBanner error={createChat.error} /> : null}
           {participantOptions.length === 0 ? (
             <SoftWarning>
-              Справочник сотрудников доступен ролям ADMIN и SUPERVISOR — выбрать собеседника не из
+              Справочник сотрудников доступен ролям ADMIN, SUPERVISOR и MANAGER — выбрать собеседника не из
               кого.
             </SoftWarning>
           ) : (

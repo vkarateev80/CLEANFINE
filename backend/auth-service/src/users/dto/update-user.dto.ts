@@ -11,7 +11,7 @@ import {
 import type { Role } from '@cleaning-ops/shared/types/roles';
 
 // Значения совпадают с shared/types/roles.ts (ROLES).
-const ROLE_VALUES = ['OPERATOR', 'SUPERVISOR', 'ADMIN', 'CLIENT'] as const;
+const ROLE_VALUES = ['OPERATOR', 'SUPERVISOR', 'MANAGER', 'ADMIN', 'CLIENT'] as const;
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ description: 'Новый email или логин', example: 'petrov' })

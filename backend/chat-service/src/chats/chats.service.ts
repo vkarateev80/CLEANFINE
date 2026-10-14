@@ -115,7 +115,7 @@ export interface MarkReadResult {
 }
 
 /** Роли, которые видят чаты объектов и заявок целиком (М5.1, п.7). */
-const STAFF_ROLES: readonly Role[] = ['ADMIN', 'SUPERVISOR'];
+const STAFF_ROLES: readonly Role[] = ['ADMIN', 'SUPERVISOR', 'MANAGER'];
 
 /**
  * Ядро чатов (М5.1–М5.2).

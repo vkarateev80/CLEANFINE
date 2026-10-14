@@ -146,22 +146,10 @@ describe('TicketsController', () => {
 
     // RBAC: назначает только админ/бригадир; статусы двигают и операторы;
     // чтение и комментарии — любому аутентифицированному; SOS — без ограничения ролей.
-    expect(Reflect.getMetadata(ROLES_KEY, controller.create)).toEqual([
-      'ADMIN',
-      'SUPERVISOR',
-      'CLIENT',
-    ]);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.assign)).toEqual(['ADMIN', 'SUPERVISOR']);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.changeStatus)).toEqual([
-      'ADMIN',
-      'SUPERVISOR',
-      'OPERATOR',
-    ]);
-    expect(Reflect.getMetadata(ROLES_KEY, controller.completeOperation)).toEqual([
-      'ADMIN',
-      'SUPERVISOR',
-      'OPERATOR',
-    ]);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.create)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER', 'CLIENT']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.assign)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.changeStatus)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER', 'OPERATOR']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.completeOperation)).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER', 'OPERATOR']);
     expect(Reflect.getMetadata(ROLES_KEY, controller.createEmergency)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, controller.list)).toBeUndefined();
     expect(Reflect.getMetadata(ROLES_KEY, controller.getById)).toBeUndefined();

@@ -92,7 +92,7 @@ describe('NotificationsController', () => {
     // а он умеет слать уведомления произвольным получателям.
     expect(
       Reflect.getMetadata(ROLES_KEY, NotificationsController.prototype.pushChatMessage),
-    ).toEqual(['ADMIN', 'SUPERVISOR']);
+    ).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
   });
 
   it('пользовательские эндпоинты не ограничены ролями (только своим JWT)', () => {

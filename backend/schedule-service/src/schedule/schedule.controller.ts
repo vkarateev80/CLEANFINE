@@ -29,7 +29,7 @@ export class ScheduleController {
   // ------------------------------------------------------------------ графики
 
   @Post()
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Создать график (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 201, description: 'График создан' })
   @ApiResponse({ status: 400, description: 'Некорректное правило повторения' })
@@ -70,7 +70,7 @@ export class ScheduleController {
   // --------------------------------------------------- check-in / check-out
 
   @Post('check-in')
-  @Roles('OPERATOR', 'SUPERVISOR', 'ADMIN')
+  @Roles('OPERATOR', 'SUPERVISOR', 'MANAGER', 'ADMIN')
   @ApiOperation({
     summary: 'Check-in на смену с проверкой геозоны (М4.5)',
     description:
@@ -91,7 +91,7 @@ export class ScheduleController {
   }
 
   @Post('check-out')
-  @Roles('OPERATOR', 'SUPERVISOR', 'ADMIN')
+  @Roles('OPERATOR', 'SUPERVISOR', 'MANAGER', 'ADMIN')
   @ApiOperation({
     summary: 'Check-out: закрыть смену',
     description: 'Идемпотентен; без предварительного check-in — 400.',
@@ -160,14 +160,14 @@ export class ScheduleController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Изменить график (ADMIN, SUPERVISOR)' })
   async update(@Param('id') id: string, @Body() dto: UpdateScheduleDto) {
     return this.schedule.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Удалить график вместе со сменами (ADMIN, SUPERVISOR)' })
   async remove(@Param('id') id: string) {
     return this.schedule.remove(id);

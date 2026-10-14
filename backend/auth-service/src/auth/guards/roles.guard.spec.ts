@@ -43,7 +43,7 @@ describe('RolesGuard', () => {
   });
 
   it('пропускает пользователя с разрешённой ролью', () => {
-    requiredRoles(['ADMIN', 'SUPERVISOR']);
+    requiredRoles(['ADMIN', 'SUPERVISOR', 'MANAGER']);
     const user: AuthUser = { id: 'u1', email: 'a@b.c', role: 'SUPERVISOR', fullName: 'A' };
     expect(guard.canActivate(contextWith(user))).toBe(true);
   });

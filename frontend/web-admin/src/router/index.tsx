@@ -31,25 +31,25 @@ import { TemplatesPage } from '../pages/Templates/TemplatesPage';
  * недостаточно — прямой заход по URL всё равно должен упираться в RoleGuard.
  */
 const routeBuilder = (
-  <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
+  <RoleGuard roles={['ADMIN', 'SUPERVISOR', 'MANAGER']}>
     <RouteBuilderPage />
   </RoleGuard>
 );
 
 const techCards = (
-  <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
+  <RoleGuard roles={['ADMIN', 'SUPERVISOR', 'MANAGER']}>
     <TechCardsPage />
   </RoleGuard>
 );
 
 const techCardDetail = (
-  <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
+  <RoleGuard roles={['ADMIN', 'SUPERVISOR', 'MANAGER']}>
     <TechCardDetailPage />
   </RoleGuard>
 );
 
 const employees = (
-  <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
+  <RoleGuard roles={['ADMIN', 'SUPERVISOR', 'MANAGER']}>
     <EmployeesPage />
   </RoleGuard>
 );
@@ -59,7 +59,7 @@ const employees = (
  * POST, что и обычные экраны, — значит и права те же (ADMIN/SUPERVISOR).
  */
 const templates = (
-  <RoleGuard roles={['ADMIN', 'SUPERVISOR']}>
+  <RoleGuard roles={['ADMIN', 'SUPERVISOR', 'MANAGER']}>
     <TemplatesPage />
   </RoleGuard>
 );

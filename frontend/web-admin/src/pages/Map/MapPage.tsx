@@ -562,7 +562,7 @@ export function MapPage() {
 
       <p className="text-xs text-neutral-400">
         Источник данных: gps-service (:3004). Имена сотрудников подтягиваются из auth-service
-        (/api/users) и доступны только ролям ADMIN и SUPERVISOR — остальным видно короткий id.
+        (/api/users) и доступны только ролям ADMIN, SUPERVISOR и MANAGER — остальным видно короткий id.
       </p>
     </div>
   );

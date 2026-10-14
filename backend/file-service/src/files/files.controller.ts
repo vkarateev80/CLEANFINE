@@ -131,7 +131,7 @@ export class FilesController {
 
   @Delete(':id')
   @HttpCode(204)
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Удалить файл (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 204, description: 'Файл и его объекты в MinIO удалены' })

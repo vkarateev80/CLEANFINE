@@ -1,5 +1,5 @@
 // Prisma-схема auth-service (УСТАВ.md → Агент Backend Auth, п.2).
-// Роли совпадают с shared/types/roles.ts (OPERATOR | SUPERVISOR | ADMIN | CLIENT).
+// Роли совпадают с shared/types/roles.ts (OPERATOR | SUPERVISOR | MANAGER | ADMIN | CLIENT).
 
 generator client {
   provider = "prisma-client-js"
@@ -15,6 +15,7 @@ datasource db {
 enum Role {
   OPERATOR
   SUPERVISOR
+  MANAGER
   ADMIN
   CLIENT
 }

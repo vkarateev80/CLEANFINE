@@ -23,7 +23,7 @@ export class TicketsController {
   constructor(private readonly tickets: TicketsService) {}
 
   @Post()
-  @Roles('ADMIN', 'SUPERVISOR', 'CLIENT')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER', 'CLIENT')
   @ApiOperation({ summary: 'Создать плановую/внеплановую заявку (ADMIN, SUPERVISOR, CLIENT)' })
   @ApiResponse({ status: 201, description: 'Заявка создана (new или assigned)' })
   @ApiResponse({ status: 400, description: 'Ошибка валидации' })
@@ -65,7 +65,7 @@ export class TicketsController {
   }
 
   @Patch(':id/status')
-  @Roles('ADMIN', 'SUPERVISOR', 'OPERATOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER', 'OPERATOR')
   @ApiOperation({
     summary: 'Сменить статус заявки (только валидные переходы state machine)',
     description:
@@ -82,7 +82,7 @@ export class TicketsController {
   }
 
   @Post(':id/assign')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Назначить исполнителя (ADMIN, SUPERVISOR) → ticket.assigned' })
   @ApiResponse({ status: 400, description: 'Invalid status transition' })
   async assign(
@@ -105,7 +105,7 @@ export class TicketsController {
   }
 
   @Post(':id/operations/:operationId/complete')
-  @Roles('ADMIN', 'SUPERVISOR', 'OPERATOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER', 'OPERATOR')
   @ApiOperation({
     summary: 'Отметить выполнение операции техкарты (М3.6)',
     description:
@@ -127,7 +127,7 @@ export class TicketsController {
   }
 
   @Post(':id/rooms/:roomId/complete')
-  @Roles('ADMIN', 'SUPERVISOR', 'OPERATOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER', 'OPERATOR')
   @ApiOperation({
     summary: 'Отметить завершение помещения маршрута по заявке (М6.4)',
     description:

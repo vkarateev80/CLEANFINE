@@ -85,7 +85,7 @@ describe('Раздел «Сотрудники»', () => {
     expect(within(dialog).getByLabelText(/^Пароль/)).toBeInTheDocument();
     // Роль — закрытый enum из shared
     const role = within(dialog).getByLabelText(/Роль/) as HTMLSelectElement;
-    expect(role.options.length).toBe(4);
+    expect(role.options.length).toBe(5);
     expect(role.value).toBe('OPERATOR');
   });
 

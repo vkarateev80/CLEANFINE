@@ -51,7 +51,7 @@ describe('RolesGuard (chat-service)', () => {
 
   it('разрешает роль из списка и запрещает остальные', () => {
     const reflector = {
-      getAllAndOverride: jest.fn(() => ['ADMIN', 'SUPERVISOR']),
+      getAllAndOverride: jest.fn(() => ['ADMIN', 'SUPERVISOR', 'MANAGER']),
     } as unknown as Reflector;
     const guard = new RolesGuard(reflector);
 

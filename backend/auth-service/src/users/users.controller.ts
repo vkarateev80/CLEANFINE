@@ -22,7 +22,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import type { ListUsersQuery } from './users.service';
 import { UsersService } from './users.service';
 
-const ROLE_VALUES = ['OPERATOR', 'SUPERVISOR', 'ADMIN', 'CLIENT'] as const;
+const ROLE_VALUES = ['OPERATOR', 'SUPERVISOR', 'MANAGER', 'ADMIN', 'CLIENT'] as const;
 
 @ApiTags('users')
 @ApiBearerAuth('access-token')
@@ -32,7 +32,7 @@ export class UsersController {
 
   /** Список сотрудников — ADMIN/SUPERVISOR (страница Employees в админке). */
   @Get()
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Список сотрудников (ADMIN, SUPERVISOR)' })
   @ApiQuery({ name: 'skip', required: false, type: Number, example: 0 })
   @ApiQuery({
@@ -71,7 +71,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
   @ApiOperation({ summary: 'Сотрудник по id (ADMIN, SUPERVISOR)' })
   @ApiResponse({ status: 200, description: 'Публичные поля пользователя' })
   @ApiResponse({ status: 404, description: 'Пользователь не найден' })

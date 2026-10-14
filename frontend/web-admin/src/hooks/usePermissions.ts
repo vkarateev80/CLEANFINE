@@ -2,8 +2,9 @@ import { useAuthStore } from '../stores/authStore';
 
 /**
  * Права интерфейса повторяют `@Roles(...)` core-service, чтобы кнопка не вела
- * в 403. Источник истины — бэкенд: `ADMIN` и `SUPERVISOR` создают и правят,
- * удаляют только `ADMIN`.
+ * в 403. Источник истины — бэкенд: `ADMIN`, `SUPERVISOR` и `MANAGER` (офисный
+ * менеджер, 14.10.2026 — права как у бригадира) создают и правят, удаляют и
+ * управляют сотрудниками только `ADMIN`.
  */
 
 export function useCurrentRole() {
@@ -13,7 +14,7 @@ export function useCurrentRole() {
 /** Создание и редактирование: `@Roles('ADMIN', 'SUPERVISOR')`. */
 export function useCanEdit(): boolean {
   const role = useCurrentRole();
-  return role === 'ADMIN' || role === 'SUPERVISOR';
+  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'MANAGER';
 }
 
 /** Удаление: `@Roles('ADMIN')` — у этажей, объектов, техкарт. */
@@ -32,19 +33,19 @@ export function useIsAdmin(): boolean {
 /** Создание плановой/внеплановой заявки. */
 export function useCanCreateTicket(): boolean {
   const role = useCurrentRole();
-  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'CLIENT';
+  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'MANAGER' || role === 'CLIENT';
 }
 
 /** Смена статуса: у CLIENT кнопок переходов нет — бэкенд ответит 403. */
 export function useCanTransitionTicketStatus(): boolean {
   const role = useCurrentRole();
-  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'OPERATOR';
+  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'MANAGER' || role === 'OPERATOR';
 }
 
 /** Назначение исполнителя и справочник сотрудников (`/api/users`). */
 export function useCanAssignTicket(): boolean {
   const role = useCurrentRole();
-  return role === 'ADMIN' || role === 'SUPERVISOR';
+  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'MANAGER';
 }
 
 /*
@@ -64,7 +65,7 @@ export function useCanManageMaterials(): boolean {
 /** Проведение движений (приход/расход/перемещение/списание). */
 export function useCanMoveMaterials(): boolean {
   const role = useCurrentRole();
-  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'OPERATOR';
+  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'MANAGER' || role === 'OPERATOR';
 }
 
 /*
@@ -90,5 +91,5 @@ export function useIsScheduleAdmin(): boolean {
 /** Отметка прихода/ухода по смене. */
 export function useCanCheckIn(): boolean {
   const role = useCurrentRole();
-  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'OPERATOR';
+  return role === 'ADMIN' || role === 'SUPERVISOR' || role === 'MANAGER' || role === 'OPERATOR';
 }

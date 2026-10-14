@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ServiceTokenProvider } from './service-token.provider';
 
 /** Роли, которые получают служебные уведомления (SOS, эскалации, смена статуса заявок). */
-export const STAFF_ROLES = ['ADMIN', 'SUPERVISOR'] as const;
+export const STAFF_ROLES = ['ADMIN', 'SUPERVISOR', 'MANAGER'] as const;
 
 export interface DirectoryUser {
   id: string;
