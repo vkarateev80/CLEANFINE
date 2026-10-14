@@ -62,14 +62,22 @@ spec:
           resources:
             requests: { cpu: "500m", memory: "1Gi" }
             limits: { cpu: "2", memory: "2Gi" }
+          # Таймауты проб (14.10.2026): с дефолтным timeoutSeconds=1 pg_isready не
+          # успевал ответить во время сборки docker-образов на этом же хосте
+          # (I/O-стопор), kubelet три раза подряд считал базу мёртвой и
+          # перезапускал её вместе со всеми зависимыми сервисами (12.10, 14.10).
           readinessProbe:
             exec: { command: ["pg_isready", "-U", "admin", "-d", "cleaning_ops"] }
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
           livenessProbe:
             exec: { command: ["pg_isready", "-U", "admin", "-d", "cleaning_ops"] }
             initialDelaySeconds: 30
             periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 6
       volumes:
         - name: initdb
           configMap:

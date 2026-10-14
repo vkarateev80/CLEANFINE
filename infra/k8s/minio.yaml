@@ -57,6 +57,9 @@ spec:
           readinessProbe:
             httpGet: { path: /minio/health/live, port: 9000 }
             initialDelaySeconds: 10
+            # 1 с не хватало при сборке образов на хосте — проба таймаутила (14.10.2026).
+            timeoutSeconds: 5
+            failureThreshold: 6
           volumeMounts:
             - name: data
               mountPath: /data
