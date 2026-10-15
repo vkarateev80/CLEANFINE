@@ -162,6 +162,11 @@ class FakePushService implements PushService {
   @override
   Future<PushMessage?> initialMessage() async => initial;
 
+  int stopCalls = 0;
+
+  @override
+  Future<void> stop() async => stopCalls += 1;
+
   /// Уведомление при открытом приложении.
   void emitForeground(PushMessage message) => _foreground.add(message);
 

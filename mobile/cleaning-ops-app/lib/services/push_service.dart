@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -42,6 +43,10 @@ abstract class PushService {
 
   /// Уведомление, из которого приложение запущено (`getInitialMessage`).
   Future<PushMessage?> initialMessage();
+
+  /// Выход из аккаунта: фоновая связь гаснет и не поднимается после
+  /// перезагрузки телефона, пока кто-то снова не войдёт.
+  Future<void> stop();
 }
 
 /// Заглушка без канала доставки: токена нет, потоки пустые, входящих нет.
@@ -63,6 +68,9 @@ class NoopPushService implements PushService {
 
   @override
   Future<PushMessage?> initialMessage() async => null;
+
+  @override
+  Future<void> stop() async {}
 }
 
 // ── ntfy ───────────────────────────────────────────────────────────────────
@@ -142,17 +150,37 @@ PushMessage? ntfyEventToMessage(Map<String, dynamic> event) {
   );
 }
 
+/// Канал нативной фоновой связи (Android, `MainActivity.kt`).
+const MethodChannel pushNativeChannel = MethodChannel('cleanfine/push');
+
+/// События нативной связи: `{kind: message|opened, payload: JSON}`.
+const EventChannel pushNativeEvents = EventChannel('cleanfine/push/events');
+
+const String _batteryAskedKey = 'push_battery_asked';
+
 /// Реальная доставка через подписку на JSON-стрим ntfy.
 ///
 /// Токен = имя топика: сервер публикует на `${topic}`, телефон держит
 /// `GET /${topic}/json` (внешне — https://cleanfine.ru/ntfy/<topic>).
-/// Пока стрим жив, уведомление показывается системным баннером
-/// (flutter_local_notifications) и уходит в [foreground]; тап баннера — в [opened].
+///
+/// **Android** (15.10.2026): подписку держит нативный foreground-сервис
+/// `CfPushService` с тихим уведомлением «CLEANFINE на связи» — push приходят
+/// и при свёрнутом, и при закрытом приложении. Сервис сам показывает баннеры;
+/// пока приложение открыто, он пересылает push сюда ([foreground]), тап по
+/// баннеру — в [opened] или [initialMessage].
+///
+/// **iOS**: стрим в Dart-процессе, живёт, пока приложение на экране (фоновой
+/// доставки без APNs у iOS нет).
 ///
 /// Хостовые юнит-тесты получают `null`-токен (как Noop) — ни сети, ни плагинов.
 class NtfyPushService implements PushService {
-  NtfyPushService({FlutterSecureStorage? storage})
-      : _storage = storage ??
+  NtfyPushService({
+    FlutterSecureStorage? storage,
+    bool? nativeService,
+    bool? mobile,
+  })  : _nativeService = nativeService ?? _isAndroid(),
+        _mobile = mobile ?? _isMobile(),
+        _storage = storage ??
             const FlutterSecureStorage(
               // Тот же бэкенд, что у auth-токенов (SecureStorageService):
               // v11 шифрует Android-хранилище по умолчанию (флаг удалён), а на
@@ -161,7 +189,30 @@ class NtfyPushService implements PushService {
               mOptions: MacOsOptions(usesDataProtectionKeychain: false),
             );
 
+  /// Подписку держит нативный сервис (Android), а не Dart-стрим.
+  final bool _nativeService;
+
+  /// Есть ли на платформе push вообще (Android/iOS).
+  final bool _mobile;
+
+  static bool _isAndroid() {
+    try {
+      return Platform.isAndroid;
+    } on Object {
+      return false;
+    }
+  }
+
+  static bool _isMobile() {
+    try {
+      return Platform.isAndroid || Platform.isIOS;
+    } on Object {
+      return false;
+    }
+  }
+
   final FlutterSecureStorage _storage;
+  StreamSubscription<dynamic>? _nativeSubscription;
   final StreamController<PushMessage> _foreground =
       StreamController<PushMessage>.broadcast();
   final StreamController<PushMessage> _opened =
@@ -175,8 +226,7 @@ class NtfyPushService implements PushService {
 
   @override
   Future<String?> token() async {
-    debugPrint('[PUSH] token() platform=${Platform.operatingSystem}');
-    if (!Platform.isAndroid && !Platform.isIOS) return null;
+    if (!_mobile) return null;
     String? topic = await _tryReadTopic();
     if (topic == null || topic.isEmpty) {
       topic = newNtfyTopic();
@@ -184,9 +234,52 @@ class NtfyPushService implements PushService {
     }
     if (!_started) {
       _started = true;
-      unawaited(_run(topic));
+      if (_nativeService) {
+        unawaited(_startNative(topic));
+      } else {
+        unawaited(_run(topic));
+      }
     }
     return topic;
+  }
+
+  /// Разрешение на уведомления → нативный сервис → один раз за установку
+  /// системный диалог «не ограничивать в фоне» (иначе Doze отбирает сеть).
+  Future<void> _startNative(String topic) async {
+    await _requestPermissions();
+    try {
+      await pushNativeChannel.invokeMethod<bool>(
+        'start',
+        <String, String>{'topic': topic, 'url': ntfyUrl},
+      );
+    } on Object catch (err) {
+      debugPrint('[PUSH] native start ERROR: $err');
+      _started = false;
+      return;
+    }
+    try {
+      final bool ignoring = await pushNativeChannel
+              .invokeMethod<bool>('isIgnoringBatteryOptimizations') ??
+          true;
+      if (ignoring) return;
+      final String? asked = await _storage.read(key: _batteryAskedKey);
+      if (asked == '1') return;
+      await _storage.write(key: _batteryAskedKey, value: '1');
+      await pushNativeChannel.invokeMethod<bool>('requestIgnoreBatteryOptimizations');
+    } on Object catch (err) {
+      debugPrint('[PUSH] battery request ERROR: $err');
+    }
+  }
+
+  @override
+  Future<void> stop() async {
+    _started = false;
+    if (!_nativeService) return;
+    try {
+      await pushNativeChannel.invokeMethod<bool>('stop');
+    } on Object catch (err) {
+      debugPrint('[PUSH] native stop ERROR: $err');
+    }
   }
 
   /// Чтение топика с ретраями: на холодном старте первый `read` нередко
@@ -228,6 +321,17 @@ class NtfyPushService implements PushService {
 
   @override
   Future<PushMessage?> initialMessage() async {
+    if (_nativeService) {
+      try {
+        final String? payload =
+            await pushNativeChannel.invokeMethod<String>('takeLaunchPayload');
+        if (payload != null && payload.isNotEmpty) {
+          return _messageFromPayload(payload);
+        }
+      } on Object {
+        // Канала нет — дальше обычный путь flutter_local_notifications.
+      }
+    }
     try {
       final NotificationAppLaunchDetails? details =
           await _notifications.getNotificationAppLaunchDetails();
@@ -347,16 +451,36 @@ class NtfyPushService implements PushService {
 
   void dispose() {
     _disposed = true;
+    unawaited(_nativeSubscription?.cancel());
+  }
+
+  /// Push и тапы от нативного сервиса, пока приложение живо.
+  void _listenNative() {
+    if (!_nativeService || _nativeSubscription != null) return;
+    _nativeSubscription = pushNativeEvents.receiveBroadcastStream().listen(
+      (dynamic event) {
+        if (event is! Map) return;
+        final String? payload = event['payload']?.toString();
+        if (payload == null || payload.isEmpty) return;
+        final PushMessage? message = _messageFromPayload(payload);
+        if (message == null) return;
+        final StreamController<PushMessage> target =
+            event['kind'] == 'opened' ? _opened : _foreground;
+        if (!target.isClosed) target.add(message);
+      },
+      onError: (Object _) {},
+    );
   }
 
   /// Тап по системному баннеру: открывает тот же маршрут, что и foreground.
   Future<void> bindTapHandler() async {
+    _listenNative();
     // await внутри try: ошибка инициализации (нет плагина на хосте в тестах) —
     // Error, и как Future-отказ она НЕ падает в синхронный try вызывающего.
     try {
       await _notifications.initialize(
         const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          android: AndroidInitializationSettings('@drawable/ic_stat_cleanfine'),
           iOS: DarwinInitializationSettings(),
         ),
         onDidReceiveNotificationResponse: (NotificationResponse response) {

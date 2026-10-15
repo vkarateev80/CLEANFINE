@@ -196,6 +196,8 @@ class LogoutController extends Notifier<LogoutState> {
     state = const LogoutState(inProgress: true);
     // Пока сессия жива — отвязываем push-токен устройства от пользователя.
     await _unregisterPushDevice();
+    // Фоновая связь (Android) гаснет: после выхода push на телефон не нужны.
+    await ref.read(pushServiceProvider).stop();
     final AuthResult<bool> result = await ref.read(authRepositoryProvider).logout();
     state = const LogoutState();
     return result is AuthSuccess<bool>;
