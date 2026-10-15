@@ -24,6 +24,7 @@ interface PrismaMock {
     count: jest.Mock;
     findFirst: jest.Mock;
     update: jest.Mock;
+    deleteMany: jest.Mock;
   };
   notificationPreference: { findUnique: jest.Mock; upsert: jest.Mock };
 }
@@ -43,6 +44,7 @@ function createPrismaMock(): PrismaMock {
       count: jest.fn().mockResolvedValue(0),
       findFirst: jest.fn().mockResolvedValue(null),
       update: jest.fn(),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     notificationPreference: {
       findUnique: jest.fn().mockResolvedValue(null),
@@ -430,6 +432,16 @@ describe('NotificationsService', () => {
       // u-2 отписан от типа — в счётчик попадает одна доставка.
       expect(notified).toBe(1);
       expect(prisma.notification.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('retractChatMessage (удалённое сообщение чата)', () => {
+    it('удаляет уведомления CHAT_MESSAGE с этим messageId в payload', async () => {
+      prisma.notification.deleteMany.mockResolvedValue({ count: 2 });
+      await expect(service.retractChatMessage('m-1')).resolves.toEqual({ deleted: 2 });
+      expect(prisma.notification.deleteMany).toHaveBeenCalledWith({
+        where: { type: 'CHAT_MESSAGE', payload: { path: ['messageId'], equals: 'm-1' } },
+      });
     });
   });
 

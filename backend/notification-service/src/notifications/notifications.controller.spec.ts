@@ -20,6 +20,7 @@ describe('NotificationsController', () => {
     updateSettings: jest.fn(),
     markRead: jest.fn(),
     notifyChatMessage: jest.fn(),
+    retractChatMessage: jest.fn(),
   };
   const controller = new NotificationsController(notifications as unknown as NotificationsService);
 
@@ -85,6 +86,15 @@ describe('NotificationsController', () => {
 
     await expect(controller.pushChatMessage(dto)).resolves.toEqual({ delivered: 2 });
     expect(notifications.notifyChatMessage).toHaveBeenCalledWith(dto);
+  });
+
+  it('внутренний отзыв уведомлений об удалённом сообщении делегирует сервису и закрыт ролями', async () => {
+    notifications.retractChatMessage.mockResolvedValue({ deleted: 2 });
+    await expect(controller.retractChatMessage('m-1')).resolves.toEqual({ deleted: 2 });
+    expect(notifications.retractChatMessage).toHaveBeenCalledWith('m-1');
+    expect(
+      Reflect.getMetadata(ROLES_KEY, NotificationsController.prototype.retractChatMessage),
+    ).toEqual(['ADMIN', 'SUPERVISOR', 'MANAGER']);
   });
 
   it('внутренний push сообщения чата доступен только ADMIN/SUPERVISOR', () => {

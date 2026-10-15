@@ -32,6 +32,27 @@ describe('NotificationPushClient (chat-service)', () => {
     global.fetch = originalFetch;
   });
 
+  it('retractMessage: DELETE на internal/chat-message/:id с сервисным токеном, ответ deleted', async () => {
+    const fetchMock = jest.fn(async () => jsonResponse({ deleted: 2 }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const { client } = buildClient();
+    await expect(client.retractMessage('m-1')).resolves.toBe(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('http://localhost:3006/api/notifications/internal/chat-message/m-1');
+    expect(init.method).toBe('DELETE');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer service-token');
+  });
+
+  it('retractMessage: ошибка сети или не-2xx → 0, без исключения', async () => {
+    global.fetch = jest.fn(async () => jsonResponse({}, 500)) as unknown as typeof fetch;
+    await expect(buildClient().client.retractMessage('m-1')).resolves.toBe(0);
+    global.fetch = jest.fn(async () => {
+      throw new Error('down');
+    }) as unknown as typeof fetch;
+    await expect(buildClient().client.retractMessage('m-1')).resolves.toBe(0);
+  });
+
   it('не делает запрос без получателей', async () => {
     const fetchMock = jest.fn();
     global.fetch = fetchMock as unknown as typeof fetch;

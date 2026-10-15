@@ -110,4 +110,15 @@ export class NotificationsController {
   async pushChatMessage(@Body() dto: ChatMessagePushDto) {
     return this.notifications.notifyChatMessage(dto);
   }
+
+  /** Внутренний: chat-service удалил сообщение — убрать его уведомления у получателей. */
+  @Delete('internal/chat-message/:messageId')
+  @HttpCode(200)
+  @Roles('ADMIN', 'SUPERVISOR', 'MANAGER')
+  @ApiOperation({ summary: 'Внутренний: убрать уведомления об удалённом сообщении чата' })
+  @ApiResponse({ status: 200, description: '{ deleted } — сколько уведомлений убрано' })
+  @ApiResponse({ status: 403, description: 'Нужна роль ADMIN/SUPERVISOR/MANAGER' })
+  async retractChatMessage(@Param('messageId') messageId: string) {
+    return this.notifications.retractChatMessage(messageId);
+  }
 }

@@ -312,6 +312,22 @@ export class NotificationsService {
     return { delivered };
   }
 
+  /**
+   * Админ удалил сообщение чата (15.10.2026): его in-app уведомления у
+   * получателей тоже убираются — иначе «новое сообщение» ведёт в пустоту.
+   * Ищем по `payload.messageId`, который chat-service кладёт в data.
+   * Уже отправленный push на телефон отозвать нельзя.
+   */
+  async retractChatMessage(messageId: string): Promise<{ deleted: number }> {
+    const result = await this.prisma.notification.deleteMany({
+      where: { type: 'CHAT_MESSAGE', payload: { path: ['messageId'], equals: messageId } },
+    });
+    if (result.count > 0) {
+      this.logger.log(`Уведомления о сообщении ${messageId} убраны: ${result.count}`);
+    }
+    return { deleted: result.count };
+  }
+
   private async getActiveDevices(userId: string): Promise<{ token: string; platform: string }[]> {
     return this.prisma.device.findMany({
       where: { userId, isActive: true },

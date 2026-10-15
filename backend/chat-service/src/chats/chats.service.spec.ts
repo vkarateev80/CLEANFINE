@@ -113,6 +113,7 @@ function createPushMock(): ChatPushNotifier & { calls: ChatPushRequest[] } {
       calls.push(request);
       return request.userIds.length;
     }),
+    retractMessage: jest.fn(async () => 0),
   };
 }
 
@@ -987,6 +988,17 @@ describe('ChatsService', () => {
         memberIds: ['u-admin', 'u-op'],
       });
       expect(prisma.message.delete).toHaveBeenCalledWith({ where: { id: 'm-1' } });
+      expect(push.retractMessage).toHaveBeenCalledWith('m-1');
+    });
+
+    it('сбой отзыва уведомлений не отменяет удаление', async () => {
+      prisma.message.findUnique.mockResolvedValue({ id: 'm-1', chatId: 'c-1', authorId: 'u-op' });
+      prisma.message.delete.mockResolvedValue({ id: 'm-1' });
+      prisma.chatMember.findMany.mockResolvedValue([{ userId: 'u-admin' }]);
+      (push.retractMessage as jest.Mock).mockRejectedValueOnce(new Error('notification down'));
+      await expect(service.deleteMessage('m-1', adminUser)).resolves.toMatchObject({
+        messageId: 'm-1',
+      });
     });
 
     it('не ADMIN → 403 без обращения к базе', async () => {

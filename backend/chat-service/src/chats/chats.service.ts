@@ -521,6 +521,16 @@ export class ChatsService {
     await this.prisma.message.delete({ where: { id: messageId } });
     const memberIds = await this.getMemberIds(message.chatId);
     this.logger.log(`Сообщение ${messageId} чата ${message.chatId} удалено ${user.id}`);
+    // Уведомления «новое сообщение» у получателей — вслед за сообщением
+    // (15.10.2026). Сбой notification-service удаление не отменяет.
+    await this.push.retractMessage(messageId).catch((error: unknown) => {
+      this.logger.warn(
+        `Уведомления об удалённом сообщении не отозваны: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return 0;
+    });
     return { chatId: message.chatId, messageId, deletedBy: user.id, memberIds };
   }
 

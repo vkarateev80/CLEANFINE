@@ -17,6 +17,8 @@ export interface ChatPushRequest {
  */
 export interface ChatPushNotifier {
   notifyOffline(request: ChatPushRequest): Promise<number>;
+  /** Сообщение удалено — убрать его in-app уведомления у получателей (15.10.2026). */
+  retractMessage(messageId: string): Promise<number>;
 }
 
 export const CHAT_PUSH_NOTIFIER = 'CHAT_PUSH_NOTIFIER';
@@ -109,6 +111,44 @@ export class NotificationPushClient implements ChatPushNotifier {
       // Недоступность notification-service не должна отменять отправку сообщения.
       this.logger.warn(
         `notification-service недоступен (${this.baseUrl}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Отзыв уведомлений об удалённом сообщении:
+   * `DELETE {NOTIFICATION_SERVICE_URL}/api/notifications/internal/chat-message/:id`.
+   * Ошибка не мешает удалению самого сообщения — оно уже удалено, уведомление
+   * лишь указывало бы в пустоту; поэтому только лог и 0.
+   */
+  async retractMessage(messageId: string): Promise<number> {
+    if (!this.enabled) {
+      return 0;
+    }
+    const token = await this.tokens.getToken();
+    if (!token) {
+      this.logger.warn('Сервисный токен недоступен — уведомления об удалённом сообщении не отозваны');
+      return 0;
+    }
+    const url = `${this.baseUrl}/api/notifications/internal/chat-message/${encodeURIComponent(messageId)}`;
+    try {
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!response.ok) {
+        this.logger.warn(`notification-service вернул ${response.status} на отзыв уведомлений`);
+        return 0;
+      }
+      const payload = (await response.json().catch(() => null)) as { deleted?: unknown } | null;
+      return typeof payload?.deleted === 'number' ? payload.deleted : 0;
+    } catch (error) {
+      this.logger.warn(
+        `notification-service недоступен при отзыве уведомлений: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
