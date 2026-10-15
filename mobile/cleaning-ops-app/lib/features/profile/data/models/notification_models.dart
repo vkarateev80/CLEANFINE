@@ -13,16 +13,22 @@ class NotificationTypes {
   static const String materialLow = 'MATERIAL_LOW';
   static const String scheduleMissed = 'SCHEDULE_MISSED';
   static const String chatMessage = 'CHAT_MESSAGE';
+  /// Статус заявки изменён (12.10.2026): взята в работу, выполнена, закрыта.
+  static const String ticketStatus = 'TICKET_STATUS';
+  /// Служебные: проверка push («Проверить» в профиле) и объявления.
+  static const String system = 'SYSTEM';
 
   /// Порядок шторки — как в макете `profile.md` §2.
   static const List<String> ordered = <String>[
     emergency,
     newTicket,
+    ticketStatus,
     ticketOverdue,
     chatMessage,
     geofenceExit,
     materialLow,
     scheduleMissed,
+    system,
   ];
 
   /// Русские подписи: словаря на сервере нет, подписи живут в приложении
@@ -33,9 +39,11 @@ class NotificationTypes {
     newTicket: 'Новые заявки',
     ticketOverdue: 'Просроченные заявки',
     chatMessage: 'Сообщения в чате',
+    ticketStatus: 'Статусы заявок',
     geofenceExit: 'Выход из геозоны',
     materialLow: 'Материал ниже нормы',
     scheduleMissed: 'Неявка на смену',
+    system: 'Служебные',
   };
 
   static String label(String type) => labels[type] ?? type;

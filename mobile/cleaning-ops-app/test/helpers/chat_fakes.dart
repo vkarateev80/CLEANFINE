@@ -101,6 +101,9 @@ class FakeChatSocket implements ChatSocket {
 
   void emitMessage(ChatMessage message) => _events.add(ChatSocketMessage(message));
 
+  void emitDeleted({required String chatId, required String messageId, String deletedBy = 'admin'}) =>
+      _events.add(ChatSocketDeleted(chatId: chatId, messageId: messageId, deletedBy: deletedBy));
+
   void emitRead({
     required String chatId,
     required String messageId,

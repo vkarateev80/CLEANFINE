@@ -48,6 +48,31 @@ class FilesRepository {
     });
   }
 
+  /// `POST /api/files/upload` с `kind=chat` (15.10.2026): вложение переписки —
+  /// фото, видео, документ или архив, без водяного знака и проверки
+  /// разрешения. Исполняемые файлы и html/svg сервер отклоняет (400).
+  Future<Result<UploadedFile>> uploadChatFile({
+    required String filePath,
+    String? fileName,
+    void Function(int sent, int total)? onProgress,
+  }) {
+    return guard(() async {
+      final response = await _api.upload(
+        _uploadPath,
+        filePath: filePath,
+        field: 'file',
+        fileName: fileName,
+        onProgress: onProgress,
+        fields: <String, dynamic>{'kind': 'chat'},
+      );
+      final UploadedFile? file = UploadedFile.tryParse(response.data);
+      if (file == null) {
+        throw const ServerException('Некорректный ответ сервера: не удалось разобрать файл');
+      }
+      return file;
+    });
+  }
+
   /// `POST /api/files/:id/attach` — связать файл с сущностью.
   ///
   /// Аварийной заявке (`EmergencyTicketDto`) поле `photoUrl` незнакомо (DS-002

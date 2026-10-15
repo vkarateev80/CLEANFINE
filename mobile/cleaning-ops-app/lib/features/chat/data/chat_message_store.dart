@@ -122,6 +122,9 @@ class ChatMessageStore {
   Future<void> markReadByServerId(String serverId) =>
       _db.markChatMessageReadByServerId(serverId);
 
+  /// Сообщение удалено администратором (`message:deleted`, 15.10.2026).
+  Future<void> deleteByServerId(String serverId) => _db.deleteChatMessageByServerId(serverId);
+
   ChatMessagesCompanion _companion(LocalChatMessage message) {
     return ChatMessagesCompanion(
       clientId: Value<String>(message.clientId),

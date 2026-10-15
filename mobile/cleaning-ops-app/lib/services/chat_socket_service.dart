@@ -38,6 +38,20 @@ class ChatSocketMessage extends ChatSocketEvent {
   final ChatMessage message;
 }
 
+/// `message:deleted` (15.10.2026) — администратор удалил сообщение
+/// (`{chatId, messageId, deletedBy}`): убрать из ленты и локальной базы.
+class ChatSocketDeleted extends ChatSocketEvent {
+  const ChatSocketDeleted({
+    required this.chatId,
+    required this.messageId,
+    required this.deletedBy,
+  });
+
+  final String chatId;
+  final String messageId;
+  final String deletedBy;
+}
+
 /// `message:read` — собеседник прочитал сообщение (`{chatId, messageId, readBy, readAt}`).
 class ChatSocketRead extends ChatSocketEvent {
   const ChatSocketRead({
@@ -203,6 +217,18 @@ class SocketIoChatSocket implements ChatSocket {
           messageId: messageId,
           readBy: data['readBy']?.toString() ?? '',
           readAt: parseDate(data['readAt']),
+        ),
+      );
+    });
+    socket.on('message:deleted', (dynamic data) {
+      if (data is! Map) return;
+      final String messageId = data['messageId']?.toString() ?? '';
+      if (messageId.isEmpty) return;
+      _events.add(
+        ChatSocketDeleted(
+          chatId: data['chatId']?.toString() ?? '',
+          messageId: messageId,
+          deletedBy: data['deletedBy']?.toString() ?? '',
         ),
       );
     });

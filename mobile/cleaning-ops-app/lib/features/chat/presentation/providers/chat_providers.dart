@@ -140,6 +140,11 @@ class ChatsListController extends AsyncNotifier<List<ChatSummary>> {
   }
 
   void _onSocketEvent(ChatSocketEvent event) {
+    // Удалённое сообщение могло быть превью чата — список перечитываем с сервера.
+    if (event is ChatSocketDeleted) {
+      unawaited(refreshQuietly());
+      return;
+    }
     if (event is! ChatSocketMessage) return;
     final List<ChatSummary>? current = state.valueOrNull;
     if (current == null) return;
@@ -154,7 +159,9 @@ class ChatsListController extends AsyncNotifier<List<ChatSummary>> {
                     lastMessage: LastMessagePreview(
                       id: message.id,
                       authorId: message.authorId,
-                      text: message.text,
+                      text: message.text.isEmpty && message.attachmentIds.isNotEmpty
+                          ? '📎 Вложение'
+                          : message.text,
                       createdAt: message.createdAt,
                       attachmentIds: message.attachmentIds,
                     ),
@@ -347,6 +354,9 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
         );
       case ChatSocketRead(:final String messageId):
         _markReadByPeer(current, messageId);
+      case ChatSocketDeleted(:final String chatId, :final String messageId):
+        if (chatId != _chatId) return;
+        _removeDeleted(current, messageId);
       case ChatSocketPresence(:final String userId, :final bool online):
         final Set<String> users = <String>{...current.onlineUsers};
         if (online) {
@@ -368,6 +378,17 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
     if (token == null) return;
     await socket.disconnect();
     await _connect(socket, token);
+  }
+
+  /// `message:deleted` от администратора: пузырь исчезает у всех участников,
+  /// локальная копия (drift) удаляется — иначе она вернулась бы при слиянии.
+  void _removeDeleted(ChatThreadState current, String messageId) {
+    final List<ChatMessage> updated = current.messages
+        .where((ChatMessage message) => message.id != messageId)
+        .toList(growable: false);
+    if (updated.length == current.messages.length) return;
+    _setState(current.copyWith(messages: updated));
+    unawaited(ref.read(chatMessageStoreProvider).deleteByServerId(messageId));
   }
 
   /// `message:read` от собеседника: у своих сообщений статус «Прочитано».
@@ -511,7 +532,8 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
     if (current == null) return false;
 
     final String trimmed = text.trim();
-    if (trimmed.isEmpty) {
+    // Пустой текст допустим, если есть вложения (сервер — так же, 12.10.2026).
+    if (trimmed.isEmpty && attachmentIds.isEmpty) {
       _setState(current.copyWith(sendError: ChatTexts.emptyMessage));
       return false;
     }

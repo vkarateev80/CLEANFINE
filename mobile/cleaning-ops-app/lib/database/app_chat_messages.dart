@@ -47,6 +47,12 @@ extension AppChatMessageQueries on AppDatabase {
   }
 
   /// Сервер сообщил, что сообщение прочитано (`message:read` с нашим `messageId`).
+  /// Удаление по серверному id (`message:deleted`): локальная копия не должна
+  /// вернуться в ленту при слиянии с историей.
+  Future<int> deleteChatMessageByServerId(String serverId) {
+    return (delete(chatMessages)..where((ChatMessages t) => t.serverId.equals(serverId))).go();
+  }
+
   Future<void> markChatMessageReadByServerId(String serverId) {
     return (update(chatMessages)..where((ChatMessages t) => t.serverId.equals(serverId)))
         .write(const ChatMessagesCompanion(status: Value<String>('read')));

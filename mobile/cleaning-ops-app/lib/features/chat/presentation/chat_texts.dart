@@ -44,6 +44,20 @@ class ChatTexts {
   static const String tooLongMessage = 'Сообщение длиннее 4000 символов';
   static const String tooManyAttachments = 'Слишком много вложений (максимум 20)';
 
+  // Вложения из приложения (15.10.2026).
+  static const String attachTooltip = 'Прикрепить фото или файл';
+  static const String attachCamera = 'Сделать фото';
+  static const String attachGallery = 'Выбрать из галереи';
+  static const String attachFile = 'Выбрать файл';
+  static const String attachmentsNeedNetwork = 'Вложения отправляются только при соединении';
+  static const String attachmentUploadFailed = 'не удалось загрузить';
+  static const String attachmentPickFailed = 'Не удалось выбрать файл';
+  static const String attachmentBlocked = 'исполняемые файлы, скрипты, HTML и SVG прикреплять нельзя';
+  static const String attachmentEmpty = 'файл пустой';
+  static const String attachmentTooLarge = 'больше 50 МБ';
+  static const String attachmentOpenFailed = 'Не удалось открыть файл';
+  static const String tooManyAttachmentsPick = 'Можно прикрепить не больше 10 файлов за раз';
+
   // Оффлайн
   static const String offline = 'Нет соединения — сообщения уйдут при подключении';
   static const String offlineQueued = 'Сообщение уйдёт при появлении сети';

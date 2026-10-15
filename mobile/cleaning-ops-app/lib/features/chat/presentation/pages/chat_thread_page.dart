@@ -1,14 +1,21 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cleaning_ops_tokens/app_tokens.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../router/app_router.dart';
 import '../../../../services/connectivity_service.dart';
+import '../../../../shared/data/data_providers.dart';
+import '../../../../shared/data/models/file_models.dart';
+import '../../../../shared/data/result.dart';
 import '../../../../shared/widgets/offline_banner.dart';
 import '../../../../shared/widgets/sync_status_widgets.dart';
 import '../../../auth/presentation/providers/session_provider.dart';
@@ -44,6 +51,11 @@ class _ChatThreadPageState extends ConsumerState<ChatThreadPage>
 
   /// Мой id из сессии — по нему отличаются свои пузыри от входящих.
   String _meId = '';
+
+  /// Вложения, выбранные до отправки (15.10.2026): файлы уходят в file-service
+  /// (`kind=chat`) по одному, затем сообщение с их id — как в веб-версии.
+  final List<PendingAttachment> _pending = <PendingAttachment>[];
+  bool _uploading = false;
 
   @override
   void initState() {
@@ -117,13 +129,94 @@ class _ChatThreadPageState extends ConsumerState<ChatThreadPage>
 
   Future<void> _send() async {
     final String text = _input.text;
-    final bool sent = await ref.read(chatThreadProvider(widget.chatId).notifier).send(text);
+    final List<String> attachmentIds = <String>[];
+    if (_pending.isNotEmpty) {
+      // Файлы без сети не отправить: их нельзя положить в очередь localStorage.
+      final bool online = ref.read(onlineProvider).valueOrNull ?? true;
+      if (!online) {
+        _notice(ChatTexts.attachmentsNeedNetwork);
+        return;
+      }
+      setState(() => _uploading = true);
+      try {
+        for (final PendingAttachment item in List<PendingAttachment>.of(_pending)) {
+          final Result<UploadedFile> result = await ref
+              .read(filesRepositoryProvider)
+              .uploadChatFile(filePath: item.path, fileName: item.name);
+          final UploadedFile? file = result.dataOrNull;
+          if (file == null) {
+            if (!mounted) return;
+            _notice('${item.name}: ${result.failureOrNull?.message ?? ChatTexts.attachmentUploadFailed}');
+            return;
+          }
+          attachmentIds.add(file.id);
+        }
+      } finally {
+        if (mounted) setState(() => _uploading = false);
+      }
+    }
+    if (!mounted) return;
+    final bool sent = await ref
+        .read(chatThreadProvider(widget.chatId).notifier)
+        .send(text, attachmentIds: attachmentIds);
     if (!mounted) return;
     if (sent) {
       _input.clear();
+      setState(_pending.clear);
       ref.read(chatDraftsProvider.notifier).clear(widget.chatId);
       if (_scroll.hasClients) _scroll.animateTo(0, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
     }
+  }
+
+  void _notice(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// Скрепка: камера, галерея или любой файл. Опасные расширения и файлы
+  /// больше 50 МБ отсекаются здесь же, не гоняя их на сервер ради отказа.
+  Future<void> _attach() async {
+    final AttachSource? source = await showModalBottomSheet<AttachSource>(
+      context: context,
+      builder: (BuildContext context) => const AttachSourceSheet(),
+    );
+    if (source == null || !mounted) return;
+    final List<PendingAttachment> picked = <PendingAttachment>[];
+    try {
+      switch (source) {
+        case AttachSource.camera:
+          final XFile? photo = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 85);
+          if (photo != null) picked.add(PendingAttachment(path: photo.path, name: photo.name));
+        case AttachSource.gallery:
+          final List<XFile> photos = await ImagePicker().pickMultiImage(imageQuality: 85);
+          picked.addAll(photos.map((XFile f) => PendingAttachment(path: f.path, name: f.name)));
+        case AttachSource.file:
+          final List<PlatformFile> files = await FilePicker.pickFiles();
+          for (final PlatformFile file in files) {
+            final String? path = file.path;
+            if (path != null) picked.add(PendingAttachment(path: path, name: file.name));
+          }
+      }
+    } on Object catch (error) {
+      _notice('${ChatTexts.attachmentPickFailed}: $error');
+      return;
+    }
+    if (!mounted) return;
+    for (final PendingAttachment item in picked) {
+      final String? error = await item.validate();
+      if (error != null) {
+        _notice(error);
+        return;
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _pending.addAll(picked);
+      if (_pending.length > PendingAttachment.maxCount) {
+        _pending.removeRange(PendingAttachment.maxCount, _pending.length);
+        _notice(ChatTexts.tooManyAttachmentsPick);
+      }
+    });
   }
 
   @override
@@ -181,6 +274,10 @@ class _ChatThreadPageState extends ConsumerState<ChatThreadPage>
           input: _input,
           scroll: _scroll,
           onSend: _send,
+          onAttach: _attach,
+          pending: _pending,
+          uploading: _uploading,
+          onRemoveAttachment: (int index) => setState(() => _pending.removeAt(index)),
         ),
       ),
     );
@@ -224,6 +321,10 @@ class _ThreadBody extends ConsumerStatefulWidget {
     required this.input,
     required this.scroll,
     required this.onSend,
+    required this.onAttach,
+    required this.pending,
+    required this.uploading,
+    required this.onRemoveAttachment,
   });
 
   final String chatId;
@@ -232,6 +333,10 @@ class _ThreadBody extends ConsumerStatefulWidget {
   final TextEditingController input;
   final ScrollController scroll;
   final Future<void> Function() onSend;
+  final Future<void> Function() onAttach;
+  final List<PendingAttachment> pending;
+  final bool uploading;
+  final void Function(int index) onRemoveAttachment;
 
   @override
   ConsumerState<_ThreadBody> createState() => _ThreadBodyState();
@@ -290,7 +395,11 @@ class _ThreadBodyState extends ConsumerState<_ThreadBody> {
         _Composer(
           input: widget.input,
           onSend: widget.onSend,
-          hasText: widget.input.text.trim().isNotEmpty,
+          onAttach: widget.onAttach,
+          pending: widget.pending,
+          uploading: widget.uploading,
+          onRemoveAttachment: widget.onRemoveAttachment,
+          hasText: widget.input.text.trim().isNotEmpty || widget.pending.isNotEmpty,
         ),
       ],
     );
@@ -549,13 +658,85 @@ class _AttachmentChipState extends ConsumerState<_AttachmentChip> {
     setState(() => _attachment = resolved);
   }
 
+  Future<void> _open(ChatAttachment attachment) async {
+    final String? url = attachment.url;
+    if (url == null) return;
+    if (attachment.isImage) {
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext context) => Dialog.fullscreen(
+          backgroundColor: Colors.black,
+          child: Stack(
+            children: <Widget>[
+              Center(
+                child: InteractiveViewer(
+                  child: Image.network(url, fit: BoxFit.contain),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: SafeArea(
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(ChatTexts.attachmentOpenFailed)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ChatAttachment? attachment = _attachment;
+    final String? preview = attachment == null ? null : (attachment.thumbnailUrl ?? attachment.url);
+    // Картинка — превью прямо в пузыре (15.10.2026), по нажатию во весь экран;
+    // прочие файлы — строкой с именем, по нажатию открываются внешним приложением.
+    if (attachment != null && attachment.isImage && preview != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.xs),
+        child: GestureDetector(
+          key: Key('chat_attachment_${widget.messageId}'),
+          onTap: () => _open(attachment),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Image.network(
+              preview,
+              height: 160,
+              width: 220,
+              fit: BoxFit.cover,
+              // Ключ уже на обёртке: второй такой же ключ в запасной строке не нужен.
+              errorBuilder: (BuildContext context, Object error, StackTrace? stack) =>
+                  _chip(attachment, keyed: false),
+            ),
+          ),
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xs),
-      child: Row(
-        key: Key('chat_attachment_${widget.messageId}'),
+      child: InkWell(
+        onTap: attachment == null ? null : () => _open(attachment),
+        child: _chip(attachment),
+      ),
+    );
+  }
+
+  Widget _chip(ChatAttachment? attachment, {bool keyed = true}) {
+    return Row(
+        key: keyed ? Key('chat_attachment_${widget.messageId}') : null,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Icon(
@@ -579,8 +760,7 @@ class _AttachmentChipState extends ConsumerState<_AttachmentChip> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 }
 
@@ -589,11 +769,21 @@ class _Composer extends StatelessWidget {
   const _Composer({
     required this.input,
     required this.onSend,
+    required this.onAttach,
+    required this.pending,
+    required this.uploading,
+    required this.onRemoveAttachment,
     required this.hasText,
   });
 
   final TextEditingController input;
   final Future<void> Function() onSend;
+  final Future<void> Function() onAttach;
+  final List<PendingAttachment> pending;
+  final bool uploading;
+  final void Function(int index) onRemoveAttachment;
+
+  /// Кнопка «Отправить» активна при тексте или выбранных вложениях.
   final bool hasText;
 
   @override
@@ -610,12 +800,40 @@ class _Composer extends StatelessWidget {
         // Поле поднимается над клавиатурой (`chat.md` §3.3).
         bottom: AppSpacing.sm + MediaQuery.viewInsetsOf(context).bottom,
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (pending.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Wrap(
+                key: const Key('chat_pending_attachments'),
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: <Widget>[
+                  for (int i = 0; i < pending.length; i++)
+                    InputChip(
+                      key: Key('chat_pending_attachment_$i'),
+                      avatar: Icon(pending[i].icon, size: 16),
+                      label: Text(pending[i].name, overflow: TextOverflow.ellipsis),
+                      onDeleted: uploading ? null : () => onRemoveAttachment(i),
+                    ),
+                ],
+              ),
+            ),
+          if (uploading)
+            const Padding(
+              padding: EdgeInsets.only(bottom: AppSpacing.xs),
+              child: LinearProgressIndicator(key: Key('chat_upload_progress'), minHeight: 2),
+            ),
+          Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: <Widget>[
           IconButton(
             key: const Key('chat_attach_button'),
-            onPressed: () => _showAttachNotice(context),
+            tooltip: ChatTexts.attachTooltip,
+            onPressed: uploading ? null : onAttach,
             icon: const Icon(Icons.attach_file, color: AppPalette.textSecondary),
           ),
           Expanded(
@@ -647,7 +865,7 @@ class _Composer extends StatelessWidget {
             height: 48,
             child: IconButton.filled(
               key: const Key('chat_send_button'),
-              onPressed: hasText ? onSend : null,
+              onPressed: hasText && !uploading ? onSend : null,
               style: IconButton.styleFrom(
                 backgroundColor: hasText ? AppPalette.primary : AppPalette.surfaceMuted,
                 foregroundColor: hasText ? Colors.white : AppPalette.textMuted,
@@ -656,16 +874,100 @@ class _Composer extends StatelessWidget {
             ),
           ),
         ],
+          ),
+        ],
       ),
     );
   }
 
-  /// Загрузка вложений требует камеры/галереи и file-service; вне стенда
-  /// кнопка честно сообщает, что вложение не выбрано, а не молчит.
-  void _showAttachNotice(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Выберите фото или документ в системном окне')),
+}
+
+/// Откуда взять вложение (лист внизу экрана по скрепке).
+enum AttachSource { camera, gallery, file }
+
+class AttachSourceSheet extends StatelessWidget {
+  const AttachSourceSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          ListTile(
+            key: const Key('chat_attach_camera'),
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: const Text(ChatTexts.attachCamera),
+            onTap: () => Navigator.of(context).pop(AttachSource.camera),
+          ),
+          ListTile(
+            key: const Key('chat_attach_gallery'),
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text(ChatTexts.attachGallery),
+            onTap: () => Navigator.of(context).pop(AttachSource.gallery),
+          ),
+          ListTile(
+            key: const Key('chat_attach_file'),
+            leading: const Icon(Icons.insert_drive_file_outlined),
+            title: const Text(ChatTexts.attachFile),
+            onTap: () => Navigator.of(context).pop(AttachSource.file),
+          ),
+        ],
+      ),
     );
+  }
+}
+
+/// Выбранный, но ещё не загруженный файл.
+class PendingAttachment {
+  const PendingAttachment({required this.path, required this.name});
+
+  final String path;
+  final String name;
+
+  static const int maxCount = 10;
+  static const int maxBytes = 50 * 1024 * 1024;
+
+  /// Те же запреты, что в file-service (`BLOCKED_EXTENSIONS`): исполняемые,
+  /// скрипты, html/svg.
+  static const List<String> blockedExtensions = <String>[
+    '.exe', '.msi', '.bat', '.cmd', '.com', '.scr', '.pif', '.ps1', '.sh', '.bash',
+    '.js', '.mjs', '.cjs', '.vbs', '.vbe', '.wsf', '.jar', '.php', '.phtml', '.cgi',
+    '.html', '.htm', '.xhtml', '.svg', '.svgz', '.hta', '.dll', '.so', '.dmg', '.app',
+  ];
+
+  bool get isBlocked {
+    final String lower = name.toLowerCase();
+    return blockedExtensions.any(lower.endsWith);
+  }
+
+  bool get isImage {
+    final String lower = name.toLowerCase();
+    return const <String>['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif', '.bmp']
+        .any(lower.endsWith);
+  }
+
+  IconData get icon {
+    final String lower = name.toLowerCase();
+    if (isImage) return Icons.photo_outlined;
+    if (const <String>['.mp4', '.mov', '.webm', '.3gp', '.avi', '.mkv'].any(lower.endsWith)) {
+      return Icons.videocam_outlined;
+    }
+    if (const <String>['.zip', '.rar', '.7z', '.gz'].any(lower.endsWith)) return Icons.folder_zip_outlined;
+    return Icons.insert_drive_file_outlined;
+  }
+
+  /// `null` — файл годится; иначе текст для пользователя.
+  Future<String?> validate() async {
+    if (isBlocked) return '«$name»: ${ChatTexts.attachmentBlocked}';
+    try {
+      final int size = await File(path).length();
+      if (size == 0) return '«$name»: ${ChatTexts.attachmentEmpty}';
+      if (size > maxBytes) return '«$name»: ${ChatTexts.attachmentTooLarge}';
+    } on Object {
+      // Размер не узнали (например, content:// без доступа) — пусть решит сервер.
+    }
+    return null;
   }
 }
 

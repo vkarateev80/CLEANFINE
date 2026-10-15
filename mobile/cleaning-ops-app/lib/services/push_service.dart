@@ -407,11 +407,13 @@ String? pushRoute(PushMessage message) {
       return chatId == null || chatId.isEmpty ? null : '/chats/$chatId';
     case 'EMERGENCY':
     case 'NEW_TICKET':
+    case 'TICKET_STATUS':
     case 'TICKET_OVERDUE':
     case 'SCHEDULE_MISSED':
     case 'MATERIAL_LOW':
       return '/today';
     case 'GEOFENCE_EXIT':
+    case 'SYSTEM':
       return '/profile';
     default:
       return null;

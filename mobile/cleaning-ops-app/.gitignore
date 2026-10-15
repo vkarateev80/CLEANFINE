@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Подпись Android-релиза: ключ и пароли живут вне репозитория (~/.cleaning-ops/keystore)
+android/key.properties
+*.jks
+*.keystore

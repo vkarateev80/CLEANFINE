@@ -281,6 +281,32 @@ void main() {
   );
 
   chatScreenTest(
+    '15.10: событие message:deleted убирает сообщение из ленты',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(items: <ChatMessage>[
+        chatMessage(id: 'm1', authorId: 'peer', text: 'Это удалят'),
+        chatMessage(id: 'm2', authorId: 'me', text: 'Это останется'),
+      ]),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      await settle(tester);
+      expect(find.byKey(const Key('chat_message_bubble_m1')), findsOneWidget);
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
+      socket.emitConnected();
+      socket.emitDeleted(chatId: 'chat-1', messageId: 'm1');
+      await settle(tester);
+      expect(find.byKey(const Key('chat_message_bubble_m1')), findsNothing);
+      expect(find.byKey(const Key('chat_message_bubble_m2')), findsOneWidget);
+      // Чужой чат — не трогаем.
+      socket.emitDeleted(chatId: 'other', messageId: 'm2');
+      await settle(tester);
+      expect(find.byKey(const Key('chat_message_bubble_m2')), findsOneWidget);
+    },
+  );
+
+  chatScreenTest(
     '§11.2: своё сообщение с deliveredAt показывает «Доставлено»',
     FakeChatRepository(
       detail: chatDetailFixture(),
@@ -498,15 +524,69 @@ void main() {
           .overrideWithValue(FakeAttachmentResolver()),
     ],
     body: (WidgetTester tester, ProviderContainer container) async {
+      // Картинка (15.10.2026) — превью в пузыре; в тестах сеть недоступна, и
+      // `errorBuilder` подставляет прежнюю строку с именем — она и проверяется.
       expect(find.byKey(const Key('chat_attachment_m1')), findsOneWidget);
+      expect(find.byType(Image), findsOneWidget);
       expect(find.text('📷 Фото фото_2026-09-17.jpg'), findsOneWidget);
     },
   );
+
+  chatScreenTest(
+    'вложение-документ: строка с именем файла из резолвера',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(
+        items: <ChatMessage>[
+          chatMessage(
+              id: 'm1',
+              authorId: 'peer',
+              text: 'Смета',
+              attachmentIds: <String>['file-2']),
+        ],
+      ),
+    ),
+    extraOverrides: <Override>[
+      chatAttachmentResolverProvider
+          .overrideWithValue(FakeAttachmentResolver(document: true)),
+    ],
+    body: (WidgetTester tester, ProviderContainer container) async {
+      expect(find.byKey(const Key('chat_attachment_m1')), findsOneWidget);
+      expect(find.text('📄 Документ смета.xlsx'), findsOneWidget);
+    },
+  );
+
+  chatScreenTest(
+    '15.10: скрепка открывает выбор источника (камера, галерея, файл)',
+    FakeChatRepository(detail: chatDetailFixture(), page: chatPage()),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      await settle(tester);
+      await tester.tap(find.byKey(const Key('chat_attach_button')));
+      await settle(tester);
+      expect(find.byKey(const Key('chat_attach_camera')), findsOneWidget);
+      expect(find.byKey(const Key('chat_attach_gallery')), findsOneWidget);
+      expect(find.byKey(const Key('chat_attach_file')), findsOneWidget);
+    },
+  );
+
+  test('PendingAttachment: запрещённые расширения и значки по типу', () async {
+    expect(const PendingAttachment(path: '/x/setup.exe', name: 'setup.exe').isBlocked, isTrue);
+    expect(const PendingAttachment(path: '/x/page.HTML', name: 'page.HTML').isBlocked, isTrue);
+    expect(const PendingAttachment(path: '/x/смета.xlsx', name: 'смета.xlsx').isBlocked, isFalse);
+    expect(const PendingAttachment(path: '/x/a.jpg', name: 'a.jpg').isImage, isTrue);
+    expect(const PendingAttachment(path: '/x/a.zip', name: 'a.zip').icon, Icons.folder_zip_outlined);
+    expect(
+      await const PendingAttachment(path: '/x/setup.exe', name: 'setup.exe').validate(),
+      contains('прикреплять нельзя'),
+    );
+    // Несуществующий путь: размер не узнали — решает сервер.
+    expect(await const PendingAttachment(path: '/nope/смета.xlsx', name: 'смета.xlsx').validate(), isNull);
+  });
 }
 
 /// Резолвер вложений без file-service: имя файла задано заранее.
 class FakeAttachmentResolver extends ChatAttachmentResolver {
-  FakeAttachmentResolver()
+  FakeAttachmentResolver({this.document = false})
       : super(
           fakeApiClient(
             FakeHttpAdapter(
@@ -514,8 +594,17 @@ class FakeAttachmentResolver extends ChatAttachmentResolver {
           ),
         );
 
+  final bool document;
+
   @override
   Future<ChatAttachment?> resolve(String fileId) async {
+    if (document) {
+      return ChatAttachment(
+        fileId: fileId,
+        url: 'http://files.test/smeta.xlsx',
+        originalName: 'смета.xlsx',
+      );
+    }
     return ChatAttachment(
       fileId: fileId,
       url: 'http://files.test/photo.jpg',
