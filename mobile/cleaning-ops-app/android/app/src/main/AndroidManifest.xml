@@ -12,6 +12,10 @@
       `ACCESS_BACKGROUND_LOCATION` и `FOREGROUND_SERVICE` не добавляются: фонового
       сервиса в приложении нет (зафиксированное ограничение М6.6).
     -->
+    <!-- INTERNET только в debug/profile-манифестах Flutter-шаблона: релиз 1.1.0 (15.10.2026)
+         вышел без сети и писал «Нет соединения». ACCESS_NETWORK_STATE — для connectivity_plus. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
