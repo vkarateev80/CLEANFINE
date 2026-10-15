@@ -344,8 +344,15 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
       case ChatSocketConnected():
         _setState(current.copyWith(connection: ChatConnection.online));
         // «Досылка очереди сообщений этого чата» — сразу после подключения.
-        unawaited(_flush());
+        // Пока сокета не было (фон, смена сети, перезапуск сервера), входящие
+        // сюда не приходили — после переподключения дочитываем их из истории.
+        // Строго после досылки: она пишет ленту из своего снимка и затёрла бы
+        // дочитанное.
+        final bool resync = _wasDisconnected;
+        _wasDisconnected = false;
+        unawaited(_flush().then((_) => resync ? _resyncLatest() : null));
       case ChatSocketDisconnected():
+        _wasDisconnected = true;
         _setState(current.copyWith(connection: ChatConnection.offline));
       case ChatSocketMessage(:final ChatMessage message):
         if (message.chatId != _chatId || message.authorId == _meId) return;
@@ -366,18 +373,52 @@ class ChatThreadController extends FamilyAsyncNotifier<ChatThreadState, String> 
         }
         _setState(current.copyWith(onlineUsers: users));
       case ChatSocketFailure(:final String message, :final int? status):
-        // Ошибка авторизации: пробуем переподключиться с обновлённым токеном.
-        if (status == 401) unawaited(_reconnect());
-        if (message.contains('авторизован')) unawaited(_reconnect());
+        _wasDisconnected = true;
+        // Ошибка авторизации: обновляем токен и переподключаемся.
+        if (status == 401 || message.contains('авторизован')) unawaited(_reconnect());
     }
   }
 
+  /// Был ли разрыв с прошлого подключения: тогда история дочитывается.
+  bool _wasDisconnected = false;
+
+  /// Когда последний раз обновляли токен ради сокета: шлюз отклоняет
+  /// соединение двумя событиями подряд (`error` + disconnect), а refresh
+  /// нужен один — и не чаще раза в 10 с, если сервер упорно отказывает.
+  DateTime? _lastAuthRefresh;
+
+  /// Access-токен живёт 15 минут, в хранилище после него лежит просроченный —
+  /// сначала refresh (тот же, что у HTTP при 401), потом новое соединение.
   Future<void> _reconnect() async {
+    final DateTime now = DateTime.now();
+    final DateTime? last = _lastAuthRefresh;
+    if (last != null && now.difference(last) < const Duration(seconds: 10)) return;
+    _lastAuthRefresh = now;
+    final bool refreshed = await ref.read(sessionBridgeProvider).refresh();
+    if (!refreshed) return;
     final ChatSocket socket = ref.read(chatSocketProvider);
     final String? token = await _accessToken();
     if (token == null) return;
     await socket.disconnect();
     await _connect(socket, token);
+  }
+
+  /// Свежая страница истории поверх ленты: новые сообщения добавляются,
+  /// уже подгруженные «вверх» страницы остаются. Ошибка — без баннера:
+  /// лента уже на экране, следующий заход в чат перечитает её целиком.
+  Future<void> _resyncLatest() async {
+    final Result<ChatMessagesPage> result =
+        await ref.read(chatRepositoryProvider).messages(_chatId, limit: _pageSize);
+    final ChatMessagesPage? page = result.dataOrNull;
+    final ChatThreadState? current = state.valueOrNull;
+    if (page == null || current == null) return;
+    final Set<String> fresh = page.items.map((ChatMessage m) => m.id).toSet();
+    final List<ChatMessage> older = current.messages
+        .where((ChatMessage m) => !m.isLocal && !fresh.contains(m.id))
+        .toList(growable: false);
+    final List<ChatMessage> merged = await _merged(<ChatMessage>[...older, ...page.items]);
+    final ChatThreadState latest = state.valueOrNull ?? current;
+    _setState(latest.copyWith(messages: merged));
   }
 
   /// `message:deleted` от администратора: пузырь исчезает у всех участников,

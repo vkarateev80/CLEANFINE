@@ -582,6 +582,72 @@ void main() {
     // Несуществующий путь: размер не узнали — решает сервер.
     expect(await const PendingAttachment(path: '/nope/смета.xlsx', name: 'смета.xlsx').validate(), isNull);
   });
+
+  chatScreenTest(
+    'переподключение сокета: пропущенные входящие дочитываются из истории',
+    FakeChatRepository(
+      detail: chatDetailFixture(),
+      page: chatPage(
+        items: <ChatMessage>[
+          chatMessage(id: 'm1', text: 'Первое', createdAt: _todayNoon(addMinutes: -10)),
+        ],
+      ),
+    ),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
+      final FakeChatRepository repository =
+          container.read(chatRepositoryProvider) as FakeChatRepository;
+      socket.emitConnected();
+      await settle(tester);
+      final int callsBefore = repository.messageCalls;
+
+      // Сокет пропал — за это время пришло сообщение, которого по сокету не было.
+      socket.emitDisconnected(reason: 'transport close');
+      repository.page = chatPage(
+        items: <ChatMessage>[
+          chatMessage(id: 'm1', text: 'Первое', createdAt: _todayNoon(addMinutes: -10)),
+          chatMessage(id: 'm2', text: 'Пропущенное', createdAt: _todayNoon(addMinutes: -1)),
+        ],
+      );
+      await settle(tester);
+      expect(find.text('Пропущенное'), findsNothing);
+
+      socket.emitConnected();
+      await settle(tester);
+      expect(repository.messageCalls, callsBefore + 1);
+      expect(find.text('Первое'), findsOneWidget);
+      expect(find.text('Пропущенное'), findsOneWidget);
+    },
+  );
+
+  chatScreenTest(
+    'отказ авторизации сокета: токен обновляется, соединение с новым токеном',
+    FakeChatRepository(detail: chatDetailFixture(), page: chatPage()),
+    body: (WidgetTester tester, ProviderContainer container) async {
+      final FakeChatSocket socket =
+          container.read(chatSocketProvider) as FakeChatSocket;
+      final InMemorySecureStorage storage =
+          container.read(secureStorageProvider) as InMemorySecureStorage;
+      int refreshCalls = 0;
+      container.read(sessionBridgeProvider).onRefresh = () async {
+        refreshCalls += 1;
+        storage.values[StorageKeys.accessToken] = 'fresh-token';
+        return true;
+      };
+      final int connectsBefore = socket.connectCalls;
+
+      // Шлюз отклоняет просроченный токен двумя событиями подряд.
+      socket.emitFailure('Неавторизованное соединение: нужен access-токен');
+      socket.emitFailure('Неавторизованное соединение: нужен access-токен');
+      await settle(tester);
+
+      expect(refreshCalls, 1);
+      expect(socket.disconnectCalls, greaterThanOrEqualTo(1));
+      expect(socket.connectCalls, connectsBefore + 1);
+      expect(socket.lastToken, 'fresh-token');
+    },
+  );
 }
 
 /// Резолвер вложений без file-service: имя файла задано заранее.

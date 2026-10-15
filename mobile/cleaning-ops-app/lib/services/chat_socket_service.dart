@@ -6,6 +6,8 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../core/constants/api_constants.dart';
 import '../features/auth/presentation/providers/session_provider.dart';
 import '../features/chat/data/models/chat_models.dart';
+import 'secure_storage_service.dart';
+import 'service_providers.dart';
 
 /// Событие шлюза чата, приведённое к моделям приложения.
 ///
@@ -132,9 +134,19 @@ abstract class ChatSocket {
 /// Одно соединение на экран переписки: `dispose` вызывается при уходе с экрана,
 /// иначе на телефоне остаётся висеть сокет и расходоваться батарея.
 class SocketIoChatSocket implements ChatSocket {
-  SocketIoChatSocket({String? baseUrl, io.Socket? socket, this.ackTimeout = const Duration(seconds: 15)})
-      : _baseUrl = baseUrl ?? ApiConstants.chatBaseUrl,
-        _socket = socket;
+  SocketIoChatSocket({
+    String? baseUrl,
+    io.Socket? socket,
+    this.ackTimeout = const Duration(seconds: 15),
+    Future<String?> Function()? tokenProvider,
+  })  : _baseUrl = baseUrl ?? ApiConstants.chatBaseUrl,
+        _socket = socket,
+        _tokenProvider = tokenProvider;
+
+  /// Текущий access-токен из хранилища. Читается при каждом (пере)подключении:
+  /// токен живёт 15 минут, и автопереподключение со старым из `connect`
+  /// сервер отклонял («нет валидного JWT») — чат тихо переставал работать.
+  final Future<String?> Function()? _tokenProvider;
 
   /// Namespace шлюза (`CHAT_NAMESPACE` в `ws-auth.ts`).
   static const String namespace = 'chat';
@@ -180,7 +192,7 @@ class SocketIoChatSocket implements ChatSocket {
               .setTransports(<String>['websocket'])
               // Основной путь авторизации — auth-payload, не `?token=` в query:
               // query попадает в логи прокси, а access-токен — полный доступ.
-              .setAuth(<String, dynamic>{'token': accessToken})
+              .setAuthFn(_auth)
               .disableAutoConnect()
               .enableReconnection()
               .build(),
@@ -188,6 +200,21 @@ class SocketIoChatSocket implements ChatSocket {
     _socket = socket;
     _bind(socket);
     socket.connect();
+  }
+
+  /// Auth-payload рукопожатия: свежий токен из хранилища, иначе — из `connect`.
+  void _auth(void Function(Map<dynamic, dynamic> auth) callback) {
+    final Future<String?> Function()? provider = _tokenProvider;
+    if (provider == null) {
+      callback(<String, dynamic>{'token': _token});
+      return;
+    }
+    provider().then(
+      (String? fresh) => callback(
+        <String, dynamic>{'token': fresh == null || fresh.isEmpty ? _token : fresh},
+      ),
+      onError: (Object _) => callback(<String, dynamic>{'token': _token}),
+    );
   }
 
   void _bind(io.Socket socket) {
@@ -316,7 +343,8 @@ final chatSocketProvider = Provider<ChatSocket>((Ref ref) {
   // Сокет авторизован токеном конкретного пользователя: при смене сессии он
   // закрывается (`onDispose`), новый поднимется с токеном нового.
   ref.watch(sessionScopeProvider);
-  final ChatSocket socket = SocketIoChatSocket();
+  final SecureStorageService storage = ref.watch(secureStorageProvider);
+  final ChatSocket socket = SocketIoChatSocket(tokenProvider: storage.readAccessToken);
   ref.onDispose(socket.disconnect);
   return socket;
 });

@@ -70,6 +70,13 @@ class _AppShellState extends ConsumerState<AppShell> {
     return 'today_sos_button';
   }
 
+  /// В открытой переписке (`/chats/<id>`) плавающая SOS легла бы поверх кнопки
+  /// «Отправить» в поле ввода — там её нет, она остаётся в списке чатов.
+  bool _showSos(BuildContext context) {
+    final String location = GoRouterState.of(context).matchedLocation;
+    return !location.startsWith('${AppRoutes.chats}/');
+  }
+
   @override
   Widget build(BuildContext context) {
     final SessionState session = ref.watch(sessionProvider);
@@ -83,7 +90,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     return Scaffold(
       body: widget.child,
       // SOS — аварийная заявка с объекта: есть только у приложения оператора.
-      floatingActionButton: product.hasOperatorFeatures
+      floatingActionButton: product.hasOperatorFeatures && _showSos(context)
           ? FloatingActionButton.extended(
               key: Key(_sosKey(context)),
               onPressed: () => context.push(AppRoutes.sos),

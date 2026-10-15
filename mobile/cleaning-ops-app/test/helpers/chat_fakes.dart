@@ -101,6 +101,12 @@ class FakeChatSocket implements ChatSocket {
 
   void emitMessage(ChatMessage message) => _events.add(ChatSocketMessage(message));
 
+  /// Шлюз отклонил соединение (`error` от `handleConnection`).
+  void emitFailure(String message, {int? status}) {
+    connected = false;
+    _events.add(ChatSocketFailure(message: message, status: status));
+  }
+
   void emitDeleted({required String chatId, required String messageId, String deletedBy = 'admin'}) =>
       _events.add(ChatSocketDeleted(chatId: chatId, messageId: messageId, deletedBy: deletedBy));
 
