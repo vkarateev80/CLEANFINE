@@ -28,10 +28,10 @@
   /*
    * Safe-area (токенов для env() нет — см. design/screens/mobile/README.md,
    * пробел 5). `+ 0px` в calc — чтобы браузер без env() не отбросил свойство.
-   * Высота таб-бара — 4rem, под ним ещё FAB SOS, поэтому запас 7rem.
+   * Высота таб-бара — 4rem (SOS теперь внутри него, FAB нет), запас 5rem.
    */
   .op-main {
-    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .op-main-fullscreen {
@@ -40,11 +40,6 @@
 
   .op-tabbar {
     padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-
-  /* FAB SOS над таб-баром и домашним индикатором. */
-  .op-fab {
-    bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .op-sheet-footer {

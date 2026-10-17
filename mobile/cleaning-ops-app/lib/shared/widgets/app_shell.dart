@@ -11,9 +11,12 @@ import '../../services/gps_tracking_service.dart';
 
 /// Каркас авторизованной части приложения.
 ///
-/// По DS-002 (`overview.md`, `README.md`) это нижний таб-бар из **трёх** пунктов
-/// («Сегодня», «Чаты», «Профиль») и постоянная кнопка SOS поверх него.
-/// Маршрут смены, чек-лист, SOS и оффлайн-экран — полноэкранные маршруты вне shell.
+/// По DS-002 (`overview.md`, `README.md`) это нижний таб-бар («Сегодня», «Чаты»,
+/// «Профиль») и постоянная кнопка SOS. С 17.10.2026 SOS — не плавающая кнопка,
+/// а четвёртый пункт таб-бара (решение владельца): FAB ложилась поверх
+/// «Отправить» в переписке, и даже спрятанная в открытом чате продолжала
+/// мешать на старых сборках. Маршрут смены, чек-лист, SOS и оффлайн-экран —
+/// полноэкранные маршруты вне shell.
 ///
 /// Каркас также владеет GPS-трекингом (М6.6): пока оператор в приложении, точки
 /// копятся в буфере и уходят батчами; вне смены трекер ставит себя на паузу.
@@ -59,24 +62,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     return index < 0 ? 0 : index;
   }
 
-  /// Ключ кнопки SOS зависит от экрана: их различают widget-тесты DS-002
-  /// (`today_sos_button`, `chats_sos_button`, `profile_sos_button`).
-  String _sosKey(BuildContext context) {
-    final String location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith(AppRoutes.chats)) return 'chats_sos_button';
-    if (location.startsWith(AppRoutes.admin)) return 'admin_sos_button';
-    if (location.startsWith(AppRoutes.client)) return 'client_sos_button';
-    if (location.startsWith(AppRoutes.profile)) return 'profile_sos_button';
-    return 'today_sos_button';
-  }
-
-  /// В открытой переписке (`/chats/<id>`) плавающая SOS легла бы поверх кнопки
-  /// «Отправить» в поле ввода — там её нет, она остаётся в списке чатов.
-  bool _showSos(BuildContext context) {
-    final String location = GoRouterState.of(context).matchedLocation;
-    return !location.startsWith('${AppRoutes.chats}/');
-  }
-
   @override
   Widget build(BuildContext context) {
     final SessionState session = ref.watch(sessionProvider);
@@ -87,33 +72,39 @@ class _AppShellState extends ConsumerState<AppShell> {
     // запускает загрузку списка сам: он обновляется контроллером списка, иначе
     // запрос уходил бы с любого экрана каркаса.
     final int unread = ref.watch(chatUnreadBadgeProvider);
+    // SOS — аварийная заявка с объекта: есть только у приложения оператора.
+    final bool withSos = product.hasOperatorFeatures;
     return Scaffold(
       body: widget.child,
-      // SOS — аварийная заявка с объекта: есть только у приложения оператора.
-      floatingActionButton: product.hasOperatorFeatures && _showSos(context)
-          ? FloatingActionButton.extended(
-              key: Key(_sosKey(context)),
-              onPressed: () => context.push(AppRoutes.sos),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-              icon: const Icon(Icons.emergency),
-              label: const Text('SOS'),
-            )
-          : null,
       bottomNavigationBar: NavigationBar(
         key: const Key('shell_bottom_nav'),
         selectedIndex: index,
-        onDestinationSelected: (value) => context.go(tabs[value].route),
-        destinations: tabs
-            .map(
-              (tab) => NavigationDestination(
-                key: tab.key,
-                icon: _tabIcon(tab.icon, tab.route == AppRoutes.chats ? unread : 0),
-                selectedIcon: _tabIcon(tab.selectedIcon, tab.route == AppRoutes.chats ? unread : 0),
-                label: tab.label,
-              ),
-            )
-            .toList(),
+        onDestinationSelected: (value) {
+          // SOS — полноэкранный маршрут вне каркаса: `push`, а не `go`, чтобы
+          // после отправки вернуться на тот же экран; подсветка вкладки не
+          // меняется.
+          if (withSos && value == tabs.length) {
+            context.push(AppRoutes.sos);
+            return;
+          }
+          context.go(tabs[value].route);
+        },
+        destinations: <Widget>[
+          for (final ProductTab tab in tabs)
+            NavigationDestination(
+              key: tab.key,
+              icon: _tabIcon(tab.icon, tab.route == AppRoutes.chats ? unread : 0),
+              selectedIcon: _tabIcon(tab.selectedIcon, tab.route == AppRoutes.chats ? unread : 0),
+              label: tab.label,
+            ),
+          if (withSos)
+            const NavigationDestination(
+              key: Key('shell_tab_sos'),
+              icon: _SosTabIcon(),
+              label: 'SOS',
+              tooltip: 'Аварийная заявка SOS',
+            ),
+        ],
       ),
     );
   }
@@ -129,4 +120,23 @@ Widget _tabIcon(IconData icon, int count) {
     label: Text('$count'),
     child: Icon(icon),
   );
+}
+
+/// Иконка пункта SOS: красная «таблетка», чтобы пункт читался как аварийная
+/// кнопка, а не как обычная вкладка. Цвета заданы явно — `NavigationBar`
+/// перекрашивает иконки под свою тему.
+class _SosTabIcon extends StatelessWidget {
+  const _SosTabIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppPalette.danger,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Icon(Icons.emergency, color: Colors.white, size: 20),
+    );
+  }
 }

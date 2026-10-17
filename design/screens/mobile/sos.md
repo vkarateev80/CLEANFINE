@@ -27,7 +27,7 @@
 | Что | Значение |
 |---|---|
 | Маршрут | `/sos` (`fullscreenDialog: true`) |
-| Кто открывает | `FloatingActionButton` на `/today`, `/chats`, `/profile` (`Key('today_sos_button')` и аналоги), иконка 🚨 в `AppBar` маршрута ([`route_map.md`](./route_map.md)) и чек-листа ([`checklist.md`](./checklist.md)), пункт «Аварийная заявка» в шторке точки маршрута |
+| Кто открывает | пункт «SOS» таб-бара каркаса на `/today`, `/chats` (включая переписку), `/profile` (`Key('shell_tab_sos')`; до 17.10.2026 — `FloatingActionButton`), иконка 🚨 в `AppBar` маршрута ([`route_map.md`](./route_map.md)) и чек-листа ([`checklist.md`](./checklist.md)), пункт «Аварийная заявка» в шторке точки маршрута |
 | Что открывает | при успехе — `Navigator.pop()` на предыдущий экран + snackbar «Заявка отправлена» (по коду Устава) |
 | Выход | `BackButton` / жест «назад» / свайп вниз (iOS, `fullscreenDialog`); при заполненной форме — подтверждение «Отменить заявку SOS?» |
 | Контекст | `objectId` и `roomId` берутся из текущей смены/маршрута (drift); при открытии из shell без активной смены `objectId` — из последней известной смены, а если её нет — экран блокируется (п. 5, «Нет объекта») |

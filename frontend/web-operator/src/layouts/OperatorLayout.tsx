@@ -1,13 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { listMyChats } from '../api/chat';
 import { useNotificationWatcher, useUnreadNotificationsCount } from '../hooks/useNotifications';
 import { resubscribeIfGranted } from '../lib/webPush';
 import { CountDot } from '../components/ui/Badge';
 import { Toast } from '../components/ui/Toast';
 import { OfflineBanner } from '../components/shell/OfflineBanner';
-import { SosFab } from '../components/shell/SosFab';
 import { SyncCounter } from '../components/shell/SyncCounter';
 import { useKeyboardOpen } from '../lib/http';
 import { useAuthStore } from '../stores/authStore';
@@ -15,8 +14,10 @@ import { useUiStore } from '../stores/uiStore';
 
 /**
  * Каркас shell-экранов (overview.md п. 3): шапка с заголовком экрана, счётчик
- * очереди и непрочитанных, оффлайн-баннер, нижний таб-бар из трёх пунктов и
- * постоянная кнопка SOS. Маршрут, чек-лист и SOS — полноэкранные, без каркаса.
+ * очереди и непрочитанных, оффлайн-баннер, нижний таб-бар: три раздела и
+ * пункт SOS (с 17.10.2026 вместо плавающей кнопки — она ложилась поверх
+ * «Отправить» в переписке на телефоне). Маршрут, чек-лист и SOS —
+ * полноэкранные, без каркаса.
  */
 interface NavItem {
   to: string;
@@ -89,11 +90,9 @@ export function OperatorLayout() {
         <Outlet />
       </main>
 
-      {!keyboardOpen && <SosFab />}
-
       {!keyboardOpen && (
         <nav
-          className="op-tabbar fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t border-neutral-200 bg-white shadow-lg"
+          className="op-tabbar fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-neutral-200 bg-white shadow-lg"
           aria-label="Разделы приложения"
         >
           {NAV.map((item) => (
@@ -130,6 +129,20 @@ export function OperatorLayout() {
               )}
             </NavLink>
           ))}
+          <Link
+            to="/sos"
+            data-testid="op-nav-sos"
+            aria-label="Аварийная заявка SOS"
+            className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 py-2 text-xs font-semibold text-danger-600 transition-colors active:bg-neutral-100"
+          >
+            <span
+              className="flex h-6 min-w-[40px] items-center justify-center rounded-full bg-danger-500 text-sm leading-none text-white"
+              aria-hidden="true"
+            >
+              🚨
+            </span>
+            <span>SOS</span>
+          </Link>
         </nav>
       )}
       <Toast />

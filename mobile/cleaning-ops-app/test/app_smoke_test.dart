@@ -77,7 +77,7 @@ void main() {
     expect(find.byKey(const Key('shell_tab_chats')), findsOneWidget);
     expect(find.byKey(const Key('shell_tab_profile')), findsOneWidget);
     expect(find.byKey(const Key('shell_tab_admin')), findsNothing);
-    expect(find.byKey(const Key('today_sos_button')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_sos')), findsOneWidget);
     expect(find.byKey(const Key('login_page')), findsNothing);
   });
 
@@ -132,7 +132,7 @@ void main() {
     expect(find.byKey(const Key('shell_tab_profile')), findsOneWidget);
     expect(find.byKey(const Key('shell_tab_today')), findsNothing);
     expect(find.byKey(const Key('shell_tab_client')), findsNothing);
-    expect(find.byKey(const Key('admin_sos_button')), findsNothing);
+    expect(find.byKey(const Key('shell_tab_sos')), findsNothing);
     expect(find.byKey(const Key('today_page')), findsNothing);
   });
 
@@ -177,7 +177,7 @@ void main() {
     expect(find.byKey(const Key('client_home_page')), findsOneWidget);
     expect(find.byKey(const Key('shell_tab_client')), findsOneWidget);
     expect(find.byKey(const Key('shell_tab_admin')), findsNothing);
-    expect(find.byKey(const Key('client_sos_button')), findsNothing);
+    expect(find.byKey(const Key('shell_tab_sos')), findsNothing);
   });
 
   testWidgets('нажатие SOS открывает полноэкранную аварийную заявку', (tester) async {
@@ -202,7 +202,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    await tester.tap(find.byKey(const Key('today_sos_button')));
+    await tester.tap(find.byKey(const Key('shell_tab_sos')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('sos_page')), findsOneWidget);

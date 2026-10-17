@@ -9,8 +9,9 @@ import 'package:go_router/go_router.dart';
 
 import '../helpers/gps_fakes.dart';
 
-/// Кнопка SOS каркаса: в переписке её нет — плавающая кнопка ложилась поверх
-/// «Отправить» в поле ввода (находка владельца 15.10.2026).
+/// SOS в нижней панели каркаса (решение владельца 17.10.2026): плавающая
+/// кнопка ложилась поверх «Отправить» в переписке, теперь это четвёртый пункт
+/// таб-бара и в открытом чате он не перекрывает поле ввода.
 void main() {
   late AppDatabase database;
   setUpAll(() => database = AppDatabase.memory());
@@ -20,6 +21,10 @@ void main() {
     final GoRouter router = GoRouter(
       initialLocation: '/chats',
       routes: <RouteBase>[
+        GoRoute(
+          path: '/sos',
+          builder: (context, state) => const Scaffold(body: Text('Экран SOS', key: Key('sos_page'))),
+        ),
         ShellRoute(
           builder: (context, state, child) => AppShell(child: child),
           routes: <RouteBase>[
@@ -29,7 +34,7 @@ void main() {
               routes: <RouteBase>[
                 GoRoute(
                   path: ':chatId',
-                  builder: (context, state) => const Text('Переписка'),
+                  builder: (context, state) => const _FakeThread(),
                 ),
               ],
             ),
@@ -60,18 +65,67 @@ void main() {
     return router;
   }
 
-  testWidgets('SOS есть в списке чатов и пропадает в открытой переписке', (tester) async {
+  testWidgets('пункт SOS есть в списке чатов и в переписке, плавающей кнопки нет', (tester) async {
     final GoRouter router = await pumpShell(tester);
     expect(find.text('Список чатов'), findsOneWidget);
-    expect(find.byKey(const Key('chats_sos_button')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_sos')), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
 
     router.go('/chats/chat-1');
     await tester.pumpAndSettle();
     expect(find.text('Переписка'), findsOneWidget);
-    expect(find.byKey(const Key('chats_sos_button')), findsNothing);
-
-    router.go('/chats');
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('chats_sos_button')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_sos')), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
   });
+
+  testWidgets('в переписке SOS не перекрывает кнопку «Отправить»', (tester) async {
+    final GoRouter router = await pumpShell(tester);
+    router.go('/chats/chat-1');
+    await tester.pumpAndSettle();
+
+    final Rect send = tester.getRect(find.byKey(const Key('chat_send_button')));
+    final Rect sos = tester.getRect(find.byKey(const Key('shell_tab_sos')));
+    expect(sos.overlaps(send), isFalse);
+    expect(sos.top, greaterThanOrEqualTo(send.bottom));
+  });
+
+  testWidgets('нажатие SOS открывает аварийную заявку поверх текущего экрана', (tester) async {
+    final GoRouter router = await pumpShell(tester);
+    router.go('/chats/chat-1');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('shell_tab_sos')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('sos_page')), findsOneWidget);
+
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Переписка'), findsOneWidget);
+  });
+}
+
+/// Переписка «по форме»: лента и поле ввода с кнопкой «Отправить» внизу — как
+/// `_Composer` настоящего экрана.
+class _FakeThread extends StatelessWidget {
+  const _FakeThread();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        const Expanded(child: Center(child: Text('Переписка'))),
+        Row(
+          children: <Widget>[
+            const Expanded(child: TextField()),
+            SizedBox(
+              key: const Key('chat_send_button'),
+              width: 48,
+              height: 48,
+              child: IconButton.filled(onPressed: () {}, icon: const Icon(Icons.send)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
