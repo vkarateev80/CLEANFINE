@@ -1,4 +1,5 @@
 import { Component, type CSSProperties, type ErrorInfo, type ReactNode } from 'react';
+import { t } from '../i18n';
 
 /**
  * Граница ошибок всего приложения (14.10.2026). Без неё любое исключение в
@@ -75,15 +76,13 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     return (
       <div role="alert" data-testid="app-error-boundary" style={WRAP}>
         <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 12 }}>
-          Страница не открылась
+          {t('Страница не открылась')}
         </div>
         <p style={{ margin: '0 0 12px' }}>
-          Ошибка: <span style={{ fontFamily: 'ui-monospace, monospace' }}>{error.message}</span>
+          {t('Ошибка:')} <span style={{ fontFamily: 'ui-monospace, monospace' }}>{error.message}</span>
         </p>
         <p style={{ margin: '0 0 16px', color: '#64748b', fontSize: 14 }}>
-          Попробуйте обновить страницу. Если ошибка повторяется — сбросьте сохранённые
-          данные приложения и войдите заново; если и это не помогает, пришлите текст
-          ошибки администратору.
+          {t('Попробуйте обновить страницу. Если ошибка повторяется — сбросьте сохранённые данные приложения и войдите заново; если и это не помогает, пришлите текст ошибки администратору.')}
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
@@ -91,14 +90,14 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
             style={{ ...BUTTON, background: '#2563eb', color: '#fff' }}
             onClick={this.reload}
           >
-            Обновить
+            {t('Обновить')}
           </button>
           <button
             type="button"
             style={{ ...BUTTON, background: '#e2e8f0', color: '#1e293b' }}
             onClick={this.reset}
           >
-            Сбросить данные и войти заново
+            {t('Сбросить данные и войти заново')}
           </button>
         </div>
       </div>

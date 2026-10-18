@@ -28,6 +28,7 @@ import { useProgressStore } from '../../stores/progressStore';
 import { useQueueStore } from '../../stores/queueStore';
 import { showToast } from '../../stores/uiStore';
 import { FloorPlan } from './FloorPlan';
+import { t } from '../../i18n';
 
 const STATUS_TONE: Record<PointStatus, Tone> = {
   pending: 'neutral',
@@ -91,47 +92,51 @@ export function RouteMapPage() {
     setSkipReason('');
     setSelected(null);
     const ticketId = event.data?.ticketId;
-    const text = `Пропущено: ${target.point.room.name} — ${reason}`;
+    const text = t('Пропущено: {name} — {reason}', { name: target.point.room.name, reason });
     if (!ticketId) {
-      showToast('Пропуск сохранён (заявки у смены нет)', 'info');
+      showToast(t('Пропуск сохранён (заявки у смены нет)'), 'info');
       return;
     }
     if (!online) {
       enqueue({
         kind: 'point_skip',
         payload: { ticketId, text },
-        label: `Пропуск · ${target.point.room.name}`,
+        label: t('Пропуск · {name}', { name: target.point.room.name }),
         idempotencyKey: `skip:${eventId}:${target.point.id}`,
       });
-      showToast('Пропуск сохранится и уйдёт бригадиру', 'info');
+      showToast(t('Пропуск сохранится и уйдёт бригадиру'), 'info');
       return;
     }
     try {
       await addTicketComment(ticketId, text);
-      showToast('Пропуск сохранён и отправлен бригадиру', 'success');
+      showToast(t('Пропуск сохранён и отправлен бригадиру'), 'success');
     } catch (error) {
       if (isNetworkError(error)) {
         enqueue({
           kind: 'point_skip',
           payload: { ticketId, text },
-          label: `Пропуск · ${target.point.room.name}`,
+          label: t('Пропуск · {name}', { name: target.point.room.name }),
           idempotencyKey: `skip:${eventId}:${target.point.id}`,
         });
-        showToast('Пропуск сохранится и уйдёт бригадиру', 'info');
+        showToast(t('Пропуск сохранится и уйдёт бригадиру'), 'info');
       } else {
-        showToast('Пропуск сохранён локально, комментарий не отправлен', 'error');
+        showToast(t('Пропуск сохранён локально, комментарий не отправлен'), 'error');
       }
     }
   }
 
   const title = floor.data
-    ? `Маршрут · ${floor.data.name}`
+    ? t('Маршрут · {name}', { name: floor.data.name })
     : route.data
-      ? `Маршрут · ${route.data.floor.name}`
-      : 'Маршрут';
+      ? t('Маршрут · {name}', { name: route.data.floor.name })
+      : t('Маршрут');
   const subtitle =
     total > 0
-      ? `Маршрут: ${done} из ${total} ${plural(total, 'помещение', 'помещения', 'помещений')}`
+      ? t('Маршрут: {done} из {total} {rooms}', {
+          done,
+          total,
+          rooms: plural(total, t('помещение'), t('помещения'), t('помещений')),
+        })
       : undefined;
 
   const body = (() => {
@@ -146,7 +151,7 @@ export function RouteMapPage() {
     if (event.isError && !event.data) {
       return (
         <ErrorBanner
-          error={new Error('Не удалось загрузить смену')}
+          error={new Error(t('Не удалось загрузить смену'))}
           onRetry={() => void event.refetch()}
         />
       );
@@ -154,11 +159,11 @@ export function RouteMapPage() {
     if (event.data && !event.data.routeId) {
       return (
         <EmptyState
-          title="Маршрут не назначен"
-          hint="Обратитесь к бригадиру"
+          title={t('Маршрут не назначен')}
+          hint={t('Обратитесь к бригадиру')}
           action={
             <Button variant="secondary" className="min-h-[48px]" onClick={() => navigate('/today')}>
-              Назад
+              {t('Назад')}
             </Button>
           }
         />
@@ -167,14 +172,14 @@ export function RouteMapPage() {
     if (route.isError && !route.data) {
       return (
         <ErrorBanner
-          error={new Error('Не удалось загрузить маршрут')}
+          error={new Error(t('Не удалось загрузить маршрут'))}
           onRetry={() => void route.refetch()}
         />
       );
     }
     if (!route.data) return null;
     if (route.data.points.length === 0) {
-      return <EmptyState title="Маршрут пуст" hint="Обратитесь к бригадиру" />;
+      return <EmptyState title={t('Маршрут пуст')} hint={t('Обратитесь к бригадиру')} />;
     }
 
     const planUrl = floor.data?.planImageUrl ?? route.data.floor.planImageUrl;
@@ -185,7 +190,7 @@ export function RouteMapPage() {
     return (
       <div className="flex flex-col gap-4">
         {readOnly && (
-          <SoftWarning>Смена не открыта — маршрут доступен только для просмотра</SoftWarning>
+          <SoftWarning>{t('Смена не открыта — маршрут доступен только для просмотра')}</SoftWarning>
         )}
         {showPlan ? (
           <FloorPlan
@@ -200,11 +205,11 @@ export function RouteMapPage() {
         ) : (
           <SoftWarning>
             {planFailed
-              ? 'План этажа недоступен'
+              ? t('План этажа недоступен')
               : planUrl
-                ? 'Координаты помещений недоступны'
-                : 'План этажа не загружен'}{' '}
-            — точки показаны списком
+                ? t('Координаты помещений недоступны')
+                : t('План этажа не загружен')}{' '}
+            {t('— точки показаны списком')}
           </SoftWarning>
         )}
 
@@ -214,20 +219,19 @@ export function RouteMapPage() {
             data-testid="route_current_point_card"
           >
             <div className="text-xs text-neutral-500">
-              Текущая точка: <span className="font-mono">{active.point.orderIndex + 1}</span> из{' '}
-              <span className="font-mono">{total}</span>
+              {t('Текущая точка: {index} из {total}', { index: active.point.orderIndex + 1, total })}
             </div>
             <div className="mt-1 text-lg font-medium text-neutral-900">
               {active.point.room.name}
             </div>
             <div className="text-sm text-neutral-500">
-              {route.data.floor.number} этаж
+              {t('{number} этаж', { number: route.data.floor.number })}
               {active.point.room.zone ? ` · ${active.point.room.zone}` : ''}
-              {' · '}Операций: <span className="font-mono">{active.opsTotal}</span>
+              {' · '}{t('Операций: {count}', { count: active.opsTotal })}
               {active.point.estimatedTimeMin ? (
                 <>
                   {' '}
-                  · ~<span className="font-mono">{active.point.estimatedTimeMin}</span> мин
+                  {t('· ~{minutes} мин', { minutes: active.point.estimatedTimeMin })}
                 </>
               ) : null}
             </div>
@@ -235,12 +239,12 @@ export function RouteMapPage() {
         )}
         {!active && total > 0 && (
           <div className="rounded-xl border border-success-500 bg-white p-4 text-sm text-success-600">
-            Маршрут пройден
+            {t('Маршрут пройден')}
           </div>
         )}
 
         <section>
-          <h2 className="mb-2 text-sm font-medium text-neutral-500">Точки маршрута</h2>
+          <h2 className="mb-2 text-sm font-medium text-neutral-500">{t('Точки маршрута')}</h2>
           <ol
             className="divide-y divide-neutral-200 rounded-xl border border-neutral-200 bg-white"
             data-testid="route_points_list"
@@ -273,12 +277,12 @@ export function RouteMapPage() {
                     </span>
                     <span className="block text-xs text-neutral-500">
                       {view.opsTotal > 0
-                        ? `${view.opsDone} из ${view.opsTotal} операций`
-                        : 'Техкарта не назначена'}
+                        ? t('{done} из {total} операций', { done: view.opsDone, total: view.opsTotal })
+                        : t('Техкарта не назначена')}
                       {view.skipReason ? ` · ${view.skipReason}` : ''}
                     </span>
                   </span>
-                  <Badge tone={STATUS_TONE[view.status]}>{POINT_STATUS_LABELS[view.status]}</Badge>
+                  <Badge tone={STATUS_TONE[view.status]}>{t(POINT_STATUS_LABELS[view.status])}</Badge>
                 </button>
               </li>
             ))}
@@ -293,7 +297,7 @@ export function RouteMapPage() {
       title={title}
       subtitle={subtitle}
       backTo="/today"
-      offlineText="Нет соединения — план из кэша, статусы сохранятся локально"
+      offlineText={t('Нет соединения — план из кэша, статусы сохранятся локально')}
       testId="route_map_page"
       bottom={
         route.data && route.data.points.length > 0 ? (
@@ -315,7 +319,7 @@ export function RouteMapPage() {
                 onClick={() => next && openChecklist(next)}
                 data-testid="route_next_button"
               >
-                {next ? (readOnly ? 'Открыть чек-лист' : 'Следующая точка ▸') : 'Маршрут пройден'}
+                {next ? (readOnly ? t('Открыть чек-лист') : t('Следующая точка ▸')) : t('Маршрут пройден')}
               </Button>
               <Button
                 variant="secondary"
@@ -324,7 +328,7 @@ export function RouteMapPage() {
                 onClick={() => next && setSkipTarget(next)}
                 data-testid="route_skip_button"
               >
-                Пропустить
+                {t('Пропустить')}
               </Button>
             </div>
           </div>
@@ -344,7 +348,7 @@ export function RouteMapPage() {
 
       <Sheet
         open={legend}
-        title="Легенда"
+        title={t('Легенда')}
         onClose={() => setLegend(false)}
         testId="route_legend_sheet"
       >
@@ -353,27 +357,27 @@ export function RouteMapPage() {
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-400 text-xs font-bold text-white">
               1
             </span>{' '}
-            Порядок точки · Ожидает
+            {t('Порядок точки · Ожидает')}
           </li>
           <li className="flex items-center gap-3">
-            <span className="h-7 w-7 rounded-full bg-primary-500" /> В работе (текущая точка)
+            <span className="h-7 w-7 rounded-full bg-primary-500" /> {t('В работе (текущая точка)')}
           </li>
           <li className="flex items-center gap-3">
-            <span className="h-7 w-7 rounded-full bg-success-500" /> Выполнено
+            <span className="h-7 w-7 rounded-full bg-success-500" /> {t('Выполнено')}
           </li>
           <li className="flex items-center gap-3">
-            <span className="h-7 w-7 rounded-full bg-warning-500" /> Пропущено
+            <span className="h-7 w-7 rounded-full bg-warning-500" /> {t('Пропущено')}
           </li>
           <li className="flex items-center gap-3">
             <span className="h-7 w-7 rounded-md border-2 border-primary-500 bg-primary-100" />{' '}
-            Область помещения
+            {t('Область помещения')}
           </li>
         </ul>
       </Sheet>
 
       <Sheet
         open={Boolean(skipTarget)}
-        title="Пропустить точку"
+        title={t('Пропустить точку')}
         onClose={() => setSkipTarget(null)}
         testId="route_skip_sheet"
         footer={
@@ -384,22 +388,22 @@ export function RouteMapPage() {
             onClick={() => void confirmSkip()}
             data-testid="route_skip_confirm_button"
           >
-            Пропустить точку
+            {t('Пропустить точку')}
           </Button>
         }
       >
         <div className="flex flex-col gap-2">
           <div className="text-sm text-neutral-900">{skipTarget?.point.room.name}</div>
           <label className="flex flex-col gap-1 text-sm text-neutral-500">
-            Причина пропуска
+            {t('Причина пропуска')}
             <Textarea
               value={skipReason}
               onChange={(e) => setSkipReason(e.target.value)}
-              placeholder="Укажите причину (не короче 3 символов)"
+              placeholder={t('Укажите причину (не короче 3 символов)')}
               data-testid="route_skip_reason_field"
             />
           </label>
-          <p className="text-xs text-neutral-500">Пропуск сохранится и уйдёт бригадиру</p>
+          <p className="text-xs text-neutral-500">{t('Пропуск сохранится и уйдёт бригадиру')}</p>
         </div>
       </Sheet>
     </FullscreenLayout>
@@ -432,7 +436,7 @@ function PointSheet({
         view && (
           <div className="grid grid-cols-[2fr_1fr] gap-2">
             <Button variant="primary" className="min-h-[48px]" onClick={() => onOpen(view)}>
-              Открыть чек-лист
+              {t('Открыть чек-лист')}
             </Button>
             <Button
               variant="secondary"
@@ -440,7 +444,7 @@ function PointSheet({
               disabled={readOnly || view.status === 'done' || view.status === 'skipped'}
               onClick={() => onSkip(view)}
             >
-              Пропустить
+              {t('Пропустить')}
             </Button>
           </div>
         )
@@ -448,9 +452,9 @@ function PointSheet({
     >
       {view && (
         <div className="flex flex-col gap-2 text-sm">
-          <Badge tone={STATUS_TONE[view.status]}>{POINT_STATUS_LABELS[view.status]}</Badge>
+          <Badge tone={STATUS_TONE[view.status]}>{t(POINT_STATUS_LABELS[view.status])}</Badge>
           <div className="text-neutral-700">
-            {floorNumber !== null ? `${floorNumber} этаж` : ''}
+            {floorNumber !== null ? t('{floorNumber} этаж', { floorNumber }) : ''}
             {view.point.room.zone ? ` · ${view.point.room.zone}` : ''} ·{' '}
             <span className="font-mono">
               {view.point.room.areaM2.toLocaleString('ru-RU', {
@@ -458,21 +462,23 @@ function PointSheet({
                 maximumFractionDigits: 1,
               })}
             </span>{' '}
-            м²
+            {t('м²')}
           </div>
           {techCard.data ? (
             <div className="text-neutral-700">
-              Техкарта «{techCard.data.name}» · Операций:{' '}
-              <span className="font-mono">{techCard.data.operations.length}</span> · ~
-              <span className="font-mono">{techCard.data.totalEstimatedTimeMin}</span> мин
+              {t('Техкарта «{name}» · Операций: {count} · ~{minutes} мин', {
+                name: techCard.data.name,
+                count: techCard.data.operations.length,
+                minutes: techCard.data.totalEstimatedTimeMin,
+              })}
             </div>
           ) : view.point.room.techCardId ? (
-            <div className="text-neutral-500">Техкарта загружается…</div>
+            <div className="text-neutral-500">{t('Техкарта загружается…')}</div>
           ) : (
-            <div className="text-warning-600">Техкарта не назначена</div>
+            <div className="text-warning-600">{t('Техкарта не назначена')}</div>
           )}
           {view.skipReason && (
-            <div className="text-warning-600">Причина пропуска: {view.skipReason}</div>
+            <div className="text-warning-600">{t('Причина пропуска: {reason}', { reason: view.skipReason })}</div>
           )}
         </div>
       )}

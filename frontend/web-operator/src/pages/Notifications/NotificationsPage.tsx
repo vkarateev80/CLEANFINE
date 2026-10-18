@@ -11,6 +11,7 @@ import {
   payloadString,
   type NotificationEntity,
 } from '../../types/notifications';
+import { t } from '../../i18n';
 
 /**
  * Экран «Уведомления» (09.10.2026): список in-app уведомлений оператора.
@@ -41,7 +42,7 @@ export function NotificationsPage() {
   }
 
   return (
-    <FullscreenLayout title="Уведомления" backTo="/today" showSos={false} testId="notifications_page">
+    <FullscreenLayout title={t('Уведомления')} backTo="/today" showSos={false} testId="notifications_page">
       <div className="flex flex-col gap-3 p-4">
         {query.isLoading && !query.data ? (
           <div className="flex flex-col gap-2" aria-busy="true">
@@ -53,8 +54,8 @@ export function NotificationsPage() {
           <ErrorBanner error={query.error} onRetry={() => void query.refetch()} />
         ) : items.length === 0 ? (
           <EmptyState
-            title="Уведомлений нет"
-            hint="Здесь появятся новые заявки, сообщения чатов, SOS и напоминания"
+            title={t('Уведомлений нет')}
+            hint={t('Здесь появятся новые заявки, сообщения чатов, SOS и напоминания')}
           />
         ) : (
           <ul className="flex flex-col gap-2" data-testid="notifications_list">
@@ -85,7 +86,7 @@ export function NotificationsPage() {
                   {!item.readAt && (
                     <span
                       className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-500"
-                      aria-label="Не прочитано"
+                      aria-label={t('Не прочитано')}
                     />
                   )}
                 </button>
@@ -101,7 +102,7 @@ export function NotificationsPage() {
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
-              Новее
+              {t('Новее')}
             </Button>
             <span>
               {page} / {pages}
@@ -111,7 +112,7 @@ export function NotificationsPage() {
               disabled={page >= pages}
               onClick={() => setPage((p) => Math.min(pages, p + 1))}
             >
-              Раньше
+              {t('Раньше')}
             </Button>
           </div>
         )}

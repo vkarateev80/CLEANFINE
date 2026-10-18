@@ -1,6 +1,7 @@
 // Краткие модели core-service и ticket-service для экранов оператора.
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/i18n/app_language.dart';
 
 /// `GET /api/objects/:id` — объект смены.
 class ObjectSummary {
@@ -31,7 +32,7 @@ class ObjectSummary {
     if (id == null || id.isEmpty) return null;
     return ObjectSummary(
       id: id,
-      name: body['name']?.toString() ?? 'Объект',
+      name: body['name']?.toString() ?? tr('Объект'),
       address: _text(body['address']),
       lat: _double(body['lat']),
       lng: _double(body['lng']),
@@ -87,7 +88,7 @@ class RouteDetail {
     final dynamic rawFloor = body['floorId'] ?? (body['floor'] is Map ? (body['floor'] as Map)['id'] : null);
     return RouteDetail(
       id: id,
-      name: body['name']?.toString() ?? 'Маршрут',
+      name: body['name']?.toString() ?? tr('Маршрут'),
       status: body['status']?.toString() ?? 'DRAFT',
       points: RoutePointView.listFrom(body['points']),
       floorId: rawFloor?.toString(),
@@ -133,7 +134,7 @@ class RoutePointView {
 
   /// Подпись точки в списке и на плане: «Санузел 101».
   String get title {
-    final String name = roomName ?? 'Помещение';
+    final String name = roomName ?? tr('Помещение');
     return roomNumber == null || roomNumber!.isEmpty ? name : '$name $roomNumber';
   }
 

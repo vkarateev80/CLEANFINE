@@ -3,6 +3,7 @@ import { io, type Socket } from 'socket.io-client';
 import { useAuthStore } from '../stores/authStore';
 import { WS_PATH, WS_URL } from '../api/config';
 import type { MessageDeletedEvent, MessageReadEvent, MessageView, WsAck } from '../types/chat';
+import { t } from '../i18n';
 
 /**
  * Соединение чата (DS-004, `chat.md` п. 7.1). Приём взят из
@@ -106,7 +107,7 @@ export function useChatSocket(enabled: boolean): UseChatSocketResult {
       return new Promise((resolve, reject) => {
         const socket = socketRef.current;
         if (!socket || !socket.connected) {
-          reject(new Error('Нет соединения с сервером чата'));
+          reject(new Error(t('Нет соединения с сервером чата')));
           return;
         }
         socket.timeout(10_000).emit(
@@ -121,11 +122,11 @@ export function useChatSocket(enabled: boolean): UseChatSocketResult {
           },
           (timeoutError: Error | null, response: WsAck<{ message: MessageView }>) => {
             if (timeoutError) {
-              reject(new Error('Сервер не подтвердил отправку сообщения'));
+              reject(new Error(t('Сервер не подтвердил отправку сообщения')));
               return;
             }
             if (!response || response.ok !== true) {
-              reject(new Error(response?.error ?? 'Не удалось отправить сообщение'));
+              reject(new Error(response?.error ?? t('Не удалось отправить сообщение')));
               return;
             }
             resolve(response.message);

@@ -8,6 +8,7 @@ import '../../../database/app_database.dart';
 import '../models/operator_models.dart';
 import '../models/schedule_event.dart';
 import '../models/tech_card_models.dart';
+import '../../../core/i18n/app_language.dart';
 
 /// Операция чек-листа в кэше: сама операция плюс локальный прогресс.
 ///
@@ -312,7 +313,7 @@ class CacheStore {
         CachedRoomsCompanion(
           id: Value<String>(room.id),
           floorId: Value<String?>(room.floorId ?? existing?.floorId),
-          name: Value<String>(_nonEmpty(room.name) ?? existing?.name ?? 'Помещение'),
+          name: Value<String>(_nonEmpty(room.name) ?? existing?.name ?? tr('Помещение')),
           areaM2: Value<double?>(existing?.areaM2),
           floorType: Value<String?>(room.floorType ?? existing?.floorType),
           zone: Value<String?>(room.zone ?? existing?.zone),

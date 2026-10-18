@@ -84,14 +84,14 @@ class _PinLoginPageState extends ConsumerState<PinLoginPage> {
 
     return Scaffold(
       key: const Key('pin_page'),
-      appBar: AppBar(title: const Text(AuthTexts.pinTitle)),
+      appBar: AppBar(title: Text(AuthTexts.pinTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              const AuthHeader(title: AuthTexts.appTitle, subtitle: null),
+              const AuthHeader(subtitle: ''),
               if (identity != null) ...<Widget>[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
@@ -107,11 +107,11 @@ class _PinLoginPageState extends ConsumerState<PinLoginPage> {
               const SizedBox(height: AppSpacing.xl),
               _dots(filled: _pin.length, total: dots),
               const SizedBox(height: AppSpacing.sm),
-              const Text(
+              Text(
                 AuthTexts.pinHint,
-                key: Key('pin_hint_text'),
+                key: const Key('pin_hint_text'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: AppTypography.fontSans,
                   fontSize: AppTypography.sizeSM,
                   color: Color(AppColors.neutral500),
@@ -137,12 +137,12 @@ class _PinLoginPageState extends ConsumerState<PinLoginPage> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text(AuthTexts.signIn),
+                    : Text(AuthTexts.signIn),
               ),
               TextButton(
                 key: const Key('pin_forgot_button'),
                 onPressed: state.isSubmitting ? null : () => context.push(AppRoutes.pinSetup),
-                child: const Text(AuthTexts.forgotPin),
+                child: Text(AuthTexts.forgotPin),
               ),
             ],
           ),

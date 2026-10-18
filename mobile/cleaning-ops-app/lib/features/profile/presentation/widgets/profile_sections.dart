@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/i18n/language_picker.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../router/app_router.dart';
@@ -10,6 +11,7 @@ import '../../../../services/sync_status.dart';
 import '../profile_texts.dart';
 import 'notifications_sheet.dart';
 import '../providers/profile_providers.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Секция «Доступ»: смена PIN и пароля (DS-002 `profile.md` §3.2, §6).
 class AccessSection extends StatelessWidget {
@@ -23,7 +25,7 @@ class AccessSection extends StatelessWidget {
         ListTile(
           key: const Key('profile_change_pin_tile'),
           leading: const Icon(Icons.key_outlined, color: AppPalette.textStrong),
-          title: const Text(ProfileTexts.changePin),
+          title: Text(ProfileTexts.changePin),
           trailing: const Icon(Icons.chevron_right, color: AppPalette.textMuted),
           onTap: () => context.push(AppRoutes.profilePin),
         ),
@@ -31,7 +33,7 @@ class AccessSection extends StatelessWidget {
         ListTile(
           key: const Key('profile_change_password_tile'),
           leading: const Icon(Icons.lock_outline, color: AppPalette.textStrong),
-          title: const Text(ProfileTexts.changePassword),
+          title: Text(ProfileTexts.changePassword),
           trailing: const Icon(Icons.chevron_right, color: AppPalette.textMuted),
           onTap: () => context.push(AppRoutes.profilePassword),
         ),
@@ -55,7 +57,7 @@ class NotificationsDataSection extends ConsumerWidget {
         ListTile(
           key: const Key('profile_notifications_tile'),
           leading: const Icon(Icons.notifications_none, color: AppPalette.textStrong),
-          title: const Text(ProfileTexts.notifications),
+          title: Text(ProfileTexts.notifications),
           trailing: const Icon(Icons.chevron_right, color: AppPalette.textMuted),
           onTap: () => showNotificationsSheet(context),
         ),
@@ -63,7 +65,7 @@ class NotificationsDataSection extends ConsumerWidget {
         ListTile(
           key: const Key('profile_queue_tile'),
           leading: const Icon(Icons.bolt_outlined, color: AppPalette.textStrong),
-          title: const Text(ProfileTexts.queue),
+          title: Text(ProfileTexts.queue),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -86,7 +88,7 @@ class NotificationsDataSection extends ConsumerWidget {
         ListTile(
           key: const Key('profile_about_tile'),
           leading: const Icon(Icons.info_outline, color: AppPalette.textStrong),
-          title: const Text(ProfileTexts.about),
+          title: Text(ProfileTexts.about),
           subtitle: Text(
             ProfileTexts.version(AppConstants.version),
             key: const Key('profile_version_text'),
@@ -103,15 +105,28 @@ class NotificationsDataSection extends ConsumerWidget {
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         key: const Key('profile_about_dialog'),
-        title: const Text(ProfileTexts.about),
+        title: Text(ProfileTexts.about),
         content: Text(ProfileTexts.version(AppConstants.version)),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Закрыть'),
+            child: Text(tr('Закрыть')),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Язык интерфейса (решение владельца 18.10.2026: русский, кыргызский, узбекский).
+class LanguageSection extends StatelessWidget {
+  const LanguageSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const _MenuCard(
+      cardKey: Key('profile_language_section'),
+      children: <Widget>[LanguageTile()],
     );
   }
 }
@@ -142,7 +157,7 @@ class LogoutSection extends ConsumerWidget {
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Text(ProfileTexts.logout),
+            : Text(ProfileTexts.logout),
       ),
     );
   }
@@ -152,13 +167,13 @@ class LogoutSection extends ConsumerWidget {
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         key: const Key('profile_logout_dialog'),
-        title: const Text(ProfileTexts.logoutDialogTitle),
+        title: Text(ProfileTexts.logoutDialogTitle),
         content: Text(ProfileTexts.logoutWarning(outgoing)),
         actions: <Widget>[
           TextButton(
             key: const Key('profile_logout_cancel_button'),
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text(ProfileTexts.cancel),
+            child: Text(ProfileTexts.cancel),
           ),
           FilledButton(
             key: const Key('profile_logout_confirm_button'),
@@ -167,7 +182,7 @@ class LogoutSection extends ConsumerWidget {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text(ProfileTexts.logout),
+            child: Text(ProfileTexts.logout),
           ),
         ],
       ),

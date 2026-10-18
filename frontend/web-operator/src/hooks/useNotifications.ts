@@ -5,6 +5,7 @@ import { alertUser } from '../lib/alerts';
 import { useAuthStore } from '../stores/authStore';
 import { showToast } from '../stores/uiStore';
 import type { NotificationEntity, NotificationsPage } from '../types/notifications';
+import { t } from '../i18n';
 
 /**
  * In-app уведомления оператора (09.10.2026). Раньше колокольчик считал только
@@ -80,7 +81,7 @@ export function useNotificationWatcher(): void {
     if (fresh.length === 0) return;
     const first = fresh[0];
     showToast(
-      fresh.length === 1 ? `${first.title}: ${first.body}` : `Новых уведомлений: ${fresh.length}`,
+      fresh.length === 1 ? `${first.title}: ${first.body}` : t('Новых уведомлений: {length}', { length: fresh.length }),
       'info',
     );
     // Звук и вибрация при открытой странице (12.10.2026): SOS — длиннее.

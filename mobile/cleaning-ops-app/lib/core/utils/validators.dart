@@ -1,3 +1,5 @@
+import '../../core/i18n/app_language.dart';
+
 /// Валидация полей на клиенте: правила совпадают с DTO сервисов,
 /// сообщения — русские и пригодны для `TextFormField.validator`.
 ///
@@ -14,24 +16,24 @@ class Validators {
   /// остальное проверяет сервер (401), а не клиент.
   static String? email(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Введите корректный email';
-    if (text.length > 254) return 'Введите корректный email';
+    if (text.isEmpty) return tr('Введите корректный email');
+    if (text.length > 254) return tr('Введите корректный email');
     return null;
   }
 
   /// Пароль: `RegisterDto.password` — не короче 6 символов.
   static String? password(String? value) {
     final text = value ?? '';
-    if (text.isEmpty) return 'Введите пароль';
-    if (text.length < 6) return 'Пароль должен быть не короче 6 символов';
+    if (text.isEmpty) return tr('Введите пароль');
+    if (text.length < 6) return tr('Пароль должен быть не короче 6 символов');
     return null;
   }
 
   /// PIN: `PinLoginDto.pinCode` / `ChangePinDto.newPin` — 4–6 цифр.
   static String? pin(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Введите PIN';
-    if (!_pin.hasMatch(text)) return 'PIN должен содержать 4–6 цифр';
+    if (text.isEmpty) return tr('Введите PIN');
+    if (!_pin.hasMatch(text)) return tr('PIN должен содержать 4–6 цифр');
     return null;
   }
 
@@ -39,28 +41,28 @@ class Validators {
   static String? phone(String? value) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return null;
-    if (!_phone.hasMatch(text)) return 'Некорректный телефон';
+    if (!_phone.hasMatch(text)) return tr('Некорректный телефон');
     return null;
   }
 
   /// ФИО: `RegisterDto.fullName` — обязательное поле.
   static String? fullName(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Укажите ФИО';
+    if (text.isEmpty) return tr('Укажите ФИО');
     return null;
   }
 
   /// Обязательное поле с собственным текстом ошибки.
-  static String? required(String? value, {String message = 'Заполните поле'}) {
+  static String? required(String? value, {String? message}) {
     final text = value?.trim() ?? '';
-    return text.isEmpty ? message : null;
+    return text.isEmpty ? (message ?? tr('Заполните поле')) : null;
   }
 
   /// Описание аварийной заявки: сервер требует непустое описание SOS.
   static String? emergencyDescription(String? value) {
     final text = value?.trim() ?? '';
-    if (text.isEmpty) return 'Опишите аварию';
-    if (text.length < 5) return 'Опишите аварию подробнее';
+    if (text.isEmpty) return tr('Опишите аварию');
+    if (text.length < 5) return tr('Опишите аварию подробнее');
     return null;
   }
 }

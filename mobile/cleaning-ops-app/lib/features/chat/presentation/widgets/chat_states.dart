@@ -2,6 +2,7 @@ import 'package:cleaning_ops_tokens/app_tokens.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Пустое состояние экрана чата (DS-002 `chat.md` §5).
 ///
@@ -87,7 +88,7 @@ class ChatErrorState extends StatelessWidget {
           action: FilledButton(
             key: const Key('chat_retry_button'),
             onPressed: onRetry,
-            child: const Text('Повторить'),
+            child: Text(tr('Повторить')),
           ),
         ),
       ],

@@ -12,6 +12,7 @@ import '../../../../shared/data/models/schedule_event.dart';
 import '../../../../shared/data/repositories/schedule_repository.dart';
 import '../../../../shared/data/result.dart';
 import '../../../../shared/services/location_service.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Всё, что нужно главному экрану: смены дня, текущая смена, её объект и маршрут,
 /// заявки оператора.
@@ -224,9 +225,9 @@ class TodayController extends Notifier<TodayActionState> {
             lat: point.lat,
             lng: point.lng,
           );
-      return await _finish(result, onSuccess: 'Смена открыта', event: event, status: 'CHECKED_IN');
+      return await _finish(result, onSuccess: tr('Смена открыта'), event: event, status: 'CHECKED_IN');
     } on LocationUnavailable catch (error) {
-      state = TodayActionState(message: error.message);
+      state = TodayActionState(message: tr(error.message));
       return false;
     }
   }
@@ -248,7 +249,7 @@ class TodayController extends Notifier<TodayActionState> {
           lat: lat,
           lng: lng,
         );
-    return _finish(result, onSuccess: 'Смена закрыта', event: event, status: 'CHECKED_OUT');
+    return _finish(result, onSuccess: tr('Смена закрыта'), event: event, status: 'CHECKED_OUT');
   }
 
   /// Итог отметки: успех пишется в кэш и перечитывается обзор.
@@ -263,7 +264,7 @@ class TodayController extends Notifier<TodayActionState> {
   }) async {
     final Failure? failure = result.failureOrNull;
     if (failure != null) {
-      state = TodayActionState(message: failure.message);
+      state = TodayActionState(message: tr(failure.message));
       return false;
     }
     if (event != null && status != null) {

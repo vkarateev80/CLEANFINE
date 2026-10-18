@@ -300,7 +300,7 @@ class PushHarness {
   final FakeNotificationsRepository notifications;
 
   /// Текущий адрес роутера приложения.
-  String get location => container.read(appRouterProvider).state!.matchedLocation;
+  String get location => container.read(appRouterProvider).state.matchedLocation;
 
   /// Поднять `PushListener` над роутером и дать ему первый кадр.
   Future<void> pumpApp() async {

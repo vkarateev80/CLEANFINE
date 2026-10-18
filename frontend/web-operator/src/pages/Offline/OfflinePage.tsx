@@ -9,6 +9,7 @@ import { deletePhoto } from '../../lib/photoStore';
 import { useOnline } from '../../hooks/useOnline';
 import { useQueueStore, type QueueItem, type QueueStatus } from '../../stores/queueStore';
 import { showToast } from '../../stores/uiStore';
+import { t } from '../../i18n';
 
 const STATUS_LABEL: Record<QueueStatus, string> = {
   pending: 'Ожидает',
@@ -49,10 +50,10 @@ export function OfflinePage() {
       const sent = await runQueue();
       showToast(
         sent > 0
-          ? `Отправлено: ${sent}`
+          ? t('Отправлено: {sent}', { sent })
           : waiting.length > 0
-            ? 'Пока не удалось отправить'
-            : 'Очередь пуста',
+            ? t('Пока не удалось отправить')
+            : t('Очередь пуста'),
         sent > 0 ? 'success' : 'info',
       );
     } finally {
@@ -68,7 +69,7 @@ export function OfflinePage() {
 
   return (
     <FullscreenLayout
-      title="Очередь отправки"
+      title={t('Очередь отправки')}
       backTo="/today"
       showSos={false}
       testId="offline_page"
@@ -81,15 +82,18 @@ export function OfflinePage() {
           ].join(' ')}
           data-testid="offline_status_banner"
         >
-          {online ? 'Соединение есть' : 'Нет соединения'}
+          {online ? t('Соединение есть') : t('Нет соединения')}
+          {' — '}
           {waiting.length > 0
-            ? ` — ${waiting.length} ${plural(waiting.length, 'действие ждёт', 'действия ждут', 'действий ждут')} отправки`
-            : ' — очередь пуста'}
+            ? t('{count} {actions} отправки', {
+                count: waiting.length,
+                actions: plural(waiting.length, t('действие ждёт'), t('действия ждут'), t('действий ждут')),
+              })
+            : t('очередь пуста')}
         </div>
         {items.length > 0 && (
           <div className="text-xs text-neutral-500" data-testid="offline_progress_text">
-            Отправлено <span className="font-mono">{synced.length}</span> из{' '}
-            <span className="font-mono">{items.length}</span>
+            {t('Отправлено {done} из {total}', { done: synced.length, total: items.length })}
           </div>
         )}
         <Button
@@ -100,11 +104,11 @@ export function OfflinePage() {
           onClick={() => void syncNow()}
           data-testid="offline_sync_now_button"
         >
-          Синхронизировать сейчас
+          {t('Синхронизировать сейчас')}
         </Button>
 
         {items.length === 0 ? (
-          <EmptyState title="Очередь пуста" hint="Все действия отправлены на сервер" />
+          <EmptyState title={t('Очередь пуста')} hint={t('Все действия отправлены на сервер')} />
         ) : (
           <ul
             className="divide-y divide-neutral-200 rounded-xl border border-neutral-200 bg-white"
@@ -121,14 +125,14 @@ export function OfflinePage() {
                     <span aria-hidden="true">{KIND_ICON[item.kind]} </span>
                     {item.label}
                   </span>
-                  <Badge tone={STATUS_TONE[item.status]}>{STATUS_LABEL[item.status]}</Badge>
+                  <Badge tone={STATUS_TONE[item.status]}>{t(STATUS_LABEL[item.status])}</Badge>
                 </div>
                 <div className="text-xs text-neutral-500">
-                  создано <span className="font-mono">{localTime(item.createdAt)}</span>
+                  {t('создано {time}', { time: localTime(item.createdAt) })}
                   {item.attempts > 0 && (
                     <>
                       {' '}
-                      · попыток: <span className="font-mono">{item.attempts}</span>
+                      {t('· попыток: {count}', { count: item.attempts })}
                     </>
                   )}
                   {item.lastError && item.status !== 'synced' && (
@@ -145,7 +149,7 @@ export function OfflinePage() {
                       onClick={() => void retryItem(item.id)}
                       data-testid={`offline_item_retry_${item.id}`}
                     >
-                      Повторить
+                      {t('Повторить')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -154,7 +158,7 @@ export function OfflinePage() {
                       onClick={() => void removeItem(item)}
                       data-testid={`offline_item_delete_${item.id}`}
                     >
-                      Удалить
+                      {t('Удалить')}
                     </Button>
                   </div>
                 )}
@@ -169,7 +173,7 @@ export function OfflinePage() {
             className="min-h-[44px] self-center"
             onClick={clearSynced}
           >
-            Очистить отправленные
+            {t('Очистить отправленные')}
           </Button>
         )}
       </div>

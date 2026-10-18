@@ -3,6 +3,7 @@
 /// Четыре сводки + два отчёта series приходят из разных сервисов read-моделями;
 /// склейка — на клиенте (как в вебе). `fromJson` терпим к null: ответы продовой
 /// выборки пустые (нули и `null`), и экран обязан это показывать, а не падать.
+library;
 
 /// KPI заявок: `GET /api/tickets/reports/summary` (ticket-service).
 class TicketSummary {

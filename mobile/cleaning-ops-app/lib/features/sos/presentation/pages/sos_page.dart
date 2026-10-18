@@ -13,6 +13,7 @@ import '../../../../shared/services/photo_service.dart';
 import '../../domain/emergency_category.dart';
 import '../providers/sos_providers.dart';
 import '../sos_texts.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Аварийная заявка `/sos` (М6.5): тип, обязательное фото, описание, координаты
 /// и кнопка «🚨 ОТПРАВИТЬ SOS». Элементы, тексты и `Key` — по
@@ -71,7 +72,7 @@ class _SosPageState extends ConsumerState<SosPage> {
         appBar: AppBar(
           backgroundColor: AppPalette.danger,
           foregroundColor: Colors.white,
-          title: const Text(SosTexts.title),
+          title: Text(SosTexts.title),
         ),
         backgroundColor: AppPalette.background,
         body: async.when(
@@ -203,9 +204,9 @@ class _SosPageState extends ConsumerState<SosPage> {
                         height: 22,
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
-                    : const Text(
+                    : Text(
                         SosTexts.submit,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: AppTypography.sizeLG,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -226,9 +227,9 @@ class _SosPageState extends ConsumerState<SosPage> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text(
+          Text(
             SosTexts.photoLabel,
-            style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
+            style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           // `Wrap`, а не `Row`: на телефоне кнопка «Сделать фото» и подпись
@@ -247,11 +248,11 @@ class _SosPageState extends ConsumerState<SosPage> {
                 key: const Key('sos_photo_button'),
                 onPressed: locked ? null : _takePhoto,
                 icon: const Icon(Icons.camera_alt),
-                label: const Text(SosTexts.takePhoto),
+                label: Text(SosTexts.takePhoto),
               ),
-              const Text(
+              Text(
                 SosTexts.required,
-                style: TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.dangerText),
+                style: const TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.dangerText),
               ),
             ],
           ),
@@ -273,9 +274,9 @@ class _SosPageState extends ConsumerState<SosPage> {
               height: 160,
               color: AppPalette.surfaceMuted,
               alignment: Alignment.center,
-              child: const Text(
-                'Снимок недоступен',
-                style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textMuted),
+              child: Text(
+                tr('Снимок недоступен'),
+                style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textMuted),
               ),
             ),
           ),
@@ -283,7 +284,7 @@ class _SosPageState extends ConsumerState<SosPage> {
         TextButton(
           key: const Key('sos_retake_photo_button'),
           onPressed: locked ? null : _retake,
-          child: const Text(SosTexts.retakePhoto),
+          child: Text(SosTexts.retakePhoto),
         ),
       ],
     );
@@ -296,19 +297,19 @@ class _SosPageState extends ConsumerState<SosPage> {
       // не переносится — на телефоне (логическая ширина 393) строка
       // «Определяем местоположение…» переполняла экран на 99 px. Найдено UAT на
       // устройстве (М7.4).
-      return const Row(
-        key: Key('sos_location_pending'),
+      return Row(
+        key: const Key('sos_location_pending'),
         children: <Widget>[
-          SizedBox(
+          const SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               SosTexts.locating,
-              style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
+              style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
             ),
           ),
         ],
@@ -327,7 +328,7 @@ class _SosPageState extends ConsumerState<SosPage> {
           TextButton(
             key: const Key('sos_location_retry_button'),
             onPressed: _controller.refreshLocation,
-            child: const Text(SosTexts.retry),
+            child: Text(SosTexts.retry),
           ),
         ],
       );
@@ -348,7 +349,7 @@ class _SosPageState extends ConsumerState<SosPage> {
       child: ListTile(
         key: const Key('sos_location_text'),
         leading: const Icon(Icons.location_on, color: AppPalette.primary),
-        title: const Text(SosTexts.locationLabel),
+        title: Text(SosTexts.locationLabel),
         subtitle: Text(
           subtitle,
           style: const TextStyle(fontFamily: AppTypography.fontMono, fontSize: AppTypography.sizeSM),
@@ -393,18 +394,18 @@ class _SosPageState extends ConsumerState<SosPage> {
     final bool? leave = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text(SosTexts.cancelTitle),
-        content: const Text(SosTexts.cancelBody),
+        title: Text(SosTexts.cancelTitle),
+        content: Text(SosTexts.cancelBody),
         actions: <Widget>[
           TextButton(
             key: const Key('sos_cancel_continue_button'),
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text(SosTexts.continueFilling),
+            child: Text(SosTexts.continueFilling),
           ),
           FilledButton(
             key: const Key('sos_cancel_confirm_button'),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text(SosTexts.cancel),
+            child: Text(SosTexts.cancel),
           ),
         ],
       ),
@@ -462,10 +463,10 @@ class _SuccessView extends StatelessWidget {
             ],
             if (state.photoNotAttached) ...<Widget>[
               const SizedBox(height: AppSpacing.sm),
-              const Text(
+              Text(
                 SosTexts.photoNotAttached,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.warningText),
+                style: const TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.warningText),
               ),
             ],
             const SizedBox(height: AppSpacing.xl),
@@ -475,7 +476,7 @@ class _SuccessView extends StatelessWidget {
               child: FilledButton(
                 key: const Key('sos_success_close_button'),
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text(SosTexts.close),
+                child: Text(SosTexts.close),
               ),
             ),
           ],
@@ -501,16 +502,16 @@ class _EmptyObject extends StatelessWidget {
           children: <Widget>[
             const Icon(Icons.location_off_outlined, size: 56, color: AppPalette.textMuted),
             const SizedBox(height: AppSpacing.md),
-            const Text(
+            Text(
               SosTexts.noObject,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.lg),
             OutlinedButton(
               key: const Key('sos_no_object_back_button'),
               onPressed: onBack,
-              child: const Text(SosTexts.back),
+              child: Text(SosTexts.back),
             ),
           ],
         ),
@@ -536,10 +537,10 @@ class _LoadError extends StatelessWidget {
           children: <Widget>[
             const Icon(Icons.cloud_off_outlined, size: 56, color: AppPalette.textMuted),
             const SizedBox(height: AppSpacing.md),
-            const Text(
+            Text(
               SosTexts.serviceUnavailable,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -551,7 +552,7 @@ class _LoadError extends StatelessWidget {
             OutlinedButton(
               key: const Key('sos_error_retry'),
               onPressed: onRetry,
-              child: const Text(SosTexts.retry),
+              child: Text(SosTexts.retry),
             ),
           ],
         ),
@@ -628,7 +629,7 @@ class _ErrorBanner extends StatelessWidget {
           TextButton(
             key: const Key('sos_send_retry_button'),
             onPressed: onRetry,
-            child: const Text(SosTexts.retry),
+            child: Text(SosTexts.retry),
           ),
         ],
       ),

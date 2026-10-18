@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
+import '../core/i18n/app_language.dart';
 
 /// Пришедшее push-уведомление, приведённое к полям, которые нужны приложению
 /// (DS-002 `profile.md` §3.4).
@@ -432,15 +433,15 @@ class NtfyPushService implements PushService {
         _notificationId++ & 0x7fffffff,
         message.title ?? 'CLEANFINE',
         message.body ?? '',
-        const NotificationDetails(
+        NotificationDetails(
           android: AndroidNotificationDetails(
             'cleanfine_main',
-            'Уведомления CLEANFINE',
-            channelDescription: 'Смены, заявки, чат и тревоги',
+            tr('Уведомления CLEANFINE'),
+            channelDescription: tr('Смены, заявки, чат и тревоги'),
             importance: Importance.high,
             priority: Priority.high,
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
         payload: payload,
       );

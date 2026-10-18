@@ -8,6 +8,7 @@ import '../features/auth/presentation/providers/session_provider.dart';
 import '../features/chat/data/models/chat_models.dart';
 import 'secure_storage_service.dart';
 import 'service_providers.dart';
+import '../core/i18n/app_language.dart';
 
 /// Событие шлюза чата, приведённое к моделям приложения.
 ///
@@ -228,7 +229,7 @@ class SocketIoChatSocket implements ChatSocket {
     });
     socket.onConnectError((dynamic error) {
       _connected = false;
-      _events.add(ChatSocketFailure(message: error?.toString() ?? 'Нет соединения'));
+      _events.add(ChatSocketFailure(message: error?.toString() ?? tr('Нет соединения')));
     });
     socket.on('message:new', (dynamic data) {
       final ChatMessage? message = ChatMessage.tryParse(data);
@@ -269,8 +270,8 @@ class SocketIoChatSocket implements ChatSocket {
     });
     socket.on('error', (dynamic data) {
       final String message = data is Map
-          ? data['message']?.toString() ?? 'Ошибка соединения'
-          : data?.toString() ?? 'Ошибка соединения';
+          ? data['message']?.toString() ?? tr('Ошибка соединения')
+          : data?.toString() ?? tr('Ошибка соединения');
       _events.add(ChatSocketFailure(message: message));
     });
   }
@@ -284,7 +285,7 @@ class SocketIoChatSocket implements ChatSocket {
   }) async {
     final io.Socket? socket = _socket;
     if (socket == null || !_connected) {
-      return const ChatSendAck.failure('Нет соединения');
+      return ChatSendAck.failure(tr('Нет соединения'));
     }
     final Completer<ChatSendAck> completer = Completer<ChatSendAck>();
     socket.emitWithAck(
@@ -303,19 +304,19 @@ class SocketIoChatSocket implements ChatSocket {
     );
     return completer.future.timeout(
       ackTimeout,
-      onTimeout: () => const ChatSendAck.failure('Сервер не подтвердил отправку'),
+      onTimeout: () => ChatSendAck.failure(tr('Сервер не подтвердил отправку')),
     );
   }
 
   /// Ack шлюза: `{ok: true, message}` либо `{ok: false, error, status?}`.
   ChatSendAck _parseAck(dynamic response, String chatId) {
-    if (response is! Map) return const ChatSendAck.failure('Некорректный ответ сервера');
+    if (response is! Map) return ChatSendAck.failure(tr('Некорректный ответ сервера'));
     if (response['ok'] == true) {
       final ChatMessage? message = ChatMessage.tryParse(response['message'], chatId: chatId);
-      if (message == null) return const ChatSendAck.failure('Некорректный ответ сервера');
+      if (message == null) return ChatSendAck.failure(tr('Некорректный ответ сервера'));
       return ChatSendAck.success(message);
     }
-    return ChatSendAck.failure(response['error']?.toString() ?? 'Не удалось отправить сообщение');
+    return ChatSendAck.failure(response['error']?.toString() ?? tr('Не удалось отправить сообщение'));
   }
 
   @override

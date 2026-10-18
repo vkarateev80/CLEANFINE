@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/Feedback';
 import { useSession } from '../../hooks/useSession';
 import { useAuthStore } from '../../stores/authStore';
+import { t } from '../../i18n';
 
 function SessionSkeleton() {
   return (
@@ -33,21 +34,21 @@ export function SessionGate({ children }: { children: ReactNode }) {
     return (
       <div className="mx-auto max-w-md p-4">
         <EmptyState
-          title={isError ? 'Не удалось проверить сессию' : 'Сессия истекла'}
+          title={isError ? t('Не удалось проверить сессию') : t('Сессия истекла')}
           hint={
             isError
-              ? 'Сервис авторизации не ответил. Проверьте соединение и повторите попытку.'
-              : 'Войдите заново, чтобы продолжить работу.'
+              ? t('Сервис авторизации не ответил. Проверьте соединение и повторите попытку.')
+              : t('Войдите заново, чтобы продолжить работу.')
           }
           action={
             <div className="flex w-full flex-col gap-2">
               {isError && (
                 <Button variant="primary" className="min-h-[48px]" onClick={() => refetch()}>
-                  Повторить
+                  {t('Повторить')}
                 </Button>
               )}
               <Button variant="secondary" className="min-h-[48px]" onClick={logout}>
-                Выйти
+                {t('Выйти')}
               </Button>
             </div>
           }

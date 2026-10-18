@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cleaning_ops_app/core/constants/app_constants.dart';
 import 'package:cleaning_ops_app/app.dart';
 import 'package:cleaning_ops_app/core/errors/exceptions.dart';
 import 'package:cleaning_ops_app/core/errors/failures.dart';
@@ -142,7 +143,7 @@ void main() {
     expect(find.byKey(const Key('profile_change_password_tile')), findsOneWidget);
     expect(find.byKey(const Key('profile_queue_tile')), findsOneWidget);
       expect(find.byKey(const Key('profile_about_tile')), findsOneWidget);
-      expect(find.text('версия 1.0.0 (М6)'), findsOneWidget);
+      expect(find.text('версия ${AppConstants.version}'), findsOneWidget);
     },
   );
 

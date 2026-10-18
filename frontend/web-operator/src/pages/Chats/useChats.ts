@@ -9,21 +9,22 @@ import {
 } from '../../api/chat';
 import { useAuthStore } from '../../stores/authStore';
 import type { ChatSummary, MessageView } from '../../types/chat';
+import { t } from '../../i18n';
 
 /** Заголовок чата по правилу chat.md §3.1. */
 export function chatTitle(chat: Pick<ChatSummary, 'type' | 'title'>): string {
   if (chat.title) return chat.title;
   switch (chat.type) {
     case 'ticket':
-      return 'Чат заявки';
+      return t('Чат заявки');
     case 'object':
-      return 'Чат объекта';
+      return t('Чат объекта');
     case 'direct':
-      return 'Личные сообщения';
+      return t('Личные сообщения');
     case 'system':
-      return 'Системные уведомления';
+      return t('Системные уведомления');
     default:
-      return 'Чат';
+      return t('Чат');
   }
 }
 

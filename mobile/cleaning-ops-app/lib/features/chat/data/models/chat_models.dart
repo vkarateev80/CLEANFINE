@@ -6,6 +6,7 @@
 library;
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Тип чата (`CHAT_TYPES` в `shared/types/chat.ts`).
 class ChatTypes {
@@ -229,10 +230,15 @@ enum ChatMessageStatus {
   read('read', 'Прочитано'),
   failed('failed', 'Не отправлено · Повторить');
 
-  const ChatMessageStatus(this.code, this.label);
+  const ChatMessageStatus(this.code, this._label);
 
   final String code;
-  final String label;
+
+  /// Русская подпись — ключ перевода; на экран идёт `label`.
+  final String _label;
+
+  /// Подпись на языке интерфейса.
+  String get label => tr(_label);
 
   static ChatMessageStatus of(String value) => ChatMessageStatus.values.firstWhere(
         (ChatMessageStatus status) => status.code == value,
@@ -379,7 +385,7 @@ class ChatAttachment {
   final bool isImage;
 
   /// Подпись по спецификации: «📷 Фото» / «📄 Документ» плюс имя файла.
-  String get label => isImage ? '📷 Фото' : '📄 Документ';
+  String get label => isImage ? tr('📷 Фото') : tr('📄 Документ');
 
   String get displayName => originalName ?? url ?? fileId;
 

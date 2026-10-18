@@ -24,6 +24,7 @@ import '../chat_texts.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/chat_states.dart';
 import 'chats_page.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Переписка `/chats/:chatId` (М6.8, DS-002 `chat.md` §2.2, §3.2–§3.5).
 ///
@@ -379,10 +380,10 @@ class _ThreadBodyState extends ConsumerState<_ThreadBody> {
           _SendErrorBanner(text: thread.sendError!, textKey: const Key('chat_send_error_text')),
         Expanded(
           child: thread.messages.isEmpty
-              ? const ChatEmptyState(
+              ? ChatEmptyState(
                   icon: Icons.chat_bubble_outline,
                   title: ChatTexts.emptyThread,
-                  titleKey: Key('chat_empty_text'),
+                  titleKey: const Key('chat_empty_text'),
                   hint: ChatTexts.emptyThreadHint,
                 )
               : _MessageList(
@@ -693,7 +694,7 @@ class _AttachmentChipState extends ConsumerState<_AttachmentChip> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(ChatTexts.attachmentOpenFailed)),
+        SnackBar(content: Text(ChatTexts.attachmentOpenFailed)),
       );
     }
   }
@@ -748,7 +749,7 @@ class _AttachmentChipState extends ConsumerState<_AttachmentChip> {
           Flexible(
             child: Text(
               attachment == null
-                  ? '📄 Документ'
+                  ? tr('📄 Документ')
                   : '${attachment.label} ${attachment.displayName}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -897,19 +898,19 @@ class AttachSourceSheet extends StatelessWidget {
           ListTile(
             key: const Key('chat_attach_camera'),
             leading: const Icon(Icons.photo_camera_outlined),
-            title: const Text(ChatTexts.attachCamera),
+            title: Text(ChatTexts.attachCamera),
             onTap: () => Navigator.of(context).pop(AttachSource.camera),
           ),
           ListTile(
             key: const Key('chat_attach_gallery'),
             leading: const Icon(Icons.photo_library_outlined),
-            title: const Text(ChatTexts.attachGallery),
+            title: Text(ChatTexts.attachGallery),
             onTap: () => Navigator.of(context).pop(AttachSource.gallery),
           ),
           ListTile(
             key: const Key('chat_attach_file'),
             leading: const Icon(Icons.insert_drive_file_outlined),
-            title: const Text(ChatTexts.attachFile),
+            title: Text(ChatTexts.attachFile),
             onTap: () => Navigator.of(context).pop(AttachSource.file),
           ),
         ],
@@ -1028,13 +1029,13 @@ class _HistoryStart extends StatelessWidget {
         ),
       );
     }
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: Text(
         ChatTexts.historyStart,
-        key: Key('chat_history_start_text'),
+        key: const Key('chat_history_start_text'),
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.textMuted),
+        style: const TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.textMuted),
       ),
     );
   }
@@ -1054,7 +1055,7 @@ class _HistoryError extends ConsumerWidget {
       action: TextButton(
         key: const Key('chat_history_retry_button'),
         onPressed: () => ref.read(chatThreadProvider(chatId).notifier).retryHistory(),
-        child: const Text(ChatTexts.retry),
+        child: Text(ChatTexts.retry),
       ),
     );
   }
@@ -1106,7 +1107,7 @@ class _ThreadError extends StatelessWidget {
       action: TextButton(
         key: const Key('chat_back_to_list_button'),
         onPressed: () => context.go(AppRoutes.chats),
-        child: const Text(ChatTexts.backToChats),
+        child: Text(ChatTexts.backToChats),
       ),
     );
   }

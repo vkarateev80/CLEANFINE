@@ -1,6 +1,8 @@
 /// Модели notification-service (М6.8, DS-002 `profile.md` §3.4).
 library;
 
+import '../../../../core/i18n/app_language.dart';
+
 /// Машинные значения типов уведомлений (`NOTIFICATION_TYPES` в
 /// `backend/notification-service/src/notifications/notification-types.ts`).
 class NotificationTypes {
@@ -46,7 +48,7 @@ class NotificationTypes {
     system: 'Служебные',
   };
 
-  static String label(String type) => labels[type] ?? type;
+  static String label(String type) => tr(labels[type] ?? type);
 }
 
 /// Настройки подписок: `GET /api/notifications/settings`.
@@ -73,7 +75,8 @@ class NotificationSettings {
 
   int get totalCount => availableTypes.length;
 
-  String get label => 'Включены ($enabledCount из $totalCount)';
+  String get label =>
+      trArgs('Включены ({enabled} из {total})', <String, Object?>{'enabled': enabledCount, 'total': totalCount});
 
   /// Порядок как в макете: сначала известные типы, затем незнакомые с сервера.
   List<String> get orderedTypes {

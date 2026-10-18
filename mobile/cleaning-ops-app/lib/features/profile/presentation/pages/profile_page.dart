@@ -30,7 +30,7 @@ class ProfilePage extends ConsumerWidget {
     return Scaffold(
       key: const Key('profile_page'),
       appBar: AppBar(
-        title: const Text(ProfileTexts.title),
+        title: Text(ProfileTexts.title),
         actions: const <Widget>[SyncStatusCounter(statusKey: Key('profile_sync_status'))],
       ),
       backgroundColor: AppPalette.background,
@@ -50,12 +50,14 @@ class ProfilePage extends ConsumerWidget {
                   data: (AuthUser user) => ProfileCard(user: user),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                const _SectionTitle(ProfileTexts.accessSection),
+                _SectionTitle(ProfileTexts.accessSection),
                 const AccessSection(),
                 const SizedBox(height: AppSpacing.lg),
                 const GpsStatusSection(),
                 const SizedBox(height: AppSpacing.lg),
-                const _SectionTitle(ProfileTexts.dataSection),
+                const LanguageSection(),
+                const SizedBox(height: AppSpacing.lg),
+                _SectionTitle(ProfileTexts.dataSection),
                 const NotificationsDataSection(),
                 const SizedBox(height: AppSpacing.sm),
                 const CacheSection(),
@@ -161,10 +163,10 @@ class _ProfileError extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const Text(
+            Text(
               ProfileTexts.profileLoadError,
-              key: Key('profile_error_text'),
-              style: TextStyle(fontSize: AppTypography.sizeBASE, color: AppPalette.dangerText),
+              key: const Key('profile_error_text'),
+              style: const TextStyle(fontSize: AppTypography.sizeBASE, color: AppPalette.dangerText),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -178,7 +180,7 @@ class _ProfileError extends StatelessWidget {
             OutlinedButton(
               key: const Key('profile_retry_button'),
               onPressed: onRetry,
-              child: const Text(ProfileTexts.retry),
+              child: Text(ProfileTexts.retry),
             ),
           ],
         ),
@@ -198,7 +200,7 @@ class _TestNotificationButton extends StatelessWidget {
       key: const Key('profile_test_notification_button'),
       onPressed: () => showNotificationsSheet(context),
       icon: const Icon(Icons.notifications_active_outlined, size: 18),
-      label: const Text(ProfileTexts.testNotification),
+      label: Text(ProfileTexts.testNotification),
     );
   }
 }

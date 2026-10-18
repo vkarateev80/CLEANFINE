@@ -10,6 +10,7 @@ import { apiStatus } from '../../lib/http';
 import { useAuthStore } from '../../stores/authStore';
 import { isNetworkError, useNetStore } from '../../stores/netStore';
 import type { ScheduleEvent } from '../../types/schedule';
+import { t } from '../../i18n';
 
 /** Текущая смена: открытая имеет приоритет, иначе ближайшая по началу (home_today.md §3.3). */
 export function pickCurrentEvent(events: ScheduleEvent[]): ScheduleEvent | null {
@@ -68,12 +69,12 @@ export function useMyTickets() {
 /** Текст ошибки отметки по коду сервера (home_today.md §4). */
 export function shiftActionError(error: unknown): string {
   if (error instanceof LocationUnavailable) return error.message;
-  if (isNetworkError(error)) return 'Нет соединения. Проверьте интернет';
+  if (isNetworkError(error)) return t('Нет соединения. Проверьте интернет');
   const status = apiStatus(error);
-  if (status === 502) return 'Сервис геозон недоступен';
-  if (status === 404) return 'Смена на сегодня не найдена';
+  if (status === 502) return t('Сервис геозон недоступен');
+  if (status === 404) return t('Смена на сегодня не найдена');
   if (status === 403 || status === 400) return errorMessage(error);
-  if (status !== null && status >= 500) return 'Сервис временно недоступен. Повторите позже';
+  if (status !== null && status >= 500) return t('Сервис временно недоступен. Повторите позже');
   return errorMessage(error);
 }
 
@@ -92,12 +93,12 @@ export function useShiftActions() {
 
   const checkInMutation = useMutation({
     mutationFn: async (event: ScheduleEvent) => {
-      if (!online) throw new LocationUnavailable('Нет соединения. Проверьте интернет');
+      if (!online) throw new LocationUnavailable(t('Нет соединения. Проверьте интернет'));
       const point = await getCurrentPosition();
       return checkIn({ scheduleId: event.scheduleId, lat: point.lat, lng: point.lng });
     },
     onSuccess: () => {
-      setMessage({ text: 'Смена открыта', tone: 'success' });
+      setMessage({ text: t('Смена открыта'), tone: 'success' });
       invalidate();
     },
     onError: (error) => setMessage({ text: shiftActionError(error), tone: 'error' }),
@@ -105,7 +106,7 @@ export function useShiftActions() {
 
   const checkOutMutation = useMutation({
     mutationFn: async (event: ScheduleEvent) => {
-      if (!online) throw new LocationUnavailable('Нет соединения. Проверьте интернет');
+      if (!online) throw new LocationUnavailable(t('Нет соединения. Проверьте интернет'));
       let coords: { lat: number; lng: number } | undefined;
       try {
         const point = await getCurrentPosition(8000);
@@ -116,7 +117,7 @@ export function useShiftActions() {
       return checkOut({ scheduleId: event.scheduleId, ...coords });
     },
     onSuccess: () => {
-      setMessage({ text: 'Смена закрыта', tone: 'success' });
+      setMessage({ text: t('Смена закрыта'), tone: 'success' });
       invalidate();
     },
     onError: (error) => setMessage({ text: shiftActionError(error), tone: 'error' }),

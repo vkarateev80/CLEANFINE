@@ -29,6 +29,7 @@ import {
   useShiftActions,
   useTodayEvents,
 } from './useToday';
+import { t } from '../../i18n';
 
 const STATUS_TONE: Record<ScheduleEventStatus, Tone> = {
   PLANNED: 'warning',
@@ -50,7 +51,7 @@ export function TodayPage() {
   const online = useOnline();
 
   const objectName = current?.objectName ?? object.data?.name ?? null;
-  useHeaderTitle(objectName ? `Сегодня · ${objectName}` : 'Сегодня');
+  useHeaderTitle(objectName ? t('Сегодня · {objectName}', { objectName }) : t('Сегодня'));
 
   const dataUpdatedAt = events.dataUpdatedAt
     ? localTime(new Date(events.dataUpdatedAt).toISOString())
@@ -62,7 +63,7 @@ export function TodayPage() {
         <div className="text-sm text-neutral-500">{humanDate()}</div>
         {!online && dataUpdatedAt && (
           <div className="text-xs text-warning-600" data-testid="today_cached_at">
-            Данные от {dataUpdatedAt}
+            {t('Данные от {time}', { time: dataUpdatedAt })}
           </div>
         )}
       </div>
@@ -77,13 +78,13 @@ export function TodayPage() {
         </>
       ) : events.isError && !events.data ? (
         <ErrorBanner
-          error={new Error('Не удалось загрузить смены')}
+          error={new Error(t('Не удалось загрузить смены'))}
           onRetry={() => void events.refetch()}
         />
       ) : (events.data ?? []).length === 0 ? (
         <EmptyState
-          title="На смену сегодня вы не назначены"
-          hint="Смены назначает бригадир в графике"
+          title={t('На смену сегодня вы не назначены')}
+          hint={t('Смены назначает бригадир в графике')}
           action={
             <Button
               variant="secondary"
@@ -91,7 +92,7 @@ export function TodayPage() {
               onClick={() => void events.refetch()}
               data-testid="today_empty_retry"
             >
-              Обновить
+              {t('Обновить')}
             </Button>
           }
         />
@@ -99,7 +100,7 @@ export function TodayPage() {
         <>
           {events.isError && (
             <ErrorBanner
-              error={new Error('Не удалось обновить смены — показаны сохранённые')}
+              error={new Error(t('Не удалось обновить смены — показаны сохранённые'))}
               onRetry={() => void events.refetch()}
             />
           )}
@@ -142,10 +143,15 @@ function ShiftCard({
   const pointsTotal = route?.points.length ?? 0;
   const routeLabel = event.routeId
     ? route
-      ? `Маршрут: ${route.name} · ${pointsTotal} ${plural(pointsTotal, 'помещение', 'помещения', 'помещений')} · ~${route.totalEstimatedTimeMin} мин`
-      : `Маршрут: ${event.routeName ?? '…'}`
-    : 'Маршрут не назначен';
-  const routeButtonLabel = event.status === 'CHECKED_IN' ? 'Продолжить' : 'Маршрут';
+      ? t('Маршрут: {name} · {count} {rooms} · ~{minutes} мин', {
+          name: route.name,
+          count: pointsTotal,
+          rooms: plural(pointsTotal, t('помещение'), t('помещения'), t('помещений')),
+          minutes: route.totalEstimatedTimeMin,
+        })
+      : t('Маршрут: {name}', { name: event.routeName ?? '…' })
+    : t('Маршрут не назначен');
+  const routeButtonLabel = event.status === 'CHECKED_IN' ? t('Продолжить') : t('Маршрут');
 
   return (
     <section
@@ -156,12 +162,12 @@ function ShiftCard({
       data-testid={`today_shift_card_${event.id}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-lg font-medium text-neutral-900">Смена · {event.scheduleName}</h2>
+        <h2 className="text-lg font-medium text-neutral-900">{t('Смена · {name}', { name: event.scheduleName })}</h2>
         <Badge
           tone={STATUS_TONE[event.status]}
           testId={`today_status_${event.status.toLowerCase()}`}
         >
-          {SCHEDULE_EVENT_STATUS_LABELS[event.status]}
+          {t(SCHEDULE_EVENT_STATUS_LABELS[event.status])}
         </Badge>
       </div>
       <div className="mt-1 text-sm text-neutral-500">
@@ -183,8 +189,7 @@ function ShiftCard({
             />
           </div>
           <div className="mt-1 text-xs text-neutral-500">
-            Пройдено <span className="font-mono">{donePoints}</span> из{' '}
-            <span className="font-mono">{pointsTotal}</span>
+            {t('Пройдено {done} из {total}', { done: donePoints, total: pointsTotal })}
           </div>
         </div>
       )}
@@ -215,7 +220,7 @@ function ShiftActions({ event }: { event: ScheduleEvent }) {
         className="rounded-xl border border-danger-500 bg-white p-4 text-sm text-danger-600"
         data-testid="today_checkin_hint"
       >
-        Вы не отметились на смене. Обратитесь к бригадиру.
+        {t('Вы не отметились на смене. Обратитесь к бригадиру.')}
       </div>
     );
   }
@@ -228,7 +233,7 @@ function ShiftActions({ event }: { event: ScheduleEvent }) {
             className="flex items-center gap-2 text-sm text-neutral-700"
             data-testid="today_checkin_hint"
           >
-            <span aria-hidden="true">⚠</span> Вы ещё не вышли на смену
+            <span aria-hidden="true">⚠</span> {t('Вы ещё не вышли на смену')}
           </div>
           <Button
             variant="primary"
@@ -237,17 +242,17 @@ function ShiftActions({ event }: { event: ScheduleEvent }) {
             onClick={() => actions.checkIn(event)}
             data-testid="today_checkin_button"
           >
-            Начать смену
+            {t('Начать смену')}
           </Button>
           <div className="mt-2 text-center text-xs text-neutral-500">
-            Отметка возможна только в зоне объекта
+            {t('Отметка возможна только в зоне объекта')}
           </div>
         </>
       )}
       {event.status === 'CHECKED_IN' && (
         <>
           <div className="text-sm text-neutral-700" data-testid="today_checkin_hint">
-            Смена открыта в <span className="font-mono">{localTime(event.checkInAt)}</span>
+            {t('Смена открыта в {time}', { time: localTime(event.checkInAt) })}
           </div>
           <Button
             variant="secondary"
@@ -256,13 +261,13 @@ function ShiftActions({ event }: { event: ScheduleEvent }) {
             onClick={() => setConfirmOut(true)}
             data-testid="today_checkout_button"
           >
-            Закрыть смену
+            {t('Закрыть смену')}
           </Button>
         </>
       )}
       {event.status === 'CHECKED_OUT' && (
         <div className="text-sm text-neutral-700" data-testid="today_checkin_hint">
-          Смена закрыта в <span className="font-mono">{localTime(event.checkOutAt)}</span>
+          {t('Смена закрыта в {time}', { time: localTime(event.checkOutAt) })}
         </div>
       )}
       {actions.message && (
@@ -281,9 +286,9 @@ function ShiftActions({ event }: { event: ScheduleEvent }) {
       )}
       <ConfirmDialog
         open={confirmOut}
-        title="Закрыть смену?"
-        text="После закрытия отметить операции будет нельзя."
-        confirmLabel="Закрыть"
+        title={t('Закрыть смену?')}
+        text={t('После закрытия отметить операции будет нельзя.')}
+        confirmLabel={t('Закрыть')}
         loading={actions.busy}
         onCancel={() => setConfirmOut(false)}
         onConfirm={() => {
@@ -331,7 +336,7 @@ function TicketsSection({
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium text-neutral-900">Мои заявки</h2>
+        <h2 className="text-lg font-medium text-neutral-900">{t('Мои заявки')}</h2>
         {items.length > 0 && (
           <button
             type="button"
@@ -339,20 +344,20 @@ function TicketsSection({
             onClick={() => setShowAll(true)}
             data-testid="today_tickets_all_button"
           >
-            Все →
+            {t('Все →')}
           </button>
         )}
       </div>
       {isLoading ? (
         <div className="h-20 animate-pulse rounded-xl bg-neutral-200" />
       ) : isError ? (
-        <ErrorBanner error={new Error('Не удалось загрузить заявки')} onRetry={onRetry} />
+        <ErrorBanner error={new Error(t('Не удалось загрузить заявки'))} onRetry={onRetry} />
       ) : items.length === 0 ? (
         <div
           className="rounded-xl border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500"
           data-testid="today_tickets_empty_text"
         >
-          Заявок нет
+          {t('Заявок нет')}
         </div>
       ) : (
         <>
@@ -365,7 +370,7 @@ function TicketsSection({
               className="min-h-[44px] text-left text-xs text-neutral-500"
               onClick={() => setShowAll(true)}
             >
-              Закрытых заявок: {closed.length}
+              {t('Закрытых заявок: {count}', { count: closed.length })}
             </button>
           )}
         </>
@@ -373,7 +378,7 @@ function TicketsSection({
 
       <Sheet
         open={showAll}
-        title={`Мои заявки (${total})`}
+        title={t('Мои заявки ({total})', { total })}
         onClose={() => setShowAll(false)}
         testId="today_tickets_sheet"
       >
@@ -405,15 +410,15 @@ function TicketTile({ ticket, onOpen }: { ticket: TicketListItem; onOpen: () => 
             aria-hidden="true"
           />
           <span className="truncate">
-            {TICKET_PRIORITY_LABELS[ticket.priority]} · {TICKET_TYPE_LABELS[ticket.type]}
+            {t(TICKET_PRIORITY_LABELS[ticket.priority])} · {t(TICKET_TYPE_LABELS[ticket.type])}
           </span>
         </span>
-        <Badge tone={statusTone(ticket.status)}>{TICKET_STATUS_LABELS[ticket.status]}</Badge>
+        <Badge tone={statusTone(ticket.status)}>{t(TICKET_STATUS_LABELS[ticket.status])}</Badge>
       </div>
       <div className="mt-1 line-clamp-2 text-sm text-neutral-900">{ticket.description}</div>
       {deadline && (
         <div className="mt-1 text-xs text-neutral-500">
-          до{' '}
+          {t('до')}{' '}
           <span className="font-mono">
             {localDate(deadline)} {localTime(deadline)}
           </span>
@@ -432,29 +437,29 @@ function TicketDetailSheet({
 }) {
   const showToast = useUiStore((s) => s.showToast);
   return (
-    <Sheet open={Boolean(ticket)} title="Заявка" onClose={onClose} testId="today_ticket_detail">
+    <Sheet open={Boolean(ticket)} title={t('Заявка')} onClose={onClose} testId="today_ticket_detail">
       {ticket && (
         <div className="flex flex-col gap-3 text-sm">
           <div className="flex flex-wrap gap-2">
-            <Badge tone={statusTone(ticket.status)}>{TICKET_STATUS_LABELS[ticket.status]}</Badge>
-            <Badge tone="neutral">{TICKET_TYPE_LABELS[ticket.type]}</Badge>
+            <Badge tone={statusTone(ticket.status)}>{t(TICKET_STATUS_LABELS[ticket.status])}</Badge>
+            <Badge tone="neutral">{t(TICKET_TYPE_LABELS[ticket.type])}</Badge>
             <Badge
               tone={
                 ticket.priority === 'critical' || ticket.priority === 'high' ? 'danger' : 'info'
               }
             >
-              {TICKET_PRIORITY_LABELS[ticket.priority]}
+              {t(TICKET_PRIORITY_LABELS[ticket.priority])}
             </Badge>
           </div>
           <p className="whitespace-pre-wrap text-neutral-900">{ticket.description}</p>
           <dl className="grid grid-cols-2 gap-2 text-xs text-neutral-500">
-            <dt>Создана</dt>
+            <dt>{t('Создана')}</dt>
             <dd className="font-mono text-neutral-900">
               {localDate(ticket.createdAt)} {localTime(ticket.createdAt)}
             </dd>
             {ticket.arrivalDeadline && (
               <>
-                <dt>Прибыть до</dt>
+                <dt>{t('Прибыть до')}</dt>
                 <dd className="font-mono text-neutral-900">
                   {localDate(ticket.arrivalDeadline)} {localTime(ticket.arrivalDeadline)}
                 </dd>
@@ -462,21 +467,21 @@ function TicketDetailSheet({
             )}
             {ticket.completionDeadline && (
               <>
-                <dt>Выполнить до</dt>
+                <dt>{t('Выполнить до')}</dt>
                 <dd className="font-mono text-neutral-900">
                   {localDate(ticket.completionDeadline)} {localTime(ticket.completionDeadline)}
                 </dd>
               </>
             )}
-            <dt>Операций отмечено</dt>
+            <dt>{t('Операций отмечено')}</dt>
             <dd className="font-mono text-neutral-900">
               {ticket._count.operations}
-              {ticket.operationsTotal !== null ? ` из ${ticket.operationsTotal}` : ''}
+              {ticket.operationsTotal !== null ? ` ${t('из {total}', { total: ticket.operationsTotal })}` : ''}
             </dd>
           </dl>
-          <Link to={`/chats?ticket=${ticket.id}`} onClick={() => showToast('Открываю чат заявки')}>
+          <Link to={`/chats?ticket=${ticket.id}`} onClick={() => showToast(t('Открываю чат заявки'))}>
             <Button variant="secondary" className="min-h-[48px] w-full">
-              Чат заявки
+              {t('Чат заявки')}
             </Button>
           </Link>
         </div>

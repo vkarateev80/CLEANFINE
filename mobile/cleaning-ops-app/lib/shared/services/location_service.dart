@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../core/i18n/app_language.dart';
 
 /// Точка на карте (широта/долгота) — свой тип, чтобы тесты не зависели от geolocator.
 class GeoPoint {
@@ -27,9 +28,13 @@ enum LocationAccess {
   deniedForever('Отклонено навсегда'),
   serviceDisabled('Служба геолокации выключена');
 
-  const LocationAccess(this.label);
+  const LocationAccess(this._label);
 
-  final String label;
+  /// Русская подпись — ключ перевода; на экран идёт `label`.
+  final String _label;
+
+  /// Подпись на языке интерфейса.
+  String get label => tr(_label);
 
   bool get isGranted => this == granted || this == grantedWhileInUse;
 }

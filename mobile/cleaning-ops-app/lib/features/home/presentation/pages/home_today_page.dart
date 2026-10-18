@@ -14,6 +14,7 @@ import '../../../../shared/data/models/schedule_event.dart';
 import '../../../../shared/widgets/offline_banner.dart';
 import '../../../../shared/widgets/sync_status_widgets.dart';
 import '../providers/today_providers.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Главный экран `/today` (М6.3): смена на сегодня, отметки прихода/ухода,
 /// маршрут и мои заявки. Элементы и тексты — по `design/screens/mobile/home_today.md`.
@@ -67,7 +68,7 @@ class HomeTodayPage extends ConsumerWidget {
   /// «Сегодня · {objectName}» — имя объекта только когда объект известен.
   static String _title(TodayOverview? data) {
     final String? name = data?.object?.name;
-    return name == null || name.isEmpty ? 'Сегодня' : 'Сегодня · $name';
+    return name == null || name.isEmpty ? tr('Сегодня') : trArgs('Сегодня · {name}', <String, Object?>{'name': name});
   }
 }
 
@@ -132,22 +133,22 @@ class _EmptyShifts extends StatelessWidget {
       children: <Widget>[
         const Icon(Icons.event_busy_outlined, size: 56, color: AppPalette.textSecondary),
         const SizedBox(height: AppSpacing.md),
-        const Text(
-          'На смену сегодня вы не назначены',
+        Text(
+          tr('На смену сегодня вы не назначены'),
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+          style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppSpacing.sm),
-        const Text(
-          'Смены назначает бригадир в графике',
+        Text(
+          tr('Смены назначает бригадир в графике'),
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
+          style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
         ),
         const SizedBox(height: AppSpacing.lg),
         OutlinedButton(
           key: const Key('today_empty_retry'),
           onPressed: onRetry,
-          child: const Text('Обновить'),
+          child: Text(tr('Обновить')),
         ),
       ],
     );
@@ -175,7 +176,7 @@ class _TodayError extends StatelessWidget {
         const Icon(Icons.cloud_off_outlined, size: 56, color: AppPalette.danger),
         const SizedBox(height: AppSpacing.md),
         Text(
-          offline ? 'Нет соединения. Данные появятся после подключения' : 'Не удалось загрузить смены',
+          offline ? tr('Нет соединения. Данные появятся после подключения') : tr('Не удалось загрузить смены'),
           key: const Key('today_error_text'),
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
@@ -190,7 +191,7 @@ class _TodayError extends StatelessWidget {
         OutlinedButton(
           key: const Key('today_error_retry'),
           onPressed: onRetry,
-          child: const Text('Повторить'),
+          child: Text(tr('Повторить')),
         ),
       ],
     );
@@ -281,7 +282,7 @@ class _ShiftCard extends ConsumerWidget {
             ],
             const SizedBox(height: AppSpacing.sm),
             Text(
-              route == null ? 'Маршрут не назначен' : _routeLine(route),
+              route == null ? tr('Маршрут не назначен') : _routeLine(route),
               style: const TextStyle(fontSize: AppTypography.sizeSM),
             ),
             if (event.checkOutReason != null) ...<Widget>[
@@ -309,7 +310,7 @@ class _ShiftCard extends ConsumerWidget {
                 key: const Key('today_action_message'),
                 style: TextStyle(
                   fontSize: AppTypography.sizeSM,
-                  color: action.message == 'Смена открыта' || action.message == 'Смена закрыта'
+                  color: action.message == tr('Смена открыта') || action.message == tr('Смена закрыта')
                       ? AppPalette.success
                       : AppPalette.danger,
                 ),
@@ -326,16 +327,16 @@ class _ShiftCard extends ConsumerWidget {
   /// Подсказка состояния смены (`home_today.md` §4).
   String _hintFor(ScheduleEvent event) {
     if (event.isPlanned) {
-      return 'Вы ещё не вышли на смену. Отметка возможна только в зоне объекта';
+      return tr('Вы ещё не вышли на смену. Отметка возможна только в зоне объекта');
     }
     if (event.isCheckedIn) {
-      return 'Смена открыта в ${Formatters.time(event.checkInAt) ?? '--:--'}';
+      return trArgs('Смена открыта в {time}', <String, Object?>{'time': Formatters.time(event.checkInAt) ?? '--:--'});
     }
     if (event.isCheckedOut) {
-      return 'Смена закрыта в ${Formatters.time(event.checkOutAt) ?? '--:--'}';
+      return trArgs('Смена закрыта в {time}', <String, Object?>{'time': Formatters.time(event.checkOutAt) ?? '--:--'});
     }
     if (event.isMissed) {
-      return 'Вы не отметились на смене. Обратитесь к бригадиру.';
+      return tr('Вы не отметились на смене. Обратитесь к бригадиру.');
     }
     return '';
   }
@@ -345,8 +346,10 @@ class _ShiftCard extends ConsumerWidget {
   /// Имя маршрута в кэше не хранится (в DS-002 §3 таблицы маршрутов нет), поэтому
   /// при показе из кэша строка остаётся без имени — замечание в отчёте.
   String _routeLine(RouteDetail route) {
-    final String prefix = route.name.isEmpty ? 'Маршрут' : 'Маршрут: ${route.name}';
-    return '$prefix · ${route.pointsCount} помещений · ~${route.estimatedMinutes} мин';
+    final String prefix =
+        route.name.isEmpty ? tr('Маршрут') : trArgs('Маршрут: {name}', <String, Object?>{'name': route.name});
+    return trArgs('{prefix} · {count} помещений · ~{minutes} мин',
+        <String, Object?>{'prefix': prefix, 'count': route.pointsCount, 'minutes': route.estimatedMinutes});
   }
 }
 
@@ -368,26 +371,26 @@ class _ShiftActions extends ConsumerWidget {
             key: const Key('today_checkin_button'),
             onPressed:
                 busy ? null : () => ref.read(todayControllerProvider.notifier).checkIn(event),
-            child: const Text('Начать смену'),
+            child: Text(tr('Начать смену')),
           ),
         if (event.isCheckedIn) ...<Widget>[
           FilledButton(
             key: const Key('today_route_button'),
             onPressed: () => _openRoute(context),
-            child: const Text('Продолжить'),
+            child: Text(tr('Продолжить')),
           ),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton(
             key: const Key('today_checkout_button'),
             onPressed: busy ? null : () => _confirmCheckOut(context, ref),
-            child: const Text('Закрыть смену'),
+            child: Text(tr('Закрыть смену')),
           ),
         ],
         if (event.isCheckedOut || event.isMissed)
           OutlinedButton(
             key: const Key('today_route_button'),
             onPressed: () => _openRoute(context),
-            child: const Text('Маршрут'),
+            child: Text(tr('Маршрут')),
           ),
       ],
     );
@@ -397,7 +400,7 @@ class _ShiftActions extends ConsumerWidget {
   void _openRoute(BuildContext context) {
     if (!event.hasRoute) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Маршрут не назначен')),
+        SnackBar(content: Text(tr('Маршрут не назначен'))),
       );
       return;
     }
@@ -410,18 +413,18 @@ class _ShiftActions extends ConsumerWidget {
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
         key: const Key('today_checkout_dialog'),
-        title: const Text('Закрыть смену?'),
-        content: const Text('После закрытия отметить операции будет нельзя.'),
+        title: Text(tr('Закрыть смену?')),
+        content: Text(tr('После закрытия отметить операции будет нельзя.')),
         actions: <Widget>[
           TextButton(
             key: const Key('today_checkout_cancel'),
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Отмена'),
+            child: Text(tr('Отмена')),
           ),
           FilledButton(
             key: const Key('today_checkout_confirm'),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Закрыть'),
+            child: Text(tr('Закрыть')),
           ),
         ],
       ),
@@ -473,26 +476,26 @@ class _TicketsSection extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            const Expanded(
+            Expanded(
               child: Text(
-                'Мои заявки',
-                style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+                tr('Мои заявки'),
+                style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
               ),
             ),
             TextButton(
               key: const Key('today_tickets_all_button'),
               onPressed: () => _openAll(context),
-              child: const Text('Все →'),
+              child: Text(tr('Все →')),
             ),
           ],
         ),
         if (tickets.isEmpty)
-          const Padding(
-            key: Key('today_tickets_empty_text'),
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+          Padding(
+            key: const Key('today_tickets_empty_text'),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Text(
-              'Заявок нет',
-              style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
+              tr('Заявок нет'),
+              style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
             ),
           )
         else
@@ -501,7 +504,7 @@ class _TicketsSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text(
-              'Закрытых заявок: $closed',
+              trArgs('Закрытых заявок: {count}', <String, Object?>{'count': closed}),
               style: const TextStyle(
                 fontSize: AppTypography.sizeXS,
                 color: AppPalette.textSecondary,
@@ -520,13 +523,13 @@ class _TicketsSection extends StatelessWidget {
         key: const Key('today_tickets_sheet'),
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: <Widget>[
-          const Text(
-            'Мои заявки',
-            style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+          Text(
+            tr('Мои заявки'),
+            style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: AppSpacing.md),
           if (tickets.isEmpty)
-            const Text('Заявок нет')
+            Text(tr('Заявок нет'))
           else
             ...tickets.map((TicketSummary ticket) => _TicketTile(ticket: ticket)),
         ],
@@ -587,7 +590,7 @@ class _TicketTile extends StatelessWidget {
                   if (ticket.deadline != null) ...<Widget>[
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'до ${Formatters.time(ticket.deadline) ?? ''}',
+                      trArgs('до {time}', <String, Object?>{'time': Formatters.time(ticket.deadline) ?? ''}),
                       style: const TextStyle(
                         fontSize: AppTypography.sizeXS,
                         color: AppPalette.textSecondary,

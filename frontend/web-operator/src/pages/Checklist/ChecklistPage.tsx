@@ -15,6 +15,7 @@ import { showToast } from '../../stores/uiStore';
 import { OperationTile } from './OperationTile';
 import { PhotoSheet } from './PhotoSheet';
 import { useChecklist, type OperationView } from './useChecklist';
+import { t } from '../../i18n';
 
 /** Чек-лист помещения (checklist.md): операции по порядку, таймер, фото, завершение. */
 export function ChecklistPage() {
@@ -40,8 +41,8 @@ export function ChecklistPage() {
 
   const floorNumber = route.data?.floor.number ?? null;
   const title = room.data
-    ? `${room.data.name}${floorNumber !== null ? ` · ${floorNumber} этаж` : ''}`
-    : 'Чек-лист';
+    ? `${room.data.name}${floorNumber !== null ? ` · ${t('{number} этаж', { number: floorNumber })}` : ''}`
+    : t('Чек-лист');
   const roomZone = room.data
     ? roomColorZone({ floorType: room.data.floorType, zone: room.data.zone, name: room.data.name })
     : 'BLUE';
@@ -61,7 +62,7 @@ export function ChecklistPage() {
       setPhoto(prepared);
     } catch (error) {
       showToast(
-        error instanceof PhotoTooSmall ? error.message : 'Не удалось обработать фото',
+        error instanceof PhotoTooSmall ? error.message : t('Не удалось обработать фото'),
         'error',
       );
     }
@@ -80,7 +81,7 @@ export function ChecklistPage() {
   async function finishRoom() {
     const ok = await checklist.finishRoom();
     if (ok) {
-      showToast('Помещение завершено', 'success');
+      showToast(t('Помещение завершено'), 'success');
       navigate(`/route/${eventId}`, { replace: true });
     }
   }
@@ -107,7 +108,7 @@ export function ChecklistPage() {
     if (loadError) {
       return (
         <ErrorBanner
-          error={new Error('Не удалось загрузить чек-лист')}
+          error={new Error(t('Не удалось загрузить чек-лист'))}
           onRetry={() => {
             void event.refetch();
             void room.refetch();
@@ -121,11 +122,11 @@ export function ChecklistPage() {
     return (
       <div className="flex flex-col gap-4">
         {event.data && event.data.status !== 'CHECKED_IN' && (
-          <SoftWarning>Смена не открыта — отметки недоступны</SoftWarning>
+          <SoftWarning>{t('Смена не открыта — отметки недоступны')}</SoftWarning>
         )}
         {event.data && event.data.status === 'CHECKED_IN' && !event.data.ticketId && (
           <div className="rounded-lg border border-danger-500 bg-white px-4 py-3 text-sm text-danger-600">
-            Заявка по смене не создана — отметки недоступны. Обратитесь к бригадиру
+            {t('Заявка по смене не создана — отметки недоступны. Обратитесь к бригадиру')}
           </div>
         )}
 
@@ -138,24 +139,28 @@ export function ChecklistPage() {
               />
             </div>
             <div className="mt-1 text-xs text-neutral-500">
-              Прогресс маршрута: <span className="font-mono">{routeProgress.done}</span> из{' '}
-              <span className="font-mono">{routeProgress.total}</span>{' '}
-              {plural(routeProgress.total, 'помещения', 'помещений', 'помещений')}
+              {t('Прогресс маршрута: {done} из {total} {rooms}', {
+                done: routeProgress.done,
+                total: routeProgress.total,
+                rooms: plural(routeProgress.total, t('помещения'), t('помещений'), t('помещений')),
+              })}
             </div>
           </div>
         )}
 
         {!room.data.techCardId ? (
-          <EmptyState title="Техкарта не назначена" hint="Обратитесь к бригадиру" />
+          <EmptyState title={t('Техкарта не назначена')} hint={t('Обратитесь к бригадиру')} />
         ) : techCard.data && techCard.data.operations.length === 0 ? (
-          <EmptyState title="В техкарте нет операций" hint="Обратитесь к бригадиру" />
+          <EmptyState title={t('В техкарте нет операций')} hint={t('Обратитесь к бригадиру')} />
         ) : techCard.data ? (
           <>
             <div className="text-sm text-neutral-500">
-              Техкарта: {techCard.data.name} ·{' '}
-              <span className="font-mono">{techCard.data.operations.length}</span>{' '}
-              {plural(techCard.data.operations.length, 'операция', 'операции', 'операций')} · ~
-              <span className="font-mono">{techCard.data.totalEstimatedTimeMin}</span> мин
+              {t('Техкарта: {name} · {count} {operations} · ~{minutes} мин', {
+                name: techCard.data.name,
+                count: techCard.data.operations.length,
+                operations: plural(techCard.data.operations.length, t('операция'), t('операции'), t('операций')),
+                minutes: techCard.data.totalEstimatedTimeMin,
+              })}
             </div>
             <ol className="flex flex-col gap-3" data-testid="checklist_operations_list">
               {operations.map((view, index) => (
@@ -179,17 +184,17 @@ export function ChecklistPage() {
   })();
 
   const roomCompleteLabel = !room.data?.techCardId
-    ? 'Считаю помещение выполненным'
+    ? t('Считаю помещение выполненным')
     : allDone || operations.length === 0
-      ? 'Завершить помещение'
-      : `Завершить помещение (осталось ${remaining})`;
+      ? t('Завершить помещение')
+      : t('Завершить помещение (осталось {remaining})', { remaining });
   const canFinish = canWork && Boolean(room.data) && (allDone || operations.length === 0);
 
   return (
     <FullscreenLayout
       title={title}
       backTo={`/route/${eventId}`}
-      offlineText="Нет соединения — результат сохранится и синхронизируется"
+      offlineText={t('Нет соединения — результат сохранится и синхронизируется')}
       testId="checklist_page"
       bottom={
         room.data && !loading ? (
@@ -225,7 +230,7 @@ export function ChecklistPage() {
       />
       <PhotoSheet
         photo={photo}
-        title={photoTarget ? `Фото операции ${photoTarget.op.orderIndex + 1}` : 'Фото'}
+        title={photoTarget ? t('Фото операции {index}', { index: photoTarget.op.orderIndex + 1 }) : t('Фото')}
         roomName={room.data?.name ?? ''}
         busy={busyKey === photoTarget?.key}
         onRetake={() => fileInput.current?.click()}

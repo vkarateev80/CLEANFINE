@@ -27,6 +27,7 @@ import { useQueueStore } from '../../stores/queueStore';
 import { showToast } from '../../stores/uiStore';
 import { plural } from '../../lib/date';
 import { pickCurrentEvent, useTodayEvents } from '../Today/useToday';
+import { t } from '../../i18n';
 
 /** Словарь типов аварии — в API его нет (sos.md п. 11.1): тип уходит префиксом описания. */
 export const EMERGENCY_TYPES = [
@@ -38,7 +39,7 @@ export const EMERGENCY_TYPES = [
   'Другое',
 ] as const;
 
-export const SOS_VALIDATION_TEXT = 'Выберите тип и сделайте фото';
+export const SOS_VALIDATION_TEXT = t('Выберите тип и сделайте фото');
 const DESCRIPTION_MAX = 2000;
 
 export function buildSosDescription(type: string, description: string): string {
@@ -89,7 +90,7 @@ export function SosPage() {
       setLocationError(
         error instanceof LocationUnavailable
           ? error.message
-          : 'Не удалось определить местоположение',
+          : t('Не удалось определить местоположение'),
       );
     } finally {
       setLocating(false);
@@ -111,7 +112,7 @@ export function SosPage() {
       setFormError(null);
     } catch (error) {
       showToast(
-        error instanceof PhotoTooSmall ? error.message : 'Не удалось обработать фото',
+        error instanceof PhotoTooSmall ? error.message : t('Не удалось обработать фото'),
         'error',
       );
     }
@@ -124,12 +125,12 @@ export function SosPage() {
       return;
     }
     if (!description.trim()) {
-      setFormError('Опишите аварию');
+      setFormError(t('Опишите аварию'));
       return;
     }
     if (!objectId) return;
     if (!location) {
-      setFormError(locationError ?? 'Определяем местоположение…');
+      setFormError(locationError ?? t('Определяем местоположение…'));
       return;
     }
     setFormError(null);
@@ -156,7 +157,7 @@ export function SosPage() {
           takenAt: photo.takenAt,
           ...extra,
         },
-        label: `Аварийная заявка · ${roomLabel ?? objectName ?? 'объект'}`,
+        label: t('Аварийная заявка · {place}', { place: roomLabel ?? objectName ?? t('объект') }),
         idempotencyKey: `sos:${clientRequestId}`,
       });
       setSuccess({ queued: true, nearby: 0, photoAttached: false });
@@ -181,7 +182,7 @@ export function SosPage() {
           await queue();
           return;
         }
-        setFormError(`Фото отклонено: ${errorMessage(error)}. Снимите заново`);
+        setFormError(t('Фото отклонено: {errorMessage}. Снимите заново', { errorMessage: errorMessage(error) }));
         return;
       }
       let ticketId: string;
@@ -198,8 +199,8 @@ export function SosPage() {
         const status = apiStatus(error);
         setFormError(
           status && status >= 500
-            ? 'Сервис временно недоступен. Повторите позже'
-            : `Ошибка: ${errorMessage(error)}`,
+            ? t('Сервис временно недоступен. Повторите позже')
+            : t('Ошибка: {errorMessage}', { errorMessage: errorMessage(error) }),
         );
         return;
       }
@@ -227,7 +228,7 @@ export function SosPage() {
   if (success) {
     return (
       <FullscreenLayout
-        title="Аварийная заявка"
+        title={t('Аварийная заявка')}
         tone="danger"
         showSos={false}
         onBack={() => navigate('/today', { replace: true })}
@@ -238,22 +239,24 @@ export function SosPage() {
             ✅
           </div>
           <h2 className="text-xl font-semibold text-success-600">
-            {success.queued ? 'Заявка сохранена и будет отправлена' : 'Заявка отправлена'}
+            {success.queued ? t('Заявка сохранена и будет отправлена') : t('Заявка отправлена')}
           </h2>
-          <p className="text-sm text-neutral-700">Приоритет: Критичный · Статус: Новая</p>
+          <p className="text-sm text-neutral-700">{t('Приоритет: Критичный · Статус: Новая')}</p>
           {!success.queued && (
             <p className="text-sm text-neutral-700" data-testid="sos_nearby_operators_text">
-              Оповещены {success.nearby}{' '}
-              {plural(success.nearby, 'оператор', 'оператора', 'операторов')} поблизости
+              {t('Оповещены {count} {operators} поблизости', {
+                count: success.nearby,
+                operators: plural(success.nearby, t('оператор'), t('оператора'), t('операторов')),
+              })}
             </p>
           )}
           {!success.queued && !success.photoAttached && (
             <p className="text-xs text-warning-600">
-              Фото не прикреплено — прикрепится автоматически
+              {t('Фото не прикреплено — прикрепится автоматически')}
             </p>
           )}
           {success.queued && (
-            <p className="text-xs text-warning-600">Ожидает отправки — уйдёт при появлении сети</p>
+            <p className="text-xs text-warning-600">{t('Ожидает отправки — уйдёт при появлении сети')}</p>
           )}
           <Button
             variant="primary"
@@ -261,7 +264,7 @@ export function SosPage() {
             onClick={() => navigate('/today', { replace: true })}
             data-testid="sos_success_close_button"
           >
-            Закрыть
+            {t('Закрыть')}
           </Button>
         </div>
       </FullscreenLayout>
@@ -270,12 +273,12 @@ export function SosPage() {
 
   if (events.isSuccess && !objectId) {
     return (
-      <FullscreenLayout title="Аварийная заявка" tone="danger" showSos={false} backTo="/today">
+      <FullscreenLayout title={t('Аварийная заявка')} tone="danger" showSos={false} backTo="/today">
         <EmptyState
-          title="Не удалось определить объект. Начните смену."
+          title={t('Не удалось определить объект. Начните смену.')}
           action={
             <Button variant="secondary" className="min-h-[48px]" onClick={() => navigate('/today')}>
-              Назад
+              {t('Назад')}
             </Button>
           }
         />
@@ -285,7 +288,7 @@ export function SosPage() {
 
   return (
     <FullscreenLayout
-      title="Аварийная заявка"
+      title={t('Аварийная заявка')}
       tone="danger"
       showSos={false}
       onBack={handleBack}
@@ -298,7 +301,7 @@ export function SosPage() {
           onClick={() => void submit()}
           data-testid="sos_submit_button"
         >
-          🚨 ОТПРАВИТЬ SOS
+          {t('🚨 ОТПРАВИТЬ SOS')}
         </Button>
       }
     >
@@ -308,17 +311,17 @@ export function SosPage() {
             className="rounded-lg border border-warning-500 bg-white px-3 py-2 text-xs text-warning-600"
             data-testid="sos_offline_banner"
           >
-            ⚠ Нет соединения — заявка уйдёт при появлении сети
+            {t('⚠ Нет соединения — заявка уйдёт при появлении сети')}
           </div>
         )}
         {objectName && (
           <div className="text-sm text-neutral-500">
-            Объект: {objectName}
+            {t('Объект: {name}', { name: objectName })}
             {roomLabel ? ` · ${roomLabel}` : ''}
           </div>
         )}
 
-        <Field label="Тип аварии" htmlFor="sos_type" required>
+        <Field label={t('Тип аварии')} htmlFor="sos_type" required>
           <Select
             id="sos_type"
             className="min-h-[48px] focus:border-danger-500 focus:ring-danger-500"
@@ -327,10 +330,10 @@ export function SosPage() {
             disabled={submitting}
             data-testid="sos_type_dropdown"
           >
-            <option value="">Выберите тип</option>
+            <option value="">{t('Выберите тип')}</option>
             {EMERGENCY_TYPES.map((item) => (
               <option key={item} value={item}>
-                {item}
+                {t(item)}
               </option>
             ))}
           </Select>
@@ -338,13 +341,13 @@ export function SosPage() {
 
         <div className="flex flex-col gap-2">
           <span className="text-sm text-neutral-500">
-            Фото <span className="text-danger-600">*</span>
+            {t('Фото')} <span className="text-danger-600">*</span>
           </span>
           {photo ? (
             <>
               <img
                 src={photo.previewUrl}
-                alt="Фото аварии"
+                alt={t('Фото аварии')}
                 className="w-full rounded-md border border-neutral-200"
                 data-testid="sos_photo_preview"
               />
@@ -356,7 +359,7 @@ export function SosPage() {
                 disabled={submitting}
                 data-testid="sos_retake_photo_button"
               >
-                Переснять
+                {t('Переснять')}
               </Button>
             </>
           ) : (
@@ -367,7 +370,7 @@ export function SosPage() {
               disabled={submitting}
               data-testid="sos_photo_button"
             >
-              📷 Сделать фото (обязательно)
+              {t('📷 Сделать фото (обязательно)')}
             </Button>
           )}
           <input
@@ -382,7 +385,7 @@ export function SosPage() {
         </div>
 
         <Field
-          label="Описание"
+          label={t('Описание')}
           htmlFor="sos_description"
           required
           hint={
@@ -393,7 +396,7 @@ export function SosPage() {
             id="sos_description"
             rows={4}
             maxLength={DESCRIPTION_MAX}
-            placeholder="Что случилось и где"
+            placeholder={t('Что случилось и где')}
             className="focus:border-danger-500 focus:ring-danger-500"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -404,7 +407,7 @@ export function SosPage() {
 
         <div className="rounded-lg border border-neutral-200 bg-white p-3 text-sm">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-neutral-700">📍 Локация</span>
+            <span className="text-neutral-700">{t('📍 Локация')}</span>
             <Button
               variant="ghost"
               size="sm"
@@ -413,7 +416,7 @@ export function SosPage() {
               loading={locating}
               disabled={submitting}
             >
-              Обновить
+              {t('Обновить')}
             </Button>
           </div>
           {location ? (
@@ -423,11 +426,11 @@ export function SosPage() {
             </div>
           ) : locating ? (
             <div className="mt-1 text-neutral-500" data-testid="sos_location_pending">
-              Определяем местоположение…
+              {t('Определяем местоположение…')}
             </div>
           ) : (
             <div className="mt-1 text-danger-600" data-testid="sos_location_error">
-              {locationError ?? 'Нет доступа к геолокации. Включите GPS и повторите'}
+              {locationError ?? t('Нет доступа к геолокации. Включите GPS и повторите')}
             </div>
           )}
         </div>
@@ -441,15 +444,15 @@ export function SosPage() {
             ⚠ {formError}
           </div>
         )}
-        {!dirty && <p className="text-xs text-neutral-500">Заполните тип, фото и описание</p>}
+        {!dirty && <p className="text-xs text-neutral-500">{t('Заполните тип, фото и описание')}</p>}
       </div>
 
       <ConfirmDialog
         open={confirmCancel}
-        title="Отменить заявку SOS?"
-        text="Заполненные данные не сохранятся."
-        confirmLabel="Отменить"
-        cancelLabel="Продолжить заполнение"
+        title={t('Отменить заявку SOS?')}
+        text={t('Заполненные данные не сохранятся.')}
+        confirmLabel={t('Отменить')}
+        cancelLabel={t('Продолжить заполнение')}
         danger
         onCancel={() => setConfirmCancel(false)}
         onConfirm={() => {

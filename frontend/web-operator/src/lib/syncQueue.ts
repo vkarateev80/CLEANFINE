@@ -10,6 +10,7 @@ import { isNetworkError, useNetStore } from '../stores/netStore';
 import { useProgressStore } from '../stores/progressStore';
 import { QUEUE_PRIORITY, useQueueStore, type QueueItem } from '../stores/queueStore';
 import type { EmergencyTicketPayload } from '../types/tickets';
+import { t } from '../i18n';
 
 /**
  * Проход очереди (offline.md §5): по приоритету вида, внутри — FIFO; по одной
@@ -50,7 +51,7 @@ async function uploadQueuedPhoto(
   meta: { takenAt?: string; lat?: number; lng?: number },
 ): Promise<{ id: string; url: string }> {
   const blob = await loadPhoto(photoKey);
-  if (!blob) throw new PermanentError('Фото не найдено на устройстве');
+  if (!blob) throw new PermanentError(t('Фото не найдено на устройстве'));
   const file = await uploadPhoto(blob, `${photoKey.replace(/[^a-z0-9]/gi, '-')}.jpg`, {
     userName: useAuthStore.getState().user?.fullName,
     ...meta,
@@ -197,7 +198,7 @@ export async function runQueue(): Promise<number> {
           useQueueStore.getState().update(item.id, {
             status: 'pending',
             attempts,
-            lastError: 'Нет соединения',
+            lastError: t('Нет соединения'),
             nextAttemptAt: new Date(Date.now() + backoffMs(attempts)).toISOString(),
           });
           break;

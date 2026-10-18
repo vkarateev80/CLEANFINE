@@ -29,6 +29,7 @@ import {
   useMyChats,
   useSendMessage,
 } from './useChats';
+import { t } from '../../i18n';
 
 const MAX_MESSAGE_LENGTH = 4000;
 
@@ -78,7 +79,7 @@ export function ChatThreadPage() {
   }, [DRAFT_KEY, draft]);
 
   const summary = chats.data?.find((chat) => chat.id === chatId) ?? null;
-  const title = summary ? chatTitle(summary) : detail.data ? chatTitle(detail.data) : 'Чат';
+  const title = summary ? chatTitle(summary) : detail.data ? chatTitle(detail.data) : t('Чат');
 
   const messages = useMemo(() => {
     const removed = new Set(
@@ -130,13 +131,13 @@ export function ChatThreadPage() {
   const onlineCount = members.filter((member) => socket.onlineUsers.has(member.userId)).length;
   const subtitle =
     socket.status === 'connecting'
-      ? 'соединение…'
+      ? t('соединение…')
       : socket.status === 'offline'
-        ? 'нет соединения — переподключение…'
+        ? t('нет соединения — переподключение…')
         : onlineCount > 0
-          ? `в сети: ${onlineCount}`
+          ? t('в сети: {onlineCount}', { onlineCount })
           : members.length > 0
-            ? `участников: ${members.length}`
+            ? t('участников: {length}', { length: members.length })
             : undefined;
 
   function addFiles(list: FileList | null) {
@@ -160,20 +161,20 @@ export function ChatThreadPage() {
     if (!chatId || (text === '' && files.length === 0) || sendMutation.isPending || uploading)
       return;
     if (text.length > MAX_MESSAGE_LENGTH) {
-      setSendError('Сообщение длиннее 4000 символов');
+      setSendError(t('Сообщение длиннее 4000 символов'));
       return;
     }
     setSendError(null);
     const clientMessageId = crypto.randomUUID();
     if (!online && files.length > 0) {
-      setSendError('Нет соединения — фото и видео можно отправить только онлайн');
+      setSendError(t('Нет соединения — фото и видео можно отправить только онлайн'));
       return;
     }
     if (!online) {
       enqueue({
         kind: 'chat_message',
         payload: { chatId, text, clientMessageId },
-        label: `Сообщение в чат · «${text.slice(0, 40)}»`,
+        label: t('Сообщение в чат · «{text}»', { text: text.slice(0, 40) }),
         idempotencyKey: `chat:${clientMessageId}`,
       });
       setDraft('');
@@ -191,7 +192,7 @@ export function ChatThreadPage() {
     } catch (caught) {
       setUploading(null);
       setSendError(
-        `Не удалось загрузить «${files[attachmentIds.length]?.name ?? 'файл'}»: ${errorMessage(caught)}`,
+        t('Не удалось загрузить «{name}»: {errorMessage}', { name: files[attachmentIds.length]?.name ?? t('файл'), errorMessage: errorMessage(caught) }),
       );
       return;
     }
@@ -217,7 +218,7 @@ export function ChatThreadPage() {
         enqueue({
           kind: 'chat_message',
           payload: { chatId, text, clientMessageId },
-          label: `Сообщение в чат · «${text.slice(0, 40)}»`,
+          label: t('Сообщение в чат · «{text}»', { text: text.slice(0, 40) }),
           idempotencyKey: `chat:${clientMessageId}`,
         });
         setDraft('');
@@ -241,16 +242,16 @@ export function ChatThreadPage() {
       title={title}
       subtitle={subtitle}
       backTo="/chats"
-      offlineText="Нет соединения — сообщения уйдут при подключении"
+      offlineText={t('Нет соединения — сообщения уйдут при подключении')}
       testId="chat_thread_page"
     >
       {forbidden ? (
-        <EmptyState title="Чат недоступен" hint="Вы не участник этого чата." />
+        <EmptyState title={t('Чат недоступен')} hint={t('Вы не участник этого чата.')} />
       ) : (
         <div className="-mx-4 -mt-4 flex min-h-[calc(100dvh-6rem)] flex-col">
           {socket.status === 'offline' && online && (
             <div className="px-4 pt-3">
-              <SoftWarning>Соединение потеряно — переподключение…</SoftWarning>
+              <SoftWarning>{t('Соединение потеряно — переподключение…')}</SoftWarning>
             </div>
           )}
           <div
@@ -266,15 +267,15 @@ export function ChatThreadPage() {
                 className="mx-auto"
                 onClick={() => void history.loadOlder()}
               >
-                Загрузить историю
+                {t('Загрузить историю')}
               </Button>
             ) : messages.length > 0 ? (
-              <div className="mx-auto text-xs text-neutral-400">Начало переписки</div>
+              <div className="mx-auto text-xs text-neutral-400">{t('Начало переписки')}</div>
             ) : null}
 
             {history.isError ? (
               <ErrorBanner
-                error={new Error('Не удалось загрузить переписку')}
+                error={new Error(t('Не удалось загрузить переписку'))}
                 onRetry={() => void history.refetch()}
               />
             ) : history.isLoading ? (
@@ -291,8 +292,8 @@ export function ChatThreadPage() {
               </div>
             ) : messages.length === 0 && queued.length === 0 ? (
               <EmptyState
-                title="Напишите первое сообщение"
-                hint="Опишите вопрос — ответ придёт в это окно"
+                title={t('Напишите первое сообщение')}
+                hint={t('Опишите вопрос — ответ придёт в это окно')}
               />
             ) : (
               messages.map((message, index) => {
@@ -326,8 +327,8 @@ export function ChatThreadPage() {
                   {String(item.payload.text)}
                   <span className="ml-2 font-mono text-[10px] text-neutral-400">
                     {item.status === 'failed'
-                      ? `Не отправлено · ${item.lastError ?? ''}`
-                      : 'Отправляется…'}
+                      ? t('Не отправлено · {lastError}', { lastError: item.lastError ?? '' })
+                      : t('Отправляется…')}
                   </span>
                 </div>
               </div>
@@ -337,7 +338,7 @@ export function ChatThreadPage() {
           {hasNewBelow && (
             <div className="sticky bottom-20 flex justify-center">
               <Button variant="primary" size="sm" onClick={() => scrollToBottom('smooth')}>
-                ↓ Новое сообщение
+                {t('↓ Новое сообщение')}
               </Button>
             </div>
           )}
@@ -359,7 +360,7 @@ export function ChatThreadPage() {
                     ) : (
                       <button
                         type="button"
-                        aria-label={`Убрать ${file.name}`}
+                        aria-label={t('Убрать {name}', { name: file.name })}
                         className="min-h-[28px] min-w-[28px] text-neutral-400"
                         disabled={Boolean(uploading)}
                         onClick={() =>
@@ -386,7 +387,7 @@ export function ChatThreadPage() {
               <button
                 type="button"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-white text-xl text-neutral-600 hover:bg-neutral-100 disabled:opacity-60"
-                aria-label="Прикрепить фото или видео"
+                aria-label={t('Прикрепить фото или видео')}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={Boolean(uploading) || sendMutation.isPending || forbidden}
                 data-testid="chat_attach_button"
@@ -397,7 +398,7 @@ export function ChatThreadPage() {
                 ref={inputRef}
                 rows={1}
                 className="max-h-32 min-h-[44px] flex-1 resize-none rounded-lg border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Напишите сообщение…"
+                placeholder={t('Напишите сообщение…')}
                 value={draft}
                 disabled={sendMutation.isPending || forbidden}
                 onChange={(event) => setDraft(event.target.value)}
@@ -407,7 +408,7 @@ export function ChatThreadPage() {
               <button
                 type="button"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-60"
-                aria-label="Отправить сообщение"
+                aria-label={t('Отправить сообщение')}
                 onClick={() => void handleSend()}
                 disabled={
                   (draft.trim() === '' && files.length === 0) ||
@@ -443,7 +444,7 @@ function Bubble({
   read: boolean;
   delivered: boolean;
 }) {
-  const statusLabel = read ? 'Прочитано' : delivered ? 'Доставлено' : 'Отправлено';
+  const statusLabel = read ? t('Прочитано') : delivered ? t('Доставлено') : t('Отправлено');
   return (
     <div
       className={['flex', mine ? 'justify-end' : 'justify-start'].join(' ')}

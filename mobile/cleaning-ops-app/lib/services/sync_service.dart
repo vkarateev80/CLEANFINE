@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/database_provider.dart';
 import '../shared/data/pending_actions.dart';
 import 'queue_action_sender.dart';
+import '../core/i18n/app_language.dart';
 
 /// Сколько действий ушло и сколько осталось — для «Отправлено {done} из {total}».
 class SyncProgress {
@@ -94,7 +95,7 @@ class SyncService {
 
       final int attempts = action.attempts + 1;
       final bool permanent = result.permanent || attempts >= maxAttempts;
-      final String error = result.error ?? 'Не удалось отправить';
+      final String error = result.error ?? tr('Не удалось отправить');
       if (permanent) {
         // Авто-повторов нет: оператор сам решает, повторять ли (кнопка «Повторить»).
         await _queue.markFailed(action.id, error: error, attempts: attempts);

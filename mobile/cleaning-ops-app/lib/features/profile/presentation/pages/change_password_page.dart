@@ -66,7 +66,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     if (!mounted) return;
     if (!ok) return;
 
-    messenger.showSnackBar(const SnackBar(content: Text(ProfileTexts.passwordChanged)));
+    messenger.showSnackBar(SnackBar(content: Text(ProfileTexts.passwordChanged)));
     if (mounted) context.go(AppRoutes.login);
   }
 
@@ -77,7 +77,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
 
     return Scaffold(
       key: const Key('change_password_page'),
-      appBar: AppBar(title: const Text(ProfileTexts.passwordTitle)),
+      appBar: AppBar(title: Text(ProfileTexts.passwordTitle)),
       backgroundColor: AppPalette.background,
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -122,7 +122,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text(ProfileTexts.save),
+                  : Text(ProfileTexts.save),
             ),
           ),
         ],

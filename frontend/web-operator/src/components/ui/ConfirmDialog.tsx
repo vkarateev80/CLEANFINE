@@ -1,5 +1,6 @@
 import { Button } from './Button';
 import { Sheet } from './Sheet';
+import { t } from '../../i18n';
 
 /** Подтверждение необратимого действия («Закрыть смену?», «Выйти из аккаунта?»). */
 export function ConfirmDialog({
@@ -7,7 +8,7 @@ export function ConfirmDialog({
   title,
   text,
   confirmLabel,
-  cancelLabel = 'Отмена',
+  cancelLabel = t('Отмена'),
   danger,
   loading,
   onConfirm,

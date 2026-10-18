@@ -10,6 +10,7 @@ import '../../../../shared/widgets/offline_banner.dart';
 import '../../../../shared/widgets/sync_status_widgets.dart';
 import '../providers/route_providers.dart';
 import '../widgets/route_plan_view.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Маршрут дня `/route/:eventId` (М6.3): план этажа с точками по помещениям,
 /// статусы, «Следующая точка» и «Пропустить».
@@ -50,7 +51,7 @@ class _RouteMapPageState extends ConsumerState<RouteMapPage> {
         actions: <Widget>[
           IconButton(
             key: const Key('route_sos_button'),
-            tooltip: 'Аварийная заявка',
+            tooltip: tr('Аварийная заявка'),
             icon: const Icon(Icons.warning_amber),
             onPressed: () => context.push(
               AppRoutes.sosFor(roomId: day?.active?.point.roomId),
@@ -88,9 +89,10 @@ class _RouteMapPageState extends ConsumerState<RouteMapPage> {
   }
 
   String _title(RouteDay? day) {
-    if (day == null) return 'Маршрут';
-    final String? floorName = day.floor == null ? null : '${day.floor!.number} этаж';
-    return floorName == null ? 'Маршрут' : 'Маршрут · $floorName';
+    if (day == null) return tr('Маршрут');
+    final String? floorName =
+        day.floor == null ? null : trArgs('{number} этаж', <String, Object?>{'number': day.floor!.number});
+    return floorName == null ? tr('Маршрут') : trArgs('Маршрут · {floor}', <String, Object?>{'floor': floorName});
   }
 
   /// Переход в чек-лист точки; ожидающих точек нет — идти некуда.
@@ -124,7 +126,7 @@ class _RouteMapPageState extends ConsumerState<RouteMapPage> {
             ),
             if (point.point.estimatedTimeMin != null) ...<Widget>[
               const SizedBox(height: AppSpacing.xs),
-              Text('~${point.point.estimatedTimeMin} мин'),
+              Text(trArgs('~{minutes} мин', <String, Object?>{'minutes': point.point.estimatedTimeMin})),
             ],
             const SizedBox(height: AppSpacing.lg),
             FilledButton(
@@ -133,7 +135,7 @@ class _RouteMapPageState extends ConsumerState<RouteMapPage> {
                 Navigator.of(sheetContext).pop();
                 _openChecklist(point);
               },
-              child: const Text('Открыть чек-лист'),
+              child: Text(tr('Открыть чек-лист')),
             ),
           ],
         ),
@@ -178,17 +180,17 @@ class _RouteBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (day.route.id.isEmpty) {
-      return const _RouteMessage(
+      return _RouteMessage(
         icon: Icons.alt_route_outlined,
-        title: 'Маршрут не назначен',
-        hint: 'Обратитесь к бригадиру',
+        title: tr('Маршрут не назначен'),
+        hint: tr('Обратитесь к бригадиру'),
       );
     }
     if (day.points.isEmpty) {
-      return const _RouteMessage(
+      return _RouteMessage(
         icon: Icons.playlist_remove,
-        title: 'Маршрут пуст',
-        hint: 'Обратитесь к бригадиру',
+        title: tr('Маршрут пуст'),
+        hint: tr('Обратитесь к бригадиру'),
       );
     }
 
@@ -220,7 +222,8 @@ class _RouteBody extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xs),
             child: Text(
-              'Текущая точка: ${active.point.orderIndex + 1} из ${day.total} · ${active.point.title}',
+              trArgs('Текущая точка: {index} из {total} · {title}',
+                  <String, Object?>{'index': active.point.orderIndex + 1, 'total': day.total, 'title': active.point.title}),
               key: const Key('route_current_point_text'),
               style: const TextStyle(fontSize: AppTypography.sizeSM),
             ),
@@ -249,14 +252,14 @@ class _PlanControls extends StatelessWidget {
 
     return Column(
       children: <Widget>[
-        _RoundButton(icon: Icons.add, tooltip: 'Приблизить', onPressed: () => zoom(1.25)),
+        _RoundButton(icon: Icons.add, tooltip: tr('Приблизить'), onPressed: () => zoom(1.25)),
         const SizedBox(height: AppSpacing.xs),
-        _RoundButton(icon: Icons.remove, tooltip: 'Отдалить', onPressed: () => zoom(0.8)),
+        _RoundButton(icon: Icons.remove, tooltip: tr('Отдалить'), onPressed: () => zoom(0.8)),
         const SizedBox(height: AppSpacing.xs),
         _RoundButton(
           key: const Key('route_zoom_reset'),
           icon: Icons.crop_free,
-          tooltip: 'Сброс',
+          tooltip: tr('Сброс'),
           onPressed: () {
             transformation.value = Matrix4.identity();
             onReset();
@@ -266,14 +269,14 @@ class _PlanControls extends StatelessWidget {
         _RoundButton(
           key: const Key('route_center_button'),
           icon: Icons.my_location,
-          tooltip: 'К текущей',
+          tooltip: tr('К текущей'),
           onPressed: () => _centerOnActive(context),
         ),
         const SizedBox(height: AppSpacing.xs),
         _RoundButton(
           key: const Key('route_legend_button'),
           icon: Icons.help_outline,
-          tooltip: 'Легенда',
+          tooltip: tr('Легенда'),
           onPressed: () => _showLegend(context),
         ),
       ],
@@ -301,9 +304,9 @@ class _PlanControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            const Text(
-              'Легенда',
-              style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+            Text(
+              tr('Легенда'),
+              style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.md),
             for (final RoutePointStatus status in RoutePointStatus.values)
@@ -369,9 +372,9 @@ class _RoutePointsList extends StatelessWidget {
       key: const Key('route_points_list'),
       padding: const EdgeInsets.all(AppSpacing.lg),
       children: <Widget>[
-        const Text(
-          'План этажа недоступен',
-          style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
+        Text(
+          tr('План этажа недоступен'),
+          style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textSecondary),
         ),
         const SizedBox(height: AppSpacing.md),
         for (final RoutePointState point in day.points)
@@ -390,7 +393,7 @@ class _RoutePointsList extends StatelessWidget {
               trailing: point.status == RoutePointStatus.done
                   ? const Icon(Icons.check, color: AppPalette.success)
                   : IconButton(
-                      tooltip: 'Пропустить',
+                      tooltip: tr('Пропустить'),
                       icon: const Icon(Icons.block_outlined),
                       onPressed: () => onSkip(point),
                     ),
@@ -420,8 +423,8 @@ class _RouteProgressBar extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             day.isFinished && day.done > 0
-                ? 'Маршрут пройден'
-                : 'Маршрут: ${day.done} из ${day.total} помещений',
+                ? tr('Маршрут пройден')
+                : trArgs('Маршрут: {done} из {total} помещений', <String, Object?>{'done': day.done, 'total': day.total}),
             key: const Key('route_progress_text'),
             style: const TextStyle(fontSize: AppTypography.sizeSM),
           ),
@@ -453,7 +456,7 @@ class _RouteActions extends StatelessWidget {
                 key: const Key('route_next_button'),
                 onPressed: next == null ? null : onNext,
                 icon: const Icon(Icons.arrow_forward),
-                label: Text(next == null ? 'Маршрут пройден' : 'Следующая точка'),
+                label: Text(next == null ? tr('Маршрут пройден') : tr('Следующая точка')),
               ),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -461,7 +464,7 @@ class _RouteActions extends StatelessWidget {
               child: OutlinedButton(
                 key: const Key('route_skip_button'),
                 onPressed: next == null ? null : () => onSkip(next),
-                child: const Text('Пропустить'),
+                child: Text(tr('Пропустить')),
               ),
             ),
           ],
@@ -494,7 +497,7 @@ class _SkipSheetState extends State<_SkipSheet> {
   void _submit() {
     final String reason = _controller.text.trim();
     if (reason.length < 3) {
-      setState(() => _error = 'Укажите причину (не короче 3 символов)');
+      setState(() => _error = tr('Укажите причину (не короче 3 символов)'));
       return;
     }
     widget.onConfirm(reason);
@@ -514,9 +517,9 @@ class _SkipSheetState extends State<_SkipSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text(
-            'Причина пропуска',
-            style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+          Text(
+            tr('Причина пропуска'),
+            style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: AppSpacing.md),
           TextField(
@@ -524,7 +527,7 @@ class _SkipSheetState extends State<_SkipSheet> {
             controller: _controller,
             maxLines: 3,
             decoration: InputDecoration(
-              hintText: 'Например: нет доступа, дверь закрыта',
+              hintText: tr('Например: нет доступа, дверь закрыта'),
               errorText: _error,
             ),
             onChanged: (_) {
@@ -532,15 +535,15 @@ class _SkipSheetState extends State<_SkipSheet> {
             },
           ),
           const SizedBox(height: AppSpacing.sm),
-          const Text(
-            'Пропуск сохранится и уйдёт бригадиру',
-            style: TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.textSecondary),
+          Text(
+            tr('Пропуск сохранится и уйдёт бригадиру'),
+            style: const TextStyle(fontSize: AppTypography.sizeXS, color: AppPalette.textSecondary),
           ),
           const SizedBox(height: AppSpacing.lg),
           FilledButton(
             key: const Key('route_skip_confirm_button'),
             onPressed: _submit,
-            child: const Text('Пропустить точку'),
+            child: Text(tr('Пропустить точку')),
           ),
         ],
       ),
@@ -558,12 +561,12 @@ class _RouteError extends StatelessWidget {
   Widget build(BuildContext context) {
     return _RouteMessage(
       icon: Icons.cloud_off_outlined,
-      title: 'Не удалось загрузить маршрут',
+      title: tr('Не удалось загрузить маршрут'),
       hint: failure.message,
       action: OutlinedButton(
         key: const Key('route_error_retry'),
         onPressed: onRetry,
-        child: const Text('Повторить'),
+        child: Text(tr('Повторить')),
       ),
     );
   }

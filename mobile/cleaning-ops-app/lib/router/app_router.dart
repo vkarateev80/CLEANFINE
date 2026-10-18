@@ -22,6 +22,7 @@ import '../features/profile/presentation/pages/profile_page.dart';
 import '../features/route_map/presentation/pages/route_map_page.dart';
 import '../features/sos/presentation/pages/sos_page.dart';
 import '../shared/widgets/app_shell.dart';
+import '../core/i18n/app_language.dart';
 
 /// Пути приложения — ровно те, что заданы пакетом DS-002
 /// (`design/screens/mobile/README.md`, таблица «Индекс файлов»).
@@ -220,7 +221,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
     errorBuilder: (context, state) => Scaffold(
       key: const Key('route_error_page'),
-      appBar: AppBar(title: const Text('Страница не найдена')),
+      appBar: AppBar(title: Text(tr('Страница не найдена'))),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -229,11 +230,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             children: <Widget>[
               const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 12),
-              Text('Маршрут ${state.uri} не найден', textAlign: TextAlign.center),
+              Text(trArgs('Маршрут {uri} не найден', <String, Object?>{'uri': state.uri}), textAlign: TextAlign.center),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => context.go(AppRoutes.today),
-                child: const Text('На главную'),
+                child: Text(tr('На главную')),
               ),
             ],
           ),

@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../checklist_texts.dart';
 import '../providers/checklist_providers.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Шторка фото операции (`design/screens/mobile/checklist.md` §2, §3.4).
 ///
@@ -60,9 +61,9 @@ class PhotoPreviewSheet extends ConsumerWidget {
                 height: 160,
                 color: AppPalette.surfaceMuted,
                 alignment: Alignment.center,
-                child: const Text(
-                  'Снимок недоступен',
-                  style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textMuted),
+                child: Text(
+                  tr('Снимок недоступен'),
+                  style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.textMuted),
                 ),
               ),
             ),
@@ -79,7 +80,7 @@ class PhotoPreviewSheet extends ConsumerWidget {
                 child: OutlinedButton(
                   key: const Key('checklist_retake_photo_button'),
                   onPressed: onRetake,
-                  child: const Text(ChecklistTexts.retakePhoto),
+                  child: Text(ChecklistTexts.retakePhoto),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -87,7 +88,7 @@ class PhotoPreviewSheet extends ConsumerWidget {
                 child: FilledButton(
                   key: const Key('checklist_complete_with_photo_button'),
                   onPressed: onComplete,
-                  child: const Text(ChecklistTexts.completeOperation),
+                  child: Text(ChecklistTexts.completeOperation),
                 ),
               ),
             ],

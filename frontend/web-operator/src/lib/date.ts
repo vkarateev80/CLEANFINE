@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Даты рабочего места. Время смен и отметок показываем ЛОКАЛЬНО (оператор
  * смотрит на часы телефона: «Смена открыта в 08:04»), а день смены для
@@ -61,7 +62,7 @@ export function relativeDay(value: string, now = new Date()): string {
   if (sameDay(date, now)) return localTime(value);
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (sameDay(date, yesterday)) return 'Вчера';
+  if (sameDay(date, yesterday)) return t('Вчера');
   return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}`;
 }
 

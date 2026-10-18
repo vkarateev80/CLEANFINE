@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../providers/route_providers.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// План этажа с точками маршрута: `InteractiveViewer` + `Stack` по координатам
 /// помещений (пиксели изображения плана) — как задано в `route_map.md` §3.
@@ -122,9 +123,9 @@ class _PlanPlaceholder extends StatelessWidget {
       height: height,
       color: AppPalette.surfaceMuted,
       alignment: Alignment.center,
-      child: const Text(
-        'План этажа недоступен',
-        style: TextStyle(color: AppPalette.textSecondary),
+      child: Text(
+        tr('План этажа недоступен'),
+        style: const TextStyle(color: AppPalette.textSecondary),
       ),
     );
   }
@@ -188,7 +189,8 @@ class _PointMarker extends StatelessWidget {
     );
 
     return Semantics(
-      label: 'Точка ${point.point.orderIndex + 1}, ${point.point.title}, ${point.status.label}',
+      label: trArgs('Точка {index}, {title}, {status}',
+          <String, Object?>{'index': point.point.orderIndex + 1, 'title': point.point.title, 'status': point.status.label}),
       button: true,
       container: true,
       // Номер внутри маркера — часть подписи, отдельным узлом он не нужен.

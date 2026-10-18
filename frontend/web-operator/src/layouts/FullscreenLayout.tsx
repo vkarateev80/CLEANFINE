@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Toast } from '../components/ui/Toast';
 import { OfflineBanner } from '../components/shell/OfflineBanner';
 import { SyncCounter } from '../components/shell/SyncCounter';
+import { t } from '../i18n';
 
 /**
  * Полноэкранный маршрут поверх таб-бара (маршрут, чек-лист, SOS, очередь):
@@ -65,7 +66,7 @@ export function FullscreenLayout({
               'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl',
               danger ? 'hover:bg-danger-600' : 'text-neutral-700 hover:bg-neutral-100',
             ].join(' ')}
-            aria-label="Назад"
+            aria-label={t('Назад')}
             data-testid="op-back"
           >
             ←
@@ -87,7 +88,7 @@ export function FullscreenLayout({
             <Link
               to="/sos"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl hover:bg-neutral-100"
-              aria-label="Аварийная заявка SOS"
+              aria-label={t('Аварийная заявка SOS')}
               data-testid="op-sos-icon"
             >
               🚨

@@ -19,6 +19,7 @@ import '../checklist_texts.dart';
 import '../providers/checklist_providers.dart';
 import '../widgets/operation_tile.dart';
 import '../widgets/photo_preview_sheet.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Чек-лист помещения `/route/:eventId/room/:roomId` (М6.4).
 ///
@@ -100,7 +101,7 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
           const SyncStatusCounter(statusKey: Key('checklist_queue_counter')),
           IconButton(
             key: const Key('checklist_sos_button'),
-            tooltip: 'Аварийная заявка',
+            tooltip: tr('Аварийная заявка'),
             icon: const Icon(Icons.warning_amber),
             onPressed: () => context.push(AppRoutes.sosFor(roomId: widget.roomId)),
           ),
@@ -118,7 +119,7 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
   }
 
   String _title(ChecklistState? state) {
-    if (state == null) return 'Чек-лист';
+    if (state == null) return tr('Чек-лист');
     final int? floor = state.floor?.number;
     return floor == null ? state.room.name : ChecklistTexts.title(state.room.name, floor);
   }
@@ -130,15 +131,15 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
       children: <Widget>[
         _ProgressHeader(args: _args, state: state),
         if (!state.shiftOpen)
-          const _Banner(
-            bannerKey: Key('checklist_shift_banner'),
+          _Banner(
+            bannerKey: const Key('checklist_shift_banner'),
             text: ChecklistTexts.shiftNotOpen,
             color: AppPalette.warningText,
             icon: Icons.lock_clock,
           ),
         if (state.shiftOpen && state.ticketId == null)
-          const _Banner(
-            bannerKey: Key('checklist_ticket_banner'),
+          _Banner(
+            bannerKey: const Key('checklist_ticket_banner'),
             text: ChecklistTexts.noTicket,
             color: AppPalette.dangerText,
             icon: Icons.report_gmailerrorred_outlined,
@@ -174,12 +175,12 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
         action: FilledButton(
           key: const Key('checklist_no_techcard_complete_button'),
           onPressed: _completeRoom,
-          child: const Text(ChecklistTexts.countRoomDone),
+          child: Text(ChecklistTexts.countRoomDone),
         ),
       );
     }
     if (state.operations.isEmpty) {
-      return const _EmptyState(
+      return _EmptyState(
         icon: Icons.playlist_remove,
         title: ChecklistTexts.noOperations,
         hint: ChecklistTexts.askSupervisor,
@@ -224,10 +225,10 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (state.allCompleted) ...<Widget>[
-              const Text(
+              Text(
                 ChecklistTexts.allOperationsDone,
-                key: Key('checklist_all_done_text'),
-                style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.successText),
+                key: const Key('checklist_all_done_text'),
+                style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.successText),
               ),
               const SizedBox(height: AppSpacing.sm),
             ],
@@ -326,7 +327,7 @@ class _ChecklistPageState extends ConsumerState<ChecklistPage> with WidgetsBindi
     final bool done = await _controller.completeRoom();
     if (!mounted || !done) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(ChecklistTexts.roomCompleted)),
+      SnackBar(content: Text(ChecklistTexts.roomCompleted)),
     );
     // Возврат на маршрут: чек-лист всегда открыт поверх `/route/:eventId`.
     // `maybeOf`, а не `of`: экран должен собираться и без GoRouter (widget-тесты).
@@ -365,7 +366,7 @@ class _ProgressHeader extends ConsumerWidget {
           ColorZoneChip(
             key: const Key('checklist_color_zone'),
             zone: zone,
-            label: ChecklistTexts.colorZone(zone.name, zone.zoneName),
+            label: ChecklistTexts.colorZone(tr(zone.name), tr(zone.zoneName)),
           ),
           const SizedBox(height: AppSpacing.md),
           if (day != null) ...<Widget>[
@@ -521,7 +522,7 @@ class _LoadError extends StatelessWidget {
       action: OutlinedButton(
         key: const Key('checklist_error_retry'),
         onPressed: onRetry,
-        child: const Text(ChecklistTexts.retry),
+        child: Text(ChecklistTexts.retry),
       ),
     );
   }

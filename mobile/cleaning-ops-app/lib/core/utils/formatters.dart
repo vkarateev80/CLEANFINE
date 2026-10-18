@@ -1,12 +1,16 @@
 import 'package:intl/intl.dart';
 
-/// Форматирование дат и времени для экранов оператора (локаль `ru`).
+import '../i18n/app_language.dart';
+
+/// Форматирование дат и времени для экранов оператора — на языке интерфейса
+/// (`AppI18n.current`): месяцы и дни недели берутся из `intl` для ru/ky/uz.
 class Formatters {
   const Formatters._();
 
-  static final DateFormat _dateWithWeekday = DateFormat('E, d MMMM', 'ru');
-  static final DateFormat _time = DateFormat('HH:mm', 'ru');
-  static final DateFormat _dayMonth = DateFormat('d MMMM', 'ru');
+  static String get _locale => AppI18n.current.code;
+  static DateFormat get _dateWithWeekday => DateFormat('E, d MMMM', _locale);
+  static DateFormat get _time => DateFormat('HH:mm', _locale);
+  static DateFormat get _dayMonth => DateFormat('d MMMM', _locale);
 
   /// «ср, 17 сентября» — дата над заголовком главного экрана.
   static String dateWithWeekday(DateTime date) => _dateWithWeekday.format(date);

@@ -9,6 +9,7 @@ import '../../../../services/connectivity_service.dart';
 import '../../../../shared/data/pending_actions.dart';
 import '../offline_texts.dart';
 import '../providers/offline_providers.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Экран очереди `/offline` (М6.7): что не ушло на сервер, почему и когда уйдёт.
 /// Ключи и тексты — по `design/screens/mobile/offline.md` §2, §6, §9.
@@ -22,12 +23,12 @@ class OfflinePage extends ConsumerWidget {
 
     return Scaffold(
       key: const Key('offline_page'),
-      appBar: AppBar(title: const Text(OfflineTexts.title)),
+      appBar: AppBar(title: Text(OfflineTexts.title)),
       backgroundColor: AppPalette.background,
       body: async.when(
         loading: () => const _Skeleton(),
         error: (Object error, StackTrace stack) => _LoadError(
-          message: error is Failure ? error.message : OfflineTexts.loadFailed,
+          message: error is Failure ? tr(error.message) : OfflineTexts.loadFailed,
           onRetry: () => ref.invalidate(offlineProvider),
         ),
         data: (OfflineState state) => _content(context, ref, state, online),
@@ -66,7 +67,7 @@ class OfflinePage extends ConsumerWidget {
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.sync),
-                  label: const Text(OfflineTexts.syncNow),
+                  label: Text(OfflineTexts.syncNow),
                 ),
               ),
               if (state.error != null) ...<Widget>[
@@ -110,17 +111,17 @@ class OfflinePage extends ConsumerWidget {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: const Text(OfflineTexts.deleteTitle),
+        title: Text(OfflineTexts.deleteTitle),
         actions: <Widget>[
           TextButton(
             key: Key('offline_delete_cancel_${action.id}'),
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text(OfflineTexts.cancel),
+            child: Text(OfflineTexts.cancel),
           ),
           FilledButton(
             key: Key('offline_delete_confirm_${action.id}'),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text(OfflineTexts.delete),
+            child: Text(OfflineTexts.delete),
           ),
         ],
       ),
@@ -236,13 +237,13 @@ class _QueueItem extends StatelessWidget {
                 OutlinedButton(
                   key: Key('offline_item_retry_${action.id}'),
                   onPressed: onRetry,
-                  child: const Text(OfflineTexts.retry),
+                  child: Text(OfflineTexts.retry),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 TextButton(
                   key: Key('offline_item_delete_${action.id}'),
                   onPressed: onDelete,
-                  child: const Text(OfflineTexts.delete),
+                  child: Text(OfflineTexts.delete),
                 ),
               ],
             ),
@@ -272,19 +273,19 @@ class _EmptyQueue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
-          key: Key('offline_empty'),
+          key: const Key('offline_empty'),
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.cloud_done_outlined, size: 56, color: AppPalette.textMuted),
-            SizedBox(height: AppSpacing.md),
+            const Icon(Icons.cloud_done_outlined, size: 56, color: AppPalette.textMuted),
+            const SizedBox(height: AppSpacing.md),
             Text(
               OfflineTexts.empty,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -334,10 +335,10 @@ class _LoadError extends StatelessWidget {
           children: <Widget>[
             const Icon(Icons.error_outline, size: 56, color: AppPalette.textMuted),
             const SizedBox(height: AppSpacing.md),
-            const Text(
+            Text(
               OfflineTexts.loadFailed,
-              key: Key('offline_error_text'),
-              style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+              key: const Key('offline_error_text'),
+              style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
@@ -349,7 +350,7 @@ class _LoadError extends StatelessWidget {
             OutlinedButton(
               key: const Key('offline_error_retry'),
               onPressed: onRetry,
-              child: const Text(OfflineTexts.retry),
+              child: Text(OfflineTexts.retry),
             ),
           ],
         ),

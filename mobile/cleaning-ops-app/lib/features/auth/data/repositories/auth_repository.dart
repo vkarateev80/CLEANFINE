@@ -69,7 +69,7 @@ class AuthRepository {
         // На этом устройстве вход по паролю ещё не выполнялся: PIN не установлен.
         // Это не 401 сервера (его текст `ApiClient` не сохраняет), а известное
         // локальное состояние — показываем текст из `auth.md` §4.6.
-        throw const NotFoundException(AuthTexts.pinNotSet);
+        throw NotFoundException(AuthTexts.pinNotSet);
       }
       final tokens = await _remote.loginWithPin(
         email: emailValue,
@@ -89,7 +89,7 @@ class AuthRepository {
     return _run(() async {
       final String? key = await _storage.readBiometricKey();
       if (key == null || key.isEmpty) {
-        throw const NotFoundException(AuthTexts.biometricKeyMissing);
+        throw NotFoundException(AuthTexts.biometricKeyMissing);
       }
       final tokens = await _remote.loginWithBiometric(biometricKey: key);
       return _establishSession(tokens);
@@ -281,15 +281,15 @@ class AuthRepository {
   /// `AppException` → `Failure`: тексты совпадают с `overview.md` §6.
   static Failure _translate(AppException error) {
     return switch (error) {
-      NetworkException() => const NetworkFailure(AuthTexts.network),
+      NetworkException() => NetworkFailure(AuthTexts.network),
       UnauthorizedException() => UnauthorizedFailure(error.message),
       ForbiddenException() => ForbiddenFailure(error.message),
-      TooManyRequestsException() => const TooManyRequestsFailure(AuthTexts.tooManyAttempts),
+      TooManyRequestsException() => TooManyRequestsFailure(AuthTexts.tooManyAttempts),
       ValidationException(:final fieldErrors) => ValidationFailure(error.message, fieldErrors: fieldErrors),
       NotFoundException() => NotFoundFailure(error.message),
       ConflictException() => ConflictFailure(error.message),
       StorageException() => StorageFailure(error.message),
-      ServerException() => const ServerFailure(AuthTexts.serverUnavailable),
+      ServerException() => ServerFailure(AuthTexts.serverUnavailable),
       _ => ServerFailure(error.message),
     };
   }

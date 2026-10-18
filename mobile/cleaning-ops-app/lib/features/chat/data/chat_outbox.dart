@@ -7,6 +7,7 @@ import '../../../shared/data/result.dart';
 import 'models/chat_models.dart';
 import 'chat_message_store.dart';
 import 'repositories/chat_repository.dart';
+import '../../../core/i18n/app_language.dart';
 
 /// Итог досылки одного сообщения.
 class ChatDeliveryResult {
@@ -144,11 +145,11 @@ class ChatOutbox {
     if (chatId == null || text == null || clientId == null) {
       await _queue.markFailed(
         action.id,
-        error: 'В записи нет chatId, текста или clientMessageId',
+        error: tr('В записи нет chatId, текста или clientMessageId'),
         attempts: action.attempts + 1,
       );
       await _store.markStatus(clientId ?? '', ChatMessageStatus.failed);
-      return const ChatDeliveryResult.permanent('Некорректная запись очереди');
+      return ChatDeliveryResult.permanent(tr('Некорректная запись очереди'));
     }
 
     await _queue.markSending(action.id);
@@ -166,13 +167,13 @@ class ChatOutbox {
 
     final int attempts = action.attempts + 1;
     if (result.permanent) {
-      await _queue.markFailed(action.id, error: result.error ?? 'Не отправлено', attempts: attempts);
+      await _queue.markFailed(action.id, error: result.error ?? tr('Не отправлено'), attempts: attempts);
       await _store.markStatus(clientId, ChatMessageStatus.failed);
       return result;
     }
     await _queue.scheduleRetry(
       action.id,
-      error: result.error ?? 'Нет соединения',
+      error: result.error ?? tr('Нет соединения'),
       attempts: attempts,
       nextAttemptAt: _now().add(const Duration(seconds: 5)),
     );
@@ -217,7 +218,7 @@ class ChatOutbox {
       return const ChatDeliveryResult.success();
     }
     final failure = sent.failureOrNull;
-    final String error = failure?.message ?? 'Не удалось отправить сообщение';
+    final String error = failure?.message ?? tr('Не удалось отправить сообщение');
     if (failure != null && _isRetryable(failure)) {
       return ChatDeliveryResult.retryable(error);
     }

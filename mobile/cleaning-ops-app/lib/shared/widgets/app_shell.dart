@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/app_product.dart';
+import '../../core/i18n/app_language.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/auth/presentation/providers/session_provider.dart';
 import '../../features/chat/presentation/providers/chat_providers.dart';
@@ -95,14 +96,14 @@ class _AppShellState extends ConsumerState<AppShell> {
               key: tab.key,
               icon: _tabIcon(tab.icon, tab.route == AppRoutes.chats ? unread : 0),
               selectedIcon: _tabIcon(tab.selectedIcon, tab.route == AppRoutes.chats ? unread : 0),
-              label: tab.label,
+              label: tr(tab.label),
             ),
           if (withSos)
-            const NavigationDestination(
-              key: Key('shell_tab_sos'),
-              icon: _SosTabIcon(),
+            NavigationDestination(
+              key: const Key('shell_tab_sos'),
+              icon: const _SosTabIcon(),
               label: 'SOS',
-              tooltip: 'Аварийная заявка SOS',
+              tooltip: tr('Аварийная заявка SOS'),
             ),
         ],
       ),

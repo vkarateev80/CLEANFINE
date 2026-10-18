@@ -20,6 +20,7 @@ import '../../../../shared/services/location_service.dart';
 import '../../../../shared/services/photo_service.dart';
 import '../../../auth/presentation/providers/session_provider.dart';
 import '../../../route_map/presentation/providers/route_providers.dart';
+import '../../../../core/i18n/app_language.dart';
 import '../checklist_texts.dart';
 
 /// Статус операции в чек-листе.
@@ -29,16 +30,20 @@ import '../checklist_texts.dart';
 /// значения уходят в `checklist_operations.syncStatus`, поэтому имя значения
 /// (`name`) — часть формата кэша: переименование сломает восстановление статусов.
 enum OperationStatus {
-  pending(ChecklistTexts.waiting),
-  active(ChecklistTexts.inProgress),
-  completed(ChecklistTexts.completed),
+  pending('Ожидает'),
+  active('В работе'),
+  completed('Выполнено'),
 
   /// Отмечено без сети: лежит в очереди и уйдёт при появлении соединения.
-  queued(ChecklistTexts.sending);
+  queued('Отправляется…');
 
-  const OperationStatus(this.label);
+  const OperationStatus(this._label);
 
-  final String label;
+  /// Русская подпись — ключ перевода (те же строки, что в `ChecklistTexts`).
+  final String _label;
+
+  /// Подпись на языке интерфейса.
+  String get label => tr(_label);
 
   /// Код для кэша: `pending` | `active` | `completed` | `queued`.
   String get code => name;

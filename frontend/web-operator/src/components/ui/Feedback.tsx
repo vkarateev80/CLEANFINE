@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button } from './Button';
+import { t } from '../../i18n';
 
 /**
  * Единый формат обратной связи. До этого каждая страница рисовала баннер
@@ -20,7 +21,7 @@ export function errorMessage(error: unknown): string {
   if (typeof data === 'string' && data.length > 0) return data;
 
   if (error instanceof Error && error.message) return error.message;
-  return 'Не удалось выполнить запрос';
+  return t('Не удалось выполнить запрос');
 }
 
 export function ErrorBanner({ error, onRetry, className }: ErrorBannerProps) {
@@ -36,7 +37,7 @@ export function ErrorBanner({ error, onRetry, className }: ErrorBannerProps) {
       <span className="text-sm text-danger-600">{errorMessage(error)}</span>
       {onRetry && (
         <Button variant="ghost" size="sm" onClick={onRetry}>
-          Повторить
+          {t('Повторить')}
         </Button>
       )}
     </div>
@@ -71,7 +72,7 @@ export function EmptyState({
 }
 
 /** Скелетон загрузки: держит высоту блока, чтобы вёрстка не «прыгала». */
-export function LoadingBlock({ label = 'Загрузка…' }: { label?: string }) {
+export function LoadingBlock({ label = t('Загрузка…') }: { label?: string }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-6 text-sm text-neutral-500">
       <span

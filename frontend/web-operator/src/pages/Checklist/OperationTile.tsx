@@ -6,8 +6,9 @@ import {
   type ColorZone,
 } from '@cleaning-ops/shared/types/color-coding';
 import { Button } from '../../components/ui/Button';
-import { mmss, plural } from '../../lib/date';
+import { mmss } from '../../lib/date';
 import type { OperationView } from './useChecklist';
+import { t } from '../../i18n';
 
 /**
  * Строка операции техкарты (checklist.md §3.2): номер, название, таймер,
@@ -46,11 +47,11 @@ export function OperationTile({
   );
   const statusLabel = done
     ? local.pendingSync
-      ? 'Отправляется…'
-      : 'Выполнено'
+      ? t('Отправляется…')
+      : t('Выполнено')
     : current
-      ? 'В работе'
-      : 'Ожидает';
+      ? t('В работе')
+      : t('Ожидает');
 
   return (
     <li
@@ -111,16 +112,16 @@ export function OperationTile({
                 ⏱ {mmss(seconds)}
               </span>
             )}
-            <span>норма {op.estimatedTimeMin} мин</span>
+            <span>{t('норма {minutes} мин', { minutes: op.estimatedTimeMin })}</span>
             {overBy > 0 && !done && (
-              <span className="text-warning-600">+{mmss(overBy)} сверх нормы</span>
+              <span className="text-warning-600">{t('+{time} сверх нормы', { time: mmss(overBy) })}</span>
             )}
             {op.requiresPhoto && !done && (
               <span className="text-danger-600" data-testid={`checklist_op_photo_hint_${op.id}`}>
-                📷 Фото обязательно
+                {t('📷 Фото обязательно')}
               </span>
             )}
-            {op.requiresQr && <span>Требуется QR</span>}
+            {op.requiresQr && <span>{t('Требуется QR')}</span>}
             <span className="text-neutral-400">· {statusLabel}</span>
           </span>
           {locked && !done && previousName && (
@@ -128,7 +129,7 @@ export function OperationTile({
               className="mt-1 block text-xs text-neutral-500"
               data-testid={`checklist_op_locked_${op.id}`}
             >
-              Доступно после операции «{previousName}»
+              {t('Доступно после операции «{name}»', { name: previousName })}
             </span>
           )}
         </span>
@@ -156,7 +157,7 @@ export function OperationTile({
                 style={{ color: COLOR_ZONE_META[opZone].hexDark }}
                 data-testid={`checklist_op_inventory_zone_${op.id}`}
               >
-                {COLOR_ZONE_META[opZone].name} инвентарь:
+                {t('{color} инвентарь:', { color: t(COLOR_ZONE_META[opZone].name) })}
               </span>
               {equipment.map((item) => {
                 const chip = equipmentChip(item.label, opZone);
@@ -180,8 +181,7 @@ export function OperationTile({
           )}
           {op.materials.length > 0 && (
             <p className="text-xs" style={{ color: COLOR_ZONE_META[opZone].hexDark }}>
-              Материалы: {op.materials.length} {plural(op.materials.length, 'поз.', 'поз.', 'поз.')}
-              ; спишет сервер
+              {t('Материалы: {count} поз.; спишет сервер', { count: op.materials.length })}
             </p>
           )}
         </div>
@@ -197,7 +197,7 @@ export function OperationTile({
               onClick={onStart}
               data-testid={`checklist_op_start_button_${op.id}`}
             >
-              Начать
+              {t('Начать')}
             </Button>
           )}
           {op.requiresPhoto && (
@@ -209,7 +209,7 @@ export function OperationTile({
               disabled={busy}
               data-testid={`checklist_op_photo_button_${op.id}`}
             >
-              📷 {local.photoUrl ? 'Переснять' : 'Сделать фото'}
+              📷 {local.photoUrl ? t('Переснять') : t('Сделать фото')}
             </Button>
           )}
           <Button
@@ -220,7 +220,7 @@ export function OperationTile({
             loading={busy}
             data-testid={`checklist_op_complete_button_${op.id}`}
           >
-            Завершить
+            {t('Завершить')}
           </Button>
         </div>
       )}

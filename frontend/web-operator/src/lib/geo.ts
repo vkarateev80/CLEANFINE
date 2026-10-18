@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Геолокация браузера. Координаты нужны для check-in (сервер проверяет геозону)
  * и для SOS (`lat`/`lng` обязательны в `EmergencyTicketDto`).
@@ -25,7 +26,7 @@ export const LOCATION_FAILED_TEXT = 'Не удалось определить м
 export function getCurrentPosition(timeoutMs = 15_000): Promise<GeoPoint> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      reject(new LocationUnavailable(LOCATION_FAILED_TEXT));
+      reject(new LocationUnavailable(t(LOCATION_FAILED_TEXT)));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -39,7 +40,7 @@ export function getCurrentPosition(timeoutMs = 15_000): Promise<GeoPoint> {
       (error) => {
         reject(
           new LocationUnavailable(
-            error.code === error.PERMISSION_DENIED ? LOCATION_DENIED_TEXT : LOCATION_FAILED_TEXT,
+            error.code === error.PERMISSION_DENIED ? t(LOCATION_DENIED_TEXT) : t(LOCATION_FAILED_TEXT),
           ),
         );
       },

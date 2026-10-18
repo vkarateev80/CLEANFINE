@@ -1,65 +1,69 @@
+import '../../../core/i18n/app_language.dart';
+
 /// Дословные тексты экрана профиля (DS-002 `profile.md` §9).
 class ProfileTexts {
   const ProfileTexts._();
 
   // Заголовок и секции
-  static const String title = 'Профиль';
-  static const String accessSection = 'Доступ';
-  static const String gpsSection = 'GPS-трекинг';
-  static const String dataSection = 'Уведомления и данные';
+  static String get title => tr('Профиль');
+  static String get accessSection => tr('Доступ');
+  static String get gpsSection => tr('GPS-трекинг');
+  static String get dataSection => tr('Уведомления и данные');
 
   // Карточка
-  static const String changePhoto = 'Изменить фото';
-  static const String camera = 'Камера';
-  static const String gallery = 'Галерея';
+  static String get changePhoto => tr('Изменить фото');
+  static String get camera => tr('Камера');
+  static String get gallery => tr('Галерея');
 
   // Пункты
-  static const String changePin = 'Сменить PIN';
-  static const String changePassword = 'Сменить пароль';
-  static const String notifications = 'Уведомления';
-  static const String queue = 'Очередь отправки';
-  static const String clearCache = 'Очистить кэш планов и фото';
-  static const String about = 'О приложении';
-  static const String logout = 'Выйти';
+  static String get changePin => tr('Сменить PIN');
+  static String get changePassword => tr('Сменить пароль');
+  static String get notifications => tr('Уведомления');
+  static String get queue => tr('Очередь отправки');
+  static String get clearCache => tr('Очистить кэш планов и фото');
+  static String get about => tr('О приложении');
+  static String get logout => tr('Выйти');
 
   // Уведомления
-  static const String save = 'Сохранить';
-  static const String settingsLoadError = 'Не удалось загрузить настройки';
-  static const String settingsOffline = 'Нет соединения. Настройки не сохранены.';
-  static const String testNotification = 'Показать тестовое уведомление';
+  static String get save => tr('Сохранить');
+  static String get settingsLoadError => tr('Не удалось загрузить настройки');
+  static String get settingsOffline => tr('Нет соединения. Настройки не сохранены.');
+  static String get testNotification => tr('Показать тестовое уведомление');
 
   // Данные
-  static const String clearCacheDialog = 'Очистить кэш? Планы и отправленные фото будут скачаны заново.';
-  static const String clear = 'Очистить';
-  static const String cancel = 'Отмена';
+  static String get clearCacheDialog => tr('Очистить кэш? Планы и отправленные фото будут скачаны заново.');
+  static String get clear => tr('Очистить');
+  static String get cancel => tr('Отмена');
 
   // Выход
-  static const String logoutDialogTitle = 'Выйти из аккаунта?';
-  static const String logoutLocalError = 'Не удалось выйти. Попробуйте позже';
+  static String get logoutDialogTitle => tr('Выйти из аккаунта?');
+  static String get logoutLocalError => tr('Не удалось выйти. Попробуйте позже');
 
   // Пароль
-  static const String passwordTitle = 'Смена пароля';
-  static const String currentPassword = 'Текущий пароль';
-  static const String newPassword = 'Новый пароль';
-  static const String repeatPassword = 'Повторите новый пароль';
-  static const String passwordsMismatch = 'Пароли не совпадают';
-  static const String passwordChanged = 'Пароль изменён. Войдите заново.';
-  static const String wrongCurrentPassword = 'Текущий пароль указан неверно';
-  static const String shortPassword = 'Новый пароль должен быть не короче 6 символов';
+  static String get passwordTitle => tr('Смена пароля');
+  static String get currentPassword => tr('Текущий пароль');
+  static String get newPassword => tr('Новый пароль');
+  static String get repeatPassword => tr('Повторите новый пароль');
+  static String get passwordsMismatch => tr('Пароли не совпадают');
+  static String get passwordChanged => tr('Пароль изменён. Войдите заново.');
+  static String get wrongCurrentPassword => tr('Текущий пароль указан неверно');
+  static String get shortPassword => tr('Новый пароль должен быть не короче 6 символов');
 
   // Ошибки
-  static const String retry = 'Повторить';
-  static const String profileLoadError = 'Не удалось загрузить профиль';
-  static const String photoRejected = 'Фото отклонено';
-  static const String offlineLater = 'Нет соединения. Попробуйте позже';
+  static String get retry => tr('Повторить');
+  static String get profileLoadError => tr('Не удалось загрузить профиль');
+  static String get photoRejected => tr('Фото отклонено');
+  static String get offlineLater => tr('Нет соединения. Попробуйте позже');
 
   /// «{N} действий» — счётчик очереди (`profile.md` §9).
-  static String actions(int count) => '$count действий';
+  static String actions(int count) =>
+      trArgs('{count} действий', <String, Object?>{'count': count});
 
   /// «Неотправленные действия ({N}) будут потеряны.» — предупреждение в диалоге.
   static String logoutWarning(int count) =>
-      'Неотправленные действия ($count) будут потеряны.';
+      trArgs('Неотправленные действия ({count}) будут потеряны.', <String, Object?>{'count': count});
 
   /// «версия {v}».
-  static String version(String value) => 'версия $value';
+  static String version(String value) =>
+      trArgs('версия {value}', <String, Object?>{'value': value});
 }

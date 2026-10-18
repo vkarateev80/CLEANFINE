@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { t } from '../../i18n';
 
 /**
  * Нижняя шторка (bottom sheet) — на телефоне заменяет модальное окно: деталь
@@ -38,7 +39,7 @@ export function Sheet({
       <button
         type="button"
         className="absolute inset-0 bg-neutral-900/40"
-        aria-label="Закрыть"
+        aria-label={t('Закрыть')}
         onClick={onClose}
       />
       <div
@@ -57,7 +58,7 @@ export function Sheet({
           <button
             type="button"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
-            aria-label="Закрыть"
+            aria-label={t('Закрыть')}
             onClick={onClose}
           >
             ✕

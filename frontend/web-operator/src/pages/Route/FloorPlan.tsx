@@ -7,6 +7,8 @@ import {
   type WheelEvent,
 } from 'react';
 import type { PointStatus, PointView } from '../../domain/progress';
+import { t } from '../../i18n';
+import { POINT_STATUS_LABELS } from '../../domain/progress';
 
 /**
  * План этажа с маркерами точек маршрута (route_map.md §3.1–3.2).
@@ -214,7 +216,7 @@ export function FloorPlan({
         onWheel={onWheel}
         data-testid="route_map_viewer"
         role="application"
-        aria-label="План этажа с точками маршрута"
+        aria-label={t('План этажа с точками маршрута')}
       >
         <div
           className="absolute left-0 top-0 origin-top-left will-change-transform"
@@ -228,7 +230,7 @@ export function FloorPlan({
             src={planImageUrl}
             width={planWidth}
             height={planHeight}
-            alt="План этажа"
+            alt={t('План этажа')}
             draggable={false}
             className="block max-w-none"
             style={{ width: planWidth, height: planHeight }}
@@ -264,7 +266,7 @@ export function FloorPlan({
             className="absolute inset-0 flex items-center justify-center text-sm text-neutral-500"
             aria-live="polite"
           >
-            Загрузка плана…
+            {t('Загрузка плана…')}
           </div>
         )}
 
@@ -273,7 +275,11 @@ export function FloorPlan({
           if (!center) return null;
           const left = transform.tx + center.x * transform.scale;
           const top = transform.ty + center.y * transform.scale;
-          const label = `Точка ${view.point.orderIndex + 1}, ${view.point.room.name}, ${view.status === 'active' ? 'в работе' : view.status === 'done' ? 'выполнено' : view.status === 'skipped' ? 'пропущено' : 'ожидает'}`;
+          const label = t('Точка {index}, {name}, {status}', {
+            index: view.point.orderIndex + 1,
+            name: view.point.room.name,
+            status: t(POINT_STATUS_LABELS[view.status]).toLowerCase(),
+          });
           return (
             <button
               key={view.point.id}
@@ -299,27 +305,27 @@ export function FloorPlan({
         })}
       </div>
 
-      <div className="flex items-center gap-1" role="toolbar" aria-label="Управление планом">
-        <ZoomButton label="Уменьшить" onClick={() => zoomAt(1 / 1.25)} testId="route_zoom_out">
+      <div className="flex items-center gap-1" role="toolbar" aria-label={t('Управление планом')}>
+        <ZoomButton label={t('Уменьшить')} onClick={() => zoomAt(1 / 1.25)} testId="route_zoom_out">
           −
         </ZoomButton>
-        <ZoomButton label="Увеличить" onClick={() => zoomAt(1.25)} testId="route_zoom_in">
+        <ZoomButton label={t('Увеличить')} onClick={() => zoomAt(1.25)} testId="route_zoom_in">
           ＋
         </ZoomButton>
-        <ZoomButton label="Сбросить вид" onClick={fit} testId="route_zoom_reset">
-          Сброс
+        <ZoomButton label={t('Сбросить вид')} onClick={fit} testId="route_zoom_reset">
+          {t('Сброс')}
         </ZoomButton>
         <ZoomButton
-          label="К текущей точке"
+          label={t('К текущей точке')}
           onClick={() => active && centerOn(active)}
           testId="route_center_button"
           disabled={!active}
         >
-          К текущей
+          {t('К текущей')}
         </ZoomButton>
         <span className="flex-1" />
-        <ZoomButton label="Легенда" onClick={onLegend} testId="route_legend_button">
-          Легенда
+        <ZoomButton label={t('Легенда')} onClick={onLegend} testId="route_legend_button">
+          {t('Легенда')}
         </ZoomButton>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { t } from '../i18n';
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -6,7 +7,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
       <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-lg sm:p-8">
         <div className="mb-6 text-center sm:mb-8">
           <div className="text-xl font-semibold text-primary-600 sm:text-2xl">🧹 CLEANFINE</div>
-          <div className="text-sm text-neutral-500">Рабочее место оператора</div>
+          <div className="text-sm text-neutral-500">{t('Рабочее место оператора')}</div>
         </div>
         {children}
       </div>

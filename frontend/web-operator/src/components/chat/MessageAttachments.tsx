@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getFile } from '../../api/files';
 import type { FileView } from '../../types/core';
+import { t } from '../../i18n';
 
 /**
  * Вложения сообщения (12.10.2026): фото — миниатюрой с открытием оригинала,
@@ -17,9 +18,9 @@ export function useAttachment(id: string) {
 }
 
 export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} Б`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} КБ`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
+  if (bytes < 1024) return `${bytes} ${t('Б')}`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} ${t('КБ')}`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} ${t('МБ')}`;
 }
 
 /**
@@ -57,10 +58,10 @@ export function attachmentIcon(file: { mimeType?: string; type?: string; name?: 
 
 export function attachmentError(file: File): string | null {
   if (isBlockedAttachment(file)) {
-    return `«${file.name}»: исполняемые файлы, скрипты, HTML и SVG прикреплять нельзя`;
+    return t('«{name}»: исполняемые файлы, скрипты, HTML и SVG прикреплять нельзя', { name: file.name });
   }
-  if (file.size > CHAT_ATTACHMENT_MAX_BYTES) return `«${file.name}» больше 50 МБ`;
-  if (file.size === 0) return `«${file.name}»: файл пустой`;
+  if (file.size > CHAT_ATTACHMENT_MAX_BYTES) return t('«{name}» больше 50 МБ', { name: file.name });
+  if (file.size === 0) return t('«{name}»: файл пустой', { name: file.name });
   return null;
 }
 
@@ -88,7 +89,7 @@ function Attachment({ id, mine }: { id: string; mine: boolean }) {
           mine ? 'border-white/40 text-white/80' : 'border-neutral-200 text-neutral-500',
         ].join(' ')}
       >
-        📎 вложение недоступно
+        {t('📎 вложение недоступно')}
       </span>
     );
   }

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useOnline } from '../../hooks/useOnline';
 import { usePendingCount } from '../../stores/queueStore';
 import { plural } from '../../lib/date';
+import { t } from '../../i18n';
 
 /**
  * Баннер связности (offline.md §2): показывается при оффлайне или непустой
@@ -19,8 +20,11 @@ export function OfflineBanner({
   if (online && pending === 0) return null;
 
   const message = !online
-    ? (text ?? 'Нет соединения — данные могут быть устаревшими')
-    : `${pending} ${plural(pending, 'действие ждёт', 'действия ждут', 'действий ждут')} отправки`;
+    ? (text ?? t('Нет соединения — данные могут быть устаревшими'))
+    : t('{count} {actions} отправки', {
+        count: pending,
+        actions: plural(pending, t('действие ждёт'), t('действия ждут'), t('действий ждут')),
+      });
 
   return (
     <Link

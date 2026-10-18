@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../services/connectivity_service.dart';
+import '../../core/i18n/app_language.dart';
 
 /// Дословные тексты индикаторов оффлайна (DS-002 `offline.md` §2, §9).
 ///
@@ -13,15 +14,16 @@ import '../../services/connectivity_service.dart';
 class OfflineIndicatorTexts {
   const OfflineIndicatorTexts._();
 
-  static const String offline = 'Нет соединения — данные могут быть устаревшими';
-  static const String route = 'Нет соединения — план из кэша, статусы сохранятся локально';
-  static const String checklist = 'Нет соединения — результат сохранится и синхронизируется';
+  static String get offline => tr('Нет соединения — данные могут быть устаревшими');
+  static String get route => tr('Нет соединения — план из кэша, статусы сохранятся локально');
+  static String get checklist => tr('Нет соединения — результат сохранится и синхронизируется');
 
   /// «Данные от 14:32» — время последней записи кэша.
-  static String cachedAt(String time) => 'Данные от $time';
+  static String cachedAt(String time) => trArgs('Данные от {time}', <String, Object?>{'time': time});
 
   /// «Синхронизация: 2 из 5».
-  static String syncing(int done, int total) => 'Синхронизация: $done из $total';
+  static String syncing(int done, int total) =>
+      trArgs('Синхронизация: {done} из {total}', <String, Object?>{'done': done, 'total': total});
 }
 
 /// Оффлайн-баннер: «нет соединения» плюс время данных из кэша.
@@ -35,14 +37,14 @@ class OfflineBanner extends ConsumerWidget {
     super.key,
     required this.bannerKey,
     this.lastUpdatedAt,
-    this.message = OfflineIndicatorTexts.offline,
+    this.message,
     this.visible,
   });
 
   final Key bannerKey;
 
-  /// Текст баннера: по умолчанию — общий из `offline.md` §2.
-  final String message;
+  /// Текст баннера: `null` — общий из `offline.md` §2.
+  final String? message;
 
   /// Время записи показанных данных. `null` — данные пришли из сети, второй
   /// строки «Данные от {HH:mm}» нет.
@@ -76,7 +78,7 @@ class OfflineBanner extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  message,
+                  message ?? OfflineIndicatorTexts.offline,
                   style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.warningText),
                 ),
                 if (cachedAt != null)

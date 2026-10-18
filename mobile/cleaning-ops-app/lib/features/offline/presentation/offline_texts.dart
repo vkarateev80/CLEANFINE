@@ -1,48 +1,58 @@
 import '../../../../shared/data/pending_actions.dart';
+import '../../../core/i18n/app_language.dart';
 
 /// Дословные тексты экрана очереди (`design/screens/mobile/offline.md` §9).
 class OfflineTexts {
   const OfflineTexts._();
 
-  static const String title = 'Очередь отправки';
-  static const String syncNow = 'Синхронизировать сейчас';
-  static const String retry = 'Повторить';
-  static const String delete = 'Удалить';
-  static const String deleteTitle = 'Удалить действие? Оно не будет отправлено.';
-  static const String cancel = 'Отмена';
-  static const String empty = 'Очередь пуста — всё отправлено';
-  static const String loadFailed = 'Не удалось прочитать очередь';
+  static String get title => tr('Очередь отправки');
+  static String get syncNow => tr('Синхронизировать сейчас');
+  static String get retry => tr('Повторить');
+  static String get delete => tr('Удалить');
+  static String get deleteTitle => tr('Удалить действие? Оно не будет отправлено.');
+  static String get cancel => tr('Отмена');
+  static String get empty => tr('Очередь пуста — всё отправлено');
+  static String get loadFailed => tr('Не удалось прочитать очередь');
 
   /// «Нет соединения — 2 действия ждут отправки».
-  static String offlineStatus(int count) =>
-      count == 0
-          ? 'Нет соединения — очередь пуста'
-          : 'Нет соединения — $count ${_actions(count)} ждут отправки';
+  static String offlineStatus(int count) => count == 0
+      ? tr('Нет соединения — очередь пуста')
+      : trArgs('Нет соединения — {count} {actions} ждут отправки',
+          <String, Object?>{'count': count, 'actions': _actions(count)});
 
   /// «Отправлено 3 из 5».
-  static String progress(int done, int total) => 'Отправлено $done из $total';
+  static String progress(int done, int total) =>
+      trArgs('Отправлено {done} из {total}', <String, Object?>{'done': done, 'total': total});
 
-  static const String onlineReady = 'Соединение есть — очередь отправится автоматически';
+  static String get onlineReady => tr('Соединение есть — очередь отправится автоматически');
 
-  static String failed(String error) => 'Не удалось отправить: $error';
-  static String attempts(int count) => 'Попыток: $count';
-  static String retryIn(int seconds) => 'Повтор через $seconds с';
-  static String created(String time) => 'создана $time';
+  static String failed(String error) =>
+      trArgs('Не удалось отправить: {error}', <String, Object?>{'error': error});
+  static String attempts(int count) =>
+      trArgs('Попыток: {count}', <String, Object?>{'count': count});
+  static String retryIn(int seconds) =>
+      trArgs('Повтор через {seconds} с', <String, Object?>{'seconds': seconds});
+  static String created(String time) =>
+      trArgs('создана {time}', <String, Object?>{'time': time});
 
   /// Название действия для строки очереди (DS-002 §9, «Виды действий»).
   static String kind(PendingAction action) {
     switch (action.type) {
       case PendingActionTypes.sos:
-        return 'Аварийная заявка';
+        return tr('Аварийная заявка');
       case PendingActionTypes.sosAttachPhoto:
-        return 'Фото к аварийной заявке';
+        return tr('Фото к аварийной заявке');
       case PendingActionTypes.operationCompleted:
-        final String name = _text(action.payload['operationName']) ?? 'операция техкарты';
+        final String name = _text(action.payload['operationName']) ?? tr('операция техкарты');
         final String? room = _text(action.payload['roomName']);
-        return room == null ? 'Операция «$name»' : 'Операция «$name» · $room';
+        return room == null
+            ? trArgs('Операция «{name}»', <String, Object?>{'name': name})
+            : trArgs('Операция «{name}» · {room}', <String, Object?>{'name': name, 'room': room});
       case PendingActionTypes.roomCompleted:
         final String? room = _text(action.payload['roomName']);
-        return room == null ? 'Помещение завершено' : 'Помещение «$room»';
+        return room == null
+            ? tr('Помещение завершено')
+            : trArgs('Помещение «{room}»', <String, Object?>{'room': room});
       default:
         return action.type;
     }
@@ -51,9 +61,9 @@ class OfflineTexts {
   static String _actions(int count) {
     final int mod10 = count % 10;
     final int mod100 = count % 100;
-    if (mod10 == 1 && mod100 != 11) return 'действие';
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'действия';
-    return 'действий';
+    if (mod10 == 1 && mod100 != 11) return tr('действие');
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return tr('действия');
+    return tr('действий');
   }
 
   static String? _text(dynamic value) {

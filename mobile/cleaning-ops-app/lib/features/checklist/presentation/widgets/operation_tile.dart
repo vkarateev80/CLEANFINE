@@ -154,20 +154,20 @@ class _OperationTileState extends State<OperationTile> {
                 Padding(
                   key: Key('checklist_op_photo_hint_${state.operation.id}'),
                   padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: const Text(
+                  child: Text(
                     ChecklistTexts.photoRequired,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: AppTypography.sizeXS,
                       color: AppPalette.dangerText,
                     ),
                   ),
                 ),
               if (state.operation.requiresQr)
-                const Padding(
-                  padding: EdgeInsets.only(top: AppSpacing.xs),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
                   child: Text(
                     ChecklistTexts.qrRequired,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: AppTypography.sizeXS,
                       color: AppPalette.textSecondary,
                     ),
@@ -243,7 +243,7 @@ class _OperationTileState extends State<OperationTile> {
                         child: FilledButton(
                           key: Key('checklist_op_complete_button_${state.operation.id}'),
                           onPressed: canAct ? widget.onComplete : null,
-                          child: const Text(ChecklistTexts.complete),
+                          child: Text(ChecklistTexts.complete),
                         ),
                       ),
                     ),
@@ -257,7 +257,7 @@ class _OperationTileState extends State<OperationTile> {
                   child: TextButton(
                     key: Key('checklist_op_start_button_${state.operation.id}'),
                     onPressed: widget.onStart,
-                    child: const Text(ChecklistTexts.start),
+                    child: Text(ChecklistTexts.start),
                   ),
                 ),
               ],

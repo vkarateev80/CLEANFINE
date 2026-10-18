@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '../ui/Button';
 import { PUSH_SUPPORT_TEXT, pushSupport, subscribeWebPush, type PushSupport } from '../../lib/webPush';
 import { showToast } from '../../stores/uiStore';
+import { t } from '../../i18n';
 
 const DISMISS_KEY = 'cleanfine-operator-push-dismissed';
 
@@ -50,13 +51,13 @@ export function PushPromptBanner() {
       setPermission(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
       setSupport(pushSupport());
       if (result === 'ready') {
-        showToast('Push включён: уведомления придут даже при закрытом приложении', 'success');
+        showToast(t('Push включён: уведомления придут даже при закрытом приложении'), 'success');
         dismiss();
       } else {
-        showToast(PUSH_SUPPORT_TEXT[result], 'error');
+        showToast(t(PUSH_SUPPORT_TEXT[result]), 'error');
       }
     } catch {
-      showToast('Не удалось включить push', 'error');
+      showToast(t('Не удалось включить push'), 'error');
     } finally {
       setBusy(false);
     }
@@ -68,12 +69,12 @@ export function PushPromptBanner() {
       data-testid="push_prompt_banner"
     >
       <div className="text-sm font-medium text-neutral-900">
-        🔔 {needsInstall ? 'Уведомления на iPhone' : 'Включите уведомления'}
+        🔔 {needsInstall ? t('Уведомления на iPhone') : t('Включите уведомления')}
       </div>
       <div className="text-xs text-neutral-700">
         {needsInstall
-          ? 'Чтобы приходили push о заявках и сообщениях, добавьте приложение на экран «Домой»: «Поделиться» → «На экран Домой», затем откройте его оттуда и включите уведомления в профиле.'
-          : 'Новые заявки, SOS и сообщения будут приходить даже при закрытом приложении, со звуком и вибрацией.'}
+          ? t('Чтобы приходили push о заявках и сообщениях, добавьте приложение на экран «Домой»: «Поделиться» → «На экран Домой», затем откройте его оттуда и включите уведомления в профиле.')
+          : t('Новые заявки, SOS и сообщения будут приходить даже при закрытом приложении, со звуком и вибрацией.')}
       </div>
       <div className="flex gap-2">
         {canEnable && (
@@ -84,11 +85,11 @@ export function PushPromptBanner() {
             onClick={() => void enable()}
             data-testid="push_prompt_enable"
           >
-            Включить
+            {t('Включить')}
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={dismiss} data-testid="push_prompt_later">
-          Позже
+          {t('Позже')}
         </Button>
       </div>
     </section>

@@ -45,7 +45,7 @@ class _ChatsPageState extends ConsumerState<ChatsPage> {
     return Scaffold(
       key: const Key('chats_page'),
       appBar: AppBar(
-        title: const Text(ChatTexts.listTitle),
+        title: Text(ChatTexts.listTitle),
         actions: const <Widget>[SyncStatusCounter(statusKey: Key('chats_sync_status'))],
       ),
       backgroundColor: AppPalette.background,
@@ -84,12 +84,12 @@ class _EmptyChats extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      children: const <Widget>[
-        SizedBox(height: 120),
+      children: <Widget>[
+        const SizedBox(height: 120),
         ChatEmptyState(
           icon: Icons.forum_outlined,
           title: ChatTexts.emptyChats,
-          titleKey: Key('chats_empty_text'),
+          titleKey: const Key('chats_empty_text'),
           hint: ChatTexts.emptyChatsHint,
         ),
       ],

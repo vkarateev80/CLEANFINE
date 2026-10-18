@@ -1,3 +1,5 @@
+import '../../../core/i18n/app_language.dart';
+
 // Модели core-service и ticket-service для чек-листа помещения (М6.4).
 
 /// `GET /api/rooms/:id` — помещение с привязкой к техкарте.
@@ -31,7 +33,7 @@ class RoomDetail {
     if (id == null || id.isEmpty) return null;
     return RoomDetail(
       id: id,
-      name: body['name']?.toString() ?? 'Помещение',
+      name: body['name']?.toString() ?? tr('Помещение'),
       floorId: _textOf(body['floorId']),
       techCardId: _textOf(body['techCardId']),
       floorType: _textOf(body['floorType']),
@@ -143,7 +145,7 @@ class TechOperation {
     final dynamic equipment = body['equipment'];
     return TechOperation(
       id: id,
-      name: body['name']?.toString() ?? 'Операция',
+      name: body['name']?.toString() ?? tr('Операция'),
       orderIndex: _intOf(body['orderIndex']) ?? 0,
       estimatedTimeMin: _intOf(body['estimatedTimeMin']) ?? 1,
       description: _textOf(body['description']),
@@ -205,7 +207,7 @@ class TechCardDetail {
     final List<TechOperation> operations = TechOperation.listFrom(body['operations']);
     return TechCardDetail(
       id: id,
-      name: body['name']?.toString() ?? 'Техкарта',
+      name: body['name']?.toString() ?? tr('Техкарта'),
       operations: operations,
       totalEstimatedTimeMin: _intOf(body['totalEstimatedTimeMin']) ??
           operations.fold<int>(0, (int sum, TechOperation op) => sum + op.estimatedTimeMin),

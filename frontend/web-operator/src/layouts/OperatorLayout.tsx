@@ -11,6 +11,7 @@ import { SyncCounter } from '../components/shell/SyncCounter';
 import { useKeyboardOpen } from '../lib/http';
 import { useAuthStore } from '../stores/authStore';
 import { useUiStore } from '../stores/uiStore';
+import { t } from '../i18n';
 
 /**
  * Каркас shell-экранов (overview.md п. 3): шапка с заголовком экрана, счётчик
@@ -74,8 +75,8 @@ export function OperatorLayout() {
             className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1 rounded-lg text-neutral-500 hover:bg-neutral-100"
             aria-label={
               unreadNotifications > 0
-                ? `Непрочитанных уведомлений: ${unreadNotifications}`
-                : 'Уведомления'
+                ? t('Непрочитанных уведомлений: {unreadNotifications}', { unreadNotifications })
+                : t('Уведомления')
             }
             data-testid="op-notifications"
           >
@@ -93,7 +94,7 @@ export function OperatorLayout() {
       {!keyboardOpen && (
         <nav
           className="op-tabbar fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-neutral-200 bg-white shadow-lg"
-          aria-label="Разделы приложения"
+          aria-label={t('Разделы приложения')}
         >
           {NAV.map((item) => (
             <NavLink
@@ -124,7 +125,7 @@ export function OperatorLayout() {
                       </span>
                     )}
                   </span>
-                  <span>{item.label}</span>
+                  <span>{t(item.label)}</span>
                 </>
               )}
             </NavLink>
@@ -132,7 +133,7 @@ export function OperatorLayout() {
           <Link
             to="/sos"
             data-testid="op-nav-sos"
-            aria-label="Аварийная заявка SOS"
+            aria-label={t('Аварийная заявка SOS')}
             className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 py-2 text-xs font-semibold text-danger-600 transition-colors active:bg-neutral-100"
           >
             <span

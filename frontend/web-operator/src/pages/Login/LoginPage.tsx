@@ -6,7 +6,9 @@ import { isOperatorRole } from '../../components/auth/RoleGuard';
 import { Button } from '../../components/ui/Button';
 import { SoftWarning, errorMessage } from '../../components/ui/Feedback';
 import { Field, Input } from '../../components/ui/Input';
+import { LanguageSwitch } from '../../i18n/LanguageSwitch';
 import { apiStatus } from '../../lib/http';
+import { t } from '../../i18n';
 
 /**
  * Вход оператора (auth.md §3.1): email/пароль → `POST /auth/login` →
@@ -45,14 +47,14 @@ export function LoginPage() {
   const state = location.state as LocationState | null;
 
   useEffect(() => {
-    if (state?.roleDenied) setNotice(ROLE_DENIED_TEXT);
+    if (state?.roleDenied) setNotice(t(ROLE_DENIED_TEXT));
     else if (state?.notice) setNotice(state.notice);
   }, [state?.roleDenied, state?.notice]);
 
   async function performLogin(nextEmail: string, nextPassword: string): Promise<boolean> {
     setError(null);
     if (!nextEmail.trim() || !nextPassword) {
-      setError('Введите email и пароль');
+      setError(t('Введите email и пароль'));
       return false;
     }
     setLoading(true);
@@ -61,7 +63,7 @@ export function LoginPage() {
       if (!isOperatorRole(user.role)) {
         // Токены уже выданы — гасим сессию, иначе заказчик остался бы с валидной сессией здесь.
         await logout();
-        setNotice(ROLE_DENIED_TEXT);
+        setNotice(t(ROLE_DENIED_TEXT));
         return false;
       }
       const from = state?.from;
@@ -71,14 +73,14 @@ export function LoginPage() {
     } catch (caught) {
       const status = apiStatus(caught);
       if (status === 401) {
-        setError('Неверный email или пароль');
+        setError(t('Неверный email или пароль'));
         passwordRef.current?.focus();
       } else if (status === 400) {
         setError(errorMessage(caught));
       } else if (status === 429) {
-        setError('Слишком много попыток. Попробуйте позже');
+        setError(t('Слишком много попыток. Попробуйте позже'));
       } else {
-        setError('Не удалось войти. Проверьте соединение с сервером');
+        setError(t('Не удалось войти. Проверьте соединение с сервером'));
       }
       return false;
     } finally {
@@ -110,7 +112,10 @@ export function LoginPage() {
       noValidate
       data-testid="op-login-form"
     >
-      <h1 className="text-lg font-semibold text-neutral-900">Вход</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold text-neutral-900">{t('Вход')}</h1>
+        <LanguageSwitch />
+      </div>
 
       {notice && <SoftWarning>{notice}</SoftWarning>}
 
@@ -132,7 +137,7 @@ export function LoginPage() {
         />
       </Field>
 
-      <Field label="Пароль" htmlFor="op-password" required>
+      <Field label={t('Пароль')} htmlFor="op-password" required>
         <div className="flex items-stretch gap-2">
           <Input
             id="op-password"
@@ -143,7 +148,7 @@ export function LoginPage() {
             className="min-h-[48px] text-base"
             data-testid="password_field"
             value={password}
-            invalid={error === 'Неверный email или пароль'}
+            invalid={error === t('Неверный email или пароль')}
             disabled={loading}
             onChange={(event) => setPassword(event.target.value)}
           />
@@ -153,10 +158,10 @@ export function LoginPage() {
             size="sm"
             className="min-h-[48px] shrink-0"
             aria-pressed={showPassword}
-            aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+            aria-label={showPassword ? t('Скрыть пароль') : t('Показать пароль')}
             onClick={() => setShowPassword((value) => !value)}
           >
-            {showPassword ? 'скрыть' : 'показать'}
+            {showPassword ? t('скрыть') : t('показать')}
           </Button>
         </div>
       </Field>
@@ -179,10 +184,10 @@ export function LoginPage() {
         className="mt-1 min-h-[48px] w-full"
         data-testid="submit_button"
       >
-        Войти
+        {t('Войти')}
       </Button>
 
-      <p className="text-center text-xs text-neutral-500">Забыли пароль? Обратитесь к бригадиру.</p>
+      <p className="text-center text-xs text-neutral-500">{t('Забыли пароль? Обратитесь к бригадиру.')}</p>
     </form>
   );
 }

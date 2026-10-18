@@ -13,15 +13,15 @@ class SplashPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      key: Key('splash_page'),
+    return Scaffold(
+      key: const Key('splash_page'),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.cleaning_services_outlined, size: 64, color: Color(AppColors.primary600)),
-            SizedBox(height: AppSpacing.lg),
-            Text(
+            const Icon(Icons.cleaning_services_outlined, size: 64, color: Color(AppColors.primary600)),
+            const SizedBox(height: AppSpacing.lg),
+            const Text(
               AuthTexts.appTitle,
               style: TextStyle(
                 fontFamily: AppTypography.fontSans,
@@ -30,12 +30,12 @@ class SplashPage extends StatelessWidget {
                 color: Color(AppColors.primary600),
               ),
             ),
-            SizedBox(height: AppSpacing.xl),
-            CircularProgressIndicator(),
-            SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.xl),
+            const CircularProgressIndicator(),
+            const SizedBox(height: AppSpacing.md),
             Text(
               AuthTexts.splashCheck,
-              style: TextStyle(
+              style: const TextStyle(
                 fontFamily: AppTypography.fontSans,
                 fontSize: AppTypography.sizeSM,
                 color: Color(AppColors.neutral500),

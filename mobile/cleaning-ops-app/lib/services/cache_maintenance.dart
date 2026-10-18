@@ -8,6 +8,7 @@ import '../database/app_database.dart';
 import '../database/database_provider.dart';
 import '../shared/data/pending_actions.dart';
 import 'floor_plan_cache.dart';
+import '../core/i18n/app_language.dart';
 
 /// Сколько места занимает кэш: «Размер кэша» в профиле (`profile.md` §3.5).
 class CacheUsage {
@@ -39,10 +40,10 @@ class CacheUsage {
   /// Человекочитаемая строка для профиля: «12,4 МБ».
   String get label {
     if (totalBytes < 1024 * 1024) {
-      return '${(totalBytes / 1024).toStringAsFixed(0)} КБ';
+      return '${(totalBytes / 1024).toStringAsFixed(0)} ${tr('КБ')}';
     }
     final double mb = totalBytes / (1024 * 1024);
-    return '${mb.toStringAsFixed(mb >= 100 ? 0 : 1).replaceAll('.', ',')} МБ';
+    return '${mb.toStringAsFixed(mb >= 100 ? 0 : 1).replaceAll('.', ',')} ${tr('МБ')}';
   }
 }
 

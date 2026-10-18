@@ -17,6 +17,9 @@ class StorageKeys {
   /// Чьи данные лежат в локальной базе и файловых кэшах. Переживает выход:
   /// по нему вход другого пользователя понимает, что чужие данные надо стереть.
   static const String dataOwner = 'data_owner_id';
+
+  /// Язык интерфейса (`ru`/`ky`/`uz`), выбранный оператором; переживает выход.
+  static const String language = 'app_language';
 }
 
 /// Токены, биометрический ключ и данные сессии — в Keychain/EncryptedSharedPreferences.
@@ -71,6 +74,10 @@ class SecureStorageService implements TokenStore {
   Future<void> saveRole(String value) => _write(StorageKeys.role, value);
 
   Future<String?> readDataOwner() => _read(StorageKeys.dataOwner);
+
+  Future<String?> readLanguage() => _read(StorageKeys.language);
+
+  Future<void> saveLanguage(String code) => _write(StorageKeys.language, code);
 
   Future<void> saveDataOwner(String value) => _write(StorageKeys.dataOwner, value);
 

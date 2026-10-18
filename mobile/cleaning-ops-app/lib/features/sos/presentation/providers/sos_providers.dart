@@ -18,6 +18,7 @@ import '../../../../shared/services/photo_service.dart';
 import '../../../auth/presentation/providers/session_provider.dart';
 import '../../domain/emergency_category.dart';
 import '../sos_texts.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Параметры экрана SOS: помещение, из которого открыли экран (если открыли из
 /// точки маршрута или чек-листа) — попадает в заявку и в текст локации.
@@ -163,7 +164,9 @@ class SosController extends FamilyAsyncNotifier<SosState, String?> {
         final FloorPlan? floor = room.floorId == null
             ? null
             : (await ref.read(coreRepositoryProvider).floor(room.floorId!)).dataOrNull;
-        roomLabel = floor == null ? room.name : '${room.name}, ${floor.number} этаж';
+        roomLabel = floor == null
+            ? room.name
+            : trArgs('{room}, {number} этаж', <String, Object?>{'room': room.name, 'number': floor.number});
       }
     }
 

@@ -1,5 +1,6 @@
 import 'package:cleaning_ops_tokens/app_tokens.dart';
 import 'package:flutter/material.dart';
+import '../../core/i18n/app_language.dart';
 
 /// Семантические цвета поверх DS-001: экраны не хардкодят hex-значения,
 /// а берут смысловые имена отсюда.
@@ -32,9 +33,13 @@ class AppPalette {
 
 /// Статус смены (shared: `SCHEDULE_EVENT_STATUSES`) → цвет и русская подпись.
 class ScheduleStatusStyle {
-  const ScheduleStatusStyle(this.label, this.color);
+  const ScheduleStatusStyle(this._label, this.color);
 
-  final String label;
+  /// Русская подпись — ключ перевода; на экран идёт `label`.
+  final String _label;
+
+  /// Подпись на языке интерфейса.
+  String get label => tr(_label);
   final Color color;
 
   static const ScheduleStatusStyle planned = ScheduleStatusStyle('Запланирована', AppPalette.info);
@@ -85,10 +90,15 @@ enum RoutePointStatus {
   done('done', 'Выполнено', AppPalette.success),
   skipped('skipped', 'Пропущено', AppPalette.warning);
 
-  const RoutePointStatus(this.code, this.label, this.color);
+  const RoutePointStatus(this.code, this._label, this.color);
 
   final String code;
-  final String label;
+
+  /// Русская подпись — ключ перевода; на экран идёт `label`.
+  final String _label;
+
+  /// Подпись на языке интерфейса.
+  String get label => tr(_label);
   final Color color;
 
   static RoutePointStatus of(String value) => RoutePointStatus.values.firstWhere(

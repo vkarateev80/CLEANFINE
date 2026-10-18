@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../core/constants/api_constants.dart';
 import '../core/errors/exceptions.dart';
+import '../core/i18n/app_language.dart';
 
 /// Хранилище токенов, которым пользуется `ApiClient`.
 ///
@@ -249,20 +250,20 @@ class ApiClient {
     final message = _extractMessage(body);
     switch (status) {
       case 400:
-        return ValidationException(message ?? 'Проверьте заполненные поля',
+        return ValidationException(message ?? tr('Проверьте заполненные поля'),
             fieldErrors: _extractFieldErrors(body));
       case 401:
         return const UnauthorizedException();
       case 403:
-        return ForbiddenException(message ?? 'Недостаточно прав');
+        return ForbiddenException(message ?? tr('Недостаточно прав'));
       case 404:
-        return NotFoundException(message ?? 'Не найдено');
+        return NotFoundException(message ?? tr('Не найдено'));
       case 409:
-        return ConflictException(message ?? 'Конфликт данных');
+        return ConflictException(message ?? tr('Конфликт данных'));
       case 429:
-        return TooManyRequestsException(message ?? 'Слишком много попыток, попробуйте позже');
+        return TooManyRequestsException(message ?? tr('Слишком много попыток, попробуйте позже'));
       default:
-        return ServerException(message ?? 'Ошибка сервера', status);
+        return ServerException(message ?? tr('Ошибка сервера'), status);
     }
   }
 
@@ -279,9 +280,9 @@ class ApiClient {
       case DioExceptionType.badResponse:
         final response = error.response;
         if (response != null) return _exceptionFor(response);
-        return ServerException(error.message ?? 'Ошибка сервера');
+        return ServerException(error.message ?? tr('Ошибка сервера'));
       case DioExceptionType.cancel:
-        return const NetworkException('Запрос отменён');
+        return NetworkException(tr('Запрос отменён'));
     }
   }
 

@@ -7,10 +7,11 @@ import { relativeDay } from '../../lib/date';
 import { useAuthStore } from '../../stores/authStore';
 import { showToast } from '../../stores/uiStore';
 import { CHAT_TYPE_ICON, chatTitle, useMyChats } from './useChats';
+import { t } from '../../i18n';
 
 /** Список чатов (chat.md §2.1): объект, заявка, личные, системные; `?ticket=` ведёт в чат заявки. */
 export function ChatsPage() {
-  useHeaderTitle('Чаты');
+  useHeaderTitle(t('Чаты'));
   const chats = useMyChats();
   const me = useAuthStore((s) => s.user?.id);
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ export function ChatsPage() {
     if (!ticketId || !chats.data) return;
     const chat = chats.data.find((item) => item.ticketId === ticketId);
     if (chat) navigate(`/chats/${chat.id}`, { replace: true });
-    else showToast('Чата по этой заявке пока нет', 'info');
+    else showToast(t('Чата по этой заявке пока нет'), 'info');
   }, [ticketId, chats.data, navigate]);
 
   if (chats.isLoading && !chats.data) {
@@ -36,7 +37,7 @@ export function ChatsPage() {
   if (chats.isError && !chats.data) {
     return (
       <ErrorBanner
-        error={new Error('Не удалось загрузить чаты')}
+        error={new Error(t('Не удалось загрузить чаты'))}
         onRetry={() => void chats.refetch()}
       />
     );
@@ -45,8 +46,8 @@ export function ChatsPage() {
   if (items.length === 0) {
     return (
       <EmptyState
-        title="Чатов пока нет"
-        hint="Чат появится, когда бригадир создаст его по объекту или заявке"
+        title={t('Чатов пока нет')}
+        hint={t('Чат появится, когда бригадир создаст его по объекту или заявке')}
       />
     );
   }
@@ -55,8 +56,8 @@ export function ChatsPage() {
     <ul className="flex flex-col gap-2" data-testid="chats_list">
       {items.map((chat) => {
         const preview = chat.lastMessage
-          ? `${chat.lastMessage.authorId === me ? 'Вы: ' : ''}${chat.lastMessage.text || (chat.lastMessage.attachmentIds.length ? '📎 Вложение' : '')}`
-          : 'Сообщений пока нет';
+          ? `${chat.lastMessage.authorId === me ? t('Вы: ') : ''}${chat.lastMessage.text || (chat.lastMessage.attachmentIds.length ? t('📎 Вложение') : '')}`
+          : t('Сообщений пока нет');
         return (
           <li key={chat.id}>
             <Link
@@ -80,7 +81,7 @@ export function ChatsPage() {
                 </span>
                 <span className="mt-0.5 flex items-center justify-between gap-2">
                   <span className="truncate text-xs text-neutral-500">{preview}</span>
-                  <CountDot value={chat.unreadCount} label={`Непрочитанных: ${chat.unreadCount}`} />
+                  <CountDot value={chat.unreadCount} label={t('Непрочитанных: {unreadCount}', { unreadCount: chat.unreadCount })} />
                 </span>
               </span>
             </Link>

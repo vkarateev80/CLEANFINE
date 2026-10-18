@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Фото из камеры телефона. Браузер отдаёт `File` через `<input type="file"
  * accept="image/*" capture="environment">`; мы проверяем разрешение
@@ -20,7 +21,7 @@ export interface PreparedPhoto {
 
 export class PhotoTooSmall extends Error {
   constructor() {
-    super(PHOTO_TOO_SMALL_TEXT);
+    super(t(PHOTO_TOO_SMALL_TEXT));
     this.name = 'PhotoTooSmall';
   }
 }
@@ -29,7 +30,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Не удалось прочитать фото'));
+    image.onerror = () => reject(new Error(t('Не удалось прочитать фото')));
     image.src = url;
   });
 }
@@ -52,11 +53,11 @@ export async function preparePhoto(file: File): Promise<PreparedPhoto> {
     canvas.width = targetWidth;
     canvas.height = targetHeight;
     const context = canvas.getContext('2d');
-    if (!context) throw new Error('Не удалось обработать фото');
+    if (!context) throw new Error(t('Не удалось обработать фото'));
     context.drawImage(image, 0, 0, targetWidth, targetHeight);
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
-        (result) => (result ? resolve(result) : reject(new Error('Не удалось сжать фото'))),
+        (result) => (result ? resolve(result) : reject(new Error(t('Не удалось сжать фото')))),
         'image/jpeg',
         0.85,
       );

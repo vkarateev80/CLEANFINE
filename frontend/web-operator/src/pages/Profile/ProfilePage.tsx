@@ -28,6 +28,8 @@ import { usePendingCount, useQueueStore } from '../../stores/queueStore';
 import { useUiStore } from '../../stores/uiStore';
 import { NOTIFICATION_TYPE_LABELS, type NotificationType } from '../../types/notifications';
 import { useInstallPrompt } from './useInstallPrompt';
+import { LanguageSwitch } from '../../i18n/LanguageSwitch';
+import { t } from '../../i18n';
 
 const APP_VERSION = '1.0.0 (web)';
 
@@ -83,7 +85,7 @@ const GEO_TEXT: Record<GeoPermission, string> = {
 
 /** Профиль (profile.md): кто я, доступ, геолокация, уведомления, очередь, выход. */
 export function ProfilePage() {
-  useHeaderTitle('Профиль');
+  useHeaderTitle(t('Профиль'));
   const user = useAuthStore((s) => s.user);
   const pending = usePendingCount();
   const online = useOnline();
@@ -139,25 +141,25 @@ export function ProfilePage() {
             {user.fullName}
           </div>
           <div className="truncate text-sm text-neutral-500" data-testid="profile_role_text">
-            {ROLE_LABELS[user.role]} · {user.email}
+            {t(ROLE_LABELS[user.role])} · {user.email}
           </div>
           {user.phone && <div className="font-mono text-sm text-neutral-500">{user.phone}</div>}
         </div>
       </section>
 
-      <Group title="Доступ">
+      <Group title={t('Доступ')}>
         <Row
           to="/profile/password"
           icon="🔒"
-          label="Сменить пароль"
+          label={t('Сменить пароль')}
           testId="profile_change_password_tile"
         />
       </Group>
 
-      <Group title="Геолокация">
+      <Group title={t('Геолокация')}>
         <div className="px-4 py-3 text-sm">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-neutral-700">📍 Местоположение</span>
+            <span className="text-neutral-700">{t('📍 Местоположение')}</span>
             <span
               className={[
                 'text-right text-xs',
@@ -165,53 +167,59 @@ export function ProfilePage() {
               ].join(' ')}
               data-testid="profile_gps_status_text"
             >
-              {GEO_TEXT[geo]}
+              {t(GEO_TEXT[geo])}
             </span>
           </div>
           <p className="mt-2 text-xs text-neutral-500">
-            Для отметки на смене и SOS браузеру нужен доступ к геолокации. В браузере позиция
-            определяется только пока страница открыта.
+            {t('Для отметки на смене и SOS браузеру нужен доступ к геолокации. В браузере позиция определяется только пока страница открыта.')}
           </p>
         </div>
       </Group>
 
-      <Group title="Уведомления и данные">
+      <Group title={t('Язык')}>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+          <span className="text-neutral-700">{t('🌐 Язык интерфейса')}</span>
+          <LanguageSwitch />
+        </div>
+      </Group>
+
+      <Group title={t('Уведомления и данные')}>
         <RowButton
           icon="🔔"
-          label="Уведомления"
+          label={t('Уведомления')}
           onClick={() => setNotifOpen(true)}
           testId="profile_notifications_tile"
         />
         <Row
           to="/offline"
           icon="⚡"
-          label="Очередь отправки"
+          label={t('Очередь отправки')}
           value={
             pending > 0
-              ? `${pending} ${plural(pending, 'действие', 'действия', 'действий')}`
-              : 'пусто'
+              ? `${pending} ${plural(pending, t('действие'), t('действия'), t('действий'))}`
+              : t('пусто')
           }
           testId="profile_queue_tile"
         />
         {install.canInstall && (
           <RowButton
             icon="📲"
-            label="Установить на экран «Домой»"
+            label={t('Установить на экран «Домой»')}
             onClick={() => void install.prompt()}
             testId="profile_install_tile"
           />
         )}
         {install.iosHint && (
           <div className="px-4 py-3 text-xs text-neutral-500">
-            📲 Чтобы открывать как приложение: «Поделиться» → «На экран «Домой»».
+            {t('📲 Чтобы открывать как приложение: «Поделиться» → «На экран «Домой»».')}
           </div>
         )}
         <div
           className="flex items-center justify-between px-4 py-3 text-sm text-neutral-500"
           data-testid="profile_about_tile"
         >
-          <span>ⓘ О приложении</span>
-          <span className="font-mono text-xs">версия {APP_VERSION}</span>
+          <span>{t('ⓘ О приложении')}</span>
+          <span className="font-mono text-xs">{t('версия {version}', { version: APP_VERSION })}</span>
         </div>
       </Group>
 
@@ -221,14 +229,14 @@ export function ProfilePage() {
         onClick={() => setConfirmLogout(true)}
         data-testid="profile_logout_button"
       >
-        Выйти
+        {t('Выйти')}
       </Button>
 
       <ConfirmDialog
         open={confirmLogout}
-        title="Выйти из аккаунта?"
-        text={pending > 0 ? `Неотправленные действия (${pending}) будут потеряны.` : undefined}
-        confirmLabel="Выйти"
+        title={t('Выйти из аккаунта?')}
+        text={pending > 0 ? t('Неотправленные действия ({pending}) будут потеряны.', { pending }) : undefined}
+        confirmLabel={t('Выйти')}
         danger
         loading={leaving}
         onCancel={() => setConfirmLogout(false)}
@@ -334,11 +342,11 @@ function NotificationsSheet({
     mutationFn: () => updateNotificationSettings({ disabledTypes: disabled as NotificationType[] }),
     onSuccess: (data) => {
       queryClient.setQueryData(['notifications', 'settings'], data);
-      showToast('Настройки сохранены', 'success');
+      showToast(t('Настройки сохранены'), 'success');
       onClose();
     },
     onError: (error) =>
-      showToast(online ? errorMessage(error) : 'Нет соединения. Настройки не сохранены.', 'error'),
+      showToast(online ? errorMessage(error) : t('Нет соединения. Настройки не сохранены.'), 'error'),
   });
 
   const types = settings.data?.availableTypes ?? [];
@@ -346,7 +354,7 @@ function NotificationsSheet({
   return (
     <Sheet
       open={open}
-      title="Уведомления"
+      title={t('Уведомления')}
       onClose={onClose}
       testId="profile_notifications_sheet"
       footer={
@@ -358,7 +366,7 @@ function NotificationsSheet({
           onClick={() => save.mutate()}
           data-testid="profile_notifications_save_button"
         >
-          Сохранить
+          {t('Сохранить')}
         </Button>
       }
     >
@@ -376,7 +384,7 @@ function NotificationsSheet({
                 key={type}
                 className="flex min-h-[48px] items-center justify-between gap-3 py-2 text-sm text-neutral-900"
               >
-                <span>{TYPE_LABELS[type] ?? type}</span>
+                <span>{t(TYPE_LABELS[type] ?? type)}</span>
                 <input
                   type="checkbox"
                   className="h-5 w-5 rounded border-neutral-300 text-primary-500 focus:ring-primary-500"
@@ -392,7 +400,7 @@ function NotificationsSheet({
             );
           })}
           {types.length === 0 && (
-            <div className="py-4 text-sm text-neutral-500">Типов уведомлений нет</div>
+            <div className="py-4 text-sm text-neutral-500">{t('Типов уведомлений нет')}</div>
           )}
         </div>
       )}
@@ -415,7 +423,7 @@ function PushToggle({ online }: { online: boolean }) {
   /** «Проверить»: сервер шлёт тестовое уведомление по всем каналам этого пользователя. */
   async function runTest() {
     if (!online) {
-      showToast('Нет соединения — проверка недоступна', 'error');
+      showToast(t('Нет соединения — проверка недоступна'), 'error');
       return;
     }
     setTesting(true);
@@ -423,12 +431,12 @@ function PushToggle({ online }: { online: boolean }) {
       const result = await sendSelfTest();
       showToast(
         result.devices > 0
-          ? `Отправили тестовое уведомление на ${result.devices} устр.: ждите push`
-          : 'Push-устройств нет: включите push выше, затем проверьте снова',
+          ? t('Отправили тестовое уведомление на {devices} устр.: ждите push', { devices: result.devices })
+          : t('Push-устройств нет: включите push выше, затем проверьте снова'),
         result.devices > 0 ? 'success' : 'info',
       );
     } catch (error) {
-      showToast(`Проверка не удалась: ${errorMessage(error)}`, 'error');
+      showToast(t('Проверка не удалась: {errorMessage}', { errorMessage: errorMessage(error) }), 'error');
     } finally {
       setTesting(false);
     }
@@ -446,7 +454,7 @@ function PushToggle({ online }: { online: boolean }) {
 
   async function toggle() {
     if (!online) {
-      showToast('Нет соединения. Push можно включить только онлайн.', 'error');
+      showToast(t('Нет соединения. Push можно включить только онлайн.'), 'error');
       return;
     }
     setBusy(true);
@@ -454,29 +462,29 @@ function PushToggle({ online }: { online: boolean }) {
       if (subscribed) {
         await unsubscribeWebPush();
         setSubscribed(false);
-        showToast('Push на этом устройстве выключен', 'info');
+        showToast(t('Push на этом устройстве выключен'), 'info');
       } else {
         const result = await subscribeWebPush();
         setSupport(pushSupport());
         if (result === 'ready') {
           setSubscribed(true);
-          showToast('Push включён: уведомления придут даже при закрытом приложении', 'success');
+          showToast(t('Push включён: уведомления придут даже при закрытом приложении'), 'success');
         } else {
-          showToast(PUSH_SUPPORT_TEXT[result], 'error');
+          showToast(t(PUSH_SUPPORT_TEXT[result]), 'error');
         }
       }
     } catch (error) {
-      showToast(`Не удалось включить push: ${errorMessage(error)}`, 'error');
+      showToast(t('Не удалось включить push: {errorMessage}', { errorMessage: errorMessage(error) }), 'error');
     } finally {
       setBusy(false);
     }
   }
 
   const statusText = subscribed
-    ? PUSH_SUPPORT_TEXT.ready
+    ? t(PUSH_SUPPORT_TEXT.ready)
     : support === 'ready'
-      ? 'Push на этом устройстве выключен'
-      : PUSH_SUPPORT_TEXT[support];
+      ? t('Push на этом устройстве выключен')
+      : t(PUSH_SUPPORT_TEXT[support]);
   const canToggle = support === 'ready' || subscribed;
 
   return (
@@ -485,9 +493,9 @@ function PushToggle({ online }: { online: boolean }) {
       data-testid="profile_push_toggle"
     >
       <div className="min-w-0">
-        <div className="text-sm font-medium text-neutral-900">Push на это устройство</div>
+        <div className="text-sm font-medium text-neutral-900">{t('Push на это устройство')}</div>
         <div className="text-xs text-neutral-500" data-testid="profile_push_status_text">
-          {subscribed === null ? 'Проверяем…' : statusText}
+          {subscribed === null ? t('Проверяем…') : statusText}
         </div>
       </div>
       <div className="flex shrink-0 flex-col gap-1">
@@ -499,7 +507,7 @@ function PushToggle({ online }: { online: boolean }) {
           onClick={() => void toggle()}
           data-testid="profile_push_button"
         >
-          {subscribed ? 'Выключить' : 'Включить'}
+          {subscribed ? t('Выключить') : t('Включить')}
         </Button>
         <Button
           variant="ghost"
@@ -508,7 +516,7 @@ function PushToggle({ online }: { online: boolean }) {
           onClick={() => void runTest()}
           data-testid="profile_push_test_button"
         >
-          Проверить
+          {t('Проверить')}
         </Button>
       </div>
     </div>

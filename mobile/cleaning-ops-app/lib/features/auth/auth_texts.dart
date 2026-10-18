@@ -1,3 +1,5 @@
+import '../../core/i18n/app_language.dart';
+
 /// Дословные русские тексты пакета входа.
 ///
 /// Источник — `design/screens/mobile/auth.md` §10 («Тексты интерфейса»), §4.6
@@ -9,61 +11,56 @@ class AuthTexts {
 
   // Шапка и подписи (auth.md §3.1, §10).
   static const String appTitle = '🧹 CLEANFINE';
-  static const String appSubtitle = 'Приложение оператора';
+  static String get appSubtitle => tr('Приложение оператора');
   static const String emailLabel = 'Email';
-  static const String passwordLabel = 'Пароль';
-  static const String forgotPasswordHint = 'Забыли пароль? Обратитесь к бригадиру.';
+  static String get passwordLabel => tr('Пароль');
+  static String get forgotPasswordHint => tr('Забыли пароль? Обратитесь к бригадиру.');
 
   // Кнопки (auth.md §10).
-  static const String signIn = 'Войти';
-  static const String signInWithPin = 'Войти по PIN';
-  static const String signInWithBiometrics = 'Войти по отпечатку';
-  static const String savePin = 'Сохранить PIN';
-  static const String signInWithPassword = 'Войти по паролю';
-  static const String pinTitle = 'Вход по PIN';
-  static const String pinSetupTitle = 'Новый PIN';
-  static const String pinHint = 'Введите PIN из 4–6 цифр';
-  static const String forgotPin = 'Забыли PIN? Введите пароль';
-  static const String pinStoredOnServer =
-      'PIN хранится на сервере в виде хэша и не передаётся в чат.';
+  static String get signIn => tr('Войти');
+  static String get signInWithPin => tr('Войти по PIN');
+  static String get signInWithBiometrics => tr('Войти по отпечатку');
+  static String get savePin => tr('Сохранить PIN');
+  static String get signInWithPassword => tr('Войти по паролю');
+  static String get pinTitle => tr('Вход по PIN');
+  static String get pinSetupTitle => tr('Новый PIN');
+  static String get pinHint => tr('Введите PIN из 4–6 цифр');
+  static String get forgotPin => tr('Забыли PIN? Введите пароль');
+  static String get pinStoredOnServer => tr('PIN хранится на сервере в виде хэша и не передаётся в чат.');
 
   // Поля экрана установки PIN (auth.md §5.3).
-  static const String currentPasswordLabel = 'Текущий пароль';
-  static const String newPinLabel = 'Новый PIN (4–6 цифр)';
-  static const String repeatPinLabel = 'Повторите PIN';
+  static String get currentPasswordLabel => tr('Текущий пароль');
+  static String get newPinLabel => tr('Новый PIN (4–6 цифр)');
+  static String get repeatPinLabel => tr('Повторите PIN');
 
   // Клиентская валидация (auth.md §4.4, `Validators`).
-  static const String enterPassword = 'Введите пароль';
-  static const String pinFormat = 'PIN должен содержать 4–6 цифр';
-  static const String pinMismatch = 'PIN не совпадает';
+  static String get enterPassword => tr('Введите пароль');
+  static String get pinFormat => tr('PIN должен содержать 4–6 цифр');
+  static String get pinMismatch => tr('PIN не совпадает');
 
   // Ошибки сервера и отказы (auth.md §4.6, overview.md §6).
-  static const String invalidCredentials = 'Неверный email или пароль';
-  static const String invalidPin = 'Неверный PIN';
-  static const String clientRoleDenied =
-      'Приложение предназначено для операторов. Воспользуйтесь порталом заказчика.';
-  static const String network = 'Нет соединения. Проверьте интернет';
-  static const String tooManyAttempts = 'Слишком много попыток. Попробуйте позже';
-  static const String serverUnavailable = 'Сервис временно недоступен. Повторите позже';
-  static const String wrongCurrentPassword = 'Текущий пароль указан неверно';
-  static const String deactivatedAccount =
-      'Учётная запись деактивирована. Обратитесь к бригадиру.';
+  static String get invalidCredentials => tr('Неверный email или пароль');
+  static String get invalidPin => tr('Неверный PIN');
+  static String get clientRoleDenied => tr('Приложение предназначено для операторов. Воспользуйтесь порталом заказчика.');
+  static String get network => tr('Нет соединения. Проверьте интернет');
+  static String get tooManyAttempts => tr('Слишком много попыток. Попробуйте позже');
+  static String get serverUnavailable => tr('Сервис временно недоступен. Повторите позже');
+  static String get wrongCurrentPassword => tr('Текущий пароль указан неверно');
+  static String get deactivatedAccount => tr('Учётная запись деактивирована. Обратитесь к бригадиру.');
 
   /// `auth.md` §4.6: PIN ещё не задан на сервере (`ChangePinDto` без PIN).
-  static const String pinNotSet = 'PIN не установлен. Войдите по паролю и установите PIN.';
+  static String get pinNotSet => tr('PIN не установлен. Войдите по паролю и установите PIN.');
 
   /// `auth.md` п. 10.2: `POST /api/auth/change-pin` требует `currentPassword`
   /// под JWT — без активной сессии установить PIN нечем (отдельного эндпоинта
   /// «установить PIN без пароля» в auth-service нет).
-  static const String pinSetupNeedsPassword =
-      'Установить PIN можно только после входа по паролю: '
-      'сервер требует текущий пароль (POST /api/auth/change-pin).';
+  static String get pinSetupNeedsPassword => tr('Установить PIN можно только после входа по паролю: сервер требует текущий пароль (POST /api/auth/change-pin).');
 
   /// Ключ устройства не сохранён (кнопка биометрии в этом случае не рисуется).
-  static const String biometricKeyMissing = 'Биометрический ключ не сохранён на устройстве';
-  static const String biometricNotRecognized = 'Биометрический ключ не распознан';
-  static const String biometricReason = 'Войдите по отпечатку';
-  static const String showPassword = 'Показать пароль';
-  static const String hidePassword = 'Скрыть пароль';
-  static const String splashCheck = 'Проверка сессии…';
+  static String get biometricKeyMissing => tr('Биометрический ключ не сохранён на устройстве');
+  static String get biometricNotRecognized => tr('Биометрический ключ не распознан');
+  static String get biometricReason => tr('Войдите по отпечатку');
+  static String get showPassword => tr('Показать пароль');
+  static String get hidePassword => tr('Скрыть пароль');
+  static String get splashCheck => tr('Проверка сессии…');
 }

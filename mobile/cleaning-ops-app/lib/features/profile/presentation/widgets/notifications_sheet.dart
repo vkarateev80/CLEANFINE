@@ -60,9 +60,9 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const Text(
+            Text(
               ProfileTexts.notifications,
-              style: TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: AppTypography.sizeLG, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.md),
             if (settings == null)
@@ -87,7 +87,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text(ProfileTexts.save),
+                  : Text(ProfileTexts.save),
             ),
           ],
         ),
@@ -106,16 +106,16 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const Text(
+        Text(
           ProfileTexts.settingsLoadError,
-          key: Key('profile_notifications_load_error_text'),
-          style: TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.dangerText),
+          key: const Key('profile_notifications_load_error_text'),
+          style: const TextStyle(fontSize: AppTypography.sizeSM, color: AppPalette.dangerText),
         ),
         const SizedBox(height: AppSpacing.sm),
         OutlinedButton(
           key: const Key('profile_notifications_retry_button'),
           onPressed: () => ref.invalidate(notificationSettingsProvider),
-          child: const Text(ProfileTexts.retry),
+          child: Text(ProfileTexts.retry),
         ),
       ],
     );

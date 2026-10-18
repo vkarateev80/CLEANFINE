@@ -15,6 +15,7 @@ import '../../data/chat_outbox.dart';
 import '../../data/models/chat_models.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../chat_texts.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// REST chat-service.
 final chatRepositoryProvider = Provider<ChatRepository>((Ref ref) {
@@ -160,7 +161,7 @@ class ChatsListController extends AsyncNotifier<List<ChatSummary>> {
                       id: message.id,
                       authorId: message.authorId,
                       text: message.text.isEmpty && message.attachmentIds.isNotEmpty
-                          ? '📎 Вложение'
+                          ? tr('📎 Вложение')
                           : message.text,
                       createdAt: message.createdAt,
                       attachmentIds: message.attachmentIds,
@@ -195,9 +196,13 @@ enum ChatConnection {
   online('в сети'),
   offline('был(а) недавно');
 
-  const ChatConnection(this.label);
+  const ChatConnection(this._label);
 
-  final String label;
+  /// Русская подпись — ключ перевода; на экран идёт `label`.
+  final String _label;
+
+  /// Подпись на языке интерфейса.
+  String get label => tr(_label);
 }
 
 /// Состояние экрана переписки.

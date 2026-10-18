@@ -7,6 +7,7 @@ import { Field, Input } from '../../components/ui/Input';
 import { FullscreenLayout } from '../../layouts/FullscreenLayout';
 import { apiStatus } from '../../lib/http';
 import { useAuthStore } from '../../stores/authStore';
+import { t } from '../../i18n';
 
 /**
  * Смена пароля (profile.md §3.2). После успеха сервер отзывает все сессии —
@@ -25,24 +26,24 @@ export function ChangePasswordPage() {
     event.preventDefault();
     setError(null);
     if (next.length < 6) {
-      setError('Новый пароль должен быть не короче 6 символов');
+      setError(t('Новый пароль должен быть не короче 6 символов'));
       return;
     }
     if (next !== repeat) {
-      setError('Пароли не совпадают');
+      setError(t('Пароли не совпадают'));
       return;
     }
     setLoading(true);
     try {
       await changePassword(current, next);
       logoutLocal();
-      navigate('/login', { replace: true, state: { notice: 'Пароль изменён. Войдите заново.' } });
+      navigate('/login', { replace: true, state: { notice: t('Пароль изменён. Войдите заново.') } });
     } catch (caught) {
       const status = apiStatus(caught);
       setError(
         status === 401 || status === 400
           ? errorMessage(caught)
-          : 'Не удалось сменить пароль. Повторите позже',
+          : t('Не удалось сменить пароль. Повторите позже'),
       );
     } finally {
       setLoading(false);
@@ -51,13 +52,13 @@ export function ChangePasswordPage() {
 
   return (
     <FullscreenLayout
-      title="Сменить пароль"
+      title={t('Сменить пароль')}
       backTo="/profile"
       showSos={false}
       testId="change_password_page"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-        <Field label="Текущий пароль" htmlFor="current_password_field" required>
+        <Field label={t('Текущий пароль')} htmlFor="current_password_field" required>
           <Input
             id="current_password_field"
             type="password"
@@ -70,10 +71,10 @@ export function ChangePasswordPage() {
           />
         </Field>
         <Field
-          label="Новый пароль"
+          label={t('Новый пароль')}
           htmlFor="new_password_field"
           required
-          hint="Не короче 6 символов"
+          hint={t('Не короче 6 символов')}
         >
           <Input
             id="new_password_field"
@@ -86,7 +87,7 @@ export function ChangePasswordPage() {
             data-testid="new_password_field"
           />
         </Field>
-        <Field label="Повторите новый пароль" htmlFor="new_password_repeat_field" required>
+        <Field label={t('Повторите новый пароль')} htmlFor="new_password_repeat_field" required>
           <Input
             id="new_password_repeat_field"
             type="password"
@@ -113,10 +114,10 @@ export function ChangePasswordPage() {
           loading={loading}
           data-testid="save_password_button"
         >
-          Сохранить
+          {t('Сохранить')}
         </Button>
         <p className="text-xs text-neutral-500">
-          После смены пароля все устройства выйдут из аккаунта — войдите заново.
+          {t('После смены пароля все устройства выйдут из аккаунта — войдите заново.')}
         </p>
       </form>
     </FullscreenLayout>

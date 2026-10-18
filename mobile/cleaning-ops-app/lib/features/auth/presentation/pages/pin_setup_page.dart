@@ -107,14 +107,14 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
 
     return Scaffold(
       key: const Key('pin_setup_page'),
-      appBar: AppBar(title: const Text(AuthTexts.pinSetupTitle)),
+      appBar: AppBar(title: Text(AuthTexts.pinSetupTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              const AuthHeader(title: AuthTexts.appTitle, subtitle: null),
+              const AuthHeader(subtitle: ''),
               const SizedBox(height: AppSpacing.lg),
               if (!authenticated) ...<Widget>[
                 _loginRequiredNotice(),
@@ -152,13 +152,13 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text(AuthTexts.savePin),
+                    : Text(AuthTexts.savePin),
               ),
               const SizedBox(height: AppSpacing.md),
-              const Text(
+              Text(
                 AuthTexts.pinStoredOnServer,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontFamily: AppTypography.fontSans,
                   fontSize: AppTypography.sizeXS,
                   color: Color(AppColors.neutral500),
@@ -175,9 +175,9 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Text(
+        Text(
           '${AuthTexts.currentPasswordLabel} *',
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: AppTypography.fontSans,
             fontSize: AppTypography.sizeSM,
             color: Color(AppColors.neutral500),
@@ -239,15 +239,15 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Icon(Icons.info_outline, size: 20, color: Color(AppColors.warning600)),
-              SizedBox(width: AppSpacing.sm),
+              const Icon(Icons.info_outline, size: 20, color: Color(AppColors.warning600)),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   AuthTexts.pinSetupNeedsPassword,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: AppTypography.fontSans,
                     fontSize: AppTypography.sizeSM,
                     color: Color(AppColors.warning600),
@@ -260,7 +260,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
           OutlinedButton(
             key: const Key('pin_setup_login_button'),
             onPressed: () => context.go(AppRoutes.login),
-            child: const Text(AuthTexts.signInWithPassword),
+            child: Text(AuthTexts.signInWithPassword),
           ),
         ],
       ),

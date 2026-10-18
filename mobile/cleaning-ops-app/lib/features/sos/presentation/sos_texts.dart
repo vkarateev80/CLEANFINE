@@ -1,58 +1,62 @@
+import '../../../core/i18n/app_language.dart';
+
 /// Дословные тексты экрана SOS (`design/screens/mobile/sos.md` §9).
 class SosTexts {
   const SosTexts._();
 
-  static const String title = 'Аварийная заявка';
+  static String get title => tr('Аварийная заявка');
 
   // Поля.
-  static const String typeLabel = 'Тип аварии';
-  static const String photoLabel = 'Фото';
-  static const String required = 'обязательно';
-  static const String descriptionLabel = 'Описание';
-  static const String descriptionHint = 'Что случилось и где';
-  static const String locationLabel = 'Локация';
+  static String get typeLabel => tr('Тип аварии');
+  static String get photoLabel => tr('Фото');
+  static String get required => tr('обязательно');
+  static String get descriptionLabel => tr('Описание');
+  static String get descriptionHint => tr('Что случилось и где');
+  static String get locationLabel => tr('Локация');
 
   // Кнопки.
-  static const String submit = '🚨 ОТПРАВИТЬ SOS';
-  static const String takePhoto = 'Сделать фото';
-  static const String retakePhoto = 'Переснять';
-  static const String retry = 'Повторить';
-  static const String close = 'Закрыть';
-  static const String continueFilling = 'Продолжить заполнение';
-  static const String cancel = 'Отменить';
+  static String get submit => tr('🚨 ОТПРАВИТЬ SOS');
+  static String get takePhoto => tr('Сделать фото');
+  static String get retakePhoto => tr('Переснять');
+  static String get retry => tr('Повторить');
+  static String get close => tr('Закрыть');
+  static String get continueFilling => tr('Продолжить заполнение');
+  static String get cancel => tr('Отменить');
 
   // Подсказки.
-  static const String formHint = 'Заполните тип, фото и описание';
-  static const String locating = 'Определяем местоположение…';
+  static String get formHint => tr('Заполните тип, фото и описание');
+  static String get locating => tr('Определяем местоположение…');
 
   // Ошибки.
-  static const String validation = 'Выберите тип и сделайте фото';
-  static const String locationDenied = 'Нет доступа к геолокации. Включите GPS и повторите';
-  static const String photoTooSmall = 'Фото слишком маленькое. Снимите заново';
-  static const String cameraDenied = 'Разрешите доступ к камере';
-  static const String serviceUnavailable = 'Сервис временно недоступен. Повторите позже';
-  static const String noObject = 'Не удалось определить объект. Начните смену.';
-  static const String photoNotAttached = 'Фото не прикреплено — прикрепится автоматически';
+  static String get validation => tr('Выберите тип и сделайте фото');
+  static String get locationDenied => tr('Нет доступа к геолокации. Включите GPS и повторите');
+  static String get photoTooSmall => tr('Фото слишком маленькое. Снимите заново');
+  static String get cameraDenied => tr('Разрешите доступ к камере');
+  static String get serviceUnavailable => tr('Сервис временно недоступен. Повторите позже');
+  static String get noObject => tr('Не удалось определить объект. Начните смену.');
+  static String get photoNotAttached => tr('Фото не прикреплено — прикрепится автоматически');
 
   /// «Фото отклонено: {текст сервера}. Снимите заново».
   static String photoRejected(String serverMessage) =>
-      'Фото отклонено: $serverMessage. Снимите заново';
+      trArgs('Фото отклонено: {serverMessage}. Снимите заново', <String, Object?>{'serverMessage': serverMessage});
 
   /// «Ошибка: {текст}» — формат из кода Устава.
-  static String generic(String message) => 'Ошибка: $message';
+  static String generic(String message) =>
+      trArgs('Ошибка: {message}', <String, Object?>{'message': message});
 
   // Оффлайн.
-  static const String offlineBanner = 'Нет соединения — заявка уйдёт при появлении сети';
-  static const String queued = 'Заявка сохранена и будет отправлена';
+  static String get offlineBanner => tr('Нет соединения — заявка уйдёт при появлении сети');
+  static String get queued => tr('Заявка сохранена и будет отправлена');
 
   // Успех.
-  static const String sent = 'Заявка отправлена';
+  static String get sent => tr('Заявка отправлена');
   static String priorityAndStatus(String priority, String status) =>
-      'Приоритет: $priority · Статус: $status';
-  static String notified(int count) => 'Оповещены $count операторов поблизости';
+      trArgs('Приоритет: {priority} · Статус: {status}', <String, Object?>{'priority': priority, 'status': status});
+  static String notified(int count) =>
+      trArgs('Оповещены {count} операторов поблизости', <String, Object?>{'count': count});
 
   // Подтверждение отмены.
-  static const String cancelTitle = 'Отменить заявку SOS?';
-  static const String cancelBody = 'Заполненные данные не сохранятся.';
-  static const String back = 'Назад';
+  static String get cancelTitle => tr('Отменить заявку SOS?');
+  static String get cancelBody => tr('Заполненные данные не сохранятся.');
+  static String get back => tr('Назад');
 }

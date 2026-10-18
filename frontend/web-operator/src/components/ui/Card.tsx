@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { t } from '../../i18n';
 
 /** Карточка-панель по DS-003: `rounded-xl border bg-white p-6 shadow-sm`. */
 export function Card({
@@ -64,7 +65,7 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
   return (
     <nav
       className="flex flex-wrap items-center gap-1 text-xs text-neutral-500"
-      aria-label="Навигация"
+      aria-label={t('Навигация')}
     >
       {items.map((item, index) => (
         <span key={`${item.label}-${index}`} className="flex items-center gap-1">

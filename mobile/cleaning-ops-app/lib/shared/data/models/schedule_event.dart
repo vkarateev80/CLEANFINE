@@ -1,3 +1,5 @@
+import '../../../core/i18n/app_language.dart';
+
 /// Модели ответов schedule-service (`ScheduleEventView`).
 class ScheduleEvent {
   const ScheduleEvent({
@@ -54,7 +56,7 @@ class ScheduleEvent {
     return ScheduleEvent(
       id: id,
       scheduleId: _text(body['scheduleId']),
-      scheduleName: body['scheduleName']?.toString() ?? 'Смена',
+      scheduleName: body['scheduleName']?.toString() ?? tr('Смена'),
       date: body['date']?.toString() ?? '',
       plannedStart: body['plannedStart']?.toString() ?? '',
       plannedEnd: _text(body['plannedEnd']),

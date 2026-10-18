@@ -1,4 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { t } from '../../i18n';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -48,7 +49,7 @@ export function Spinner({ className = '' }: { className?: string }) {
     <span
       className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent ${className}`}
       role="status"
-      aria-label="Загрузка"
+      aria-label={t('Загрузка')}
     />
   );
 }

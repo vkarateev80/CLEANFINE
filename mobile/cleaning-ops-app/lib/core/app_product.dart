@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/data/models/auth_roles.dart';
+import '../core/i18n/app_language.dart';
 
 /// Продукт — какое из приложений CLEANFINE собрано из этого кода.
 ///
@@ -105,13 +106,13 @@ class ProductConfig {
   String deniedMessage(String? role) {
     if (role == AuthRoles.client) {
       return product == AppProduct.operator
-          ? 'Это приложение для операторов. Заказчику — приложение «CLEANFINE Команда» или портал.'
-          : 'Роль не поддерживается этим приложением.';
+          ? tr('Это приложение для операторов. Заказчику — приложение «CLEANFINE Команда» или портал.')
+          : tr('Роль не поддерживается этим приложением.');
     }
     if (role == AuthRoles.operator) {
-      return 'Операторы входят через приложение «CLEANFINE Оператор».';
+      return tr('Операторы входят через приложение «CLEANFINE Оператор».');
     }
-    return 'Эта учётная запись не может войти в «$title».';
+    return trArgs('Эта учётная запись не может войти в «{title}».', <String, Object?>{'title': title});
   }
 
   static ProductConfig of(AppProduct product) {

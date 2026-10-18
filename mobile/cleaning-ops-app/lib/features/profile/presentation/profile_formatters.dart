@@ -1,5 +1,6 @@
 
 import '../../auth/data/models/auth_roles.dart';
+import '../../../core/i18n/app_language.dart';
 
 /// Русские подписи ролей (DS-002 `profile.md` §9: «Оператор», «Бригадир»,
 /// «Администратор»). Словаря на сервере нет — подписи живут в приложении.
@@ -13,7 +14,7 @@ class RoleLabels {
   };
 
   /// Незнакомую роль показываем как есть — «сырое» значение честнее пустоты.
-  static String of(String role) => labels[role] ?? role;
+  static String of(String role) => tr(labels[role] ?? role);
 }
 
 /// Форматирование телефона «+7 999 000-00-03» (`profile.md` §3.1).

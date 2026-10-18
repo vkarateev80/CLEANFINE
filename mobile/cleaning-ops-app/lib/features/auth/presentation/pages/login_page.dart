@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/i18n/language_picker.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../router/app_router.dart';
 import '../../auth_texts.dart';
@@ -100,7 +101,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.md),
+                // Язык интерфейса — до входа, чтобы оператор понял форму.
+                const Align(alignment: Alignment.center, child: LanguageSegments()),
+                const SizedBox(height: AppSpacing.lg),
                 const AuthHeader(),
                 const SizedBox(height: AppSpacing.xl),
                 _card(context, state, canSubmit, biometricAvailable),
@@ -145,7 +149,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: <Widget>[
-              const Expanded(child: _FieldLabel(text: '${AuthTexts.passwordLabel} *')),
+              Expanded(child: _FieldLabel(text: '${AuthTexts.passwordLabel} *')),
               IconButton(
                 key: const Key('password_toggle'),
                 tooltip: _obscurePassword ? AuthTexts.showPassword : AuthTexts.hidePassword,
@@ -184,13 +188,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text(AuthTexts.signIn),
+                : Text(AuthTexts.signIn),
           ),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton(
             key: const Key('login_pin_button'),
             onPressed: canSubmit ? () => context.push(AppRoutes.pin) : null,
-            child: const Text(AuthTexts.signInWithPin),
+            child: Text(AuthTexts.signInWithPin),
           ),
           if (biometricAvailable) ...<Widget>[
             const SizedBox(height: AppSpacing.sm),
@@ -198,14 +202,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               key: const Key('login_biometric_button'),
               onPressed: canSubmit ? _biometricLogin : null,
               icon: const Icon(Icons.fingerprint),
-              label: const Text(AuthTexts.signInWithBiometrics),
+              label: Text(AuthTexts.signInWithBiometrics),
             ),
           ],
           const SizedBox(height: AppSpacing.md),
-          const Text(
+          Text(
             AuthTexts.forgotPasswordHint,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontFamily: AppTypography.fontSans,
               fontSize: AppTypography.sizeXS,
               color: Color(AppColors.neutral500),

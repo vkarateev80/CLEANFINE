@@ -25,6 +25,7 @@ import {
 import { useQueueStore } from '../../stores/queueStore';
 import { showToast } from '../../stores/uiStore';
 import type { TechOperationEntity } from '../../types/core';
+import { t } from '../../i18n';
 
 export interface OperationView {
   op: TechOperationEntity;
@@ -131,7 +132,7 @@ export function useChecklist(eventId: string, roomId: string) {
       const { op } = view;
       let photoUrl = view.local.photoUrl;
       if (op.requiresPhoto && !photo && !photoUrl) {
-        showToast('Сначала сделайте фото', 'error');
+        showToast(t('Сначала сделайте фото'), 'error');
         return false;
       }
       setBusyKey(view.key);
@@ -153,12 +154,12 @@ export function useChecklist(eventId: string, roomId: string) {
               photoUrl: photoUrl ?? null,
               photoKey: photo && !photoUrl ? `op:${view.key}` : null,
             },
-            label: `Операция «${op.name}»`,
+            label: t('Операция «{name}»', { name: op.name }),
             idempotencyKey: `op:${view.key}`,
           });
           if (photo && !photoUrl) await savePhoto(`op:${view.key}`, photo.blob);
           setOperation(view.key, { completedAt, pendingSync: true });
-          showToast('Нет соединения — результат сохранится и синхронизируется', 'info');
+          showToast(t('Нет соединения — результат сохранится и синхронизируется'), 'info');
           return item;
         };
 
@@ -179,7 +180,7 @@ export function useChecklist(eventId: string, roomId: string) {
               await queueOffline();
               return true;
             }
-            showToast(`Фото отклонено: ${errorMessage(error)}. Снимите заново`, 'error');
+            showToast(t('Фото отклонено: {errorMessage}. Снимите заново', { errorMessage: errorMessage(error) }), 'error');
             return false;
           }
         }
@@ -193,7 +194,7 @@ export function useChecklist(eventId: string, roomId: string) {
           });
           setOperation(view.key, { completedAt: result.completedAt, pendingSync: false });
           invalidateTicket();
-          if (result.alreadyCompleted) showToast('Операция уже была отмечена', 'info');
+          if (result.alreadyCompleted) showToast(t('Операция уже была отмечена'), 'info');
           return true;
         } catch (error) {
           if (isNetworkError(error)) {
@@ -203,8 +204,8 @@ export function useChecklist(eventId: string, roomId: string) {
           const status = apiStatus(error);
           showToast(
             status && status >= 500
-              ? 'Не удалось завершить операцию. Повторить'
-              : `Не удалось завершить операцию: ${errorMessage(error)}`,
+              ? t('Не удалось завершить операцию. Повторить')
+              : t('Не удалось завершить операцию: {errorMessage}', { errorMessage: errorMessage(error) }),
             'error',
           );
           return false;
@@ -235,7 +236,7 @@ export function useChecklist(eventId: string, roomId: string) {
             completedAt: new Date().toISOString(),
             ...(totalRooms ? { totalRooms } : {}),
           },
-          label: `Помещение · ${room.data?.name ?? roomId}`,
+          label: t('Помещение · {name}', { name: room.data?.name ?? roomId }),
           idempotencyKey: `room:${ticketId}:${roomId}`,
         });
         markLocal();
@@ -259,13 +260,13 @@ export function useChecklist(eventId: string, roomId: string) {
               completedAt: new Date().toISOString(),
               ...(totalRooms ? { totalRooms } : {}),
             },
-            label: `Помещение · ${room.data?.name ?? roomId}`,
+            label: t('Помещение · {name}', { name: room.data?.name ?? roomId }),
             idempotencyKey: `room:${ticketId}:${roomId}`,
           });
           markLocal();
           return true;
         }
-        showToast(`Не удалось завершить помещение: ${errorMessage(error)}`, 'error');
+        showToast(t('Не удалось завершить помещение: {errorMessage}', { errorMessage: errorMessage(error) }), 'error');
         return false;
       }
     } finally {

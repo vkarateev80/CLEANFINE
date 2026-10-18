@@ -1,4 +1,5 @@
 import 'package:uuid/uuid.dart';
+import '../../core/i18n/app_language.dart';
 
 /// Виды отложенных действий оператора (DS-002 `offline.md` §4.1).
 ///
@@ -51,10 +52,15 @@ enum PendingActionStatus {
   synced('synced', 'Отправлено'),
   failed('failed', 'Ошибка');
 
-  const PendingActionStatus(this.code, this.label);
+  const PendingActionStatus(this.code, this._label);
 
   final String code;
-  final String label;
+
+  /// Русская подпись — ключ перевода; на экран идёт `label`.
+  final String _label;
+
+  /// Подпись на языке интерфейса.
+  String get label => tr(_label);
 
   static PendingActionStatus of(String value) => PendingActionStatus.values.firstWhere(
         (PendingActionStatus status) => status.code == value,
