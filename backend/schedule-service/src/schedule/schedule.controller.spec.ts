@@ -2,6 +2,7 @@ import type { AuthUser } from '../auth/guards/roles.guard';
 import { ScheduleController } from './schedule.controller';
 import type { ScheduleService } from './schedule.service';
 import type { SchedulerService } from './scheduler.service';
+import type { ScheduleSettingsService } from '../settings/schedule-settings.service';
 
 const USER = {
   id: 'user-1',
@@ -37,7 +38,17 @@ function build() {
     }),
   } as unknown as jest.Mocked<SchedulerService>;
 
-  return { controller: new ScheduleController(schedule, scheduler), schedule, scheduler };
+  const settings = {
+    view: jest.fn().mockResolvedValue({ timeZone: 'Europe/Moscow', today: '2026-09-16' }),
+    update: jest.fn().mockResolvedValue({ timeZone: 'Asia/Bishkek', today: '2026-09-16' }),
+  } as unknown as jest.Mocked<ScheduleSettingsService>;
+
+  return {
+    controller: new ScheduleController(schedule, scheduler, settings),
+    schedule,
+    scheduler,
+    settings,
+  };
 }
 
 describe('ScheduleController', () => {
@@ -152,5 +163,19 @@ describe('ScheduleController', () => {
       scheduleId: undefined,
       eventId: 'event-9',
     });
+  });
+
+  it('настройки: чтение и смена пояса (с id того, кто менял)', async () => {
+    const { controller, settings } = build();
+
+    expect((await controller.settingsView()).timeZone).toBe('Europe/Moscow');
+    await controller.updateSettings({ timeZone: 'Asia/Bishkek' }, {
+      id: 'admin-1',
+      email: 'admin',
+      role: 'ADMIN',
+      fullName: 'Администратор',
+    });
+
+    expect(settings.update).toHaveBeenCalledWith({ timeZone: 'Asia/Bishkek' }, 'admin-1');
   });
 });

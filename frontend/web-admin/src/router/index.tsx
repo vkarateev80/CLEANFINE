@@ -12,6 +12,7 @@ import { MessagesPage } from '../pages/Messages/MessagesPage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
 import { NotificationsPage } from '../pages/Notifications/NotificationsPage';
 import { SchedulePage } from '../pages/Schedule/SchedulePage';
+import { SettingsPage } from '../pages/Settings/SettingsPage';
 import { EmployeesPage } from '../pages/Employees/EmployeesPage';
 import { ObjectDetailPage } from '../pages/Objects/ObjectDetailPage';
 import { ObjectsListPage } from '../pages/Objects/ObjectsListPage';
@@ -58,6 +59,13 @@ const employees = (
  * Шаблоны: библиотека демо-заготовок. Создание из шаблона дёргает те же
  * POST, что и обычные экраны, — значит и права те же (ADMIN/SUPERVISOR).
  */
+/** Настройки организации (часовой пояс): менять может только ADMIN, как и в schedule-service. */
+const settings = (
+  <RoleGuard roles={['ADMIN']}>
+    <SettingsPage />
+  </RoleGuard>
+);
+
 const templates = (
   <RoleGuard roles={['ADMIN', 'SUPERVISOR', 'MANAGER']}>
     <TemplatesPage />
@@ -133,6 +141,7 @@ export const router = createBrowserRouter([
        * по правам из `usePermissions`.
        */
       { path: 'schedule', element: <SchedulePage /> },
+      { path: 'settings', element: settings },
       /*
        * Сообщения (М5.3): чаты текущего пользователя. В chat-service каждый
        * видит только свои чаты (участник), а чужие отдают 403, поэтому RoleGuard

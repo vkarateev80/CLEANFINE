@@ -2,11 +2,15 @@ import { useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Badge } from '../../components/ui';
 import {
-  SCHEDULE_EVENT_STATUS_LABELS,
-  SCHEDULE_TIMEZONE_LABEL,
   scheduleDateOf,
   scheduleDayLabelOf,
   scheduleTimeOf,
+  timeZoneShortLabel,
+  timeZoneTitle,
+} from '@cleaning-ops/shared/types/time-zone';
+import { currentTimeZone } from '../../stores/timeZoneStore';
+import {
+  SCHEDULE_EVENT_STATUS_LABELS,
   type ScheduleEventStatus,
   type ScheduleRecurrence,
 } from '../../types/schedule';
@@ -32,12 +36,22 @@ export function shortId(id: string): string {
 }
 
 /**
- * Сегодняшний день расписания (Москва). Не локальная зона браузера: сервис
- * считает день смены по поясу расписания (`scheduleToday` в `recurrence.ts`),
- * и админ в другом поясе должен видеть тот же день, что генерирует сервис.
+ * Сегодняшний день расписания. Не локальная зона браузера: сервис считает день
+ * смены в поясе организации (`scheduleToday` в `recurrence.ts`), и админ в
+ * другом поясе должен видеть тот же день, что генерирует сервис.
  */
 export function scheduleToday(): string {
-  return scheduleDateOf();
+  return scheduleDateOf(new Date(), currentTimeZone());
+}
+
+/** Подпись пояса рядом со временем: «МСК», «UTC+6». */
+export function timeZoneLabel(): string {
+  return timeZoneShortLabel(currentTimeZone());
+}
+
+/** «Москва, Санкт-Петербург (UTC+3)» — для пояснений под таблицами и в форме. */
+export function timeZoneDescription(): string {
+  return timeZoneTitle(currentTimeZone());
 }
 
 /** "2026-03-14" → "14.03.2026" без `new Date()`: разбор строки без сдвига зоны. */
@@ -48,18 +62,19 @@ export function formatDateOnly(value: string): string {
 }
 
 /**
- * Время смены по Москве. `plannedStart` приходит ISO в UTC; локальные геттеры
- * `Date` дали бы зону браузера и разошлись бы с тем, что задано в графике
- * (в форме — тоже московское время, см. `ScheduleFormModal`).
+ * Время смены в поясе расписания. `plannedStart` приходит ISO в UTC; локальные
+ * геттеры `Date` дали бы зону браузера и разошлись бы с тем, что задано в
+ * графике (в форме — тоже время пояса расписания, см. `ScheduleFormModal`).
  */
 export function scheduleTime(iso: string): string {
-  return scheduleTimeOf(iso) || '—';
+  return scheduleTimeOf(iso, currentTimeZone()) || '—';
 }
 
-/** Дата+время по Москве: "14.03.2026 08:05 МСК". */
+/** Дата+время в поясе расписания: "14.03.2026 08:05 МСК". */
 export function formatScheduleDateTime(iso: string): string {
-  const time = scheduleTimeOf(iso);
-  return time ? `${scheduleDayLabelOf(iso)} ${time} ${SCHEDULE_TIMEZONE_LABEL}` : '—';
+  const timeZone = currentTimeZone();
+  const time = scheduleTimeOf(iso, timeZone);
+  return time ? `${scheduleDayLabelOf(iso, timeZone)} ${time} ${timeZoneShortLabel(timeZone)}` : '—';
 }
 
 // ── Правило повторения человеческим языком ─────────────────────────────────
@@ -81,7 +96,7 @@ export const WEEKDAY_SHORT: Record<number, string> = {
  * читалась сверху вниз и её можно было проверять в e2e без хрупких селекторов.
  */
 export function describeRecurrence(rule: ScheduleRecurrence): string {
-  const time = `${rule.time} ${SCHEDULE_TIMEZONE_LABEL}`;
+  const time = `${rule.time} ${timeZoneLabel()}`;
   if (rule.frequency === 'daily') {
     return `Ежедневно · ${time}`;
   }

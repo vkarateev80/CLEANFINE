@@ -117,11 +117,14 @@ class ClientRepository {
     });
   }
 
-  /// Смены объекта с даты (`YYYY-MM-DD`, UTC).
-  Future<Result<List<ScheduleEvent>>> events(String objectId, {required String fromDate}) {
+  /// Смены объекта на день `YYYY-MM-DD`; без даты — сегодняшний день расписания,
+  /// который сервер считает в часовом поясе организации (настройка админки).
+  Future<Result<List<ScheduleEvent>>> events(String objectId, {String? fromDate}) {
     return guard(() async {
-      final response =
-          await _schedule.get(_events, query: <String, dynamic>{'objectId': objectId, 'date': fromDate});
+      final response = await _schedule.get(
+        _events,
+        query: <String, dynamic>{'objectId': objectId, if (fromDate != null) 'date': fromDate},
+      );
       return ScheduleEvent.listFrom(response.data);
     });
   }

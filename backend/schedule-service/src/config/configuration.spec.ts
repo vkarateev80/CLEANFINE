@@ -28,7 +28,7 @@ describe('configuration (schedule-service)', () => {
       'SCHEDULE_AUTO_CHECKOUT_MINUTES',
       'SCHEDULE_GENERATE_INTERVAL_MS',
       'SCHEDULE_GENERATE_HOUR',
-      'SCHEDULE_UTC_OFFSET_MINUTES',
+      'SCHEDULE_TIME_ZONE',
       'SCHEDULE_CRON_ENABLED',
       'SCHEDULE_BATCH_SIZE',
     ]) {
@@ -52,7 +52,7 @@ describe('configuration (schedule-service)', () => {
     // Тик генерации раз в час, смены — в полночь по времени расписания (Москва).
     expect(cfg.schedule.generateIntervalMs).toBe(HOUR_MS);
     expect(cfg.schedule.generateHour).toBe(0);
-    expect(cfg.schedule.utcOffsetMinutes).toBe(180);
+    expect(cfg.schedule.timeZone).toBe('Europe/Moscow');
     expect(cfg.schedule.cronEnabled).toBe(true);
     expect(cfg.schedule.batchSize).toBe(200);
   });
@@ -71,7 +71,7 @@ describe('configuration (schedule-service)', () => {
     process.env.SCHEDULE_AUTO_CHECKOUT_MINUTES = '1';
     process.env.SCHEDULE_GENERATE_INTERVAL_MS = '60000';
     process.env.SCHEDULE_GENERATE_HOUR = '6';
-    process.env.SCHEDULE_UTC_OFFSET_MINUTES = '0';
+    process.env.SCHEDULE_TIME_ZONE = 'Asia/Bishkek';
     process.env.SCHEDULE_CRON_ENABLED = 'false';
 
     const cfg = configuration();
@@ -90,7 +90,7 @@ describe('configuration (schedule-service)', () => {
     expect(cfg.schedule.autoCheckoutMinutes).toBe(1);
     expect(cfg.schedule.generateIntervalMs).toBe(60_000);
     expect(cfg.schedule.generateHour).toBe(6);
-    expect(cfg.schedule.utcOffsetMinutes).toBe(0);
+    expect(cfg.schedule.timeZone).toBe('Asia/Bishkek');
     expect(cfg.schedule.cronEnabled).toBe(false);
   });
 
@@ -147,16 +147,6 @@ describe('configuration (schedule-service)', () => {
     expect(configuration().schedule.generateHour).toBe(0);
   });
 
-  it('сдвиг пояса ограничен диапазоном UTC−12..UTC+14, мусор → Москва', () => {
-    process.env.SCHEDULE_UTC_OFFSET_MINUTES = '300';
-    expect(configuration().schedule.utcOffsetMinutes).toBe(300);
-    process.env.SCHEDULE_UTC_OFFSET_MINUTES = '9999';
-    expect(configuration().schedule.utcOffsetMinutes).toBe(14 * 60);
-    process.env.SCHEDULE_UTC_OFFSET_MINUTES = 'Москва';
-    expect(configuration().schedule.utcOffsetMinutes).toBe(180);
-    process.env.SCHEDULE_UTC_OFFSET_MINUTES = '';
-    expect(configuration().schedule.utcOffsetMinutes).toBe(180);
-  });
 });
 
 describe('positiveInt', () => {

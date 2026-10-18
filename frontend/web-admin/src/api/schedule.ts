@@ -1,3 +1,4 @@
+import type { ScheduleSettingsView } from '@cleaning-ops/shared/types/time-zone';
 import { apiClient } from './client';
 import type {
   CheckInPayload,
@@ -128,4 +129,14 @@ export function checkMissed(date: string): Promise<MissedScanResult> {
 /** `GET /api/schedule/scheduler/state` (только ADMIN) — отметки последних проходов. */
 export function getSchedulerState(): Promise<SchedulerState> {
   return apiClient.get('/schedule/scheduler/state').then((r) => r.data);
+}
+
+/** Настройки расписания: часовой пояс организации и сегодняшний день (все авторизованные). */
+export function getScheduleSettings(): Promise<ScheduleSettingsView> {
+  return apiClient.get('/schedule/settings').then((r) => r.data);
+}
+
+/** Смена часового пояса расписания (только ADMIN). */
+export function updateScheduleSettings(timeZone: string): Promise<ScheduleSettingsView> {
+  return apiClient.patch('/schedule/settings', { timeZone }).then((r) => r.data);
 }

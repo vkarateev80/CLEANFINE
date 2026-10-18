@@ -4,10 +4,10 @@
  *
  * Соглашения:
  *  - date — календарный день расписания, записанный полночью UTC (ключ дня, а не
- *    момент); time — "HH:mm" по времени расписания. С 18.10.2026 расписание
- *    живёт по Москве: момент начала = день + time − сдвиг пояса
- *    (`utcOffsetMinutes`, по умолчанию SCHEDULE_UTC_OFFSET_MINUTES = 180).
- *    Функции принимают сдвиг параметром (0 — чистый UTC), поэтому остаются
+ *    момент); time — "HH:mm" по часам пояса расписания. С 18.10.2026 пояс —
+ *    настройка организации (IANA-имя, по умолчанию Europe/Moscow, см.
+ *    ScheduleSettingsService): момент начала = «день + time» в этом поясе.
+ *    Функции принимают пояс параметром (по умолчанию UTC), поэтому остаются
  *    детерминированными в тестах.
  *  - weekly использует ISO-дни: 1 = понедельник … 7 = воскресенье (совпадает
  *    с Пн–Пт [1..5] из устава и с примером в BACKEND_SCHEDULE.md).
@@ -17,6 +17,7 @@
  */
 
 import { SCHEDULE_FREQUENCIES, type ScheduleFrequency } from '@cleaning-ops/shared/types/schedule';
+import { scheduleDateOf, zonedDateTimeToUtc } from '@cleaning-ops/shared/types/time-zone';
 import type { RecurrenceRule } from '../events/event-payloads';
 
 /**
@@ -63,12 +64,11 @@ export function todayUtc(now: Date = new Date()): Date {
 }
 
 /**
- * Сегодняшний день расписания: календарная дата момента `now` в поясе со
- * сдвигом `utcOffsetMinutes` (Москва: 00:30 МСК 19-го — это уже 19-е, хотя в UTC
- * ещё 18-е).
+ * Сегодняшний день расписания: календарная дата момента `now` в поясе расписания
+ * (Москва: 00:30 МСК 19-го — это уже 19-е, хотя в UTC ещё 18-е).
  */
-export function scheduleToday(now: Date = new Date(), utcOffsetMinutes = 0): Date {
-  return todayUtc(new Date(now.getTime() + utcOffsetMinutes * 60_000));
+export function scheduleToday(now: Date = new Date(), timeZone = 'UTC'): Date {
+  return parseDateOnly(scheduleDateOf(now, timeZone));
 }
 
 /** Минуты из "HH:mm"; null — строка не соответствует формату. */
@@ -81,25 +81,14 @@ export function parseTimeOfDay(time: string): number | null {
 }
 
 /**
- * Момент начала смены: день + время графика − сдвиг пояса. 08:00 МСК 19-го
- * (`utcOffsetMinutes` = 180) — это 05:00 UTC 19-го; 01:00 МСК 19-го — 22:00 UTC 18-го.
+ * Момент начала смены: «день + время графика» по часам пояса расписания.
+ * 08:00 Europe/Moscow 19-го — это 05:00 UTC 19-го; 01:00 МСК 19-го — 22:00 UTC 18-го.
  */
-export function plannedStartAt(date: Date, time: string, utcOffsetMinutes = 0): Date {
-  const minutes = parseTimeOfDay(time);
-  if (minutes === null) {
+export function plannedStartAt(date: Date, time: string, timeZone = 'UTC'): Date {
+  if (parseTimeOfDay(time) === null) {
     throw new Error(`Некорректное время графика: ${time}`);
   }
-  return new Date(date.getTime() + (minutes - utcOffsetMinutes) * 60_000);
-}
-
-/** Подпись пояса для текстов: 0 → «UTC», 180 → «МСК», иначе «UTC+5», «UTC−3:30». */
-export function utcOffsetLabel(utcOffsetMinutes: number): string {
-  if (utcOffsetMinutes === 0) return 'UTC';
-  if (utcOffsetMinutes === 180) return 'МСК';
-  const sign = utcOffsetMinutes > 0 ? '+' : '−';
-  const abs = Math.abs(utcOffsetMinutes);
-  const minutes = abs % 60;
-  return `UTC${sign}${Math.floor(abs / 60)}${minutes ? `:${String(minutes).padStart(2, '0')}` : ''}`;
+  return zonedDateTimeToUtc(formatDateOnly(date), time.trim(), timeZone);
 }
 
 /**

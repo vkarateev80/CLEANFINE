@@ -1,4 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { getScheduleSettings } from '../api/schedule';
+import { useTimeZoneStore } from '../stores/timeZoneStore';
 import { logout } from '../api/auth';
 import { Button } from '../components/ui/Button';
 import { ObjectScopeProvider } from '../components/object/ObjectScopeContext';
@@ -33,6 +37,17 @@ const NAV: NavItem[] = [
 
 export function ClientLayout() {
   const { user } = useSession();
+  // Пояс расписания организации: время смен и заявок портал показывает в нём.
+  const settings = useQuery({
+    queryKey: ['schedule', 'settings'],
+    queryFn: getScheduleSettings,
+    staleTime: 5 * 60_000,
+  });
+  const setTimeZone = useTimeZoneStore((s) => s.setTimeZone);
+  const timeZone = useTimeZoneStore((s) => s.timeZone);
+  useEffect(() => {
+    if (settings.data?.timeZone) setTimeZone(settings.data.timeZone);
+  }, [settings.data?.timeZone, setTimeZone]);
   const scope = useObjectScope(user);
   const navigate = useNavigate();
   const keyboardOpen = useKeyboardOpen();
@@ -107,7 +122,8 @@ export function ClientLayout() {
         </header>
 
         <main className="portal-main mx-auto w-full max-w-screen-md flex-1 p-4">
-          <Outlet />
+          {/* Ключ по поясу: после смены пояса экраны пересчитывают время. */}
+          <Outlet key={timeZone} />
         </main>
 
         {/*

@@ -15,6 +15,7 @@ import {
 import { EventsPublisher } from '../events/events.publisher';
 import { GpsClient } from '../gps/gps.client';
 import { PrismaService } from '../prisma/prisma.service';
+import { ScheduleSettingsService } from '../settings/schedule-settings.service';
 import { TicketClient, TicketCreationError } from '../tickets/ticket.client';
 import {
   AUTO_CHECKOUT_REASON,
@@ -144,6 +145,11 @@ function build(configValues: Record<string, unknown> = {}) {
     publish: jest.fn().mockResolvedValue(true),
   } as unknown as jest.Mocked<EventsPublisher>;
 
+  // Пояс расписания из настроек; в тестах по умолчанию UTC — арифметика дат прозрачна.
+  const settings = {
+    timeZone: jest.fn().mockResolvedValue(values['schedule.timeZone'] ?? 'UTC'),
+  } as unknown as jest.Mocked<ScheduleSettingsService>;
+
   const service = new ScheduleService(
     prisma as unknown as PrismaService,
     tickets,
@@ -151,9 +157,10 @@ function build(configValues: Record<string, unknown> = {}) {
     core,
     publisher,
     config,
+    settings,
   );
 
-  return { service, prisma, tickets, gps, core, publisher, config };
+  return { service, prisma, tickets, gps, core, publisher, config, settings };
 }
 
 describe('ScheduleService (М4.4–М4.5)', () => {
@@ -489,8 +496,8 @@ describe('ScheduleService (М4.4–М4.5)', () => {
     });
   });
 
-  describe('пояс расписания: Москва, UTC+3 (18.10.2026)', () => {
-    const MSK = { 'schedule.utcOffsetMinutes': 180 };
+  describe('пояс расписания из настроек (18.10.2026)', () => {
+    const MSK = { 'schedule.timeZone': 'Europe/Moscow' };
 
     it('время графика — московское: 08:00 МСК = 05:00 UTC, заявка подписана МСК', async () => {
       const { service, prisma, tickets } = build(MSK);
@@ -560,6 +567,22 @@ describe('ScheduleService (М4.4–М4.5)', () => {
       ).rejects.toThrow('Смена на 2026-09-17');
       expect(prisma.scheduleEvent.findFirst.mock.calls[0][0].where.date.toISOString()).toBe(
         '2026-09-17T00:00:00.000Z',
+      );
+    });
+
+    it('другой пояс: Бишкек (UTC+6) — 08:00 по Бишкеку = 02:00 UTC, подпись UTC+6', async () => {
+      const { service, prisma, tickets } = build({ 'schedule.timeZone': 'Asia/Bishkek' });
+      prisma.schedule.findMany.mockResolvedValue([scheduleFixture()]);
+      prisma.scheduleEvent.create.mockImplementation(({ data }: { data: object }) =>
+        Promise.resolve(eventFixture(data as Record<string, unknown>)),
+      );
+
+      await service.generateForDate('2026-09-16', NOW);
+
+      const data = prisma.scheduleEvent.create.mock.calls[0][0].data;
+      expect(data.plannedStart.toISOString()).toBe('2026-09-16T02:00:00.000Z');
+      expect(tickets.createTicket.mock.calls[0][0].description).toBe(
+        'Плановая уборка по графику «Ежедневная уборка» на 2026-09-16 08:00 UTC+6',
       );
     });
 
@@ -1162,7 +1185,7 @@ describe('ScheduleService (М4.4–М4.5)', () => {
     it('listMyEvents по умолчанию берёт сегодняшний день по Москве', async () => {
       jest.useFakeTimers({ now: new Date('2026-09-16T21:30:00.000Z'), doNotFake: ['nextTick'] });
       try {
-        const { service, prisma } = build({ 'schedule.utcOffsetMinutes': 180 });
+        const { service, prisma } = build({ 'schedule.timeZone': 'Europe/Moscow' });
 
         await service.listMyEvents(USER, {});
 

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useScheduleSettings } from '../hooks/useScheduleSettings';
+import { useTimeZoneStore } from '../stores/timeZoneStore';
 import type { Role } from '@cleaning-ops/shared/types/roles';
 import { logout } from '../api/auth';
 import { BottomNav } from '../components/layout/BottomNav';
@@ -60,6 +62,8 @@ const NAV: NavItem[] = [
   // участием в чате (чужие чаты → 403), поэтому пункт виден всем ролям.
   { to: '/messages', label: 'Сообщения', icon: '💬' },
   { to: '/reports', label: 'Отчёты', icon: '📈' },
+  // Настройки организации (18.10.2026): часовой пояс расписания — правка только у ADMIN.
+  { to: '/settings', label: 'Настройки', icon: '⚙️', roles: ['ADMIN'] },
 ];
 
 /**
@@ -89,6 +93,9 @@ export function navForRole(role: Role | undefined): NavItem[] {
  */
 export function AdminLayout() {
   const user = useAuthStore((s) => s.user);
+  // Пояс расписания организации: тянем с сервера один раз на каркас.
+  useScheduleSettings();
+  const timeZone = useTimeZoneStore((s) => s.timeZone);
   const navigate = useNavigate();
   const location = useLocation();
   const drawerOpen = useUiStore((s) => s.drawerOpen);
@@ -260,7 +267,9 @@ export function AdminLayout() {
             отступ телефона — под фиксированную нижнюю навигацию плюс системную
             полосу жестов; на ≥768 px его перекрывает `md:p-5`/`lg:p-6`. */}
         <main className="flex-1 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom)+4.5rem)] md:p-5 lg:p-6">
-          <Outlet />
+          {/* Ключ по поясу: после смены пояса экраны перемонтируются и
+              пересчитывают время смен и «сегодня» (форматтеры читают стор). */}
+          <Outlet key={timeZone} />
         </main>
       </div>
 

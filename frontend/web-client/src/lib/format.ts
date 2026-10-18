@@ -4,18 +4,19 @@
  * Правила DS-004 (`overview.md` п. 7.6): даты `dd.MM.yyyy`, время `HH:mm`,
  * числа и суммы — моноширинным шрифтом (`font-mono` задаётся в разметке).
  *
- * Время и дата моментов (ISO с временем) — по Москве, поясу расписания
- * (`scheduleTimeOf` из shared, 18.10.2026): так же показывает админка. Не
+ * Время и дата моментов (ISO с временем) — в часовом поясе организации
+ * (настройка schedule-service, 18.10.2026): так же показывает админка. Не
  * локальная зона браузера — иначе цифры портала и админки разошлись бы у одного
  * события (design/screens/web-client/reports.md п. 10.5). Даты без времени
- * (`YYYY-MM-DD`, день смены) уже московские и разбираются строкой.
+ * (`YYYY-MM-DD`, день смены) уже в поясе организации и разбираются строкой.
  */
 
 import {
   scheduleDateOf,
   scheduleDayLabelOf,
   scheduleTimeOf,
-} from '@cleaning-ops/shared/types/schedule';
+} from '@cleaning-ops/shared/types/time-zone';
+import { currentTimeZone } from '../stores/timeZoneStore';
 
 function pad(value: number): string {
   return String(value).padStart(2, '0');
@@ -25,7 +26,7 @@ function pad(value: number): string {
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
   if (value.length > 10) {
-    const label = scheduleDayLabelOf(value);
+    const label = scheduleDayLabelOf(value, currentTimeZone());
     if (label) return label;
   }
   const [year, month, day] = value.slice(0, 10).split('-');
@@ -40,10 +41,10 @@ export function formatDateShort(value: string | null | undefined): string {
   return parts.length === 3 ? `${parts[0]}.${parts[1]}` : formatDate(value);
 }
 
-/** Время из ISO-строки → `HH:mm` по Москве. */
+/** Время из ISO-строки → `HH:mm` в поясе организации. */
 export function formatTime(value: string | null | undefined): string {
   if (!value) return '—';
-  return scheduleTimeOf(value) || '—';
+  return scheduleTimeOf(value, currentTimeZone()) || '—';
 }
 
 /** Дата + время → `dd.MM HH:mm` (компактно: ближайшие смены, карточки заявок). */
@@ -58,9 +59,9 @@ export function formatDateTime(value: string | null | undefined): string {
   return `${formatDate(value)} ${formatTime(value)}`;
 }
 
-/** Сегодняшний день расписания (Москва) — тем же правилом, что `scheduleToday()` сервиса смен. */
+/** Сегодняшний день расписания в поясе организации — тем же правилом, что `scheduleToday()` сервиса смен. */
 export function scheduleToday(): string {
-  return scheduleDateOf();
+  return scheduleDateOf(new Date(), currentTimeZone());
 }
 
 /** `YYYY-MM-DD` из локальной даты браузера — для `<input type="date">` периодов отчёта. */

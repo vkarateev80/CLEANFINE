@@ -14,6 +14,8 @@ import {
   MyEventsQueryDto,
   UpdateScheduleDto,
 } from './dto/schedule.dto';
+import { UpdateScheduleSettingsDto } from '../settings/schedule-settings.dto';
+import { ScheduleSettingsService } from '../settings/schedule-settings.service';
 import { ScheduleService } from './schedule.service';
 import { SchedulerService } from './scheduler.service';
 
@@ -24,6 +26,7 @@ export class ScheduleController {
   constructor(
     private readonly schedule: ScheduleService,
     private readonly scheduler: SchedulerService,
+    private readonly settings: ScheduleSettingsService,
   ) {}
 
   // ------------------------------------------------------------------ графики
@@ -148,6 +151,25 @@ export class ScheduleController {
   @ApiOperation({ summary: 'Состояние периодических проходов (ADMIN)' })
   async schedulerState() {
     return this.scheduler.getState();
+  }
+
+  // --------------------------------------------------------------- настройки
+  // Статические пути — до `:id`: иначе GET/PATCH /settings ушли бы в обработчики графика.
+
+  @Get('settings')
+  @ApiOperation({
+    summary: 'Настройки расписания: часовой пояс и сегодняшний день (все авторизованные)',
+  })
+  async settingsView() {
+    return this.settings.view();
+  }
+
+  @Patch('settings')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Сменить часовой пояс расписания (только ADMIN)' })
+  @ApiResponse({ status: 400, description: 'Неизвестный часовой пояс' })
+  async updateSettings(@Body() dto: UpdateScheduleSettingsDto, @CurrentUser() user: AuthUser) {
+    return this.settings.update(dto, user?.id);
   }
 
   // ------------------------------------------------------------------ правка

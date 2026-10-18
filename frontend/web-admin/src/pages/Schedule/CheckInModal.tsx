@@ -4,7 +4,7 @@ import { checkIn, checkOut } from '../../api/schedule';
 import { Button, ErrorBanner, Field, Input, Modal, SoftWarning } from '../../components/ui';
 import type { ScheduleEventEntity } from '../../types/schedule';
 import type { Coords } from './scheduleHelpers';
-import { currentPosition, scheduleTime } from './scheduleHelpers';
+import { currentPosition, scheduleTime, timeZoneLabel } from './scheduleHelpers';
 
 /**
  * Отметка смены: check-in (приход) и check-out (уход) одной модалкой.
@@ -100,7 +100,7 @@ export function CheckInModal({
       const action = mode === 'check-in' ? 'Приход отмечен' : 'Уход отмечен';
       const at = mode === 'check-in' ? updated.checkInAt : updated.checkOutAt;
       onDone(
-        `${action}: ${updated.scheduleName}, план ${scheduleTime(updated.plannedStart)} МСК${at ? `, отметка ${scheduleTime(at)} МСК` : ''}.`,
+        `${action}: ${updated.scheduleName}, план ${scheduleTime(updated.plannedStart)} ${timeZoneLabel()}${at ? `, отметка ${scheduleTime(at)} ${timeZoneLabel()}` : ''}.`,
       );
     },
   });
@@ -155,7 +155,7 @@ export function CheckInModal({
       <div className="flex flex-col gap-4">
         <SoftWarning>
           Отметка ставится <b>за вас</b> («{event.scheduleName}», план{' '}
-          {scheduleTime(event.plannedStart)} МСК): сервис берёт пользователя из токена, отметить смену
+          {scheduleTime(event.plannedStart)} {timeZoneLabel()}): сервис берёт пользователя из токена, отметить смену
           за другого сотрудника через админку нельзя.
         </SoftWarning>
 

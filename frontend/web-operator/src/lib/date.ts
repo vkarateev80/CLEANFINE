@@ -1,10 +1,11 @@
-import { scheduleDateOf } from '@cleaning-ops/shared/types/schedule';
+import { scheduleDateOf } from '@cleaning-ops/shared/types/time-zone';
+import { currentTimeZone } from '../stores/timeZoneStore';
 import { t } from '../i18n';
 /**
  * Даты рабочего места. Время смен и отметок показываем ЛОКАЛЬНО (оператор
  * смотрит на часы телефона: «Смена открыта в 08:04»), а день смены для
- * `GET /schedule/my?from&to` — по Москве, поясу расписания: так считает сервер
- * (18.10.2026; до этого день был UTC, overview.md п. 7.8).
+ * `GET /schedule/my?from&to` — в поясе расписания организации (настройка
+ * schedule-service, 18.10.2026; до этого день был UTC, overview.md п. 7.8).
  */
 function pad(value: number): string {
   return String(value).padStart(2, '0');
@@ -23,9 +24,9 @@ export function timeRange(start: string, end: string | null | undefined): string
   return `${localTime(start)}–${end ? localTime(end) : '…'}`;
 }
 
-/** Сегодняшний день расписания `YYYY-MM-DD` (Москва) — тем же правилом, что сервер смен. */
-export function scheduleToday(now = new Date()): string {
-  return scheduleDateOf(now);
+/** Сегодняшний день расписания `YYYY-MM-DD` в поясе организации — тем же правилом, что сервер смен. */
+export function scheduleToday(now = new Date(), timeZone = currentTimeZone()): string {
+  return scheduleDateOf(now, timeZone);
 }
 
 /** Предыдущий день для `YYYY-MM-DD` (строкой, без сдвига зоны). */

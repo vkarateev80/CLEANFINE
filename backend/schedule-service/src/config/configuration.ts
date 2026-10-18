@@ -5,7 +5,7 @@
 
 export const DEFAULT_PORT = 3008;
 
-import { SCHEDULE_UTC_OFFSET_MINUTES } from '@cleaning-ops/shared/types/schedule';
+import { DEFAULT_SCHEDULE_TIME_ZONE } from '@cleaning-ops/shared/types/time-zone';
 
 /** Миллисекунды в сутках. */
 export const DAY_MS = 24 * 60 * 60 * 1000;
@@ -94,16 +94,10 @@ export default () => ({
      */
     defaultShiftMinutes: positiveInt(process.env.SCHEDULE_DEFAULT_SHIFT_MINUTES, 480),
     /**
-     * Сдвиг пояса расписания от UTC, мин: время графиков и день смены — по Москве
-     * (UTC+3, общий словарь shared/types/schedule.ts — его же читают админка и
-     * приложения, поэтому менять одно без другого нельзя).
+     * Пояс расписания по умолчанию (IANA): пока ADMIN не выбрал пояс в админке
+     * («Настройки», таблица ScheduleSettings) или если таблица ещё не создана.
      */
-    utcOffsetMinutes: boundedInt(
-      process.env.SCHEDULE_UTC_OFFSET_MINUTES,
-      SCHEDULE_UTC_OFFSET_MINUTES,
-      -12 * 60,
-      14 * 60,
-    ),
+    timeZone: nonEmpty(process.env.SCHEDULE_TIME_ZONE, DEFAULT_SCHEDULE_TIME_ZONE).trim(),
     /**
      * Интервал тика генерации. Тик раз в час, а смены создаются только в тот, что
      * попал в час `generateHour`: при суточном интервале фаза таймера зависела от

@@ -74,10 +74,15 @@ describe('shiftActionError (home_today.md §4)', () => {
   });
 });
 
-describe('день смены по Москве (18.10.2026)', () => {
+describe('день смены в поясе организации (18.10.2026)', () => {
   it('после 21:00 UTC в Москве уже следующий день', () => {
     expect(scheduleToday(new Date('2026-10-18T20:59:00Z'))).toBe('2026-10-18');
     expect(scheduleToday(new Date('2026-10-18T21:00:00Z'))).toBe('2026-10-19');
+  });
+
+  it('в другом поясе организации — свой день: Бишкек переходит на новый день в 18:00 UTC', () => {
+    expect(scheduleToday(new Date('2026-10-18T18:30:00Z'), 'Asia/Bishkek')).toBe('2026-10-19');
+    expect(scheduleToday(new Date('2026-10-18T18:30:00Z'), 'Europe/Moscow')).toBe('2026-10-18');
   });
 
   it('previousDay переходит через границу месяца', () => {

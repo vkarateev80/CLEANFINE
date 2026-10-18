@@ -43,12 +43,10 @@ final objectDetailProvider =
   return unwrap(await ref.watch(clientRepositoryProvider).objectDetail(objectId));
 });
 
-/// Смены объекта с сегодняшней даты (по Москве, как `scheduleToday()` в портале).
+/// Смены объекта на сегодня: день считает сервер в часовом поясе организации.
 final objectEventsProvider =
     FutureProvider.family<List<ScheduleEvent>, String>((Ref ref, String objectId) async {
-  final DateTime today = scheduleClock(ref.watch(nowProvider)());
-  final String from = DateFormat('yyyy-MM-dd').format(today);
-  return unwrap(await ref.watch(clientRepositoryProvider).events(objectId, fromDate: from));
+  return unwrap(await ref.watch(clientRepositoryProvider).events(objectId));
 });
 
 /// Последние 5 заявок («свежие сверху» — серверной сортировки нет).

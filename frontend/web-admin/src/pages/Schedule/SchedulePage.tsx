@@ -6,7 +6,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { DayEventsPanel } from './DayEventsPanel';
 import { MyEventsPanel } from './MyEventsPanel';
 import { SchedulesPanel } from './SchedulesPanel';
-import { scheduleToday, useParamWriter } from './scheduleHelpers';
+import { scheduleToday, timeZoneDescription, useParamWriter } from './scheduleHelpers';
 import {
   useCheckMissed,
   useDayEvents,
@@ -263,8 +263,8 @@ export function SchedulePage() {
       )}
 
       <p className="text-xs text-neutral-400">
-        Время в графиках и сменах — московское (МСК, UTC+3): «08:00» означает 08:00 по Москве, день
-        смены и «сегодня» тоже считаются по Москве.
+        Время в графиках и сменах — в часовом поясе {timeZoneDescription()}: «08:00» означает 08:00 по
+        этим часам, день смены и «сегодня» считаются так же. Пояс меняет администратор в «Настройках».
       </p>
     </div>
   );

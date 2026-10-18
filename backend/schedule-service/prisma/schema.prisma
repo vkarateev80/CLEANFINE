@@ -81,3 +81,15 @@ model ScheduleEvent {
   @@index([userId, date])
   @@index([status, plannedStart])
 }
+
+/// Настройки расписания организации — одна строка с id "default" (18.10.2026).
+/// Часовой пояс, в котором заданы время графиков, день смены и «сегодня»;
+/// меняет ADMIN в админке («Настройки» → «Часовой пояс»).
+model ScheduleSettings {
+  id        String   @id @default("default")
+  /// IANA-имя пояса: Europe/Moscow, Asia/Bishkek…
+  timeZone  String   @default("Europe/Moscow")
+  updatedAt DateTime @updatedAt
+  /// Кто последним менял (user id из auth-service).
+  updatedBy String?
+}

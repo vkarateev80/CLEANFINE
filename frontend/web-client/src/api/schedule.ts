@@ -1,3 +1,4 @@
+import type { ScheduleSettingsView } from '@cleaning-ops/shared/types/time-zone';
 import { apiClient } from './client';
 import type { ListEventsQuery, ScheduleEventEntity } from '../types/schedule';
 
@@ -30,4 +31,9 @@ function compact(params: Record<string, string | undefined>): Record<string, str
  */
 export function listEvents(query: ListEventsQuery = {}): Promise<ScheduleEventEntity[]> {
   return apiClient.get('/schedule/events', { params: compact({ ...query }) }).then((r) => r.data);
+}
+
+/** Настройки расписания: часовой пояс организации и сегодняшний день расписания. */
+export function getScheduleSettings(): Promise<ScheduleSettingsView> {
+  return apiClient.get('/schedule/settings').then((r) => r.data);
 }

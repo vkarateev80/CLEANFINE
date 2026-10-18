@@ -82,7 +82,7 @@ export function useRecentTickets(objectId: string | undefined, take = 5) {
   });
 }
 
-/** Смены объекта начиная с указанной даты (по умолчанию — сегодня по Москве). */
+/** Смены объекта начиная с указанной даты (по умолчанию — сегодня в поясе организации). */
 export function useUpcomingEvents(objectId: string | undefined, from: string = scheduleToday()) {
   return useQuery({
     queryKey: ['schedule', 'events', objectId, { from }],

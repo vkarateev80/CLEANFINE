@@ -36,4 +36,5 @@ export const ROUTES = {
   schedule: '/schedule',
   messages: '/messages',
   reports: '/reports',
+  settings: '/settings',
 } as const;

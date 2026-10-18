@@ -21,11 +21,7 @@ export {
   SCHEDULE_EVENT_STATUS_LABELS,
   SCHEDULE_FREQUENCIES,
   SCHEDULE_FREQUENCY_LABELS,
-  SCHEDULE_TIMEZONE_LABEL,
   WEEKDAY_LABELS,
-  scheduleDateOf,
-  scheduleDayLabelOf,
-  scheduleTimeOf,
 } from '@cleaning-ops/shared/types/schedule';
 export type { ScheduleEventStatus, ScheduleFrequency } from '@cleaning-ops/shared/types/schedule';
 
@@ -33,9 +29,9 @@ export type { ScheduleEventStatus, ScheduleFrequency } from '@cleaning-ops/share
 
 /**
  * Правило повторения (`RecurrenceDto`). `days` — ISO-дни: 1 = понедельник …
- * 7 = воскресенье; `time` — "HH:mm" по Москве (пояс расписания с 18.10.2026,
- * `SCHEDULE_UTC_OFFSET_MINUTES` в shared): в форме и таблицах время вводится и
- * показывается как есть, с подписью «МСК».
+ * 7 = воскресенье; `time` — "HH:mm" по часам пояса расписания (настройка
+ * организации, «Настройки» → «Часовой пояс»): в форме и таблицах время вводится и
+ * показывается как есть, с подписью пояса («МСК», «UTC+6»).
  */
 export interface ScheduleRecurrence {
   frequency: ScheduleFrequency;

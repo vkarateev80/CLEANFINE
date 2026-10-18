@@ -21,7 +21,7 @@ import {
   type UpdateSchedulePayload,
 } from '../../types/schedule';
 import type { SessionUser } from '../../types';
-import { shortId, WEEKDAY_SHORT } from './scheduleHelpers';
+import { shortId, timeZoneDescription, timeZoneLabel, WEEKDAY_SHORT } from './scheduleHelpers';
 import { useRouteOptions } from './useSchedule';
 
 /**
@@ -333,11 +333,11 @@ export function ScheduleFormModal({
           </Field>
 
           <Field
-            label="Время начала, МСК"
+            label={`Время начала, ${timeZoneLabel()}`}
             htmlFor="schedule-time"
             required
             error={errors.time}
-            hint="Московское время (UTC+3): смены и «сегодня» считаются по Москве"
+            hint={`Пояс ${timeZoneDescription()} — меняется в «Настройках»`}
           >
             <Input
               id="schedule-time"

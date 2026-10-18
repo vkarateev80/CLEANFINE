@@ -19,7 +19,7 @@ import type { SessionUser } from '../../types';
 import type { ObjectEntity } from '../../types/core';
 import type { ScheduleEventEntity } from '../../types/schedule';
 import { CheckInModal } from './CheckInModal';
-import { EventStatusBadge, shortId, scheduleTime } from './scheduleHelpers';
+import { EventStatusBadge, scheduleTime, shortId, timeZoneDescription } from './scheduleHelpers';
 
 /**
  * Вкладка «Мои смены»: смены текущего пользователя за период.
@@ -343,7 +343,7 @@ export function MyEventsPanel({
             <Card padded={false}>
               <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-neutral-500">
                 <span>Смен за период: {items.length}</span>
-                <span>Время указано по Москве (МСК)</span>
+                <span>Время указано в поясе {timeZoneDescription()}</span>
               </div>
               <ResponsiveTable<ScheduleEventEntity>
                 items={items}

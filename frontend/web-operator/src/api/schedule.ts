@@ -1,3 +1,4 @@
+import type { ScheduleSettingsView } from '@cleaning-ops/shared/types/time-zone';
 import { apiClient } from './client';
 import type { CheckInPayload, CheckOutPayload, ScheduleEvent } from '../types/schedule';
 
@@ -21,4 +22,9 @@ export function checkIn(payload: CheckInPayload): Promise<ScheduleEvent> {
 
 export function checkOut(payload: CheckOutPayload): Promise<ScheduleEvent> {
   return apiClient.post('/schedule/check-out', payload).then((r) => r.data);
+}
+
+/** Настройки расписания: часовой пояс организации и сегодняшний день расписания. */
+export function getScheduleSettings(): Promise<ScheduleSettingsView> {
+  return apiClient.get('/schedule/settings').then((r) => r.data);
 }

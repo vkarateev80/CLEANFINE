@@ -31,6 +31,13 @@ import { CoreClient } from '../core/core.client';
 import { GpsClient } from '../gps/gps.client';
 import { TicketClient, TicketCreationError } from '../tickets/ticket.client';
 import { PrismaService } from '../prisma/prisma.service';
+import { ScheduleSettingsService } from '../settings/schedule-settings.service';
+import {
+  scheduleDateOf,
+  scheduleTimeOf,
+  timeZoneShortLabel,
+  zonedParts,
+} from '@cleaning-ops/shared/types/time-zone';
 import type {
   CheckInDto,
   CheckOutDto,
@@ -46,7 +53,6 @@ import {
   parseDateOnly,
   plannedStartAt,
   scheduleToday,
-  utcOffsetLabel,
 } from './recurrence';
 
 /** Тексты ошибок зафиксированы в задании М4.5 — их проверяет e2e. */
@@ -164,6 +170,7 @@ export class ScheduleService {
     private readonly core: CoreClient,
     private readonly publisher: EventsPublisher,
     private readonly config: ConfigService,
+    private readonly settings: ScheduleSettingsService,
   ) {}
 
   // ------------------------------------------------------------------ графики
@@ -238,7 +245,7 @@ export class ScheduleService {
 
   /** GET /api/schedule/events?date=&objectId=&userId= (дата по умолчанию — сегодня по расписанию). */
   async listEvents(query: ListEventsQueryDto): Promise<ScheduleEventView[]> {
-    const date = query.date ? this.parseDate(query.date) : this.today();
+    const date = query.date ? this.parseDate(query.date) : await this.today();
     const events = await this.prisma.scheduleEvent.findMany({
       where: {
         date,
@@ -257,7 +264,7 @@ export class ScheduleService {
    * перешедшая через полночь, не должна пропасть с экрана оператора.
    */
   async listMyEvents(userId: string, query: MyEventsQueryDto): Promise<ScheduleEventView[]> {
-    const from = query.from ? this.parseDate(query.from) : this.today();
+    const from = query.from ? this.parseDate(query.from) : await this.today();
     // to включительно: конец периода — конец указанного дня.
     const to = query.to ? new Date(this.parseDate(query.to).getTime() + 24 * 60 * 60 * 1000) : null;
     const period: Prisma.ScheduleEventWhereInput = { date: { gte: from, ...(to ? { lt: to } : {}) } };
@@ -309,7 +316,8 @@ export class ScheduleService {
     now: Date = new Date(),
     scope: SweepScope = {},
   ): Promise<GenerationResult> {
-    const date = dateValue ? this.parseDate(dateValue) : this.today(now);
+    const timeZone = await this.settings.timeZone();
+    const date = dateValue ? this.parseDate(dateValue) : scheduleToday(now, timeZone);
     const result: GenerationResult = {
       date: formatDateOnly(date),
       schedulesMatched: 0,
@@ -347,7 +355,7 @@ export class ScheduleService {
     }
 
     for (const schedule of matching) {
-      await this.generateForSchedule(schedule, date, result);
+      await this.generateForSchedule(schedule, date, result, timeZone);
     }
 
     this.logger.log(
@@ -362,12 +370,13 @@ export class ScheduleService {
     schedule: Schedule,
     date: Date,
     result: GenerationResult,
+    timeZone: string,
   ): Promise<void> {
     const recurrence = normalizeRecurrence(schedule.recurrence);
     if (!recurrence) {
       return;
     }
-    const plannedStart = plannedStartAt(date, recurrence.time, this.utcOffsetMinutes());
+    const plannedStart = plannedStartAt(date, recurrence.time, timeZone);
     const plannedEnd = new Date(plannedStart.getTime() + this.shiftPlannedDurationMs(recurrence));
     const assignees = schedule.assignees.length > 0 ? schedule.assignees : [null];
 
@@ -426,7 +435,7 @@ export class ScheduleService {
         priority: 'normal',
         objectId: schedule.objectId,
         assigneeId: event.userId,
-        description: this.ticketDescription(schedule, event.plannedStart),
+        description: this.ticketDescription(schedule, event.plannedStart, await this.settings.timeZone()),
       });
       await this.prisma.scheduleEvent.update({
         where: { id: event.id },
@@ -454,13 +463,9 @@ export class ScheduleService {
     }
   }
 
-  private ticketDescription(schedule: Schedule, plannedStart: Date): string {
-    const offset = this.utcOffsetMinutes();
-    const time = new Date(plannedStart.getTime() + offset * 60_000)
-      .toISOString()
-      .slice(0, 16)
-      .replace('T', ' ');
-    return `Плановая уборка по графику «${schedule.name}» на ${time} ${utcOffsetLabel(offset)}`;
+  private ticketDescription(schedule: Schedule, plannedStart: Date, timeZone: string): string {
+    const time = `${scheduleDateOf(plannedStart, timeZone)} ${scheduleTimeOf(plannedStart, timeZone)}`;
+    return `Плановая уборка по графику «${schedule.name}» на ${time} ${timeZoneShortLabel(timeZone, plannedStart)}`;
   }
 
   /**
@@ -471,11 +476,11 @@ export class ScheduleService {
    */
   async generateForCurrentHour(now: Date = new Date()): Promise<GenerationResult | null> {
     const hour = this.config.get<number>('schedule.generateHour') ?? 0;
-    const clock = new Date(now.getTime() + this.utcOffsetMinutes() * 60_000);
-    if (clock.getUTCHours() !== hour) {
+    const timeZone = await this.settings.timeZone();
+    if (zonedParts(now, timeZone).hour !== hour) {
       return null;
     }
-    const day = formatDateOnly(clock);
+    const day = scheduleDateOf(now, timeZone);
     try {
       return await this.generateForDate(day, now);
     } catch (error) {
@@ -748,14 +753,9 @@ export class ScheduleService {
     return minutes * 60_000;
   }
 
-  /** Сдвиг пояса расписания, мин (Москва — 180). Без конфига — UTC: так считают unit-тесты. */
-  private utcOffsetMinutes(): number {
-    return this.config.get<number>('schedule.utcOffsetMinutes') ?? 0;
-  }
-
-  /** Сегодняшний день расписания (полночь UTC как ключ дня). */
-  private today(now: Date = new Date()): Date {
-    return scheduleToday(now, this.utcOffsetMinutes());
+  /** Сегодняшний день расписания (полночь UTC как ключ дня) в поясе из настроек. */
+  private async today(now: Date = new Date()): Promise<Date> {
+    return scheduleToday(now, await this.settings.timeZone());
   }
 
   /**
@@ -781,7 +781,7 @@ export class ScheduleService {
     userId: string,
     now: Date,
   ): Promise<ScheduleEvent & { schedule: Schedule }> {
-    const date = this.today(now);
+    const date = await this.today(now);
     const event = await this.prisma.scheduleEvent.findFirst({
       where: { scheduleId, userId, date },
       include: { schedule: true },

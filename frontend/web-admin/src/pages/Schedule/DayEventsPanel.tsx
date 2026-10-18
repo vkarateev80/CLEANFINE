@@ -24,7 +24,13 @@ import type {
   ScheduleEventEntity,
   SchedulerState,
 } from '../../types/schedule';
-import { EventStatusBadge, formatScheduleDateTime, shortId, scheduleTime } from './scheduleHelpers';
+import {
+  EventStatusBadge,
+  formatScheduleDateTime,
+  scheduleTime,
+  shortId,
+  timeZoneDescription,
+} from './scheduleHelpers';
 
 /**
  * Вкладка «Смены дня»: что запланировано и что произошло в конкретный день.
@@ -452,7 +458,7 @@ export function DayEventsPanel({
             <Card padded={false}>
               <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-neutral-500">
                 <span>Смен за день: {items.length}</span>
-                <span>Время указано по Москве (МСК)</span>
+                <span>Время указано в поясе {timeZoneDescription()}</span>
               </div>
               <ResponsiveTable<ScheduleEventEntity>
                 items={items}

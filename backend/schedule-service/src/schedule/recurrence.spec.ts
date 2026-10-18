@@ -8,7 +8,6 @@ import {
   plannedStartAt,
   scheduleToday,
   todayUtc,
-  utcOffsetLabel,
 } from './recurrence';
 
 describe('recurrence', () => {
@@ -145,31 +144,37 @@ describe('recurrence', () => {
     });
   });
 
-  describe('пояс расписания (Москва, UTC+3)', () => {
+  describe('пояс расписания', () => {
     it('scheduleToday: после 21:00 UTC в Москве уже следующий день', () => {
-      expect(scheduleToday(new Date('2026-09-16T20:59:00.000Z'), 180).toISOString()).toBe(
+      expect(scheduleToday(new Date('2026-09-16T20:59:00.000Z'), 'Europe/Moscow').toISOString()).toBe(
         '2026-09-16T00:00:00.000Z',
       );
-      expect(scheduleToday(new Date('2026-09-16T21:00:00.000Z'), 180).toISOString()).toBe(
+      expect(scheduleToday(new Date('2026-09-16T21:00:00.000Z'), 'Europe/Moscow').toISOString()).toBe(
         '2026-09-17T00:00:00.000Z',
       );
-      expect(scheduleToday(new Date('2026-09-16T21:00:00.000Z'), 0).toISOString()).toBe(
+      expect(scheduleToday(new Date('2026-09-16T21:00:00.000Z')).toISOString()).toBe(
         '2026-09-16T00:00:00.000Z',
       );
     });
 
-    it('plannedStartAt вычитает сдвиг: 08:00 МСК = 05:00 UTC, 01:00 МСК = 22:00 UTC накануне', () => {
+    it('plannedStartAt: 08:00 МСК = 05:00 UTC, 01:00 МСК = 22:00 UTC накануне', () => {
       const day = new Date('2026-09-17T00:00:00.000Z');
-      expect(plannedStartAt(day, '08:00', 180).toISOString()).toBe('2026-09-17T05:00:00.000Z');
-      expect(plannedStartAt(day, '01:00', 180).toISOString()).toBe('2026-09-16T22:00:00.000Z');
+      expect(plannedStartAt(day, '08:00', 'Europe/Moscow').toISOString()).toBe(
+        '2026-09-17T05:00:00.000Z',
+      );
+      expect(plannedStartAt(day, '01:00', 'Europe/Moscow').toISOString()).toBe(
+        '2026-09-16T22:00:00.000Z',
+      );
       expect(plannedStartAt(day, '08:00').toISOString()).toBe('2026-09-17T08:00:00.000Z');
     });
 
-    it('utcOffsetLabel', () => {
-      expect(utcOffsetLabel(0)).toBe('UTC');
-      expect(utcOffsetLabel(180)).toBe('МСК');
-      expect(utcOffsetLabel(300)).toBe('UTC+5');
-      expect(utcOffsetLabel(-210)).toBe('UTC−3:30');
+    it('plannedStartAt учитывает летнее время: Берлин зимой UTC+1, летом UTC+2', () => {
+      expect(
+        plannedStartAt(new Date('2026-01-15T00:00:00.000Z'), '08:00', 'Europe/Berlin').toISOString(),
+      ).toBe('2026-01-15T07:00:00.000Z');
+      expect(
+        plannedStartAt(new Date('2026-07-15T00:00:00.000Z'), '08:00', 'Europe/Berlin').toISOString(),
+      ).toBe('2026-07-15T06:00:00.000Z');
     });
   });
 });

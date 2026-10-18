@@ -95,7 +95,7 @@ class FakeClientRepository extends ClientRepository {
   }
 
   @override
-  Future<Result<List<ScheduleEvent>>> events(String objectId, {required String fromDate}) async =>
+  Future<Result<List<ScheduleEvent>>> events(String objectId, {String? fromDate}) async =>
       _ok(eventList);
 }
 

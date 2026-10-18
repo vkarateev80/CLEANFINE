@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { getObject, getRoute } from '../../api/core';
-import { checkIn, checkOut, listMyEvents } from '../../api/schedule';
+import { checkIn, checkOut, getScheduleSettings, listMyEvents } from '../../api/schedule';
 import { listMyTickets } from '../../api/tickets';
 import { errorMessage } from '../../components/ui/Feedback';
 import { previousDay, scheduleToday } from '../../lib/date';
 import { LocationUnavailable, getCurrentPosition } from '../../lib/geo';
 import { apiStatus } from '../../lib/http';
 import { useAuthStore } from '../../stores/authStore';
+import { useTimeZoneStore } from '../../stores/timeZoneStore';
 import { isNetworkError, useNetStore } from '../../stores/netStore';
 import type { ScheduleEvent } from '../../types/schedule';
 import { t } from '../../i18n';
@@ -34,13 +35,31 @@ export function todayShifts(events: ScheduleEvent[], day: string): ScheduleEvent
 
 export const TODAY_QUERY_KEY = ['schedule', 'my', 'today'] as const;
 
-/** Смены на сегодня (день по Москве, как считает сервер). `gcTime` сутки — кэш и без сети. */
+/**
+ * Сегодняшний день по серверу (`/schedule/settings` — пояс организации), заодно
+ * обновляет сохранённый пояс. Без ответа — день по сохранённому поясу.
+ */
+async function resolveScheduleToday(): Promise<string> {
+  try {
+    const settings = await getScheduleSettings();
+    useTimeZoneStore.getState().setTimeZone(settings.timeZone);
+    return settings.today;
+  } catch {
+    return scheduleToday();
+  }
+}
+
+/** Смены на сегодня (день в поясе организации, как считает сервер). `gcTime` сутки — кэш и без сети. */
 export function useTodayEvents() {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const day = scheduleToday();
+  const timeZone = useTimeZoneStore((s) => s.timeZone);
+  const day = scheduleToday(new Date(), timeZone);
   return useQuery({
     queryKey: [...TODAY_QUERY_KEY, day],
-    queryFn: async () => todayShifts(await listMyEvents(previousDay(day), day), day),
+    queryFn: async () => {
+      const today = await resolveScheduleToday();
+      return todayShifts(await listMyEvents(previousDay(today), today), today);
+    },
     enabled: Boolean(accessToken),
     gcTime: 24 * 60 * 60 * 1000,
   });
