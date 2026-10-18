@@ -4,13 +4,18 @@
  * Правила DS-004 (`overview.md` п. 7.6): даты `dd.MM.yyyy`, время `HH:mm`,
  * числа и суммы — моноширинным шрифтом (`font-mono` задаётся в разметке).
  *
- * Почему везде строковые операции, а не `new Date(...)`: сервисы отдают время в
- * UTC (`ScheduleEventEntity.plannedStart`, `createdAt`), а админка показывает его
- * «как есть». Если бы портал переводил ISO в локальную зону браузера, цифры
- * портала и админки разошлись бы у одного и того же события (открытый вопрос
- * design/screens/web-client/reports.md п. 10.5). Поэтому время берём прямо из
- * строки, как `utcTimeOf` в web-admin.
+ * Время и дата моментов (ISO с временем) — по Москве, поясу расписания
+ * (`scheduleTimeOf` из shared, 18.10.2026): так же показывает админка. Не
+ * локальная зона браузера — иначе цифры портала и админки разошлись бы у одного
+ * события (design/screens/web-client/reports.md п. 10.5). Даты без времени
+ * (`YYYY-MM-DD`, день смены) уже московские и разбираются строкой.
  */
+
+import {
+  scheduleDateOf,
+  scheduleDayLabelOf,
+  scheduleTimeOf,
+} from '@cleaning-ops/shared/types/schedule';
 
 function pad(value: number): string {
   return String(value).padStart(2, '0');
@@ -19,6 +24,10 @@ function pad(value: number): string {
 /** Дата ISO/`YYYY-MM-DD` → `dd.MM.yyyy`. Неразобранное значение возвращается как есть. */
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
+  if (value.length > 10) {
+    const label = scheduleDayLabelOf(value);
+    if (label) return label;
+  }
   const [year, month, day] = value.slice(0, 10).split('-');
   if (!year || !month || !day) return value;
   return `${day}.${month}.${year}`;
@@ -31,11 +40,10 @@ export function formatDateShort(value: string | null | undefined): string {
   return parts.length === 3 ? `${parts[0]}.${parts[1]}` : formatDate(value);
 }
 
-/** Время из ISO-строки → `HH:mm` (UTC, «как есть»). */
+/** Время из ISO-строки → `HH:mm` по Москве. */
 export function formatTime(value: string | null | undefined): string {
   if (!value) return '—';
-  const match = /T(\d{2}):(\d{2})/.exec(value);
-  return match ? `${match[1]}:${match[2]}` : '—';
+  return scheduleTimeOf(value) || '—';
 }
 
 /** Дата + время → `dd.MM HH:mm` (компактно: ближайшие смены, карточки заявок). */
@@ -50,10 +58,9 @@ export function formatDateTime(value: string | null | undefined): string {
   return `${formatDate(value)} ${formatTime(value)}`;
 }
 
-/** Сегодняшние сутки в UTC — тем же правилом, что `todayUtc()` в контракте смен. */
-export function todayUtc(): string {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}`;
+/** Сегодняшний день расписания (Москва) — тем же правилом, что `scheduleToday()` сервиса смен. */
+export function scheduleToday(): string {
+  return scheduleDateOf();
 }
 
 /** `YYYY-MM-DD` из локальной даты браузера — для `<input type="date">` периодов отчёта. */

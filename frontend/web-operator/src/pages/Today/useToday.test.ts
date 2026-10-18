@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { pickCurrentEvent, shiftActionError, sortEvents } from './useToday';
+import { pickCurrentEvent, shiftActionError, sortEvents, todayShifts } from './useToday';
+import { previousDay, scheduleToday } from '../../lib/date';
 import { LocationUnavailable } from '../../lib/geo';
 import type { ScheduleEvent } from '../../types/schedule';
 
@@ -70,5 +71,31 @@ describe('shiftActionError (home_today.md §4)', () => {
     expect(shiftActionError({ code: 'ERR_NETWORK', message: 'Network Error' })).toBe(
       'Нет соединения. Проверьте интернет',
     );
+  });
+});
+
+describe('день смены по Москве (18.10.2026)', () => {
+  it('после 21:00 UTC в Москве уже следующий день', () => {
+    expect(scheduleToday(new Date('2026-10-18T20:59:00Z'))).toBe('2026-10-18');
+    expect(scheduleToday(new Date('2026-10-18T21:00:00Z'))).toBe('2026-10-19');
+  });
+
+  it('previousDay переходит через границу месяца', () => {
+    expect(previousDay('2026-11-01')).toBe('2026-10-31');
+  });
+
+  it('«Сегодня»: смены дня плюс открытая смена прошлого дня', () => {
+    const today = { ...event('today', 'PLANNED', '2026-10-09T05:00:00Z'), date: '2026-10-09' };
+    const openYesterday = {
+      ...event('night', 'CHECKED_IN', '2026-10-08T19:00:00Z'),
+      date: '2026-10-08',
+    };
+    const closedYesterday = {
+      ...event('done', 'CHECKED_OUT', '2026-10-08T05:00:00Z'),
+      date: '2026-10-08',
+    };
+    const shown = todayShifts([today, closedYesterday, openYesterday], '2026-10-09');
+    expect(shown.map((item) => item.id)).toEqual(['night', 'today']);
+    expect(pickCurrentEvent(shown)?.id).toBe('night');
   });
 });

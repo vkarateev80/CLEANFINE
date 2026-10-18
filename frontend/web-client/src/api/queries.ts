@@ -3,7 +3,7 @@ import { listTickets } from '../api/tickets';
 import { listEvents } from '../api/schedule';
 import { listMyChats } from '../api/chat';
 import { listNotifications } from '../api/notifications';
-import { todayUtc } from '../lib/format';
+import { scheduleToday } from '../lib/format';
 import type { TicketStatus } from '@cleaning-ops/shared/types/tickets';
 import type { TicketListItem } from '../types/tickets';
 import type { ScheduleEventEntity } from '../types/schedule';
@@ -82,8 +82,8 @@ export function useRecentTickets(objectId: string | undefined, take = 5) {
   });
 }
 
-/** Смены объекта начиная с указанной даты (по умолчанию — сегодня UTC). */
-export function useUpcomingEvents(objectId: string | undefined, from: string = todayUtc()) {
+/** Смены объекта начиная с указанной даты (по умолчанию — сегодня по Москве). */
+export function useUpcomingEvents(objectId: string | undefined, from: string = scheduleToday()) {
   return useQuery({
     queryKey: ['schedule', 'events', objectId, { from }],
     queryFn: () => listEvents({ objectId, date: from }),

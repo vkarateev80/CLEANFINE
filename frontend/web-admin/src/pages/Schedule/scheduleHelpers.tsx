@@ -3,6 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { Badge } from '../../components/ui';
 import {
   SCHEDULE_EVENT_STATUS_LABELS,
+  SCHEDULE_TIMEZONE_LABEL,
+  scheduleDateOf,
+  scheduleDayLabelOf,
+  scheduleTimeOf,
   type ScheduleEventStatus,
   type ScheduleRecurrence,
 } from '../../types/schedule';
@@ -27,22 +31,13 @@ export function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
-function pad(value: number): string {
-  return String(value).padStart(2, '0');
-}
-
 /**
- * Полночь UTC ближайших суток.
- *
- * Почему не `new Date().toISOString().slice(0, 10)`: сервис хранит день смены как
- * полночь UTC (`todayUtc` в `recurrence.ts`), поэтому «сегодня» на экране должно
- * вычисляться той же арифметикой UTC, а не локальной зоной браузера. Иначе в
- * Москве после 03:00 дефолтная дата фильтра разошлась бы с днём, который
- * генерирует сервис.
+ * Сегодняшний день расписания (Москва). Не локальная зона браузера: сервис
+ * считает день смены по поясу расписания (`scheduleToday` в `recurrence.ts`),
+ * и админ в другом поясе должен видеть тот же день, что генерирует сервис.
  */
-export function todayUtc(): string {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}`;
+export function scheduleToday(): string {
+  return scheduleDateOf();
 }
 
 /** "2026-03-14" → "14.03.2026" без `new Date()`: разбор строки без сдвига зоны. */
@@ -53,20 +48,18 @@ export function formatDateOnly(value: string): string {
 }
 
 /**
- * Плановое время смены. `plannedStart` приходит ISO в UTC, и берём время прямо
- * из строки (`HH:mm` после `T`): `new Date(...)` + локальные геттеры показали бы
- * сдвинутое на зону браузера время и разошлось бы с тем, что было задано в
- * графике (в форме — тоже UTC, см. `ScheduleFormModal`).
+ * Время смены по Москве. `plannedStart` приходит ISO в UTC; локальные геттеры
+ * `Date` дали бы зону браузера и разошлись бы с тем, что задано в графике
+ * (в форме — тоже московское время, см. `ScheduleFormModal`).
  */
-export function utcTimeOf(iso: string): string {
-  const match = /T(\d{2}):(\d{2})/.exec(iso);
-  return match ? `${match[1]}:${match[2]}` : '—';
+export function scheduleTime(iso: string): string {
+  return scheduleTimeOf(iso) || '—';
 }
 
-/** Дата+время отметки в UTC: "14.03.2026 08:05 UTC". */
-export function formatUtcDateTime(iso: string): string {
-  const date = formatDateOnly(iso.slice(0, 10));
-  return `${date} ${utcTimeOf(iso)} UTC`;
+/** Дата+время по Москве: "14.03.2026 08:05 МСК". */
+export function formatScheduleDateTime(iso: string): string {
+  const time = scheduleTimeOf(iso);
+  return time ? `${scheduleDayLabelOf(iso)} ${time} ${SCHEDULE_TIMEZONE_LABEL}` : '—';
 }
 
 // ── Правило повторения человеческим языком ─────────────────────────────────
@@ -83,12 +76,12 @@ export const WEEKDAY_SHORT: Record<number, string> = {
 };
 
 /**
- * Правило повторения текстом: «Пн, Ср, Пт · 08:00 UTC», «Ежедневно · 08:00 UTC»,
- * «15 числа · 09:30 UTC». Порядок частей фиксирован, чтобы колонка таблицы
+ * Правило повторения текстом: «Пн, Ср, Пт · 08:00 МСК», «Ежедневно · 08:00 МСК»,
+ * «15 числа · 09:30 МСК». Порядок частей фиксирован, чтобы колонка таблицы
  * читалась сверху вниз и её можно было проверять в e2e без хрупких селекторов.
  */
 export function describeRecurrence(rule: ScheduleRecurrence): string {
-  const time = `${rule.time} UTC`;
+  const time = `${rule.time} ${SCHEDULE_TIMEZONE_LABEL}`;
   if (rule.frequency === 'daily') {
     return `Ежедневно · ${time}`;
   }

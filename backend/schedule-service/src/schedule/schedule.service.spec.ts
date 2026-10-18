@@ -116,7 +116,7 @@ function build(configValues: Record<string, unknown> = {}) {
   const values: Record<string, unknown> = {
     'schedule.autoCheckoutMinutes': 15,
     'schedule.batchSize': 200,
-    'schedule.generateHourUtc': 0,
+    'schedule.generateHour': 0,
     ...configValues,
   };
   const config = {
@@ -462,7 +462,7 @@ describe('ScheduleService (М4.4–М4.5)', () => {
 
   describe('generateForCurrentHour (cron)', () => {
     it('в чужой час проход не выполняется', async () => {
-      const { service, prisma } = build({ 'schedule.generateHourUtc': 8 });
+      const { service, prisma } = build({ 'schedule.generateHour': 8 });
 
       const skipped = await service.generateForCurrentHour(NOW);
 
@@ -471,7 +471,7 @@ describe('ScheduleService (М4.4–М4.5)', () => {
     });
 
     it('в нужный час генерирует смены на сегодня', async () => {
-      const { service, prisma } = build({ 'schedule.generateHourUtc': 9 });
+      const { service, prisma } = build({ 'schedule.generateHour': 9 });
       prisma.schedule.findMany.mockResolvedValue([scheduleFixture()]);
       prisma.scheduleEvent.create.mockResolvedValue(eventFixture());
 
@@ -482,10 +482,113 @@ describe('ScheduleService (М4.4–М4.5)', () => {
     });
 
     it('ошибка прохода не пробрасывается в таймер', async () => {
-      const { service, prisma } = build({ 'schedule.generateHourUtc': 9 });
+      const { service, prisma } = build({ 'schedule.generateHour': 9 });
       prisma.schedule.findMany.mockRejectedValue(new Error('БД недоступна'));
 
       await expect(service.generateForCurrentHour(NOW)).resolves.toBeNull();
+    });
+  });
+
+  describe('пояс расписания: Москва, UTC+3 (18.10.2026)', () => {
+    const MSK = { 'schedule.utcOffsetMinutes': 180 };
+
+    it('время графика — московское: 08:00 МСК = 05:00 UTC, заявка подписана МСК', async () => {
+      const { service, prisma, tickets } = build(MSK);
+      prisma.schedule.findMany.mockResolvedValue([scheduleFixture()]);
+      prisma.scheduleEvent.create.mockImplementation(({ data }: { data: object }) =>
+        Promise.resolve(eventFixture(data as Record<string, unknown>)),
+      );
+
+      await service.generateForDate('2026-09-16', NOW);
+
+      const data = prisma.scheduleEvent.create.mock.calls[0][0].data;
+      expect(data.date.toISOString()).toBe('2026-09-16T00:00:00.000Z');
+      expect(data.plannedStart.toISOString()).toBe('2026-09-16T05:00:00.000Z');
+      expect(data.plannedEnd.toISOString()).toBe('2026-09-16T13:00:00.000Z');
+      expect(tickets.createTicket.mock.calls[0][0].description).toBe(
+        'Плановая уборка по графику «Ежедневная уборка» на 2026-09-16 08:00 МСК',
+      );
+    });
+
+    it('ночная смена 01:00 МСК начинается накануне по UTC', async () => {
+      const { service, prisma } = build(MSK);
+      prisma.schedule.findMany.mockResolvedValue([
+        scheduleFixture({ recurrence: { frequency: 'daily', time: '01:00' } }),
+      ]);
+      prisma.scheduleEvent.create.mockResolvedValue(eventFixture());
+
+      await service.generateForDate('2026-09-17', NOW);
+
+      const data = prisma.scheduleEvent.create.mock.calls[0][0].data;
+      expect(data.date.toISOString()).toBe('2026-09-17T00:00:00.000Z');
+      expect(data.plannedStart.toISOString()).toBe('2026-09-16T22:00:00.000Z');
+    });
+
+    it('без даты генерация берёт московский день', async () => {
+      const { service, prisma } = build(MSK);
+      prisma.schedule.findMany.mockResolvedValue([scheduleFixture()]);
+      prisma.scheduleEvent.create.mockResolvedValue(eventFixture());
+
+      const result = await service.generateForDate(undefined, new Date('2026-09-16T22:15:00.000Z'));
+
+      expect(result.date).toBe('2026-09-17');
+    });
+
+    it('cron срабатывает в полночь по Москве (21:00 UTC) на новый день', async () => {
+      const { service, prisma } = build({ ...MSK, 'schedule.generateHour': 0 });
+      prisma.schedule.findMany.mockResolvedValue([scheduleFixture()]);
+      prisma.scheduleEvent.create.mockResolvedValue(eventFixture());
+
+      expect(await service.generateForCurrentHour(new Date('2026-09-16T00:10:00.000Z'))).toBeNull();
+      const result = await service.generateForCurrentHour(new Date('2026-09-16T21:10:00.000Z'));
+
+      expect(result?.date).toBe('2026-09-17');
+    });
+
+    it('check-in ищет смену московского дня', async () => {
+      const { service, prisma } = build(MSK);
+      prisma.scheduleEvent.findFirst.mockResolvedValue(null);
+      prisma.schedule.findUnique.mockResolvedValue(scheduleFixture());
+
+      await expect(
+        service.checkIn(
+          USER,
+          { scheduleId: SCHEDULE_ID, lat: 55.75, lng: 37.61 },
+          undefined,
+          new Date('2026-09-16T21:30:00.000Z'),
+        ),
+      ).rejects.toThrow('Смена на 2026-09-17');
+      expect(prisma.scheduleEvent.findFirst.mock.calls[0][0].where.date.toISOString()).toBe(
+        '2026-09-17T00:00:00.000Z',
+      );
+    });
+
+    it('check-out закрывает открытую смену, перешедшую через полночь', async () => {
+      const { service, prisma } = build(MSK);
+      const open = eventFixture({
+        status: ScheduleEventStatus.CHECKED_IN,
+        checkInAt: new Date('2026-09-16T17:00:00.000Z'),
+      });
+      prisma.scheduleEvent.findFirst.mockResolvedValueOnce(open);
+      prisma.scheduleEvent.update.mockResolvedValue({
+        ...open,
+        status: ScheduleEventStatus.CHECKED_OUT,
+        checkOutAt: new Date('2026-09-16T22:00:00.000Z'),
+      });
+
+      const view = await service.checkOut(
+        USER,
+        { scheduleId: SCHEDULE_ID },
+        new Date('2026-09-16T22:00:00.000Z'),
+      );
+
+      expect(view.status).toBe(ScheduleEventStatus.CHECKED_OUT);
+      expect(prisma.scheduleEvent.findFirst.mock.calls[0][0].where).toEqual({
+        scheduleId: SCHEDULE_ID,
+        userId: USER,
+        status: ScheduleEventStatus.CHECKED_IN,
+        checkOutAt: null,
+      });
     });
   });
 
@@ -782,13 +885,15 @@ describe('ScheduleService (М4.4–М4.5)', () => {
       });
     });
 
-    it('порог считается от plannedStart с настраиваемым окном', async () => {
+    it('порог считается от планового конца смены с настраиваемым окном', async () => {
       const { service, prisma } = build({ 'schedule.autoCheckoutMinutes': 30 });
 
       await service.autoCheckout(NOW);
 
       const arg = prisma.scheduleEvent.findMany.mock.calls[0][0];
-      expect(arg.where.plannedStart.lte.toISOString()).toBe('2026-09-16T08:30:00.000Z');
+      // Смена 08:00–16:00 в 09:00 ещё идёт: закрывать её можно только после 16:30.
+      expect(arg.where.plannedEnd.lte.toISOString()).toBe('2026-09-16T08:30:00.000Z');
+      expect(arg.where.plannedStart).toBeUndefined();
       expect(arg.where.status).toBe(ScheduleEventStatus.CHECKED_IN);
       expect(arg.where.checkOutAt).toBeNull();
     });
@@ -1042,15 +1147,31 @@ describe('ScheduleService (М4.4–М4.5)', () => {
       );
     });
 
-    it('listMyEvents по умолчанию — сегодняшний день', async () => {
+    it('listMyEvents по умолчанию — с сегодняшнего дня плюс открытая смена прошлых дней', async () => {
       const { service, prisma } = build();
 
       await service.listMyEvents(USER, {});
 
       const where = prisma.scheduleEvent.findMany.mock.calls[0][0].where;
       expect(where.userId).toBe(USER);
-      expect(where.date.gte).toBeInstanceOf(Date);
-      expect(where.date.lt).toBeUndefined();
+      expect(where.OR[0].date.gte).toBeInstanceOf(Date);
+      expect(where.OR[0].date.lt).toBeUndefined();
+      expect(where.OR[1]).toEqual({ status: ScheduleEventStatus.CHECKED_IN, checkOutAt: null });
+    });
+
+    it('listMyEvents по умолчанию берёт сегодняшний день по Москве', async () => {
+      jest.useFakeTimers({ now: new Date('2026-09-16T21:30:00.000Z'), doNotFake: ['nextTick'] });
+      try {
+        const { service, prisma } = build({ 'schedule.utcOffsetMinutes': 180 });
+
+        await service.listMyEvents(USER, {});
+
+        const where = prisma.scheduleEvent.findMany.mock.calls[0][0].where;
+        // 00:30 МСК 17-го: в UTC ещё 16-е, но день расписания — уже 17-е.
+        expect(where.OR[0].date.gte.toISOString()).toBe('2026-09-17T00:00:00.000Z');
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('listMyEvents с периодом включает последний день целиком', async () => {

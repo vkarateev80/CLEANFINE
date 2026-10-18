@@ -333,11 +333,11 @@ export function ScheduleFormModal({
           </Field>
 
           <Field
-            label="Время начала, UTC"
+            label="Время начала, МСК"
             htmlFor="schedule-time"
             required
             error={errors.time}
-            hint="Хранится как UTC: локальное время объекта сервис не знает"
+            hint="Московское время (UTC+3): смены и «сегодня» считаются по Москве"
           >
             <Input
               id="schedule-time"

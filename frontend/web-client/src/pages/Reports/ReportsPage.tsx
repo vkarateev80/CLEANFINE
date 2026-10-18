@@ -24,7 +24,7 @@ import {
   formatMoney,
   formatNumber,
   formatTime,
-  todayUtc,
+  scheduleToday,
   toDateInput,
 } from '../../lib/format';
 
@@ -67,7 +67,7 @@ export function ReportsPage() {
   const objectId = object?.id;
   const [params, setParams] = useSearchParams();
 
-  const today = todayUtc();
+  const today = scheduleToday();
   const tab = (params.get('tab') as Tab | null) ?? 'summary';
   const from = params.get('from') ?? firstDayOfMonth();
   const to = params.get('to') ?? today;

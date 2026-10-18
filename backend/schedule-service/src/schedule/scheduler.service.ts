@@ -20,7 +20,7 @@ export interface SweepState {
  *    без ожидания таймера (как эскалация в ticket-service).
  *
  * Два независимых таймера:
- *  - генерация смен (по умолчанию раз в сутки, срабатывает в настроенный час UTC);
+ *  - генерация смен (тик раз в час, смены создаёт тик настроенного часа по времени расписания);
  *  - проверка неявок + авто check-out (SCHEDULE_MISSED_CHECKIN_INTERVAL_MS).
  */
 @Injectable()
@@ -50,8 +50,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const generateIntervalMs = this.config.get<number>('schedule.generateIntervalMs') ?? 86_400_000;
-    const hourUtc = this.config.get<number>('schedule.generateHourUtc') ?? 0;
+    const generateIntervalMs = this.config.get<number>('schedule.generateIntervalMs') ?? 3_600_000;
+    const hour = this.config.get<number>('schedule.generateHour') ?? 0;
     const scanIntervalMs =
       this.config.get<number>('schedule.missedCheckinIntervalMs') ?? 5 * 60 * 1000;
 
@@ -67,7 +67,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(
       `Периодические проходы запущены: генерация смен каждые ${generateIntervalMs} мс ` +
-        `(в ${hourUtc}:00 UTC), проверка неявок/авто check-out каждые ${scanIntervalMs} мс`,
+        `(смены — в ${hour}:00 по времени расписания), проверка неявок/авто check-out каждые ${scanIntervalMs} мс`,
     );
   }
 

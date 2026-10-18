@@ -6,7 +6,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { DayEventsPanel } from './DayEventsPanel';
 import { MyEventsPanel } from './MyEventsPanel';
 import { SchedulesPanel } from './SchedulesPanel';
-import { todayUtc, useParamWriter } from './scheduleHelpers';
+import { scheduleToday, useParamWriter } from './scheduleHelpers';
 import {
   useCheckMissed,
   useDayEvents,
@@ -67,14 +67,14 @@ export function SchedulePage() {
   // ── параметры вкладки «Смены дня» ────────────────────────────────────────
   // Дата по умолчанию — сегодня UTC: сервис хранит день смены как полночь UTC,
   // и локальная «сегодня» браузера разошлась бы с тем, что генерирует сервис.
-  const dayDate = params.get('dayDate') ?? todayUtc();
+  const dayDate = params.get('dayDate') ?? scheduleToday();
   const dayObject = params.get('dayObject') ?? '';
   const dayUser = params.get('dayUser') ?? '';
   const schedulerOpen = params.get('dayScheduler') === '1';
 
   // ── параметры вкладки «Мои смены» ────────────────────────────────────────
-  const myFrom = params.get('myFrom') ?? todayUtc();
-  const myTo = params.get('myTo') ?? todayUtc();
+  const myFrom = params.get('myFrom') ?? scheduleToday();
+  const myTo = params.get('myTo') ?? scheduleToday();
   const myEvent = params.get('myEvent') ?? '';
 
   /** Сообщение после отметки смены: живёт до следующего действия или закрытия. */
@@ -263,8 +263,8 @@ export function SchedulePage() {
       )}
 
       <p className="text-xs text-neutral-400">
-        Время в графиках и сменах — UTC: schedule-service хранит расписание без привязки к локальной
-        зоне объекта, поэтому «08:00» означает 08:00 UTC.
+        Время в графиках и сменах — московское (МСК, UTC+3): «08:00» означает 08:00 по Москве, день
+        смены и «сегодня» тоже считаются по Москве.
       </p>
     </div>
   );

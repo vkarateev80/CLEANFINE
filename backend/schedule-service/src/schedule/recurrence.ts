@@ -3,9 +3,12 @@
  * и вся арифметика даты/времени собрана в одном месте.
  *
  * Соглашения:
- *  - даты трактуются в UTC (date = полночь UTC выбранного дня, time = "HH:mm" UTC).
- *    Обоснование: расписание хранит только время, а сервис и БД должны быть
- *    детерминированы в e2e; перевод в локальную зону объекта — задача клиента.
+ *  - date — календарный день расписания, записанный полночью UTC (ключ дня, а не
+ *    момент); time — "HH:mm" по времени расписания. С 18.10.2026 расписание
+ *    живёт по Москве: момент начала = день + time − сдвиг пояса
+ *    (`utcOffsetMinutes`, по умолчанию SCHEDULE_UTC_OFFSET_MINUTES = 180).
+ *    Функции принимают сдвиг параметром (0 — чистый UTC), поэтому остаются
+ *    детерминированными в тестах.
  *  - weekly использует ISO-дни: 1 = понедельник … 7 = воскресенье (совпадает
  *    с Пн–Пт [1..5] из устава и с примером в BACKEND_SCHEDULE.md).
  *  - monthly сравнивает день месяца (1..31). Для 31-го числа смены появятся не во всех
@@ -59,6 +62,15 @@ export function todayUtc(now: Date = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
+/**
+ * Сегодняшний день расписания: календарная дата момента `now` в поясе со
+ * сдвигом `utcOffsetMinutes` (Москва: 00:30 МСК 19-го — это уже 19-е, хотя в UTC
+ * ещё 18-е).
+ */
+export function scheduleToday(now: Date = new Date(), utcOffsetMinutes = 0): Date {
+  return todayUtc(new Date(now.getTime() + utcOffsetMinutes * 60_000));
+}
+
 /** Минуты из "HH:mm"; null — строка не соответствует формату. */
 export function parseTimeOfDay(time: string): number | null {
   const match = TIME_PATTERN.exec(time.trim());
@@ -68,13 +80,26 @@ export function parseTimeOfDay(time: string): number | null {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-/** Момент начала смены: полночь дня + время графика. */
-export function plannedStartAt(date: Date, time: string): Date {
+/**
+ * Момент начала смены: день + время графика − сдвиг пояса. 08:00 МСК 19-го
+ * (`utcOffsetMinutes` = 180) — это 05:00 UTC 19-го; 01:00 МСК 19-го — 22:00 UTC 18-го.
+ */
+export function plannedStartAt(date: Date, time: string, utcOffsetMinutes = 0): Date {
   const minutes = parseTimeOfDay(time);
   if (minutes === null) {
     throw new Error(`Некорректное время графика: ${time}`);
   }
-  return new Date(date.getTime() + minutes * 60_000);
+  return new Date(date.getTime() + (minutes - utcOffsetMinutes) * 60_000);
+}
+
+/** Подпись пояса для текстов: 0 → «UTC», 180 → «МСК», иначе «UTC+5», «UTC−3:30». */
+export function utcOffsetLabel(utcOffsetMinutes: number): string {
+  if (utcOffsetMinutes === 0) return 'UTC';
+  if (utcOffsetMinutes === 180) return 'МСК';
+  const sign = utcOffsetMinutes > 0 ? '+' : '−';
+  const abs = Math.abs(utcOffsetMinutes);
+  const minutes = abs % 60;
+  return `UTC${sign}${Math.floor(abs / 60)}${minutes ? `:${String(minutes).padStart(2, '0')}` : ''}`;
 }
 
 /**

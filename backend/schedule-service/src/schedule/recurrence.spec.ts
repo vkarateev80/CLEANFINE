@@ -6,7 +6,9 @@ import {
   parseDateOnly,
   parseTimeOfDay,
   plannedStartAt,
+  scheduleToday,
   todayUtc,
+  utcOffsetLabel,
 } from './recurrence';
 
 describe('recurrence', () => {
@@ -140,6 +142,34 @@ describe('recurrence', () => {
         normalizeRecurrence({ frequency: 'monthly', dayOfMonth: 'пятое', time: '09:00' })
           ?.dayOfMonth,
       ).toBeUndefined();
+    });
+  });
+
+  describe('пояс расписания (Москва, UTC+3)', () => {
+    it('scheduleToday: после 21:00 UTC в Москве уже следующий день', () => {
+      expect(scheduleToday(new Date('2026-09-16T20:59:00.000Z'), 180).toISOString()).toBe(
+        '2026-09-16T00:00:00.000Z',
+      );
+      expect(scheduleToday(new Date('2026-09-16T21:00:00.000Z'), 180).toISOString()).toBe(
+        '2026-09-17T00:00:00.000Z',
+      );
+      expect(scheduleToday(new Date('2026-09-16T21:00:00.000Z'), 0).toISOString()).toBe(
+        '2026-09-16T00:00:00.000Z',
+      );
+    });
+
+    it('plannedStartAt вычитает сдвиг: 08:00 МСК = 05:00 UTC, 01:00 МСК = 22:00 UTC накануне', () => {
+      const day = new Date('2026-09-17T00:00:00.000Z');
+      expect(plannedStartAt(day, '08:00', 180).toISOString()).toBe('2026-09-17T05:00:00.000Z');
+      expect(plannedStartAt(day, '01:00', 180).toISOString()).toBe('2026-09-16T22:00:00.000Z');
+      expect(plannedStartAt(day, '08:00').toISOString()).toBe('2026-09-17T08:00:00.000Z');
+    });
+
+    it('utcOffsetLabel', () => {
+      expect(utcOffsetLabel(0)).toBe('UTC');
+      expect(utcOffsetLabel(180)).toBe('МСК');
+      expect(utcOffsetLabel(300)).toBe('UTC+5');
+      expect(utcOffsetLabel(-210)).toBe('UTC−3:30');
     });
   });
 });

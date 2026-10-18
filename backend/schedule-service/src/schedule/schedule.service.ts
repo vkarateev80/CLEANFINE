@@ -45,7 +45,8 @@ import {
   normalizeRecurrence,
   parseDateOnly,
   plannedStartAt,
-  todayUtc,
+  scheduleToday,
+  utcOffsetLabel,
 } from './recurrence';
 
 /** Тексты ошибок зафиксированы в задании М4.5 — их проверяет e2e. */
@@ -235,9 +236,9 @@ export class ScheduleService {
 
   // -------------------------------------------------------------------- смены
 
-  /** GET /api/schedule/events?date=&objectId=&userId= (дата по умолчанию — сегодня UTC). */
+  /** GET /api/schedule/events?date=&objectId=&userId= (дата по умолчанию — сегодня по расписанию). */
   async listEvents(query: ListEventsQueryDto): Promise<ScheduleEventView[]> {
-    const date = query.date ? this.parseDate(query.date) : todayUtc();
+    const date = query.date ? this.parseDate(query.date) : this.today();
     const events = await this.prisma.scheduleEvent.findMany({
       where: {
         date,
@@ -250,15 +251,24 @@ export class ScheduleService {
     return this.enrichViews(events.map(toView));
   }
 
-  /** GET /api/schedule/my — смены текущего пользователя (по умолчанию — сегодня). */
+  /**
+   * GET /api/schedule/my — смены текущего пользователя (по умолчанию — с сегодняшнего
+   * дня). Без `from` в ответ попадает и открытая смена прошлых дней: вечерняя смена,
+   * перешедшая через полночь, не должна пропасть с экрана оператора.
+   */
   async listMyEvents(userId: string, query: MyEventsQueryDto): Promise<ScheduleEventView[]> {
-    const from = query.from ? this.parseDate(query.from) : todayUtc();
+    const from = query.from ? this.parseDate(query.from) : this.today();
     // to включительно: конец периода — конец указанного дня.
     const to = query.to ? new Date(this.parseDate(query.to).getTime() + 24 * 60 * 60 * 1000) : null;
+    const period: Prisma.ScheduleEventWhereInput = { date: { gte: from, ...(to ? { lt: to } : {}) } };
     const events = await this.prisma.scheduleEvent.findMany({
       where: {
         userId,
-        date: { gte: from, ...(to ? { lt: to } : {}) },
+        ...(query.from
+          ? period
+          : {
+              OR: [period, { status: ScheduleEventStatus.CHECKED_IN, checkOutAt: null }],
+            }),
       },
       include: { schedule: true },
       orderBy: [{ plannedStart: 'asc' }, { id: 'asc' }],
@@ -299,7 +309,7 @@ export class ScheduleService {
     now: Date = new Date(),
     scope: SweepScope = {},
   ): Promise<GenerationResult> {
-    const date = dateValue ? this.parseDate(dateValue) : todayUtc(now);
+    const date = dateValue ? this.parseDate(dateValue) : this.today(now);
     const result: GenerationResult = {
       date: formatDateOnly(date),
       schedulesMatched: 0,
@@ -357,7 +367,7 @@ export class ScheduleService {
     if (!recurrence) {
       return;
     }
-    const plannedStart = plannedStartAt(date, recurrence.time);
+    const plannedStart = plannedStartAt(date, recurrence.time, this.utcOffsetMinutes());
     const plannedEnd = new Date(plannedStart.getTime() + this.shiftPlannedDurationMs(recurrence));
     const assignees = schedule.assignees.length > 0 ? schedule.assignees : [null];
 
@@ -445,25 +455,31 @@ export class ScheduleService {
   }
 
   private ticketDescription(schedule: Schedule, plannedStart: Date): string {
-    const time = plannedStart.toISOString().slice(0, 16).replace('T', ' ');
-    return `Плановая уборка по графику «${schedule.name}» на ${time} UTC`;
+    const offset = this.utcOffsetMinutes();
+    const time = new Date(plannedStart.getTime() + offset * 60_000)
+      .toISOString()
+      .slice(0, 16)
+      .replace('T', ' ');
+    return `Плановая уборка по графику «${schedule.name}» на ${time} ${utcOffsetLabel(offset)}`;
   }
 
   /**
-   * Регулярная генерация (cron): смены на сегодня, если текущий час UTC — настроенный.
+   * Регулярная генерация (cron): смены на сегодняшний день расписания, если текущий
+   * час по времени расписания — настроенный (по умолчанию 0: полночь по Москве).
+   * Таймер тикает раз в час, поэтому настроенный час ловится ровно одним тиком.
    * Ошибка прохода не пробрасывается в таймер: следующий проход повторит попытку.
    */
   async generateForCurrentHour(now: Date = new Date()): Promise<GenerationResult | null> {
-    const hour = this.config.get<number>('schedule.generateHourUtc') ?? 0;
-    if (now.getUTCHours() !== hour) {
+    const hour = this.config.get<number>('schedule.generateHour') ?? 0;
+    const clock = new Date(now.getTime() + this.utcOffsetMinutes() * 60_000);
+    if (clock.getUTCHours() !== hour) {
       return null;
     }
+    const day = formatDateOnly(clock);
     try {
-      return await this.generateForDate(formatDateOnly(now), now);
+      return await this.generateForDate(day, now);
     } catch (error) {
-      this.logger.error(
-        `Регулярная генерация на ${formatDateOnly(now)} завершилась ошибкой: ${describe(error)}`,
-      );
+      this.logger.error(`Регулярная генерация на ${day} завершилась ошибкой: ${describe(error)}`);
       return null;
     }
   }
@@ -520,7 +536,7 @@ export class ScheduleService {
     dto: CheckOutDto,
     now: Date = new Date(),
   ): Promise<ScheduleEventView> {
-    const event = await this.findTodayEvent(dto.scheduleId, userId, now);
+    const event = await this.findEventToClose(dto.scheduleId, userId, now);
 
     if (event.checkOutAt || event.status === ScheduleEventStatus.CHECKED_OUT) {
       // Идемпотентность: повторное закрытие не перезаписывает время и не плодит событий.
@@ -618,8 +634,10 @@ export class ScheduleService {
   }
 
   /**
-   * Авто check-out (М4.5): смена CHECKED_IN, у которой с plannedStart прошло больше
-   * SCHEDULE_AUTO_CHECKOUT_MINUTES → CHECKED_OUT с пометкой причины.
+   * Авто check-out (М4.5): смена CHECKED_IN, у которой с планового конца (plannedEnd)
+   * прошло больше SCHEDULE_AUTO_CHECKOUT_MINUTES → CHECKED_OUT с пометкой причины.
+   * До 18.10.2026 отсчёт шёл от plannedStart, и открытая смена закрывалась через
+   * 15 минут после начала — посреди работы оператора.
    *
    * `scope` (задача A2) ограничивает проход одним графиком или одной сменой; порог
    * времени сохраняется по тем же причинам, что и в checkMissed.
@@ -638,7 +656,7 @@ export class ScheduleService {
       where: {
         status: ScheduleEventStatus.CHECKED_IN,
         checkOutAt: null,
-        plannedStart: { lte: threshold },
+        plannedEnd: { lte: threshold },
         ...this.scopeWhere(scope),
       },
       include: { schedule: true },
@@ -648,8 +666,6 @@ export class ScheduleService {
 
     const eventIds: string[] = [];
     for (const event of candidates) {
-      const end = new Date(event.plannedStart.getTime() + this.shiftDurationMs());
-      // Отсчёт от планового начала (см. configuration.ts): длительность модели не задана.
       await this.prisma.scheduleEvent.update({
         where: { id: event.id },
         data: {
@@ -661,7 +677,7 @@ export class ScheduleService {
       eventIds.push(event.id);
       this.logger.warn(
         `Авто check-out смены ${event.id}: оператор не закрыл смену ` +
-          `(начало ${event.plannedStart.toISOString()}, конец по графику ${end.toISOString()})`,
+          `(начало ${event.plannedStart.toISOString()}, конец по графику ${event.plannedEnd.toISOString()})`,
       );
     }
     return { closed: eventIds.length, eventIds };
@@ -723,24 +739,40 @@ export class ScheduleService {
   }
 
   /**
-   * Длительность смены для авто check-out. В модели хранится только начало,
-   * поэтому конец смены — начало + AUTO_MINUTES (конфиг = тот же таймаут бездействия).
-   * Функция вынесена отдельно, чтобы правило было в одном месте и покрывалось тестом.
-   */
-  private shiftDurationMs(): number {
-    const minutes = this.config.get<number>('schedule.autoCheckoutMinutes') ?? 15;
-    return minutes * 60_000;
-  }
-
-  /**
    * Плановая длительность смены (plannedStart → plannedEnd).
    * Приоритет: recurrence.durationMin → schedule.defaultShiftMinutes (480).
-   * Не путать с shiftDurationMs() — тот про таймаут бездействия авто check-out.
    */
   private shiftPlannedDurationMs(recurrence: RecurrenceRule): number {
     const minutes =
       recurrence.durationMin ?? this.config.get<number>('schedule.defaultShiftMinutes') ?? 480;
     return minutes * 60_000;
+  }
+
+  /** Сдвиг пояса расписания, мин (Москва — 180). Без конфига — UTC: так считают unit-тесты. */
+  private utcOffsetMinutes(): number {
+    return this.config.get<number>('schedule.utcOffsetMinutes') ?? 0;
+  }
+
+  /** Сегодняшний день расписания (полночь UTC как ключ дня). */
+  private today(now: Date = new Date()): Date {
+    return scheduleToday(now, this.utcOffsetMinutes());
+  }
+
+  /**
+   * Смена для check-out: сначала открытая (CHECKED_IN) по графику — вечерняя смена,
+   * перешедшая через полночь, закрывается и на следующий день, — иначе сегодняшняя.
+   */
+  private async findEventToClose(
+    scheduleId: string,
+    userId: string,
+    now: Date,
+  ): Promise<ScheduleEvent & { schedule: Schedule }> {
+    const open = await this.prisma.scheduleEvent.findFirst({
+      where: { scheduleId, userId, status: ScheduleEventStatus.CHECKED_IN, checkOutAt: null },
+      include: { schedule: true },
+      orderBy: { plannedStart: 'desc' },
+    });
+    return open ?? this.findTodayEvent(scheduleId, userId, now);
   }
 
   /** Смена сегодняшнего дня по графику и исполнителю. */
@@ -749,7 +781,7 @@ export class ScheduleService {
     userId: string,
     now: Date,
   ): Promise<ScheduleEvent & { schedule: Schedule }> {
-    const date = todayUtc(now);
+    const date = this.today(now);
     const event = await this.prisma.scheduleEvent.findFirst({
       where: { scheduleId, userId, date },
       include: { schedule: true },

@@ -24,7 +24,7 @@ import type {
   ScheduleEventEntity,
   SchedulerState,
 } from '../../types/schedule';
-import { EventStatusBadge, formatUtcDateTime, shortId, utcTimeOf } from './scheduleHelpers';
+import { EventStatusBadge, formatScheduleDateTime, shortId, scheduleTime } from './scheduleHelpers';
 
 /**
  * Вкладка «Смены дня»: что запланировано и что произошло в конкретный день.
@@ -156,7 +156,7 @@ export function DayEventsPanel({
       mono: true,
       card: 'field',
       cardLabel: 'Начало',
-      cell: (event) => utcTimeOf(event.plannedStart),
+      cell: (event) => scheduleTime(event.plannedStart),
     },
     {
       key: 'end',
@@ -168,13 +168,13 @@ export function DayEventsPanel({
       cell: (event) =>
         event.plannedEnd ? (
           <>
-            <span className="block">{utcTimeOf(event.plannedEnd)}</span>
+            <span className="block">{scheduleTime(event.plannedEnd)}</span>
             {event.checkOutAt ? (
-              <span className="block text-neutral-400">закрыта {utcTimeOf(event.checkOutAt)}</span>
+              <span className="block text-neutral-400">закрыта {scheduleTime(event.checkOutAt)}</span>
             ) : null}
           </>
         ) : event.checkOutAt ? (
-          utcTimeOf(event.checkOutAt)
+          scheduleTime(event.checkOutAt)
         ) : (
           <span className="text-neutral-400">—</span>
         ),
@@ -395,7 +395,7 @@ export function DayEventsPanel({
                 <dt className="text-xs text-neutral-500">Последняя генерация</dt>
                 <dd className="font-mono text-xs text-neutral-800">
                   {schedulerState?.lastGenerateAt
-                    ? formatUtcDateTime(schedulerState.lastGenerateAt)
+                    ? formatScheduleDateTime(schedulerState.lastGenerateAt)
                     : 'ещё не запускалась'}
                 </dd>
               </div>
@@ -409,7 +409,7 @@ export function DayEventsPanel({
                 <dt className="text-xs text-neutral-500">Последняя проверка неявок</dt>
                 <dd className="font-mono text-xs text-neutral-800">
                   {schedulerState?.lastScanAt
-                    ? formatUtcDateTime(schedulerState.lastScanAt)
+                    ? formatScheduleDateTime(schedulerState.lastScanAt)
                     : 'ещё не запускалась'}
                 </dd>
               </div>
@@ -452,7 +452,7 @@ export function DayEventsPanel({
             <Card padded={false}>
               <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-neutral-500">
                 <span>Смен за день: {items.length}</span>
-                <span>Время указано в UTC</span>
+                <span>Время указано по Москве (МСК)</span>
               </div>
               <ResponsiveTable<ScheduleEventEntity>
                 items={items}

@@ -43,10 +43,10 @@ final objectDetailProvider =
   return unwrap(await ref.watch(clientRepositoryProvider).objectDetail(objectId));
 });
 
-/// Смены объекта с сегодняшней даты (UTC, как `todayUtc()` в портале).
+/// Смены объекта с сегодняшней даты (по Москве, как `scheduleToday()` в портале).
 final objectEventsProvider =
     FutureProvider.family<List<ScheduleEvent>, String>((Ref ref, String objectId) async {
-  final DateTime today = ref.watch(nowProvider)().toUtc();
+  final DateTime today = scheduleClock(ref.watch(nowProvider)());
   final String from = DateFormat('yyyy-MM-dd').format(today);
   return unwrap(await ref.watch(clientRepositoryProvider).events(objectId, fromDate: from));
 });

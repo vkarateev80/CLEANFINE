@@ -44,8 +44,9 @@ async function bootstrap(): Promise<void> {
 
   console.log(
     `Проходы: неявки/авто check-out каждые ${schedule?.missedCheckinIntervalMs} мс, ` +
-      `авто check-out через ${schedule?.autoCheckoutMinutes} мин, ` +
-      `генерация каждые ${schedule?.generateIntervalMs} мс в ${schedule?.generateHourUtc}:00 UTC, ` +
+      `авто check-out через ${schedule?.autoCheckoutMinutes} мин после конца смены, ` +
+      `генерация: тик каждые ${schedule?.generateIntervalMs} мс, смены в ${schedule?.generateHour}:00 ` +
+      `(пояс расписания UTC${schedule?.utcOffsetMinutes >= 0 ? '+' : ''}${schedule?.utcOffsetMinutes / 60}), ` +
       `cron ${schedule?.cronEnabled ? 'включён' : 'выключен'}`,
   );
 }

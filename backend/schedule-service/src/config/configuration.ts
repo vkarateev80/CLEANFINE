@@ -5,8 +5,25 @@
 
 export const DEFAULT_PORT = 3008;
 
-/** Миллисекунды в сутках: интервал ежедневного прохода генерации по умолчанию. */
+import { SCHEDULE_UTC_OFFSET_MINUTES } from '@cleaning-ops/shared/types/schedule';
+
+/** Миллисекунды в сутках. */
 export const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Миллисекунды в часе: интервал прохода генерации по умолчанию. */
+export const HOUR_MS = 60 * 60 * 1000;
+
+/** Целое в границах [min, max]; нечисло или пустая строка → fallback (0 допустим). */
+export function boundedInt(
+  value: string | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  if (value === undefined || value.trim() === '') return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(Math.max(Math.trunc(parsed), min), max) : fallback;
+}
 
 export function positiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
@@ -67,8 +84,8 @@ export default () => ({
     ),
     /**
      * Авто check-out (М4.5): если оператор отметился, но не закрыл смену за
-     * SCHEDULE_AUTO_CHECKOUT_MINUTES от планового начала — смена закрывается сама.
-     * Отсчёт от plannedStart (а не от plannedEnd) — историческое правило М4.5.
+     * SCHEDULE_AUTO_CHECKOUT_MINUTES после планового конца — смена закрывается сама.
+     * До 18.10.2026 отсчёт шёл от plannedStart: смена закрывалась посреди работы.
      */
     autoCheckoutMinutes: positiveInt(process.env.SCHEDULE_AUTO_CHECKOUT_MINUTES, 15),
     /**
@@ -76,12 +93,25 @@ export default () => ({
      * Нужна для plannedStart → plannedEnd (пробел API М6). 480 = 8 часов.
      */
     defaultShiftMinutes: positiveInt(process.env.SCHEDULE_DEFAULT_SHIFT_MINUTES, 480),
-    /** Интервал прохода ежедневной генерации смен (по умолчанию — раз в сутки). */
-    generateIntervalMs: positiveInt(process.env.SCHEDULE_GENERATE_INTERVAL_MS, DAY_MS),
-    /** Час UTC, в который выполняется ежедневная генерация (0 — как «00:00» в уставе). */
-    generateHourUtc: Number.isFinite(Number(process.env.SCHEDULE_GENERATE_HOUR_UTC))
-      ? Math.min(Math.max(Math.trunc(Number(process.env.SCHEDULE_GENERATE_HOUR_UTC)), 0), 23)
-      : 0,
+    /**
+     * Сдвиг пояса расписания от UTC, мин: время графиков и день смены — по Москве
+     * (UTC+3, общий словарь shared/types/schedule.ts — его же читают админка и
+     * приложения, поэтому менять одно без другого нельзя).
+     */
+    utcOffsetMinutes: boundedInt(
+      process.env.SCHEDULE_UTC_OFFSET_MINUTES,
+      SCHEDULE_UTC_OFFSET_MINUTES,
+      -12 * 60,
+      14 * 60,
+    ),
+    /**
+     * Интервал тика генерации. Тик раз в час, а смены создаются только в тот, что
+     * попал в час `generateHour`: при суточном интервале фаза таймера зависела от
+     * времени старта пода (22:08) и настроенный час не наступал никогда.
+     */
+    generateIntervalMs: positiveInt(process.env.SCHEDULE_GENERATE_INTERVAL_MS, HOUR_MS),
+    /** Час по времени расписания, в который выполняется ежедневная генерация (0 — полночь). */
+    generateHour: boundedInt(process.env.SCHEDULE_GENERATE_HOUR, 0, 0, 23),
     /** Выключатель cron для e2e/отладки: SCHEDULE_CRON_ENABLED=false. */
     cronEnabled: (process.env.SCHEDULE_CRON_ENABLED ?? 'true') !== 'false',
     /** Размер порции в проходах неявок/авто check-out, чтобы не грузить БД. */

@@ -19,7 +19,7 @@ import type { SessionUser } from '../../types';
 import type { ObjectEntity } from '../../types/core';
 import type { ScheduleEventEntity } from '../../types/schedule';
 import { CheckInModal } from './CheckInModal';
-import { EventStatusBadge, shortId, utcTimeOf } from './scheduleHelpers';
+import { EventStatusBadge, shortId, scheduleTime } from './scheduleHelpers';
 
 /**
  * Вкладка «Мои смены»: смены текущего пользователя за период.
@@ -124,7 +124,7 @@ export function MyEventsPanel({
       mono: true,
       card: 'field',
       cardLabel: 'Начало',
-      cell: (event) => utcTimeOf(event.plannedStart),
+      cell: (event) => scheduleTime(event.plannedStart),
     },
     {
       key: 'checks',
@@ -136,12 +136,12 @@ export function MyEventsPanel({
       cell: (event) => (
         <>
           {event.checkInAt ? (
-            <span className="block">приход {utcTimeOf(event.checkInAt)}</span>
+            <span className="block">приход {scheduleTime(event.checkInAt)}</span>
           ) : (
             <span className="block text-neutral-400">прихода нет</span>
           )}
           {event.checkOutAt ? (
-            <span className="block">уход {utcTimeOf(event.checkOutAt)}</span>
+            <span className="block">уход {scheduleTime(event.checkOutAt)}</span>
           ) : null}
         </>
       ),
@@ -343,7 +343,7 @@ export function MyEventsPanel({
             <Card padded={false}>
               <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-neutral-500">
                 <span>Смен за период: {items.length}</span>
-                <span>Время указано в UTC</span>
+                <span>Время указано по Москве (МСК)</span>
               </div>
               <ResponsiveTable<ScheduleEventEntity>
                 items={items}

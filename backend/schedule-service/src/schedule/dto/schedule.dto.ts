@@ -56,7 +56,7 @@ export class RecurrenceDto {
   @Type(() => Number)
   dayOfMonth?: number;
 
-  @ApiProperty({ description: 'Время начала смены "HH:mm" (UTC)', example: '08:00' })
+  @ApiProperty({ description: 'Время начала смены "HH:mm" по Москве (пояс расписания, UTC+3)', example: '08:00' })
   @IsString()
   @IsNotEmpty({ message: 'Укажите время начала смены' })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -106,7 +106,7 @@ export class UpdateScheduleDto extends PartialType(CreateScheduleDto) {}
 
 /** GET /api/schedule/events — фильтры по дню/объекту/исполнителю. */
 export class ListEventsQueryDto {
-  @ApiPropertyOptional({ description: 'День "YYYY-MM-DD" (по умолчанию — сегодня UTC)' })
+  @ApiPropertyOptional({ description: 'День "YYYY-MM-DD" (по умолчанию — сегодня по Москве)' })
   @IsOptional()
   @IsString()
   date?: string;

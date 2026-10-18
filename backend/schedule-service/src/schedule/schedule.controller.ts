@@ -47,7 +47,7 @@ export class ScheduleController {
   @ApiOperation({
     summary: 'Смены на день с фильтрами (М4.4)',
     description:
-      'date — "YYYY-MM-DD" (по умолчанию сегодня UTC), objectId — фильтр по объекту графика, ' +
+      'date — "YYYY-MM-DD" (по умолчанию сегодня по Москве), objectId — фильтр по объекту графика, ' +
       'userId — фильтр по исполнителю. Ответ — плоские смены с именем графика и ticketId.',
   })
   async events(@Query() query: ListEventsQueryDto) {

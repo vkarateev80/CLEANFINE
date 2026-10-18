@@ -52,3 +52,40 @@ export const WEEKDAY_LABELS: Record<number, string> = {
   6: 'Сб',
   7: 'Вс',
 };
+
+/**
+ * Часовой пояс расписания (решение владельца 18.10.2026): время начала в графике,
+ * день смены и все подписи времени — по Москве. UTC+3 круглый год: летнего
+ * времени в России нет с 2014 года, поэтому хватает фиксированного сдвига без
+ * базы часовых поясов. Сервер берёт то же значение по умолчанию
+ * (`SCHEDULE_UTC_OFFSET_MINUTES` в configuration.ts schedule-service).
+ */
+export const SCHEDULE_UTC_OFFSET_MINUTES = 180;
+
+/** Подпись пояса рядом со временем: «08:00 МСК». */
+export const SCHEDULE_TIMEZONE_LABEL = 'МСК';
+
+/** Момент, сдвинутый так, что его UTC-поля — московские «часы на стене». */
+function toScheduleClock(value: Date): Date {
+  return new Date(value.getTime() + SCHEDULE_UTC_OFFSET_MINUTES * 60_000);
+}
+
+/** День расписания `YYYY-MM-DD` (московский) для момента; по умолчанию — сегодня. */
+export function scheduleDateOf(value: Date = new Date()): string {
+  return toScheduleClock(value).toISOString().slice(0, 10);
+}
+
+/** `HH:mm` момента по времени расписания; пустая строка для нечитаемого значения. */
+export function scheduleTimeOf(value: string | Date): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return '';
+  return toScheduleClock(date).toISOString().slice(11, 16);
+}
+
+/** `dd.MM.yyyy` момента по времени расписания; пустая строка для нечитаемого значения. */
+export function scheduleDayLabelOf(value: string | Date): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return '';
+  const [year, month, day] = toScheduleClock(date).toISOString().slice(0, 10).split('-');
+  return `${day}.${month}.${year}`;
+}

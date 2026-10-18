@@ -1,4 +1,4 @@
-import configuration, { DAY_MS, DEFAULT_PORT, positiveInt } from './configuration';
+import configuration, { DEFAULT_PORT, HOUR_MS, positiveInt } from './configuration';
 
 describe('configuration (schedule-service)', () => {
   const saved = { ...process.env };
@@ -27,7 +27,8 @@ describe('configuration (schedule-service)', () => {
       'SCHEDULE_MISSED_CHECKIN_INTERVAL_MS',
       'SCHEDULE_AUTO_CHECKOUT_MINUTES',
       'SCHEDULE_GENERATE_INTERVAL_MS',
-      'SCHEDULE_GENERATE_HOUR_UTC',
+      'SCHEDULE_GENERATE_HOUR',
+      'SCHEDULE_UTC_OFFSET_MINUTES',
       'SCHEDULE_CRON_ENABLED',
       'SCHEDULE_BATCH_SIZE',
     ]) {
@@ -48,8 +49,10 @@ describe('configuration (schedule-service)', () => {
     // Таймеры М4.5 по умолчанию: неявки раз в 5 минут, авто check-out через 15 минут.
     expect(cfg.schedule.missedCheckinIntervalMs).toBe(5 * 60 * 1000);
     expect(cfg.schedule.autoCheckoutMinutes).toBe(15);
-    expect(cfg.schedule.generateIntervalMs).toBe(DAY_MS);
-    expect(cfg.schedule.generateHourUtc).toBe(0);
+    // Тик генерации раз в час, смены — в полночь по времени расписания (Москва).
+    expect(cfg.schedule.generateIntervalMs).toBe(HOUR_MS);
+    expect(cfg.schedule.generateHour).toBe(0);
+    expect(cfg.schedule.utcOffsetMinutes).toBe(180);
     expect(cfg.schedule.cronEnabled).toBe(true);
     expect(cfg.schedule.batchSize).toBe(200);
   });
@@ -67,7 +70,8 @@ describe('configuration (schedule-service)', () => {
     process.env.SCHEDULE_MISSED_CHECKIN_INTERVAL_MS = '1000';
     process.env.SCHEDULE_AUTO_CHECKOUT_MINUTES = '1';
     process.env.SCHEDULE_GENERATE_INTERVAL_MS = '60000';
-    process.env.SCHEDULE_GENERATE_HOUR_UTC = '6';
+    process.env.SCHEDULE_GENERATE_HOUR = '6';
+    process.env.SCHEDULE_UTC_OFFSET_MINUTES = '0';
     process.env.SCHEDULE_CRON_ENABLED = 'false';
 
     const cfg = configuration();
@@ -85,7 +89,8 @@ describe('configuration (schedule-service)', () => {
     expect(cfg.schedule.missedCheckinIntervalMs).toBe(1000);
     expect(cfg.schedule.autoCheckoutMinutes).toBe(1);
     expect(cfg.schedule.generateIntervalMs).toBe(60_000);
-    expect(cfg.schedule.generateHourUtc).toBe(6);
+    expect(cfg.schedule.generateHour).toBe(6);
+    expect(cfg.schedule.utcOffsetMinutes).toBe(0);
     expect(cfg.schedule.cronEnabled).toBe(false);
   });
 
@@ -132,14 +137,25 @@ describe('configuration (schedule-service)', () => {
   });
 
   it('час генерации ограничен диапазоном 0..23', () => {
-    process.env.SCHEDULE_GENERATE_HOUR_UTC = '99';
-    expect(configuration().schedule.generateHourUtc).toBe(23);
-    process.env.SCHEDULE_GENERATE_HOUR_UTC = '-3';
-    expect(configuration().schedule.generateHourUtc).toBe(0);
-    process.env.SCHEDULE_GENERATE_HOUR_UTC = '7.9';
-    expect(configuration().schedule.generateHourUtc).toBe(7);
-    process.env.SCHEDULE_GENERATE_HOUR_UTC = 'не число';
-    expect(configuration().schedule.generateHourUtc).toBe(0);
+    process.env.SCHEDULE_GENERATE_HOUR = '99';
+    expect(configuration().schedule.generateHour).toBe(23);
+    process.env.SCHEDULE_GENERATE_HOUR = '-3';
+    expect(configuration().schedule.generateHour).toBe(0);
+    process.env.SCHEDULE_GENERATE_HOUR = '7.9';
+    expect(configuration().schedule.generateHour).toBe(7);
+    process.env.SCHEDULE_GENERATE_HOUR = 'не число';
+    expect(configuration().schedule.generateHour).toBe(0);
+  });
+
+  it('сдвиг пояса ограничен диапазоном UTC−12..UTC+14, мусор → Москва', () => {
+    process.env.SCHEDULE_UTC_OFFSET_MINUTES = '300';
+    expect(configuration().schedule.utcOffsetMinutes).toBe(300);
+    process.env.SCHEDULE_UTC_OFFSET_MINUTES = '9999';
+    expect(configuration().schedule.utcOffsetMinutes).toBe(14 * 60);
+    process.env.SCHEDULE_UTC_OFFSET_MINUTES = 'Москва';
+    expect(configuration().schedule.utcOffsetMinutes).toBe(180);
+    process.env.SCHEDULE_UTC_OFFSET_MINUTES = '';
+    expect(configuration().schedule.utcOffsetMinutes).toBe(180);
   });
 });
 

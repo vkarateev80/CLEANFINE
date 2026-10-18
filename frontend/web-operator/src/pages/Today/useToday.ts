@@ -4,7 +4,7 @@ import { getObject, getRoute } from '../../api/core';
 import { checkIn, checkOut, listMyEvents } from '../../api/schedule';
 import { listMyTickets } from '../../api/tickets';
 import { errorMessage } from '../../components/ui/Feedback';
-import { todayUtc } from '../../lib/date';
+import { previousDay, scheduleToday } from '../../lib/date';
 import { LocationUnavailable, getCurrentPosition } from '../../lib/geo';
 import { apiStatus } from '../../lib/http';
 import { useAuthStore } from '../../stores/authStore';
@@ -22,15 +22,25 @@ export function sortEvents(events: ScheduleEvent[]): ScheduleEvent[] {
   return [...events].sort((a, b) => a.plannedStart.localeCompare(b.plannedStart));
 }
 
+/**
+ * Смены экрана «Сегодня»: смены сегодняшнего дня плюс открытая смена прошлого —
+ * вечерняя смена, перешедшая через полночь, не пропадает с экрана, пока её не закрыли.
+ */
+export function todayShifts(events: ScheduleEvent[], day: string): ScheduleEvent[] {
+  return sortEvents(
+    events.filter((event) => event.date === day || event.status === 'CHECKED_IN'),
+  );
+}
+
 export const TODAY_QUERY_KEY = ['schedule', 'my', 'today'] as const;
 
-/** Смены на сегодня (UTC-день, как фильтрует сервер). `gcTime` сутки — кэш и без сети. */
+/** Смены на сегодня (день по Москве, как считает сервер). `gcTime` сутки — кэш и без сети. */
 export function useTodayEvents() {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const day = todayUtc();
+  const day = scheduleToday();
   return useQuery({
     queryKey: [...TODAY_QUERY_KEY, day],
-    queryFn: async () => sortEvents(await listMyEvents(day, day)),
+    queryFn: async () => todayShifts(await listMyEvents(previousDay(day), day), day),
     enabled: Boolean(accessToken),
     gcTime: 24 * 60 * 60 * 1000,
   });
