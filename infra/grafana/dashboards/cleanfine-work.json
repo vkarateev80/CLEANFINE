@@ -1,0 +1,1239 @@
+{
+  "uid": "cf-work",
+  "title": "CLEANFINE — работа",
+  "description": "Смены, маршруты и заявки: данные сервисов CLEANFINE только на чтение (роль grafana_ro)",
+  "tags": [
+    "cleanfine"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "1m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "name": "tz",
+        "label": "Часовой пояс",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "cf-pg-schedule"
+        },
+        "query": "SELECT COALESCE((SELECT \"timeZone\" FROM \"ScheduleSettings\" WHERE id = 'default'), 'Europe/Moscow')",
+        "definition": "",
+        "refresh": 1,
+        "hide": 2,
+        "current": {
+          "text": "Europe/Moscow",
+          "value": "Europe/Moscow"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Смен сегодня",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-schedule"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-schedule"
+          },
+          "rawSql": "SELECT count(*) FROM \"ScheduleEvent\" WHERE \"date\"::date = (now() AT TIME ZONE ${tz:sqlstring})::date",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "blue"
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "На смене сейчас",
+      "gridPos": {
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-schedule"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-schedule"
+          },
+          "rawSql": "SELECT count(*) FROM \"ScheduleEvent\" WHERE status = 'CHECKED_IN'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "Отметились и ещё не закрыли смену",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "text"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Закрыто сегодня",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-schedule"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-schedule"
+          },
+          "rawSql": "SELECT count(*) FROM \"ScheduleEvent\" WHERE \"date\"::date = (now() AT TIME ZONE ${tz:sqlstring})::date AND status = 'CHECKED_OUT'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "text"
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Неявки сегодня",
+      "gridPos": {
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-schedule"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-schedule"
+          },
+          "rawSql": "SELECT count(*) FROM \"ScheduleEvent\" WHERE \"date\"::date = (now() AT TIME ZONE ${tz:sqlstring})::date AND status = 'MISSED'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Опоздания сегодня",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-schedule"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-schedule"
+          },
+          "rawSql": "SELECT count(*) FROM staff_shift_fact WHERE day = (now() AT TIME ZONE ${tz:sqlstring})::date AND late",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "orange"
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Открытые заявки",
+      "gridPos": {
+        "x": 15,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-tickets"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-tickets"
+          },
+          "rawSql": "SELECT count(*) FROM tickets WHERE status IN ('new','assigned','in_progress','paused','overdue')",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "blue"
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Просроченные",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-tickets"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-tickets"
+          },
+          "rawSql": "SELECT count(*) FROM tickets WHERE status = 'overdue'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "SOS открытые",
+      "gridPos": {
+        "x": 21,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-tickets"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-tickets"
+          },
+          "rawSql": "SELECT count(*) FROM tickets WHERE type = 'emergency' AND status IN ('new','assigned','in_progress','paused','overdue')",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Смены сегодня",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-schedule"
+          },
+          "rawSql": "SELECT to_char(e.\"plannedStart\" AT TIME ZONE 'UTC' AT TIME ZONE ${tz:sqlstring}, 'HH24:MI') AS \"Начало\", s.name AS \"График\", e.\"userId\" AS \"userId\", CASE e.status WHEN 'PLANNED' THEN 'Запланирована' WHEN 'CHECKED_IN' THEN 'На смене' WHEN 'CHECKED_OUT' THEN 'Закрыта' WHEN 'MISSED' THEN 'Неявка' END AS \"Статус\", to_char(e.\"checkInAt\" AT TIME ZONE 'UTC' AT TIME ZONE ${tz:sqlstring}, 'HH24:MI') AS \"Пришёл\", to_char(e.\"checkOutAt\" AT TIME ZONE 'UTC' AT TIME ZONE ${tz:sqlstring}, 'HH24:MI') AS \"Ушёл\", CASE WHEN f.late THEN f.lateness_minutes END AS \"Опоздание, мин\", CASE WHEN e.\"checkOutReason\" IS NOT NULL THEN 'автоматически' END AS \"Закрыта\" FROM \"ScheduleEvent\" e JOIN \"Schedule\" s ON s.id = e.\"scheduleId\" LEFT JOIN staff_shift_fact f ON f.event_id = e.id WHERE e.\"date\"::date = (now() AT TIME ZONE ${tz:sqlstring})::date OR e.status = 'CHECKED_IN' ORDER BY e.\"plannedStart\"",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        },
+        {
+          "refId": "U",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-auth"
+          },
+          "rawSql": "SELECT id AS \"userId\", \"fullName\" AS \"Сотрудник\" FROM users",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "Смены сегодняшнего дня по поясу организации и открытые смены прошлых дней",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "userId",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "userId": true
+            },
+            "renameByName": {},
+            "indexByName": {
+              "Начало": 0,
+              "Сотрудник": 1,
+              "График": 2,
+              "Статус": 3,
+              "Пришёл": 4,
+              "Ушёл": 5,
+              "Опоздание, мин": 6,
+              "Закрыта": 7
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Статус"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "Запланирована": {
+                        "color": "blue",
+                        "index": 0
+                      },
+                      "На смене": {
+                        "color": "green",
+                        "index": 1
+                      },
+                      "Закрыта": {
+                        "color": "text",
+                        "index": 2
+                      },
+                      "Неявка": {
+                        "color": "red",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Маршруты сегодня",
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 24,
+        "h": 7
+      },
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-tickets"
+          },
+          "rawSql": "SELECT t.\"assigneeId\" AS \"userId\", CASE t.status WHEN 'new' THEN 'Новая' WHEN 'assigned' THEN 'Назначена' WHEN 'in_progress' THEN 'В работе' WHEN 'paused' THEN 'Пауза' WHEN 'completed' THEN 'Выполнена' WHEN 'verified' THEN 'Проверена' WHEN 'rejected' THEN 'Отклонена' WHEN 'closed' THEN 'Закрыта' WHEN 'overdue' THEN 'Просрочена' END AS \"Статус\", COALESCE(oc.done, 0) AS \"Операций\", t.\"operationsTotal\" AS \"Всего операций\", round(100.0 * COALESCE(oc.done, 0) / NULLIF(t.\"operationsTotal\", 0)) AS \"Готово, %\", COALESCE(rc.done, 0) AS \"Помещений закрыто\", COALESCE(oc.photos, 0) AS \"Фото\", to_char(GREATEST(oc.last, rc.last) AT TIME ZONE 'UTC' AT TIME ZONE ${tz:sqlstring}, 'HH24:MI') AS \"Последняя отметка\", to_char(t.\"createdAt\" AT TIME ZONE 'UTC' AT TIME ZONE ${tz:sqlstring}, 'DD.MM HH24:MI') AS \"Заявка создана\" FROM tickets t LEFT JOIN (SELECT \"ticketId\", count(*) AS done, count(\"photoUrl\") AS photos, max(\"completedAt\") AS last FROM ticket_operation_completions GROUP BY 1) oc ON oc.\"ticketId\" = t.id LEFT JOIN (SELECT \"ticketId\", count(*) AS done, max(\"completedAt\") AS last FROM ticket_room_completions GROUP BY 1) rc ON rc.\"ticketId\" = t.id WHERE t.type = 'planned' AND ((t.\"createdAt\" AT TIME ZONE 'UTC' AT TIME ZONE ${tz:sqlstring})::date = (now() AT TIME ZONE ${tz:sqlstring})::date OR t.status IN ('in_progress', 'paused')) ORDER BY t.\"createdAt\"",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        },
+        {
+          "refId": "U",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-auth"
+          },
+          "rawSql": "SELECT id AS \"userId\", \"fullName\" AS \"Сотрудник\" FROM users",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "Плановые заявки смен: сколько операций чек-листа отмечено, сколько помещений закрыто и фото",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "userId",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "userId": true
+            },
+            "renameByName": {},
+            "indexByName": {
+              "Сотрудник": 0,
+              "Статус": 1,
+              "Готово, %": 2,
+              "Операций": 3,
+              "Всего операций": 4,
+              "Помещений закрыто": 5,
+              "Фото": 6,
+              "Последняя отметка": 7,
+              "Заявка создана": 8
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Готово, %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "value": null,
+                      "color": "orange"
+                    },
+                    {
+                      "value": 50,
+                      "color": "yellow"
+                    },
+                    {
+                      "value": 100,
+                      "color": "green"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Статус"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "В работе": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "Просрочена": {
+                        "color": "red",
+                        "index": 1
+                      },
+                      "Назначена": {
+                        "color": "blue",
+                        "index": 2
+                      },
+                      "Выполнена": {
+                        "color": "text",
+                        "index": 3
+                      },
+                      "Закрыта": {
+                        "color": "text",
+                        "index": 4
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Заявки по дням",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-tickets"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-tickets"
+          },
+          "rawSql": "SELECT day::timestamp AS time, sum(created_count) AS \"Создано\", sum(completed_count) AS \"Выполнено\", sum(overdue_count) AS \"Просрочено\" FROM ticket_execution_daily WHERE day BETWEEN $__timeFrom()::date AND $__timeTo()::date GROUP BY day ORDER BY day",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Создано"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Выполнено"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Просрочено"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Смены по дням",
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "cf-pg-schedule"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-schedule"
+          },
+          "rawSql": "SELECT day::timestamp AS time, sum(shifts_count) AS \"Смен\", sum(checked_out_count) AS \"Отработано\", sum(missed_count) AS \"Неявки\", sum(late_count) AS \"Опоздания\", sum(auto_closed_count) AS \"Закрыты автоматически\" FROM staff_control WHERE day BETWEEN $__timeFrom()::date AND $__timeTo()::date GROUP BY day ORDER BY day",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "lineWidth": 1,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Смен"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Отработано"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Неявки"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Опоздания"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Закрыты автоматически"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Открытые заявки",
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-tickets"
+          },
+          "rawSql": "SELECT left(t.id, 8) AS \"Заявка\", CASE t.type WHEN 'planned' THEN 'Плановая' WHEN 'unscheduled' THEN 'Внеплановая' WHEN 'emergency' THEN 'SOS' ELSE t.type::text END AS \"Тип\", CASE t.priority::text WHEN 'critical' THEN 'Критичный' WHEN 'high' THEN 'Высокий' WHEN 'normal' THEN 'Обычный' WHEN 'low' THEN 'Низкий' ELSE t.priority::text END AS \"Приоритет\", CASE t.status WHEN 'new' THEN 'Новая' WHEN 'assigned' THEN 'Назначена' WHEN 'in_progress' THEN 'В работе' WHEN 'paused' THEN 'Пауза' WHEN 'overdue' THEN 'Просрочена' ELSE t.status::text END AS \"Статус\", t.\"assigneeId\" AS \"userId\", to_char(t.\"createdAt\" AT TIME ZONE 'UTC' AT TIME ZONE ${tz:sqlstring}, 'DD.MM HH24:MI') AS \"Создана\", left(t.description, 80) AS \"Описание\" FROM tickets t WHERE t.status IN ('new', 'assigned', 'in_progress', 'paused', 'overdue') ORDER BY (t.type = 'emergency') DESC, (t.status = 'overdue') DESC, t.\"createdAt\" DESC LIMIT 100",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        },
+        {
+          "refId": "U",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "cf-pg-auth"
+          },
+          "rawSql": "SELECT id AS \"userId\", \"fullName\" AS \"Сотрудник\" FROM users",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "userId",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "userId": true
+            },
+            "renameByName": {},
+            "indexByName": {
+              "Заявка": 0,
+              "Тип": 1,
+              "Приоритет": 2,
+              "Статус": 3,
+              "Сотрудник": 4,
+              "Создана": 5,
+              "Описание": 6
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Статус"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "Просрочена": {
+                        "color": "red",
+                        "index": 0
+                      },
+                      "В работе": {
+                        "color": "green",
+                        "index": 1
+                      },
+                      "Назначена": {
+                        "color": "blue",
+                        "index": 2
+                      },
+                      "Новая": {
+                        "color": "blue",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Тип"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "SOS": {
+                        "color": "red",
+                        "index": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    }
+  ]
+}

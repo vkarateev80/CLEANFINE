@@ -61,6 +61,7 @@ spec:
           for: 10m
           labels:
             severity: warning
+            notify: phone
           annotations:
             summary: "Более 5% ответов 5xx за 5 минут (Traefik)"
             description: "Доля 5xx {{ $value | humanizePercentage }} — проверить логи backend-подов."
@@ -74,6 +75,73 @@ spec:
             severity: warning
           annotations:
             summary: "p95 латентности Traefik выше 2с дольше 10 минут"
+---
+# Тревоги CLEANFINE на телефон (19.10.2026): метка notify=phone уводит их в
+# receiver phone-ntfy (push через свой ntfy, см. monitoring-values.yaml) и
+# дублирует письмом. Системные алерты стека остаются только в почте.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cleanfine-alerts
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  groups:
+    - name: cleanfine.rules
+      rules:
+        - alert: CleanfineServiceDown
+          expr: |
+            (kube_deployment_spec_replicas{namespace="cleaning-ops"} > 0)
+            and on (deployment)
+            (kube_deployment_status_replicas_available{namespace="cleaning-ops"} == 0)
+          for: 3m
+          labels:
+            severity: critical
+            notify: phone
+          annotations:
+            summary: "CLEANFINE: сервис {{ $labels.deployment }} не работает"
+            description: "Ни одной живой реплики {{ $labels.deployment }} больше 3 минут — проверить поды и логи."
+        - alert: CleanfineDatabaseDown
+          expr: |
+            kube_statefulset_status_replicas_ready{namespace="cleaning-ops"}
+            < kube_statefulset_replicas{namespace="cleaning-ops"}
+          for: 3m
+          labels:
+            severity: critical
+            notify: phone
+          annotations:
+            summary: "CLEANFINE: {{ $labels.statefulset }} не готов"
+            description: "База/хранилище {{ $labels.statefulset }} недоступно больше 3 минут — сервисы не могут работать."
+        - alert: CleanfinePodRestarting
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="cleaning-ops",container!="backup"}[15m]) >= 3
+          labels:
+            severity: warning
+            notify: phone
+          annotations:
+            summary: "CLEANFINE: {{ $labels.container }} перезапускается"
+            description: "{{ $value | printf \"%.0f\" }} перезапусков за 15 минут — сервис падает, смотреть логи пода {{ $labels.pod }}."
+        - alert: CleanfineDiskLow
+          expr: |
+            min(node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+                / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) < 0.10
+          for: 15m
+          labels:
+            severity: critical
+            notify: phone
+          annotations:
+            summary: "CLEANFINE: на сервере меньше 10% диска"
+            description: "Свободно {{ $value | humanizePercentage }} — фото, бэкапы и база перестанут записываться."
+        - alert: CleanfineBackupFailed
+          expr: |
+            kube_job_status_failed{namespace="cleaning-ops",job_name=~"daily-backup.*"} > 0
+          labels:
+            severity: warning
+            notify: phone
+          annotations:
+            summary: "CLEANFINE: ночной бэкап не удался"
+            description: "Задание {{ $labels.job_name }} завершилось ошибкой — данные за сутки не сохранены."
 ---
 # Grafana на path-based маршруте: https://cleanfine.ru/grafana/
 # TLS: ingress-shim выпускает СВОЙ сертификат LE для cleanfine.ru в ns monitoring

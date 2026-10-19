@@ -65,6 +65,16 @@ alertmanager:
         - receiver: "null"
           matchers:
             - alertname =~ "Watchdog|InfoInhibitor|KubeProxyDown|KubeSchedulerDown|KubeControllerManagerDown"
+        # Тревоги CLEANFINE (метка notify=phone, infra/k8s/monitoring.yaml) — push на
+        # телефон через свой ntfy (19.10.2026); continue — чтобы ушло и письмо.
+        - receiver: phone-ntfy
+          matchers:
+            - notify = "phone"
+          group_wait: 10s
+          repeat_interval: 4h
+          continue: true
+        # После phone-ntfy с continue: письмо получают все остальные (как и раньше).
+        - receiver: email-hello
     receivers:
       # Демпфер для подмаршрута Watchdog/InfoInhibitor из дефолтного route:
       # без него оператор отклоняет конфиг (undefined receiver "null").
@@ -73,12 +83,22 @@ alertmanager:
         email_configs:
           - to: hello@cleanfine.ru
             send_resolved: true
+      # Push через ntfy (cleaning-ops/ntfy). Адрес с секретным топиком и русским
+      # шаблоном сообщения — в Secret monitoring/alertmanager-ntfy (ключ url),
+      # создаёт infra/grafana/apply.sh; на телефоне — подписка в приложении ntfy.
+      - name: phone-ntfy
+        webhook_configs:
+          - url_file: /etc/alertmanager/secrets/alertmanager-ntfy/url
+            send_resolved: true
   alertmanagerSpec:
     retention: 168h # формат AM только h/m/s (не «7d»)
     # Чарт кладёт alertmanager.config в Secret alertmanager-<crname>, но без
     # configSecret оператор монтирует свой дефолтный -generated (receiver: null).
     # Указываем явно — helm-секрет с SMTP становится источником конфига.
     configSecret: alertmanager-kps-kube-prometheus-stack-alertmanager
+    # Монтируется в /etc/alertmanager/secrets/alertmanager-ntfy/ (url_file выше).
+    secrets:
+      - alertmanager-ntfy
     resources:
       requests: { cpu: 50m, memory: 64Mi }
       limits: { memory: 128Mi }
