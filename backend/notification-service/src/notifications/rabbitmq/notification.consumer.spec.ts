@@ -245,6 +245,41 @@ describe('NotificationConsumer', () => {
       expect(push.sent[0].body).toBe('Вам назначена задача: Помыть 3 этаж');
     });
 
+    it('плановая задача смены (ticket.created с окном) — in-app без push, ночью телефон молчит', async () => {
+      const { prisma, push, consumer } = build();
+      devicesFindMany(prisma);
+
+      await consumer.handle(
+        message('ticket.created', {
+          ticketId: 't-9',
+          assigneeId: 'u-5',
+          description: 'Плановая уборка по графику «Уборка1» на 2026-10-22 18:00 МСК',
+          plannedStart: '2026-10-22T15:00:00.000Z',
+          plannedEnd: '2026-10-22T23:00:00.000Z',
+        }),
+      );
+
+      expect(push.sent).toHaveLength(0);
+      expect(prisma.notification.create).toHaveBeenCalledTimes(1);
+      expect(prisma.notification.create.mock.calls[0][0].data).toMatchObject({
+        userId: 'u-5',
+        type: 'NEW_TICKET',
+      });
+    });
+
+    it('ticket.assigned при создании (onCreate) пропускается: уведомление уже ушло по ticket.created', async () => {
+      const { prisma, push, consumer } = build();
+      devicesFindMany(prisma);
+
+      await consumer.handle(
+        message('ticket.assigned', { ticketId: 't-9', assigneeId: 'u-5', onCreate: true }),
+      );
+
+      expect(push.sent).toHaveLength(0);
+      expect(prisma.notification.create).not.toHaveBeenCalled();
+      expect(warn).not.toHaveBeenCalled();
+    });
+
     it('ticket.overdue без получателя в payload уходит владельцам устройств', async () => {
       const { prisma, push, consumer } = build();
       devicesFindMany(prisma);

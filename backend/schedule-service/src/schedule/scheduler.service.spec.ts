@@ -4,6 +4,16 @@ import { SchedulerService } from './scheduler.service';
 
 const NOW = new Date('2026-09-16T00:00:00.000Z');
 
+/**
+ * Даёт догоняющей генерации при старте завершиться: она держит тот же замок,
+ * что и плановый тик, поэтому таймеры двигаем только после неё.
+ */
+async function settle(): Promise<void> {
+  for (let index = 0; index < 5; index += 1) {
+    await Promise.resolve();
+  }
+}
+
 /** Продвигает фейковые таймеры по одному тику, давая микрозадачам выполниться. */
 async function flushTimers(ticks: number, stepMs: number): Promise<void> {
   for (let index = 0; index < ticks; index += 1) {
@@ -24,6 +34,7 @@ function build(configValues: Record<string, unknown> = {}) {
 
   const schedule = {
     generateForCurrentHour: jest.fn().mockResolvedValue(null),
+    catchUpToday: jest.fn().mockResolvedValue(null),
     scanMissedAndAutoCheckout: jest.fn().mockResolvedValue({
       missed: { scanned: 0, missed: 0, eventIds: [] },
       autoCheckout: { closed: 0, eventIds: [] },
@@ -47,7 +58,10 @@ describe('SchedulerService (М4.4–М4.5)', () => {
       scheduler.onModuleInit();
 
       expect(config.get).toHaveBeenCalledWith('schedule.generateIntervalMs');
+      // При старте — догоняющая генерация, плановый тик ждёт границы интервала.
+      expect(schedule.catchUpToday).toHaveBeenCalledTimes(1);
       expect(schedule.generateForCurrentHour).not.toHaveBeenCalled();
+      await settle();
 
       await flushTimers(1, 60_000);
       expect(schedule.generateForCurrentHour).toHaveBeenCalledTimes(1);
@@ -80,8 +94,47 @@ describe('SchedulerService (М4.4–М4.5)', () => {
       scheduler.onModuleInit();
       await flushTimers(3, 60_000);
 
+      expect(schedule.catchUpToday).not.toHaveBeenCalled();
       expect(schedule.generateForCurrentHour).not.toHaveBeenCalled();
       expect(schedule.scanMissedAndAutoCheckout).not.toHaveBeenCalled();
+    });
+
+    it('тик генерации выровнен по границе интервала, а не по моменту старта', async () => {
+      jest.useFakeTimers({ now: new Date('2026-10-19T00:29:29.000Z') });
+      const { scheduler, schedule } = build();
+
+      scheduler.onModuleInit();
+      await settle();
+
+      // Старт в :29 при минутном интервале → первый тик ровно через 31 секунду.
+      await flushTimers(30, 1_000);
+      expect(schedule.generateForCurrentHour).not.toHaveBeenCalled();
+      await flushTimers(1, 1_000);
+      expect(schedule.generateForCurrentHour).toHaveBeenCalledTimes(1);
+
+      scheduler.onModuleDestroy();
+      await flushTimers(5, 60_000);
+      expect(schedule.generateForCurrentHour).toHaveBeenCalledTimes(1);
+    });
+
+    it('догоняющая генерация обновляет состояние прохода', async () => {
+      const { scheduler, schedule } = build();
+      schedule.catchUpToday.mockResolvedValue({
+        date: '2026-09-16',
+        schedulesMatched: 1,
+        shiftsCreated: 2,
+        shiftsSkipped: 0,
+        ticketsCreated: 2,
+        ticketsFailed: 0,
+        ticketsBackfilled: 0,
+        ticketServiceUnavailable: false,
+        errors: [],
+      });
+
+      await scheduler.runCatchUp(NOW);
+
+      expect(scheduler.getState().lastGenerateDate).toBe('2026-09-16');
+      expect(scheduler.getState().lastGenerateAt).not.toBeNull();
     });
 
     it('onModuleDestroy безопасен без предварительного init', () => {

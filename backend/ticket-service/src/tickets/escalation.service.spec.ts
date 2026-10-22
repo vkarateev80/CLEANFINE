@@ -72,10 +72,13 @@ describe('EscalationService (М3.5)', () => {
           },
         }),
       );
-      // Прибытие: assigned с истёкшим arrivalDeadline.
+      // Прибытие: assigned с истёкшим arrivalDeadline — или заявка смены, не начатая к её концу.
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: 'assigned', arrivalDeadline: { lte: NOW } },
+          where: {
+            status: 'assigned',
+            OR: [{ arrivalDeadline: { lte: NOW } }, { completionDeadline: { lte: NOW } }],
+          },
         }),
       );
       // Выполнение: in_progress/paused с истёкшим completionDeadline.

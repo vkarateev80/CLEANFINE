@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EVENT_QUEUES } from '@cleaning-ops/shared/constants/events';
 import {
   NOTIFICATION_ROUTING_KEYS,
+  isAssignedOnCreate,
   resolveEvent,
   ticketStatusBody,
   type ResolvedNotification,
@@ -38,6 +39,10 @@ export class NotificationConsumer implements OnModuleInit {
 
   /** Обработка одного события. Ошибка обработки пробрасывается в RabbitmqService (nack). */
   async handle(message: RabbitMessage): Promise<void> {
+    if (isAssignedOnCreate(message.routingKey, message.payload)) {
+      this.logger.debug('ticket.assigned при создании заявки — уведомление уже ушло по ticket.created');
+      return;
+    }
     const resolved = resolveEvent(message.routingKey, message.payload);
     if (resolved === null) {
       this.logger.warn(`Событие ${message.routingKey} не преобразуется в уведомление — пропущено`);
@@ -55,12 +60,13 @@ export class NotificationConsumer implements OnModuleInit {
       return;
     }
 
-    const notified = await this.notifications.notifyUsers(
-      recipients,
-      resolved.template,
-      await this.enrichParams(resolved),
-      resolved.data,
-    );
+    const params = await this.enrichParams(resolved);
+    // Тихое уведомление (плановая задача смены) — только in-app, без push.
+    const notified = resolved.quiet
+      ? await this.notifications.notifyUsers(recipients, resolved.template, params, resolved.data, {
+          quiet: true,
+        })
+      : await this.notifications.notifyUsers(recipients, resolved.template, params, resolved.data);
     this.logger.log(
       `Событие ${message.routingKey}: уведомлено ${notified} из ${recipients.length}`,
     );

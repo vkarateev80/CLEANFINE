@@ -13,6 +13,7 @@ import type { AuthUser } from '../auth/guards/roles.guard';
 import {
   notificationTargets,
   statusChangedPayload,
+  type TicketAssignedPayload,
   type TicketCreatedPayload,
   type TicketEmergencyPayload,
   type TicketOverduePayload,
@@ -45,6 +46,9 @@ const EMPTY_RELATION_COUNTS = { assignments: 0, comments: 0, operations: 0, room
 
 /** Вход создания заявки: DTO API и внутренние вызовы (SOS) сведены к одной форме. */
 export interface CreateTicketInput {
+  /** Окно смены (ISO 8601), оба края вместе: заявку создал schedule-service по смене. */
+  plannedStart?: string;
+  plannedEnd?: string;
   type: TicketType;
   priority?: TicketPriority;
   objectId: string;
@@ -118,12 +122,14 @@ export class TicketsService {
   /**
    * Создание плановой/внеплановой заявки (М3.4).
    * Если исполнитель задан сразу (например, schedule-service, М4.4), заявка
-   * создаётся в статусе assigned и получает дедлайн прибытия.
+   * создаётся в статусе assigned и получает дедлайн прибытия; заявка по смене
+   * (с окном plannedStart/plannedEnd, 22.10.2026) — дедлайн выполнения к концу смены.
    */
   async create(input: CreateTicketInput, user: AuthUser): Promise<Ticket> {
     const now = new Date();
     const durations = this.durations;
     const assigneeId = input.assigneeId ?? null;
+    const window = plannedWindowOf(input);
 
     const data: Prisma.TicketUncheckedCreateInput = {
       type: input.type,
@@ -136,6 +142,8 @@ export class TicketsService {
       description: input.description,
       lat: input.lat ?? null,
       lng: input.lng ?? null,
+      plannedStart: window?.start ?? null,
+      plannedEnd: window?.end ?? null,
       // Таймер реакции (М3.5): NEW обязан быть принят за ESCALATION_NEW_TO_ACCEPT_MIN.
       reactionDeadline: assigneeId ? null : reactionDeadline(now, durations),
     };
@@ -143,7 +151,13 @@ export class TicketsService {
     if (assigneeId) {
       data.assignedAt = now;
       data.acceptedAt = now;
-      data.arrivalDeadline = addMinutes(now, durations.acceptToArriveMin);
+      if (window) {
+        // Заявка смены: выполнить к концу смены. «Прибыть за 15 минут» здесь
+        // бессмысленно — смена начнётся позже, а неявку ловит schedule-service.
+        data.completionDeadline = window.end;
+      } else {
+        data.arrivalDeadline = addMinutes(now, durations.acceptToArriveMin);
+      }
       data.assignments = {
         create: { assigneeId, assignedBy: user.id, assignedAt: now },
       };
@@ -158,13 +172,19 @@ export class TicketsService {
       ticketId: ticket.id,
       assigneeId: ticket.assigneeId ?? '',
       description: ticket.description,
+      ...(window
+        ? { plannedStart: window.start.toISOString(), plannedEnd: window.end.toISOString() }
+        : {}),
     };
     await this.publisher.publish(ROUTING_KEYS.TICKET_CREATED, createdPayload);
     if (ticket.assigneeId) {
-      await this.publisher.publish(ROUTING_KEYS.TICKET_ASSIGNED, {
+      const assignedPayload: TicketAssignedPayload = {
         ticketId: ticket.id,
         assigneeId: ticket.assigneeId,
-      });
+        // Уведомление исполнителю уже ушло по ticket.created.
+        onCreate: true,
+      };
+      await this.publisher.publish(ROUTING_KEYS.TICKET_ASSIGNED, assignedPayload);
     }
     return ticket;
   }
@@ -695,6 +715,7 @@ export class TicketsService {
         ...timingUpdatesFor(to, now, this.durations, {
           acceptedAt: ticket.acceptedAt,
           arrivedAt: ticket.arrivedAt,
+          plannedEnd: ticket.plannedEnd,
         }),
       },
     });
@@ -839,4 +860,23 @@ export class TicketsService {
 /** Нарушение уникальности Prisma (P2002) — признак гонки идемпотентных вызовов. */
 function isUniqueViolation(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
+
+/** Окно смены из входа: оба края или ни одного, конец позже начала; иначе 400. */
+function plannedWindowOf(input: CreateTicketInput): { start: Date; end: Date } | null {
+  if (!input.plannedStart && !input.plannedEnd) {
+    return null;
+  }
+  if (!input.plannedStart || !input.plannedEnd) {
+    throw new BadRequestException('Укажите начало и конец смены вместе');
+  }
+  const start = new Date(input.plannedStart);
+  const end = new Date(input.plannedEnd);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new BadRequestException('Некорректное окно смены');
+  }
+  if (end.getTime() <= start.getTime()) {
+    throw new BadRequestException('Конец смены должен быть позже начала');
+  }
+  return { start, end };
 }

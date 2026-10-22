@@ -9,6 +9,12 @@ export interface CreateTicketInput {
   objectId: string;
   assigneeId?: string;
   description: string;
+  /**
+   * Окно смены (ISO 8601, 22.10.2026): ticket-service считает дедлайн выполнения
+   * от конца смены, а не «15 минут после создания», и не шлёт ночной push.
+   */
+  plannedStart?: string;
+  plannedEnd?: string;
 }
 
 /** Созданная заявка: schedule-service нужен только id. */

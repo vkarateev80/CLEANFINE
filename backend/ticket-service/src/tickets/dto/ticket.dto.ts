@@ -57,6 +57,21 @@ export class CreateTicketDto {
   @MaxLength(2000)
   description!: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Начало смены (ISO 8601): заявка создана schedule-service по смене. Задаётся вместе с plannedEnd.',
+  })
+  @IsOptional()
+  @IsISO8601()
+  plannedStart?: string;
+
+  @ApiPropertyOptional({
+    description: 'Конец смены (ISO 8601) — дедлайн выполнения плановой заявки вместо «+60 минут».',
+  })
+  @IsOptional()
+  @IsISO8601()
+  plannedEnd?: string;
+
   @ApiPropertyOptional({ description: 'Широта (мобильное создание)' })
   @IsOptional()
   @Type(() => Number)

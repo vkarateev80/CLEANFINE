@@ -109,6 +109,8 @@ function ticketFixture(overrides: Partial<Ticket> = {}): Ticket {
     reactionDeadline: new Date('2026-01-01T10:05:00.000Z'),
     arrivalDeadline: null,
     completionDeadline: null,
+    plannedStart: null,
+    plannedEnd: null,
     operationsTotal: null,
     roomsTotal: null,
     createdAt: NOW,
@@ -226,10 +228,61 @@ describe('TicketsService (М3.4–М3.6)', () => {
       expect(data.assignments).toEqual({
         create: { assigneeId: 'u-op', assignedBy: 'u-admin', assignedAt: NOW },
       });
+      // onCreate: notification-service не шлёт второе «Новая задача» — оно уже ушло по ticket.created.
       expect(publisher.publish).toHaveBeenCalledWith(ROUTING_KEYS.TICKET_ASSIGNED, {
         ticketId: 't-1',
         assigneeId: 'u-op',
+        onCreate: true,
       });
+    });
+
+    it('заявка смены (окно plannedStart/plannedEnd): дедлайн — конец смены, таймера прибытия нет', async () => {
+      prisma.ticket.create.mockResolvedValue(
+        ticketFixture({
+          status: 'assigned',
+          assigneeId: 'u-op',
+          description: 'Уборка по графику',
+          plannedStart: new Date('2026-01-01T15:00:00.000Z'),
+          plannedEnd: new Date('2026-01-01T23:00:00.000Z'),
+        }),
+      );
+
+      await service.create(
+        {
+          type: 'planned',
+          objectId: 'obj-1',
+          description: 'Уборка по графику',
+          assigneeId: 'u-op',
+          // Создана в 10:00 на смену 18:00–02:00 МСК: раньше просрочилась бы в 10:15.
+          plannedStart: '2026-01-01T15:00:00.000Z',
+          plannedEnd: '2026-01-01T23:00:00.000Z',
+        },
+        USER,
+      );
+
+      const data = prisma.ticket.create.mock.calls[0][0].data as Prisma.TicketUncheckedCreateInput;
+      expect(data.plannedStart).toEqual(new Date('2026-01-01T15:00:00.000Z'));
+      expect(data.plannedEnd).toEqual(new Date('2026-01-01T23:00:00.000Z'));
+      expect(data.arrivalDeadline).toBeUndefined();
+      expect(data.completionDeadline).toEqual(new Date('2026-01-01T23:00:00.000Z'));
+      expect(publisher.publish).toHaveBeenCalledWith(ROUTING_KEYS.TICKET_CREATED, {
+        ticketId: 't-1',
+        assigneeId: 'u-op',
+        description: 'Уборка по графику',
+        plannedStart: '2026-01-01T15:00:00.000Z',
+        plannedEnd: '2026-01-01T23:00:00.000Z',
+      });
+    });
+
+    it.each([
+      ['только начало', { plannedStart: '2026-01-01T15:00:00.000Z' }],
+      ['конец раньше начала', { plannedStart: '2026-01-01T15:00:00.000Z', plannedEnd: '2026-01-01T14:00:00.000Z' }],
+      ['мусор вместо даты', { plannedStart: 'вчера', plannedEnd: '2026-01-01T23:00:00.000Z' }],
+    ])('окно смены: %s → 400', async (_title, window) => {
+      await expect(
+        service.create({ type: 'planned', objectId: 'obj-1', description: 'Уборка', ...window }, USER),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.ticket.create).not.toHaveBeenCalled();
     });
 
     it('недоступность брокера (publish=false) не роняет создание заявки', async () => {

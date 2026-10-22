@@ -117,7 +117,12 @@ export class EscalationService implements OnModuleInit, OnModuleDestroy {
   private async markOverdueTickets(now: Date): Promise<string[]> {
     const [notArrived, notCompleted] = await Promise.all([
       this.prisma.ticket.findMany({
-        where: { status: 'assigned', arrivalDeadline: { lte: now } },
+        // Не прибыл в срок — или заявка смены не начата к концу смены
+        // (completionDeadline у неё стоит с создания, arrivalDeadline нет).
+        where: {
+          status: 'assigned',
+          OR: [{ arrivalDeadline: { lte: now } }, { completionDeadline: { lte: now } }],
+        },
         select: { id: true },
         take: SCAN_BATCH,
       }),

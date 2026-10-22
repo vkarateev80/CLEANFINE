@@ -11,6 +11,7 @@
  * которые знают только базовые поля.
  */
 import type {
+  TicketAssignedEvent,
   TicketCreatedEvent,
   TicketEmergencyEvent,
   TicketOverdueEvent,
@@ -31,7 +32,21 @@ export interface NotificationTargeting {
   userIds?: string[];
 }
 
-export type TicketCreatedPayload = TicketCreatedEvent & NotificationTargeting;
+/**
+ * Окно смены плановой заявки (22.10.2026): по нему notification-service понимает,
+ * что задача плановая и создана ночной генерацией — push не нужен, только in-app.
+ */
+export interface TicketScheduleWindow {
+  plannedStart?: string;
+  plannedEnd?: string;
+}
+
+export type TicketCreatedPayload = TicketCreatedEvent & NotificationTargeting & TicketScheduleWindow;
+/**
+ * `onCreate` — назначение произошло при создании заявки: ticket.created уже
+ * ушёл с assigneeId, и notification-service не шлёт второе «Новая задача».
+ */
+export type TicketAssignedPayload = TicketAssignedEvent & { onCreate?: boolean };
 export type TicketEmergencyPayload = TicketEmergencyEvent & NotificationTargeting;
 export type TicketOverduePayload = TicketOverdueEvent & NotificationTargeting;
 export type TicketStatusChangedPayload = TicketStatusChangedEvent & NotificationTargeting;

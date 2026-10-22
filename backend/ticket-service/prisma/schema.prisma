@@ -60,6 +60,12 @@ model Ticket {
   lat         Float?
   lng         Float?
 
+  // --- окно смены (22.10.2026): заявку создал schedule-service по смене ---
+  /// Начало смены (UTC). У такой заявки нет таймера прибытия: неявку ловит schedule-service.
+  plannedStart DateTime?
+  /// Конец смены (UTC) — дедлайн выполнения вместо «+60 минут от прибытия».
+  plannedEnd   DateTime?
+
   // --- тайминги (кто и когда прошёл шаги жизненного цикла) ---
   assignedAt  DateTime?
   acceptedAt  DateTime?

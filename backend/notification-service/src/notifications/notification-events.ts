@@ -56,6 +56,11 @@ export interface ResolvedNotification {
   params: TemplateParams;
   /** Данные уведомления: уходят в push.data и в notifications.payload. */
   data: Record<string, unknown>;
+  /**
+   * Только in-app, без push (22.10.2026): плановую задачу смены создаёт ночная
+   * генерация — оператор увидит её в «Сегодня», будить его незачем.
+   */
+  quiet?: boolean;
 }
 
 /** Текст TICKET_STATUS: описание и, если известен, инициатор через « · ». */
@@ -119,9 +124,18 @@ function collectRecipients(payload: Record<string, unknown>): string[] {
 const pad2 = (part: number): string => String(part).padStart(2, '0');
 
 /**
+ * ticket.assigned, опубликованное вместе с ticket.created (заявка создана сразу
+ * с исполнителем): уведомление уже ушло по ticket.created, второе «Новая задача»
+ * было бы дублем (22.10.2026).
+ */
+export function isAssignedOnCreate(routingKey: string, payload: unknown): boolean {
+  return routingKey === ROUTING_KEYS.TICKET_ASSIGNED && asRecord(payload)?.onCreate === true;
+}
+
+/**
  * Плановое начало смены (ISO 8601 от schedule-service) → «ДД.ММ.ГГГГ ЧЧ:ММ UTC».
- * Время показываем в UTC: графики в schedule-service хранят время в UTC, и
- * сервис уведомлений не знает часовой пояс получателя.
+ * Запасной вариант: с 22.10.2026 schedule-service присылает готовый текст по
+ * часам организации (plannedStartLocal), а пояс получателя здесь неизвестен.
  * Отсутствующее или неразбираемое значение даёт понятную подпись/исходную строку,
  * чтобы пользователь не увидел пустое место или "Invalid Date".
  */
@@ -160,12 +174,16 @@ export function resolveEvent(routingKey: string, payload: unknown): ResolvedNoti
         return null;
       }
       const description = asText(event.description) ?? `Заявка ${ticketId}`;
+      // Окно смены есть только у заявок, созданных schedule-service по графику.
+      const plannedStart = asText(event.plannedStart);
+      const plannedEnd = asText(event.plannedEnd);
       return {
         routingKey,
         template: 'NEW_TICKET',
         userIds: [assigneeId],
         params: { ticketDescription: description },
-        data: { ticketId },
+        data: { ticketId, ...(plannedStart ? { plannedStart, plannedEnd: plannedEnd ?? '' } : {}) },
+        ...(plannedStart ? { quiet: true } : {}),
       };
     }
 
@@ -265,13 +283,15 @@ export function resolveEvent(routingKey: string, payload: unknown): ResolvedNoti
       const userId = asText(event.userId);
       const objectName = asText(event.objectName) ?? 'объект не указан';
       const plannedStart = asText(event.plannedStart) ?? '';
+      // Текст по часам организации («21.10.2026 18:00 МСК») собирает schedule-service.
+      const plannedStartLocal = asText(event.plannedStartLocal);
       return {
         routingKey,
         template: 'SCHEDULE_MISSED',
         // Событие адресное: уведомляем сотрудника из userId. Пустой/отсутствующий
         // userId означает нарушение контракта у издателя — консьюмер сделает broadcast.
         userIds: userId === undefined ? [] : [userId],
-        params: { objectName, plannedStart: formatPlannedStart(plannedStart) },
+        params: { objectName, plannedStart: plannedStartLocal ?? formatPlannedStart(plannedStart) },
         data: {
           eventId: asText(event.eventId) ?? '',
           scheduleId,
@@ -279,6 +299,7 @@ export function resolveEvent(routingKey: string, payload: unknown): ResolvedNoti
           objectId: asText(event.objectId) ?? '',
           objectName,
           plannedStart,
+          ...(plannedStartLocal ? { plannedStartLocal } : {}),
           detectedAt: asText(event.detectedAt) ?? '',
         },
       };

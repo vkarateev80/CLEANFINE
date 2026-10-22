@@ -28,6 +28,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SchedulerService.name);
 
   private generateTimer: NodeJS.Timeout | null = null;
+  /** Задержка до первой границы интервала генерации (тик — ровно в :00). */
+  private generateDelay: NodeJS.Timeout | null = null;
   private scanTimer: NodeJS.Timeout | null = null;
   private scanning = false;
   private generating = false;
@@ -55,10 +57,22 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const scanIntervalMs =
       this.config.get<number>('schedule.missedCheckinIntervalMs') ?? 5 * 60 * 1000;
 
-    this.generateTimer = setInterval(() => {
+    // Смены на сегодня — сразу, если час генерации уже прошёл (перезапуск в
+    // 00:29 раньше оставлял день без смен до ручной генерации).
+    void this.runCatchUp();
+
+    // Тики по границе интервала (при часовом интервале — ровно в :00), а не от
+    // момента старта пода: иначе генерация шла в 00:43 и зависела от выката.
+    const firstDelay = generateIntervalMs - (Date.now() % generateIntervalMs);
+    this.generateDelay = setTimeout(() => {
+      this.generateDelay = null;
       void this.runGenerate();
-    }, generateIntervalMs);
-    this.generateTimer.unref?.();
+      this.generateTimer = setInterval(() => {
+        void this.runGenerate();
+      }, generateIntervalMs);
+      this.generateTimer.unref?.();
+    }, firstDelay);
+    this.generateDelay.unref?.();
 
     this.scanTimer = setInterval(() => {
       void this.runScan();
@@ -72,11 +86,15 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleDestroy(): void {
+    if (this.generateDelay) {
+      clearTimeout(this.generateDelay);
+    }
     for (const timer of [this.generateTimer, this.scanTimer]) {
       if (timer) {
         clearInterval(timer);
       }
     }
+    this.generateDelay = null;
     this.generateTimer = null;
     this.scanTimer = null;
   }
@@ -105,6 +123,31 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error(
         `Проход генерации завершился ошибкой: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      this.generating = false;
+    }
+  }
+
+  /** Догоняющая генерация при старте: тот же замок, что у планового прохода. */
+  async runCatchUp(now: Date = new Date()): Promise<void> {
+    if (this.generating) {
+      return;
+    }
+    this.generating = true;
+    try {
+      const result = await this.schedule.catchUpToday(now);
+      if (result) {
+        this.state.lastGenerateAt = new Date().toISOString();
+        this.state.lastGenerateDate = result.date;
+        this.logger.log(
+          `Догоняющая генерация на ${result.date}: создано смен ${result.shiftsCreated}, ` +
+            `уже было ${result.shiftsSkipped}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Догоняющая генерация завершилась ошибкой: ${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
       this.generating = false;

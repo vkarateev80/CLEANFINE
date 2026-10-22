@@ -219,12 +219,14 @@ export class NotificationsService {
   /**
    * Уведомить одного пользователя: фильтр подписок → push → in-app запись.
    * Возвращает null, если тип отключён в настройках пользователя.
+   * `quiet` — только in-app запись без push (плановая задача смены, созданная ночью).
    */
   async notifyUser(
     userId: string,
     type: NotificationType,
     params: TemplateParams = {},
     data: Record<string, unknown> = {},
+    options: { quiet?: boolean } = {},
   ): Promise<Notification | null> {
     const disabledTypes = await this.getDisabledTypes(userId);
     if (disabledTypes.includes(type)) {
@@ -233,11 +235,15 @@ export class NotificationsService {
     }
 
     const rendered = renderTemplate(type, params);
-    const devices = await this.getActiveDevices(userId);
-    if (devices.length > 0) {
-      await this.pushToDevices(userId, type, rendered, devices, data);
+    if (options.quiet) {
+      this.logger.log(`type=${type} user=${userId}: тихое уведомление — только in-app`);
     } else {
-      this.logger.log(`user=${userId} без активных устройств: push пропущен, только in-app`);
+      const devices = await this.getActiveDevices(userId);
+      if (devices.length > 0) {
+        await this.pushToDevices(userId, type, rendered, devices, data);
+      } else {
+        this.logger.log(`user=${userId} без активных устройств: push пропущен, только in-app`);
+      }
     }
 
     return this.prisma.notification.create({
@@ -280,10 +286,11 @@ export class NotificationsService {
     type: NotificationType,
     params: TemplateParams = {},
     data: Record<string, unknown> = {},
+    options: { quiet?: boolean } = {},
   ): Promise<number> {
     const unique = Array.from(new Set(userIds.filter((userId) => userId.length > 0)));
     const created = await Promise.all(
-      unique.map((userId) => this.notifyUser(userId, type, params, data)),
+      unique.map((userId) => this.notifyUser(userId, type, params, data, options)),
     );
     return created.filter((notification) => notification !== null).length;
   }

@@ -26,6 +26,15 @@ export function reactionDeadline(createdAt: Date, durations: EscalationDurations
   return addMinutes(createdAt, durations.newToAcceptMin);
 }
 
+/**
+ * Конец смены как дедлайн выполнения, пока он впереди (22.10.2026). Если смена уже
+ * прошла (overdue → in_progress), действуют обычные 60 минут — иначе заявка уходила
+ * бы в overdue снова сразу после возобновления.
+ */
+export function shiftDeadline(plannedEnd: Date | null | undefined, now: Date): Date | null {
+  return plannedEnd && plannedEnd.getTime() > now.getTime() ? plannedEnd : null;
+}
+
 /** Поля-тайминги, которые проставляет переход статуса. null — очистить дедлайн. */
 export interface StatusTimingUpdate {
   assignedAt?: Date;
@@ -55,7 +64,7 @@ export function timingUpdatesFor(
   to: TicketStatus,
   now: Date,
   durations: EscalationDurations,
-  existing: { acceptedAt?: Date | null; arrivedAt?: Date | null } = {},
+  existing: { acceptedAt?: Date | null; arrivedAt?: Date | null; plannedEnd?: Date | null } = {},
 ): StatusTimingUpdate {
   switch (to) {
     case 'assigned':
@@ -64,12 +73,17 @@ export function timingUpdatesFor(
         // Первое принятие фиксируем один раз: переоткрытие заявки не должно его терять.
         acceptedAt: existing.acceptedAt ?? now,
         reactionDeadline: null,
-        arrivalDeadline: addMinutes(now, durations.acceptToArriveMin),
+        // Заявка смены: срок — конец смены (стоит с создания), таймер прибытия не нужен —
+        // неявку на смену ловит schedule-service.
+        arrivalDeadline: existing.plannedEnd
+          ? null
+          : addMinutes(now, durations.acceptToArriveMin),
       };
     case 'in_progress':
       return {
         arrivedAt: existing.arrivedAt ?? now,
-        completionDeadline: addMinutes(now, durations.arriveToDoneMin),
+        completionDeadline:
+          shiftDeadline(existing.plannedEnd, now) ?? addMinutes(now, durations.arriveToDoneMin),
       };
     case 'completed':
       return { completedAt: now, completionDeadline: null };

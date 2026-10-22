@@ -1,5 +1,5 @@
 import { EVENT_QUEUES, ROUTING_KEYS } from '@cleaning-ops/shared/constants/events';
-import { NOTIFICATION_ROUTING_KEYS, resolveEvent } from './notification-events';
+import { NOTIFICATION_ROUTING_KEYS, resolveEvent, isAssignedOnCreate } from './notification-events';
 
 describe('NOTIFICATION_ROUTING_KEYS', () => {
   it('слушает все очереди EVENT_QUEUES, кроме material.ticket.operation.completed', () => {
@@ -46,6 +46,35 @@ describe('resolveEvent', () => {
         params: { ticketDescription: 'Помыть 3 этаж' },
         data: { ticketId: 't-1' },
       });
+    });
+
+    it('ticket.created с окном смены (schedule-service) → тихое NEW_TICKET: только in-app', () => {
+      const resolved = resolveEvent(ROUTING_KEYS.TICKET_CREATED, {
+        ticketId: 't-5',
+        assigneeId: 'u-1',
+        description: 'Плановая уборка по графику «Уборка1» на 2026-10-22 18:00 МСК',
+        plannedStart: '2026-10-22T15:00:00.000Z',
+        plannedEnd: '2026-10-22T23:00:00.000Z',
+      });
+
+      expect(resolved).toMatchObject({
+        template: 'NEW_TICKET',
+        userIds: ['u-1'],
+        quiet: true,
+        data: {
+          ticketId: 't-5',
+          plannedStart: '2026-10-22T15:00:00.000Z',
+          plannedEnd: '2026-10-22T23:00:00.000Z',
+        },
+      });
+    });
+
+    it('ticket.assigned при создании (onCreate) распознаётся как дубль ticket.created', () => {
+      expect(
+        isAssignedOnCreate(ROUTING_KEYS.TICKET_ASSIGNED, { ticketId: 't-1', assigneeId: 'u-1', onCreate: true }),
+      ).toBe(true);
+      expect(isAssignedOnCreate(ROUTING_KEYS.TICKET_ASSIGNED, { ticketId: 't-1', assigneeId: 'u-1' })).toBe(false);
+      expect(isAssignedOnCreate(ROUTING_KEYS.TICKET_CREATED, { onCreate: true })).toBe(false);
     });
 
     it('ticket.created без description подставляет номер заявки', () => {
@@ -267,6 +296,23 @@ describe('resolveEvent', () => {
           plannedStart: '2026-02-01T08:00:00.000Z',
           detectedAt: '2026-02-01T08:20:00.000Z',
         },
+      });
+    });
+
+    it('plannedStartLocal от schedule-service подставляется как есть (часы организации)', () => {
+      const resolved = resolveEvent(ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN, {
+        ...missedPayload,
+        plannedStart: '2026-02-01T05:00:00.000Z',
+        plannedStartLocal: '01.02.2026 08:00 МСК',
+      });
+
+      expect(resolved?.params).toEqual({
+        objectName: 'БЦ «Северный»',
+        plannedStart: '01.02.2026 08:00 МСК',
+      });
+      expect(resolved?.data).toMatchObject({
+        plannedStart: '2026-02-01T05:00:00.000Z',
+        plannedStartLocal: '01.02.2026 08:00 МСК',
       });
     });
 

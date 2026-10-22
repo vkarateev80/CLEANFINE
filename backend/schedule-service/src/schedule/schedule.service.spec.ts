@@ -304,6 +304,9 @@ describe('ScheduleService (М4.4–М4.5)', () => {
         objectId: OBJECT_ID,
         assigneeId: USER,
         description: 'Плановая уборка по графику «Ежедневная уборка» на 2026-09-16 08:00 UTC',
+        // Окно смены: дедлайн заявки в ticket-service — конец смены.
+        plannedStart: '2026-09-16T08:00:00.000Z',
+        plannedEnd: '2026-09-16T16:00:00.000Z',
       });
       expect(prisma.scheduleEvent.update).toHaveBeenCalledWith({
         where: { id: 'event-1' },
@@ -550,6 +553,43 @@ describe('ScheduleService (М4.4–М4.5)', () => {
       const result = await service.generateForCurrentHour(new Date('2026-09-16T21:10:00.000Z'));
 
       expect(result?.date).toBe('2026-09-17');
+    });
+
+    it('неявка подписана по часам организации: 05:00 UTC → «08:00 МСК»', async () => {
+      const { service, prisma, publisher } = build(MSK);
+      prisma.scheduleEvent.findMany.mockResolvedValue([
+        eventFixture({ plannedStart: new Date('2026-09-16T05:00:00.000Z') }),
+      ]);
+      prisma.scheduleEvent.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.checkMissed('2026-09-16', NOW);
+
+      expect(publisher.publish).toHaveBeenCalledWith(
+        ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN,
+        expect.objectContaining({
+          plannedStart: '2026-09-16T05:00:00.000Z',
+          plannedStartLocal: '16.09.2026 08:00 МСК',
+        }),
+      );
+    });
+
+    it('catchUpToday: час генерации прошёл — смены на сегодня создаются сразу', async () => {
+      const { service, prisma } = build({ ...MSK, 'schedule.generateHour': 0 });
+      prisma.schedule.findMany.mockResolvedValue([scheduleFixture()]);
+      prisma.scheduleEvent.create.mockResolvedValue(eventFixture());
+
+      // 00:29 МСК 17-го — именно в этот час выкат 19.10 оставил день без смен.
+      const result = await service.catchUpToday(new Date('2026-09-16T21:29:00.000Z'));
+
+      expect(result?.date).toBe('2026-09-17');
+      expect(result?.shiftsCreated).toBe(1);
+    });
+
+    it('catchUpToday: до часа генерации ничего не делает', async () => {
+      const { service, prisma } = build({ ...MSK, 'schedule.generateHour': 6 });
+
+      expect(await service.catchUpToday(new Date('2026-09-16T22:00:00.000Z'))).toBeNull();
+      expect(prisma.schedule.findMany).not.toHaveBeenCalled();
     });
 
     it('check-in ищет смену московского дня', async () => {
@@ -828,6 +868,7 @@ describe('ScheduleService (М4.4–М4.5)', () => {
         eventId: 'event-1',
         objectId: OBJECT_ID,
         plannedStart: '2026-09-16T08:00:00.000Z',
+        plannedStartLocal: '16.09.2026 08:00 UTC',
         detectedAt: NOW.toISOString(),
       });
     });

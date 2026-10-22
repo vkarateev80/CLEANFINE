@@ -372,6 +372,22 @@ describe('NotificationsService', () => {
       });
     });
 
+    it('тихое уведомление: in-app запись есть, push не уходит даже при устройствах', async () => {
+      prisma.device.findMany.mockResolvedValue([{ token: VALID_TOKEN }]);
+      prisma.notification.create.mockResolvedValue(notificationOf());
+
+      await service.notifyUser(
+        'u-1',
+        'NEW_TICKET',
+        { ticketDescription: 'Плановая уборка на 18:00' },
+        { ticketId: 't-1' },
+        { quiet: true },
+      );
+
+      expect(push.send).not.toHaveBeenCalled();
+      expect(prisma.notification.create).toHaveBeenCalledTimes(1);
+    });
+
     it('с устройством отправляет push и сохраняет in-app запись', async () => {
       prisma.device.findMany.mockResolvedValue([{ token: VALID_TOKEN }]);
       prisma.notification.create.mockResolvedValue(notificationOf());

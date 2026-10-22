@@ -34,6 +34,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ScheduleSettingsService } from '../settings/schedule-settings.service';
 import {
   scheduleDateOf,
+  scheduleDayLabelOf,
   scheduleTimeOf,
   timeZoneShortLabel,
   zonedParts,
@@ -436,6 +437,9 @@ export class ScheduleService {
         objectId: schedule.objectId,
         assigneeId: event.userId,
         description: this.ticketDescription(schedule, event.plannedStart, await this.settings.timeZone()),
+        // Окно смены: дедлайн заявки — конец смены, push о задаче не будит ночью.
+        plannedStart: event.plannedStart.toISOString(),
+        plannedEnd: event.plannedEnd.toISOString(),
       });
       await this.prisma.scheduleEvent.update({
         where: { id: event.id },
@@ -485,6 +489,27 @@ export class ScheduleService {
       return await this.generateForDate(day, now);
     } catch (error) {
       this.logger.error(`Регулярная генерация на ${day} завершилась ошибкой: ${describe(error)}`);
+      return null;
+    }
+  }
+
+  /**
+   * Догоняющая генерация при старте сервиса (22.10.2026): если настроенный час
+   * генерации сегодня уже прошёл, смены на сегодня создаются сразу — иначе выкат
+   * или перезапуск в этот час оставлял день без смен (тик раз в час не попадал в
+   * настроенный час). Идемпотентно: уже созданные смены пропускаются.
+   */
+  async catchUpToday(now: Date = new Date()): Promise<GenerationResult | null> {
+    const hour = this.config.get<number>('schedule.generateHour') ?? 0;
+    const timeZone = await this.settings.timeZone();
+    if (zonedParts(now, timeZone).hour < hour) {
+      return null;
+    }
+    const day = scheduleDateOf(now, timeZone);
+    try {
+      return await this.generateForDate(day, now);
+    } catch (error) {
+      this.logger.error(`Догоняющая генерация на ${day} завершилась ошибкой: ${describe(error)}`);
       return null;
     }
   }
@@ -839,6 +864,7 @@ export class ScheduleService {
         objectName = fetched;
       }
     }
+    const timeZone = await this.settings.timeZone();
     const payload: ScheduleMissedCheckinPayload = {
       userId: event.userId ?? '',
       scheduleId: event.scheduleId,
@@ -846,6 +872,10 @@ export class ScheduleService {
       eventId: event.id,
       objectId,
       plannedStart: event.plannedStart.toISOString(),
+      plannedStartLocal:
+        `${scheduleDayLabelOf(event.plannedStart, timeZone)} ` +
+        `${scheduleTimeOf(event.plannedStart, timeZone)} ` +
+        timeZoneShortLabel(timeZone, event.plannedStart),
       detectedAt: now.toISOString(),
     };
     await this.publisher.publish(ROUTING_KEYS.SCHEDULE_MISSED_CHECKIN, payload);

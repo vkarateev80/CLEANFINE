@@ -57,6 +57,24 @@ describe('ticket-timings (М3.4/М3.5)', () => {
       });
     });
 
+    it('заявка смены: assigned без таймера прибытия, in_progress — срок до конца смены', () => {
+      const plannedEnd = new Date('2026-01-01T23:00:00.000Z');
+
+      expect(timingUpdatesFor('assigned', NOW, DURATIONS, { plannedEnd }).arrivalDeadline).toBeNull();
+      expect(timingUpdatesFor('in_progress', NOW, DURATIONS, { plannedEnd })).toEqual({
+        arrivedAt: NOW,
+        completionDeadline: plannedEnd,
+      });
+    });
+
+    it('заявка смены после конца смены (overdue → in_progress): обычные 60 минут, а не повторный overdue', () => {
+      const plannedEnd = new Date('2026-01-01T09:00:00.000Z');
+
+      expect(timingUpdatesFor('in_progress', NOW, DURATIONS, { plannedEnd }).completionDeadline).toEqual(
+        new Date('2026-01-01T11:00:00.000Z'),
+      );
+    });
+
     it('in_progress: повторный вход сохраняет первое прибытие (возврат из overdue)', () => {
       const firstArrival = new Date('2026-01-01T09:40:00.000Z');
 

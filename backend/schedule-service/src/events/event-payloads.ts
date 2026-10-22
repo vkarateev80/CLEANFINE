@@ -20,6 +20,12 @@ export interface ScheduleMissedCheckinPayload {
   objectId: string;
   /** Плановое начало смены, ISO 8601. */
   plannedStart: string;
+  /**
+   * То же по часам организации с подписью пояса: «21.10.2026 18:00 МСК» (22.10.2026).
+   * Пояс знает только schedule-service, поэтому текст собирается здесь, а
+   * notification-service подставляет его как есть.
+   */
+  plannedStartLocal: string;
   /** Когда неявка зафиксирована сканером, ISO 8601. */
   detectedAt: string;
 }
