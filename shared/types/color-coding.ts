@@ -9,6 +9,14 @@
  * (`lib/core/domain/color_zone.dart`) — наборы ключевых слов менять синхронно.
  *
  * Источник текстов — таблички «сайт ЧИСТО/таблички-с-персоналом» (07.10.2026).
+ *
+ * Экранные цвета зон — кислотные (решение владельца 23.10.2026): прежние синий и
+ * зелёный совпадали по тону со статусами («В работе» — primary #3399FF,
+ * «Выполнено» — success #22C55E), и на плане и в чек-листе их путали. Теперь
+ * зона — электрик-синий / лайм / неоновый красный / кислотный жёлтый, статус —
+ * спокойные тона темы. Печатные таблички и физический инвентарь не меняются:
+ * названия цветов («Синяя зона») те же. Текст — всегда `hexDark` на `hexSoft`
+ * (контраст ≥ 5,7:1), насыщенный `hex` — только заливка, рамка и точка.
  */
 
 export const COLOR_ZONES = ['RED', 'BLUE', 'GREEN', 'YELLOW'] as const;
@@ -24,7 +32,7 @@ export interface ColorZoneMeta {
   zoneName: string;
   /** Расшифровка зоны: «туалеты, унитазы, писсуары». */
   where: string;
-  /** Основной цвет (как на табличках). */
+  /** Основной экранный цвет зоны (кислотный, 23.10.2026): заливка, рамка, точка. */
   hex: string;
   /** Тёмный оттенок (обводка, текст на светлом). */
   hexDark: string;
@@ -41,9 +49,9 @@ export const COLOR_ZONE_META: Record<ColorZone, ColorZoneMeta> = {
     adjective: 'Красная',
     zoneName: 'Санитарные зоны',
     where: 'туалеты, унитазы, писсуары',
-    hex: '#E30613',
-    hexDark: '#A5000B',
-    hexSoft: '#FDECEE',
+    hex: '#FF0040',
+    hexDark: '#B8002E',
+    hexSoft: '#FFE5EC',
     tools: ['Швабра', 'Ведро', 'Салфетки', 'Ершик'],
   },
   BLUE: {
@@ -52,9 +60,9 @@ export const COLOR_ZONE_META: Record<ColorZone, ColorZoneMeta> = {
     adjective: 'Синяя',
     zoneName: 'Зоны общего пользования',
     where: 'офисы, коридоры, холлы',
-    hex: '#0A5BD3',
-    hexDark: '#063C8E',
-    hexSoft: '#E8F0FC',
+    hex: '#2433FF',
+    hexDark: '#1720C2',
+    hexSoft: '#E8EAFF',
     tools: ['Швабра', 'Ведро', 'Салфетки', 'Распылитель'],
   },
   GREEN: {
@@ -63,9 +71,9 @@ export const COLOR_ZONE_META: Record<ColorZone, ColorZoneMeta> = {
     adjective: 'Зелёная',
     zoneName: 'Кухни и столовые',
     where: 'зоны приёма пищи',
-    hex: '#12933A',
-    hexDark: '#0A6026',
-    hexSoft: '#E8F5EC',
+    hex: '#7CFF00',
+    hexDark: '#2F6E00',
+    hexSoft: '#F1FFE0',
     tools: ['Швабра', 'Ведро', 'Салфетки', 'Губка'],
   },
   YELLOW: {
@@ -74,9 +82,9 @@ export const COLOR_ZONE_META: Record<ColorZone, ColorZoneMeta> = {
     adjective: 'Жёлтая',
     zoneName: 'Специализированные зоны',
     where: 'стёкла, зеркала, особые требования',
-    hex: '#FFC400',
-    hexDark: '#D19A00',
-    hexSoft: '#FFF7DB',
+    hex: '#FFF000',
+    hexDark: '#6E6400',
+    hexSoft: '#FFFDE0',
     tools: ['Стеклосгон', 'Ведро', 'Салфетки', 'Распылитель'],
   },
 };
