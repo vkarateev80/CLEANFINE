@@ -133,9 +133,16 @@ const ROOM_NUMBER_LABEL = /^\d{2,4}$/;
 
 /**
  * Подписи-номера → `number` помещений. Подпись относится к самому малому
- * контуру, внутри которого лежит её точка; вне контуров она пропускается.
+ * контуру ЕЁ ЖЕ уровня, внутри которого лежит её точка; вне контуров она
+ * пропускается. Уровень важен: на «Красной и лифтовой зонах» санузел 4.09
+ * лежит внутри «Комнаты отдыха ГД», и подпись «405» с уровня плана попадала
+ * в его контур.
  */
-function assignRoomNumbers(document: Document, rooms: Sh3dRoom[]): void {
+function assignRoomNumbers(
+  document: Document,
+  rooms: Sh3dRoom[],
+  levelOf: Map<Sh3dRoom, string | null>,
+): void {
   const numbers = new Map<Sh3dRoom, string[]>();
   for (const label of Array.from(document.getElementsByTagName('label'))) {
     const text = (label.getElementsByTagName('text')[0]?.textContent ?? '').trim();
@@ -146,7 +153,9 @@ function assignRoomNumbers(document: Document, rooms: Sh3dRoom[]): void {
     };
     if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
     let target: Sh3dRoom | undefined;
+    const labelLevel = label.getAttribute('level');
     for (const room of rooms) {
+      if (levelOf.get(room) !== labelLevel) continue;
       if (!pointInPolygon(point, room.points)) continue;
       if (target === undefined || room.areaM2 < target.areaM2) target = room;
     }
@@ -192,6 +201,7 @@ export function parseHomeXml(xml: string): Sh3dScene {
   const walls: Sh3dWall[] = [];
   const rooms: Sh3dRoom[] = [];
   const cleaningSectors: Sh3dRoom[] = [];
+  const roomLevels = new Map<Sh3dRoom, string | null>();
 
   const sectorLevelIds = new Set<string>();
   for (const level of Array.from(document.getElementsByTagName('level'))) {
@@ -233,6 +243,7 @@ export function parseHomeXml(xml: string): Sh3dScene {
       ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
     };
     const level = element.getAttribute('level');
+    roomLevels.set(room, level);
     (level !== null && sectorLevelIds.has(level) ? cleaningSectors : rooms).push(room);
   }
 
@@ -240,7 +251,7 @@ export function parseHomeXml(xml: string): Sh3dScene {
     throw new Sh3dParseError('В Home.xml нет ни стен, ни помещений');
   }
 
-  assignRoomNumbers(document, rooms);
+  assignRoomNumbers(document, rooms, roomLevels);
 
   return { walls, rooms, cleaningSectors, bounds: boundsOf(walls, rooms) };
 }

@@ -137,8 +137,10 @@ describe('уровень «Секторы уборки» (31.10.2026)', () => {
   });
 });
 
-describe('«ЗИЛ — 4 этаж (рабочий).sh3d»: 63 помещения, 7 секторов, 436 стен', () => {
-  // Home.xml рабочего плана (исходник + уровень секторов) в zip без 3D-моделей.
+describe('«ЗИЛ — 4 этаж (рабочий).sh3d»: 90 помещений, 7 секторов, 436 стен', () => {
+  // Home.xml рабочего плана (исходник + уровни «Секторы уборки» и «Красная и лифтовая
+  // зоны», SHA-1 файла 752cab12) в zip без 3D-моделей. Первые 63 помещения — исходные,
+  // далее 20 санузлов и 7 лифтовых холлов: они помещения намеренно (у них есть прямоугольник).
   const fixture = readFileSync(
     join(process.cwd(), 'src/pages/Floors/sh3d/__fixtures__/zil-floor4-sectors.sh3d'),
   );
@@ -146,7 +148,13 @@ describe('«ЗИЛ — 4 этаж (рабочий).sh3d»: 63 помещения
 
   it('считает помещения, секторы и стены', async () => {
     const scene = await load();
-    expect(scene.rooms).toHaveLength(63);
+    expect(scene.rooms).toHaveLength(90);
+    expect(scene.rooms.slice(63).filter((room) => room.name.startsWith('Санузел'))).toHaveLength(
+      20,
+    );
+    expect(
+      scene.rooms.slice(63).filter((room) => room.name.startsWith('Лифтовый холл')),
+    ).toHaveLength(7);
     expect(scene.cleaningSectors.map((room) => room.name)).toEqual(
       [1, 2, 3, 4, 5, 6, 7].map((n) => `Сектор ${n}`),
     );
@@ -158,15 +166,18 @@ describe('«ЗИЛ — 4 этаж (рабочий).sh3d»: 63 помещения
     const scene = await load();
     const numbered = scene.rooms.filter((room) => room.number);
     expect(numbered).toHaveLength(29);
+    expect(numbered.every((room) => scene.rooms.indexOf(room) < 63)).toBe(true);
     const byName = (name: string) => scene.rooms.filter((room) => room.name === name);
     expect(byName('ГД')[0].number).toBe('407');
     expect(scene.rooms.find((room) => room.number === '401/403')).toBeDefined();
     expect(scene.rooms.find((room) => room.number === '411/412')?.name).toBe('НАБ');
   });
 
-  it('площадь импорта — по контуру: сумма 63 помещений ≈ 1530,6 м², а не 1612,4 по прямоугольникам', async () => {
+  it('площадь импорта — по контуру: сумма 63 исходных помещений ≈ 1530,6 м², а не 1612,4 по прямоугольникам', async () => {
     const scene = await load();
-    const total = layoutPlan(scene).rooms.reduce((sum, room) => sum + room.areaM2, 0);
+    const total = layoutPlan(scene)
+      .rooms.slice(0, 63)
+      .reduce((sum, room) => sum + room.areaM2, 0);
     expect(total).toBeCloseTo(1530.6, 0);
     const kadry = layoutPlan(scene).rooms.find((room) => room.name === 'кадры');
     expect(kadry?.areaM2).toBeCloseTo(98.9, 0);
@@ -190,7 +201,7 @@ describe('«ЗИЛ — 4 этаж (рабочий).sh3d»: 63 помещения
     expect(bounds.maxY).toBe(Math.max(...points.map((p) => p.y)));
 
     const layout = layoutPlan(scene);
-    expect(layout.rooms).toHaveLength(63);
+    expect(layout.rooms).toHaveLength(90);
   });
 });
 
@@ -218,6 +229,16 @@ describe('номера кабинетов из подписей (31.10.2026)', (
       `<home>${room('outer', 'Зал', 0, 1000)}${room('inner', 'Кабинет', 100, 300)}${label('412', 200)}</home>`,
     );
     expect(scene.rooms.map((r) => r.number)).toEqual([undefined, '412']);
+  });
+
+  it('подпись не уходит в контур другого уровня (санузел внутри кабинета на уровне зон)', () => {
+    const scene = parseHomeXml(
+      `<home><level id='a' name='План'/><level id='z' name='Красная и лифтовая зоны'/>` +
+        `<room id='r' level='a' name='Комната отдыха'><point x='0' y='0'/><point x='400' y='0'/><point x='400' y='300'/><point x='0' y='300'/></room>` +
+        `<room id='wc' level='z' name='Санузел 4.09'><point x='100' y='50'/><point x='200' y='50'/><point x='200' y='150'/><point x='100' y='150'/></room>` +
+        `<label level='a' x='150' y='100'><text>405</text></label></home>`,
+    );
+    expect(scene.rooms.map((room) => room.number)).toEqual(['405', undefined]);
   });
 
   it('номер идёт в начало имени при импорте, безымянное получает «Помещение N»', () => {
