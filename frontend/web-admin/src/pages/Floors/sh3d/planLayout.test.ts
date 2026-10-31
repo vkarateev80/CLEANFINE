@@ -22,6 +22,7 @@ function sceneFixture(overrides: Partial<Sh3dScene> = {}): Sh3dScene {
         ],
       },
     ],
+    cleaningSectors: [],
     bounds: { minX: 0, minY: 0, maxX: 1000, maxY: 500 },
   };
   return { ...base, ...overrides };
@@ -85,6 +86,28 @@ describe('layoutPlan', () => {
     // Контур 500×300 см = 15 м²; оценка по прямоугольнику обязана быть в м²
     // (регрессия: scale одного достаточно — 3090 м² на ЗИЛ вместо 116).
     expect(layout.rooms[0].areaM2).toBeCloseTo(15, 0);
+  });
+
+  it('Г-образное помещение: площадь по контуру, а не по описанному прямоугольнику', () => {
+    // Г из 500×300 с вырезом 300×200: 15 − 6 = 9 м², прямоугольник дал бы 15.
+    const scene = sceneFixture({
+      rooms: [
+        {
+          id: 'g',
+          name: 'Г',
+          areaM2: 9,
+          points: [
+            { x: 0, y: 0 },
+            { x: 500, y: 0 },
+            { x: 500, y: 100 },
+            { x: 200, y: 100 },
+            { x: 200, y: 300 },
+            { x: 0, y: 300 },
+          ],
+        },
+      ],
+    });
+    expect(layoutPlan(scene).rooms[0].areaM2).toBe(9);
   });
 
   it('вырожденная комната не проваливает площадь (минимум 0.01 м²)', () => {

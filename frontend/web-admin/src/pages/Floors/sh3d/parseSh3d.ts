@@ -17,7 +17,21 @@ import JSZip from 'jszip';
  * Многоуровневые сцены складываются в один вид сверху: в экосистеме план —
  * одна картинка на этаж, а уровни SH3D часто служат служебными (размерные),
  * как «Уровень 1-Dim» в боевых файлах. Стены берутся со всех уровней.
+ *
+ * Номера кабинетов (31.10.2026): в файле это подписи `<label>` с числом, а не
+ * имена помещений. Подпись, чья точка лежит внутри контура, даёт помещению
+ * `number`; если подписей несколько («401» и «403»), номера идут по возрастанию
+ * через «/» — «401/403».
+ *
+ * Исключение — уровень «Секторы уборки» (31.10.2026, план 4 этажа ЗИЛ): его
+ * `<room>` — условные контуры секторов уборки, а не помещения. Они не попадают
+ * в `rooms` (иначе импорт создал бы огромные «помещения» поверх этажа) и не
+ * расширяют `bounds` (иначе сдвинулся бы масштаб плана); отдаются отдельно в
+ * `cleaningSectors`.
  */
+
+/** Имя уровня Sweet Home 3D, на котором лежат контуры секторов уборки. */
+export const SECTORS_LEVEL_NAME = 'Секторы уборки';
 
 export interface Sh3dPoint {
   x: number;
@@ -44,6 +58,8 @@ export interface Sh3dRoom {
   type?: string;
   /** Высота этажа, см, из `<property name='heightCm'>`. */
   heightCm?: number;
+  /** Номер кабинета из подписи `<label>` внутри контура («407», «401/403»). */
+  number?: string;
 }
 
 export interface Sh3dBounds {
@@ -56,6 +72,8 @@ export interface Sh3dBounds {
 export interface Sh3dScene {
   walls: Sh3dWall[];
   rooms: Sh3dRoom[];
+  /** Контуры секторов уборки (уровень «Секторы уборки»): не помещения и не часть `bounds`. */
+  cleaningSectors: Sh3dRoom[];
   bounds: Sh3dBounds;
 }
 
@@ -94,6 +112,51 @@ function roomProperties(element: Element): Map<string, string> {
   return result;
 }
 
+/** Точка внутри полигона (чётно-нечётное правило). */
+function pointInPolygon(point: Sh3dPoint, polygon: Sh3dPoint[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const a = polygon[i];
+    const b = polygon[j];
+    if (
+      a.y > point.y !== b.y > point.y &&
+      point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/** Номер кабинета в подписи: 2–4 цифры, без слов. */
+const ROOM_NUMBER_LABEL = /^\d{2,4}$/;
+
+/**
+ * Подписи-номера → `number` помещений. Подпись относится к самому малому
+ * контуру, внутри которого лежит её точка; вне контуров она пропускается.
+ */
+function assignRoomNumbers(document: Document, rooms: Sh3dRoom[]): void {
+  const numbers = new Map<Sh3dRoom, string[]>();
+  for (const label of Array.from(document.getElementsByTagName('label'))) {
+    const text = (label.getElementsByTagName('text')[0]?.textContent ?? '').trim();
+    if (!ROOM_NUMBER_LABEL.test(text)) continue;
+    const point = {
+      x: parseNumber(label.getAttribute('x'), Number.NaN),
+      y: parseNumber(label.getAttribute('y'), Number.NaN),
+    };
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+    let target: Sh3dRoom | undefined;
+    for (const room of rooms) {
+      if (!pointInPolygon(point, room.points)) continue;
+      if (target === undefined || room.areaM2 < target.areaM2) target = room;
+    }
+    if (target) numbers.set(target, [...(numbers.get(target) ?? []), text]);
+  }
+  for (const [room, list] of numbers) {
+    room.number = [...new Set(list)].sort((a, b) => Number(a) - Number(b)).join('/');
+  }
+}
+
 function boundsOf(walls: Sh3dWall[], rooms: Sh3dRoom[]): Sh3dBounds {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
@@ -128,6 +191,15 @@ export function parseHomeXml(xml: string): Sh3dScene {
 
   const walls: Sh3dWall[] = [];
   const rooms: Sh3dRoom[] = [];
+  const cleaningSectors: Sh3dRoom[] = [];
+
+  const sectorLevelIds = new Set<string>();
+  for (const level of Array.from(document.getElementsByTagName('level'))) {
+    const id = level.getAttribute('id');
+    if (id && (level.getAttribute('name') ?? '').trim() === SECTORS_LEVEL_NAME) {
+      sectorLevelIds.add(id);
+    }
+  }
 
   for (const element of Array.from(document.getElementsByTagName('wall'))) {
     walls.push({
@@ -152,21 +224,25 @@ export function parseHomeXml(xml: string): Sh3dScene {
     const properties = roomProperties(element);
     const type = properties.get('roomType');
     const heightCm = parseNumber(properties.get('heightCm') ?? null, Number.NaN);
-    rooms.push({
+    const room: Sh3dRoom = {
       id: element.getAttribute('id') ?? `room-${index}`,
       name: (element.getAttribute('name') ?? '').trim(),
       points,
       areaM2: polygonAreaM2(points),
       ...(type !== undefined ? { type } : {}),
       ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
-    });
+    };
+    const level = element.getAttribute('level');
+    (level !== null && sectorLevelIds.has(level) ? cleaningSectors : rooms).push(room);
   }
 
   if (walls.length === 0 && rooms.length === 0) {
     throw new Sh3dParseError('В Home.xml нет ни стен, ни помещений');
   }
 
-  return { walls, rooms, bounds: boundsOf(walls, rooms) };
+  assignRoomNumbers(document, rooms);
+
+  return { walls, rooms, cleaningSectors, bounds: boundsOf(walls, rooms) };
 }
 
 /** Извлечение `Home.xml` из .sh3d (zip) и разбор сцены. */
@@ -211,4 +287,3 @@ export async function readPlanXml(file: File): Promise<PlanXml> {
     `XML с корнем <${root}> не распознан: ожидается Home.xml из Sweet Home 3D или SVG`,
   );
 }
-

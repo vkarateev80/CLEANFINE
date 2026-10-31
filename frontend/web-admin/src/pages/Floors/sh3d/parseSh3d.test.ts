@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import JSZip from 'jszip';
+import { layoutPlan } from './planLayout';
+import { toImportRoom } from './renderPlan';
 import {
+  SECTORS_LEVEL_NAME,
   Sh3dParseError,
   parseHomeXml,
   polygonAreaM2,
@@ -97,6 +102,130 @@ describe('parseHomeXml', () => {
     expect(() => parseHomeXml('<?xml version="1.0"?><home version="1"/>')).toThrow(
       'В Home.xml нет ни стен, ни помещений',
     );
+  });
+});
+
+describe('уровень «Секторы уборки» (31.10.2026)', () => {
+  const SECTORS_XML = `<?xml version='1.0'?>
+<home version='7400'>
+  <level id='l0' name='Уровень 0' elevationIndex='0'/>
+  <level id='ls' name='${SECTORS_LEVEL_NAME}' elevationIndex='1'/>
+  <wall id='w1' level='l0' xStart='0' yStart='0' xEnd='1000' yEnd='0' thickness='10'/>
+  <wall id='w2' level='l0' xStart='0' yStart='0' xEnd='0' yEnd='500' thickness='10'/>
+  <room id='r1' level='l0' name='Кабинет'>
+    <point x='0' y='0'/><point x='400' y='0'/><point x='400' y='300'/><point x='0' y='300'/>
+  </room>
+  <room id='s1' level='ls' name='Сектор 1'>
+    <point x='-5000' y='-5000'/><point x='9000' y='-5000'/><point x='9000' y='9000'/><point x='-5000' y='9000'/>
+  </room>
+</home>`;
+
+  it('контуры секторов не становятся помещениями и не расширяют bounds', () => {
+    const scene = parseHomeXml(SECTORS_XML);
+    expect(scene.rooms.map((room) => room.name)).toEqual(['Кабинет']);
+    expect(scene.cleaningSectors.map((room) => room.name)).toEqual(['Сектор 1']);
+    expect(scene.bounds).toEqual({ minX: 0, minY: 0, maxX: 1000, maxY: 500 });
+  });
+
+  it('без такого уровня cleaningSectors пуст', () => {
+    expect(parseHomeXml(FIXTURE_XML).cleaningSectors).toEqual([]);
+  });
+
+  it('помещение другого уровня с похожим именем не считается сектором', () => {
+    const scene = parseHomeXml(SECTORS_XML.replace("name='Кабинет'", "name='Сектор 9'"));
+    expect(scene.rooms.map((room) => room.name)).toEqual(['Сектор 9']);
+  });
+});
+
+describe('«ЗИЛ — 4 этаж (рабочий).sh3d»: 63 помещения, 7 секторов, 436 стен', () => {
+  // Home.xml рабочего плана (исходник + уровень секторов) в zip без 3D-моделей.
+  const fixture = readFileSync(
+    join(process.cwd(), 'src/pages/Floors/sh3d/__fixtures__/zil-floor4-sectors.sh3d'),
+  );
+  const load = () => readSh3dScene(new File([fixture], 'zil-floor4.sh3d'));
+
+  it('считает помещения, секторы и стены', async () => {
+    const scene = await load();
+    expect(scene.rooms).toHaveLength(63);
+    expect(scene.cleaningSectors.map((room) => room.name)).toEqual(
+      [1, 2, 3, 4, 5, 6, 7].map((n) => `Сектор ${n}`),
+    );
+    expect(scene.walls).toHaveLength(436);
+    expect(scene.rooms.some((room) => /^Сектор \d$/.test(room.name))).toBe(false);
+  });
+
+  it('номера: у 29 помещений, «401/403» и «411/412» собраны из двух подписей', async () => {
+    const scene = await load();
+    const numbered = scene.rooms.filter((room) => room.number);
+    expect(numbered).toHaveLength(29);
+    const byName = (name: string) => scene.rooms.filter((room) => room.name === name);
+    expect(byName('ГД')[0].number).toBe('407');
+    expect(scene.rooms.find((room) => room.number === '401/403')).toBeDefined();
+    expect(scene.rooms.find((room) => room.number === '411/412')?.name).toBe('НАБ');
+  });
+
+  it('площадь импорта — по контуру: сумма 63 помещений ≈ 1530,6 м², а не 1612,4 по прямоугольникам', async () => {
+    const scene = await load();
+    const total = layoutPlan(scene).rooms.reduce((sum, room) => sum + room.areaM2, 0);
+    expect(total).toBeCloseTo(1530.6, 0);
+    const kadry = layoutPlan(scene).rooms.find((room) => room.name === 'кадры');
+    expect(kadry?.areaM2).toBeCloseTo(98.9, 0);
+  });
+
+  it('границы и масштаб плана считаются по стенам и помещениям, без секторов', async () => {
+    const scene = await load();
+    const { bounds } = scene;
+    const sectorPoints = scene.cleaningSectors.flatMap((sector) => sector.points);
+    // Контуры секторов шире этажа: попади они в bounds, масштаб плана сдвинулся бы.
+    expect(Math.min(...sectorPoints.map((p) => p.x))).toBeLessThan(bounds.minX);
+
+    const walls = scene.walls.flatMap((w) => [
+      { x: w.xStart, y: w.yStart },
+      { x: w.xEnd, y: w.yEnd },
+    ]);
+    const points = [...walls, ...scene.rooms.flatMap((room) => room.points)];
+    expect(bounds.minX).toBe(Math.min(...points.map((p) => p.x)));
+    expect(bounds.maxX).toBe(Math.max(...points.map((p) => p.x)));
+    expect(bounds.minY).toBe(Math.min(...points.map((p) => p.y)));
+    expect(bounds.maxY).toBe(Math.max(...points.map((p) => p.y)));
+
+    const layout = layoutPlan(scene);
+    expect(layout.rooms).toHaveLength(63);
+  });
+});
+
+describe('номера кабинетов из подписей (31.10.2026)', () => {
+  const room = (id: string, name: string, x0: number, x1: number) =>
+    `<room id='${id}' name='${name}'><point x='${x0}' y='0'/><point x='${x1}' y='0'/><point x='${x1}' y='300'/><point x='${x0}' y='300'/></room>`;
+  const label = (text: string, x: number, y = 100) =>
+    `<label x='${x}' y='${y}'><textStyle fontSize='20'/><text>${text}</text></label>`;
+
+  it('подпись внутри контура становится number; несколько — по возрастанию через «/»', () => {
+    const scene = parseHomeXml(
+      `<home>${room('a', 'ГД', 0, 400)}${room('b', '', 500, 900)}${room('c', 'Без номера', 1000, 1400)}` +
+        label('407', 200) +
+        label('403', 600) +
+        label('401', 700) +
+        label('Главное фойе', 1200) +
+        label('455', 5000) +
+        `</home>`,
+    );
+    expect(scene.rooms.map((r) => r.number)).toEqual(['407', '401/403', undefined]);
+  });
+
+  it('подпись относится к самому малому контуру из вложенных', () => {
+    const scene = parseHomeXml(
+      `<home>${room('outer', 'Зал', 0, 1000)}${room('inner', 'Кабинет', 100, 300)}${label('412', 200)}</home>`,
+    );
+    expect(scene.rooms.map((r) => r.number)).toEqual([undefined, '412']);
+  });
+
+  it('номер идёт в начало имени при импорте, безымянное получает «Помещение N»', () => {
+    const scene = parseHomeXml(
+      `<home>${room('a', 'ГД', 0, 400)}${room('b', '', 500, 900)}${label('407', 200)}${label('402', 600)}</home>`,
+    );
+    const names = layoutPlan(scene).rooms.map((r, i) => toImportRoom(r, i).name);
+    expect(names).toEqual(['407 ГД', '402 Помещение 2']);
   });
 });
 

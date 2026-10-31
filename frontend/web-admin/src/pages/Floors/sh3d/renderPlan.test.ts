@@ -11,6 +11,7 @@ function sceneWith(rooms: Sh3dScene['rooms']): Sh3dScene {
   return {
     walls: [],
     rooms,
+    cleaningSectors: [],
     bounds: { minX: 0, minY: 0, maxX: 1000, maxY: 500 },
   };
 }

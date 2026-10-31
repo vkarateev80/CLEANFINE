@@ -57,10 +57,13 @@ const COLORS = {
  * инвентаря выводится из типа (roomColorZone), а явная зона перебила бы тип.
  */
 export function toImportRoom(room: RoomLayout, index: number): ImportRoom {
+  const name = room.name === '' ? `Помещение ${index + 1}` : room.name;
   return {
-    name: room.name === '' ? `Помещение ${index + 1}` : room.name,
-    // Площадь — с точностью 0,1 м², как везде в системе (14.10.2026).
-    areaM2: Math.round(room.areaM2 * 10) / 10,
+    // Номер кабинета из подписи плана идёт в начало имени: «407 ГД» (31.10.2026).
+    name: room.number ? `${room.number} ${name}` : name,
+    // Площадь — с точностью 0,1 м², как везде в системе (14.10.2026); не меньше
+    // 0,1: иначе узкая щель по контуру округлится в 0 и core её отклонит.
+    areaM2: Math.max(0.1, Math.round(room.areaM2 * 10) / 10),
     floorType: hasFileType(room) ? (room.type as string).trim() : DEFAULT_IMPORT_FLOOR_TYPE,
     coordsX: room.rect.x,
     coordsY: room.rect.y,

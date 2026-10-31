@@ -28,6 +28,8 @@ export interface RoomLayout {
   type?: string;
   /** Высота этажа, см, если задана в файле. */
   heightCm?: number;
+  /** Номер кабинета из подписи плана («407», «401/403»). */
+  number?: string;
   /** Контур в пикселях (для отрисовки). */
   polygon: Sh3dPoint[];
   /** Описанная прямоугольник — то, что кладётся в Room.coords*. */
@@ -150,9 +152,11 @@ export function layoutPlan(scene: Sh3dScene, options: LayoutOptions = {}): PlanL
   const rooms: RoomLayout[] = scene.rooms.map((room) => {
     const polygon = room.points.map(toPx);
     const rect = boundingRect(polygon);
-    // Вырожденные контуры не проваливаются в валидацию площади (>0.01 м²):
+    // Площадь — по контуру (31.10.2026: раньше брался максимум с описанным
+    // прямоугольником и непрямоугольные помещения завышались, ЗИЛ — на 5%).
+    // Только вырожденные контуры не проходят валидацию (>0.01 м²): для них
     // подставляем оценку по описанному прямоугольнику.
-    const areaM2 = Math.max(room.areaM2, rectAreaM2(rect), 0.01);
+    const areaM2 = room.areaM2 >= 0.01 ? room.areaM2 : Math.max(rectAreaM2(rect), 0.01);
     const center = centroid(polygon);
     return {
       id: room.id,
@@ -160,6 +164,7 @@ export function layoutPlan(scene: Sh3dScene, options: LayoutOptions = {}): PlanL
       areaM2,
       ...(room.type !== undefined ? { type: room.type } : {}),
       ...(room.heightCm !== undefined ? { heightCm: room.heightCm } : {}),
+      ...(room.number !== undefined ? { number: room.number } : {}),
       polygon,
       rect,
       label: {
