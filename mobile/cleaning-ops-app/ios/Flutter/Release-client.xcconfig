@@ -1,0 +1,7 @@
+// Продукт «CLEANFINE Клиент» (flavor client): Release-client и Profile-client.
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release-client.xcconfig"
+#include "Generated.xcconfig"
+
+// Xcode собирает explicit-модули настройками того таргета, который их импортирует.
+// Флаг стоит и у подов (post_install в Podfile), и здесь — у Runner.
+CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES

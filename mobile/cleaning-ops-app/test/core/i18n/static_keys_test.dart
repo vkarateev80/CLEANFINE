@@ -47,6 +47,11 @@ void main() {
       ...ColorZone.values.map((ColorZone z) => z.zoneName),
       ...ProductConfig.of(AppProduct.operator).tabs.map((ProductTab t) => t.label),
       ...ProductConfig.of(AppProduct.team).tabs.map((ProductTab t) => t.label),
+      ...ProductConfig.of(AppProduct.client).tabs.map((ProductTab t) => t.label),
+      for (final AppProduct product in AppProduct.values) ...<String>[
+        ProductConfig.of(product).loginSubtitle,
+        ProductConfig.of(product).forgotPasswordHint,
+      ],
       const NetworkFailure().message,
       const UnauthorizedFailure().message,
       const ForbiddenFailure().message,

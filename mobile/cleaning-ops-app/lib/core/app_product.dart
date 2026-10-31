@@ -8,7 +8,7 @@ import '../core/i18n/app_language.dart';
 ///
 /// Один код — несколько приложений: у каждого своё имя, bundle id, иконка,
 /// набор вкладок и допустимые роли. Продукт выбирается точкой входа
-/// (`main_operator.dart` / `main_team.dart`) или `--dart-define=APP_PRODUCT=…`
+/// (`main_operator.dart` / `main_team.dart` / `main_client.dart`) или `--dart-define=APP_PRODUCT=…`
 /// для сборок без отдельной точки входа (десктоп, лончеры).
 ///
 /// * **operator** — «CLEANFINE Оператор»: смены, маршрут, чек-листы, SOS,
@@ -16,11 +16,14 @@ import '../core/i18n/app_language.dart';
 ///   на объекте работает тем же приложением).
 /// * **team** — «CLEANFINE Команда»: доска действий для бригадира и менеджера,
 ///   портал заказчика для клиента, чаты. Роли SUPERVISOR, ADMIN, CLIENT.
+/// * **client** — «CLEANFINE Клиент»: только портал заказчика и чаты, отдельное
+///   приложение для клиента (решение владельца 01.11.2026). Роль CLIENT.
 enum AppProduct {
   operator,
-  team;
+  team,
+  client;
 
-  /// Значение `--dart-define=APP_PRODUCT=operator|team`; по умолчанию оператор.
+  /// Значение `--dart-define=APP_PRODUCT=operator|team|client`; по умолчанию оператор.
   static const String _defined = String.fromEnvironment('APP_PRODUCT', defaultValue: 'operator');
 
   static AppProduct fromEnvironment() => fromId(_defined) ?? AppProduct.operator;
@@ -55,6 +58,9 @@ class ProductConfig {
   const ProductConfig._({
     required this.product,
     required this.title,
+    required this.loginSubtitle,
+    required this.loginHint,
+    required this.forgotPasswordHint,
     required this.allowedRoles,
     required this.hasOperatorFeatures,
     required this.hasAdminBoard,
@@ -66,6 +72,15 @@ class ProductConfig {
 
   /// Название приложения (заголовок окна, подписи).
   final String title;
+
+  /// Подпись под логотипом на экране входа (русский ключ словаря, через `tr`).
+  final String loginSubtitle;
+
+  /// Подсказка в поле логина: короткое имя типовой учётной записи.
+  final String loginHint;
+
+  /// К кому идти за забытым паролем (русский ключ словаря, через `tr`).
+  final String forgotPasswordHint;
 
   /// Роли, которым разрешён вход именно в это приложение.
   final Set<String> allowedRoles;
@@ -106,11 +121,14 @@ class ProductConfig {
   String deniedMessage(String? role) {
     if (role == AuthRoles.client) {
       return product == AppProduct.operator
-          ? tr('Это приложение для операторов. Заказчику — приложение «CLEANFINE Команда» или портал.')
+          ? tr('Это приложение для операторов. Заказчику — приложение «CLEANFINE Клиент» или портал.')
           : tr('Роль не поддерживается этим приложением.');
     }
     if (role == AuthRoles.operator) {
       return tr('Операторы входят через приложение «CLEANFINE Оператор».');
+    }
+    if (product == AppProduct.client) {
+      return tr('Это приложение для заказчиков. Сотрудники входят через приложение «CLEANFINE Команда» или сайт.');
     }
     return trArgs('Эта учётная запись не может войти в «{title}».', <String, Object?>{'title': title});
   }
@@ -121,6 +139,9 @@ class ProductConfig {
         return const ProductConfig._(
           product: AppProduct.operator,
           title: 'CLEANFINE Оператор',
+          loginSubtitle: 'Приложение оператора',
+          loginHint: 'operator',
+          forgotPasswordHint: 'Забыли пароль? Обратитесь к бригадиру.',
           allowedRoles: <String>{AuthRoles.operator, AuthRoles.supervisor, AuthRoles.admin},
           hasOperatorFeatures: true,
           hasAdminBoard: false,
@@ -153,6 +174,9 @@ class ProductConfig {
         return const ProductConfig._(
           product: AppProduct.team,
           title: 'CLEANFINE Команда',
+          loginSubtitle: 'Приложение команды',
+          loginHint: 'admin',
+          forgotPasswordHint: 'Забыли пароль? Обратитесь к администратору.',
           allowedRoles: <String>{AuthRoles.supervisor, AuthRoles.admin, AuthRoles.client},
           hasOperatorFeatures: false,
           hasAdminBoard: true,
@@ -165,6 +189,41 @@ class ProductConfig {
               label: 'Доска',
               key: Key('shell_tab_admin'),
             ),
+            ProductTab(
+              route: ProductRoutes.client,
+              icon: Icons.apartment_outlined,
+              selectedIcon: Icons.apartment,
+              label: 'Объект',
+              key: Key('shell_tab_client'),
+            ),
+            ProductTab(
+              route: ProductRoutes.chats,
+              icon: Icons.chat_bubble_outline,
+              selectedIcon: Icons.chat_bubble,
+              label: 'Чаты',
+              key: Key('shell_tab_chats'),
+            ),
+            ProductTab(
+              route: ProductRoutes.profile,
+              icon: Icons.person_outline,
+              selectedIcon: Icons.person,
+              label: 'Профиль',
+              key: Key('shell_tab_profile'),
+            ),
+          ],
+        );
+      case AppProduct.client:
+        return const ProductConfig._(
+          product: AppProduct.client,
+          title: 'CLEANFINE Клиент',
+          loginSubtitle: 'Приложение клиента',
+          loginHint: 'client',
+          forgotPasswordHint: 'Забыли пароль? Обратитесь к вашему менеджеру CLEANFINE.',
+          allowedRoles: <String>{AuthRoles.client},
+          hasOperatorFeatures: false,
+          hasAdminBoard: false,
+          hasClientPortal: true,
+          tabs: <ProductTab>[
             ProductTab(
               route: ProductRoutes.client,
               icon: Icons.apartment_outlined,

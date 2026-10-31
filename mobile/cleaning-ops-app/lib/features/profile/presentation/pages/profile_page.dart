@@ -14,6 +14,7 @@ import '../widgets/gps_status_section.dart';
 import '../widgets/notifications_sheet.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/profile_sections.dart';
+import '../../../../core/app_product.dart';
 
 /// Профиль оператора `/profile` (М6.8, DS-002 `profile.md`).
 ///
@@ -53,8 +54,11 @@ class ProfilePage extends ConsumerWidget {
                 _SectionTitle(ProfileTexts.accessSection),
                 const AccessSection(),
                 const SizedBox(height: AppSpacing.lg),
-                const GpsStatusSection(),
-                const SizedBox(height: AppSpacing.lg),
+                // GPS-трекинг есть только в приложении оператора.
+                if (ref.watch(appProductProvider).hasOperatorFeatures) ...<Widget>[
+                  const GpsStatusSection(),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
                 const LanguageSection(),
                 const SizedBox(height: AppSpacing.lg),
                 _SectionTitle(ProfileTexts.dataSection),

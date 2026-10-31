@@ -11,6 +11,8 @@ import '../providers/auth_controller.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/auth_error_banner.dart';
 import '../widgets/auth_header.dart';
+import '../../../../core/app_product.dart';
+import '../../../../core/i18n/app_language.dart';
 
 /// Экран входа по email и паролю (`/login`) — `design/screens/mobile/auth.md` §3.1, §5.1.
 ///
@@ -105,7 +107,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 // Язык интерфейса — до входа, чтобы оператор понял форму.
                 const Align(alignment: Alignment.center, child: LanguageSegments()),
                 const SizedBox(height: AppSpacing.lg),
-                const AuthHeader(),
+                AuthHeader(subtitle: tr(ref.watch(appProductProvider).loginSubtitle)),
                 const SizedBox(height: AppSpacing.xl),
                 _card(context, state, canSubmit, biometricAvailable),
               ],
@@ -141,8 +143,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             textCapitalization: TextCapitalization.none,
             validator: Validators.email,
             onChanged: (_) => ref.read(authControllerProvider.notifier).clearError(),
-            decoration: const InputDecoration(
-              hintText: 'operator',
+            decoration: InputDecoration(
+              hintText: ref.watch(appProductProvider).loginHint,
               isDense: true,
             ),
           ),
@@ -207,7 +209,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ],
           const SizedBox(height: AppSpacing.md),
           Text(
-            AuthTexts.forgotPasswordHint,
+            tr(ref.watch(appProductProvider).forgotPasswordHint),
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: AppTypography.fontSans,

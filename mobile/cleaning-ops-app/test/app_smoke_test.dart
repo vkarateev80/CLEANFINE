@@ -136,6 +136,53 @@ void main() {
     expect(find.byKey(const Key('today_page')), findsNothing);
   });
 
+  testWidgets('«Клиент»: заказчик попадает в портал — только Объект, Чаты, Профиль', (tester) async {
+    final storage = _InMemoryStorage()
+      ..seed(StorageKeys.accessToken, 'access')
+      ..seed(StorageKeys.refreshToken, 'refresh')
+      ..seed(StorageKeys.userId, 'user-1')
+      ..seed(StorageKeys.role, 'CLIENT');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          ...shellOverrides(storage),
+          appProductProvider.overrideWithValue(ProductConfig.of(AppProduct.client)),
+        ],
+        child: const CleaningOpsApp(),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byKey(const Key('shell_tab_client')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_chats')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_profile')), findsOneWidget);
+    expect(find.byKey(const Key('shell_tab_admin')), findsNothing);
+    expect(find.byKey(const Key('shell_tab_today')), findsNothing);
+    expect(find.byKey(const Key('shell_tab_sos')), findsNothing);
+  });
+
+  test('«Клиент»: пускает только заказчика и объясняет отказ сотрудникам', () {
+    final ProductConfig client = ProductConfig.of(AppProduct.client);
+
+    expect(client.allows('CLIENT'), isTrue);
+    for (final String role in <String>['OPERATOR', 'SUPERVISOR', 'ADMIN', 'MANAGER']) {
+      expect(client.allows(role), isFalse, reason: role);
+    }
+    expect(client.startRouteFor('CLIENT'), ProductRoutes.client);
+    expect(client.hasAdminBoard, isFalse);
+    expect(client.hasOperatorFeatures, isFalse);
+    expect(client.deniedMessage('OPERATOR'), contains('CLEANFINE Оператор'));
+    expect(client.deniedMessage('ADMIN'), contains('CLEANFINE Команда'));
+    expect(
+      ProductConfig.of(AppProduct.operator).deniedMessage('CLIENT'),
+      contains('CLEANFINE Клиент'),
+    );
+    expect(AppProduct.fromId('client'), AppProduct.client);
+  });
+
   testWidgets('«Команда»: SUPERVISOR тоже видит доску', (tester) async {
     final storage = _InMemoryStorage()
       ..seed(StorageKeys.accessToken, 'access')

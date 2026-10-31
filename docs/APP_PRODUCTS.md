@@ -29,9 +29,10 @@
 |---|---|---|---|---|
 | **Оператор** `operator` | `lib/main.dart` = `lib/main_operator.dart` | OPERATOR, SUPERVISOR, ADMIN | Сегодня · Чаты · Профиль (+ SOS) | смены, маршрут, чек-листы, SOS, оффлайн, GPS-трекинг |
 | **Команда** `team` | `lib/main_team.dart` | SUPERVISOR, ADMIN, CLIENT | Доска (staff) / Объект (client) · Чаты · Профиль | доска действий; портал заказчика (`features/client`: статус объекта, заявки с фильтрами, создание, карточка с комментариями — зеркало `web-client`; отчёты — позже) |
+| **Клиент** `client` (01.11.2026) | `lib/main_client.dart` | CLIENT | Объект · Чаты · Профиль | только портал заказчика и чаты; bundle/applicationId `com.cleaningops.client`, фиолетовая иконка `design/brand/app-icon-client-1024.png`, без разрешений на геолокацию |
 
 Продукт выбирается точкой входа (переопределение `appProductProvider`) или
-`--dart-define=APP_PRODUCT=operator|team` (десктоп, лончеры, тесты).
+`--dart-define=APP_PRODUCT=operator|team|client` (десктоп, лончеры, тесты).
 
 ## Что решает продукт (`ProductConfig`)
 
@@ -54,6 +55,9 @@ flutter build apk --release --flavor team     -t lib/main_team.dart     $DEFINES
 # (bundle com.cleaningops.team, имя из APP_DISPLAY_NAME, иконки AppIcon-Team)
 flutter build ipa --release -t lib/main_operator.dart $DEFINES
 flutter build ipa --release --flavor team -t lib/main_team.dart $DEFINES
+# «Клиент»: Android только arm64 (решение владельца 01.11.2026); iOS — схема `client`
+flutter build apk --release --flavor client -t lib/main_client.dart --split-per-abi --target-platform android-arm64 $DEFINES
+flutter build ipa --release --flavor client -t lib/main_client.dart $DEFINES
 # macOS / Windows — продукт через define (flavor'ы на десктопе не нужны)
 flutter build macos --release --dart-define=APP_PRODUCT=team $DEFINES
 ```
