@@ -78,6 +78,8 @@
 | GET `/api/tickets/:id` | деталь: назначения, комментарии, операции | auth |
 | PATCH `/api/tickets/:id/status` | смена статуса; невалидный переход → 400 `Invalid status transition` | auth (по правилам контроллера) |
 | POST `/api/tickets/:id/assign` | назначение исполнителя → `ticket.assigned` | ADMIN, SUPERVISOR |
+| PATCH `/api/tickets/:id` | правка заявки в любом статусе: только изменённые поля; статус любой, в обход state machine, тайминги и дедлайны пересчитывает сервис; новый/назначенный статус согласуется с исполнителем, иначе 400 | ADMIN |
+| DELETE `/api/tickets/:id` | удаление заявки в любом статусе → 204; назначения, комментарии и отметки о выполнении — каскадом | ADMIN |
 | POST `/api/tickets/:id/comments` | комментарий | auth |
 | POST `/api/tickets/:id/operations/:operationId/complete` | выполнение операции; идемпотентно (`alreadyCompleted`), эмиссия `ticket.operation.completed` | auth |
 | GET `/api/tickets/reports/execution?objectId&from&to` | выполнение заявок: количество, время цикла, просрочки; разрез «объект + тип» + ряд по дням | auth |
@@ -136,6 +138,7 @@
 | GET `/api/chat/chats/:id/messages?before&limit` | история с курсором (`limit` ≤ 100) | auth (участник) |
 | POST `/api/chat/chats/:id/messages` | REST-фолбэк отправки (основной путь — WebSocket) | auth (участник) |
 | POST `/api/chat/chats/:id/read` | отметка прочтения → событие `message:read` автору | auth (участник) |
+| DELETE `/api/chat/chats/by-ticket/:ticketId` | удалить чат удалённой заявки → 204 (и если чата не было); сообщения и участники — каскадом | ADMIN |
 | GET `/api/chat/messages/search?q&chatId&limit` | поиск по тексту только по своим чатам | auth |
 | GET `/api/chat/health` | проверка готовности сервиса | public |
 | WS `/chat` | `message:send` → ack отправителю и `message:new` онлайн-участникам; `message:read` → `message:read` автору; оффлайн-получателям — push | JWT в handshake |
