@@ -7,5 +7,5 @@ class AppConstants {
   const AppConstants._();
 
   /// Версия, которую показывает пункт «О приложении»: «версия 1.0.0 (М6)».
-  static const String version = '1.1.5';
+  static const String version = '1.1.6';
 }
