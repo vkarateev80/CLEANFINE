@@ -21,8 +21,14 @@ import {
   PageHeader,
   Textarea,
 } from '../../components/ui';
-import { useCanAssignTicket, useCanTransitionTicketStatus } from '../../hooks/usePermissions';
+import {
+  useCanAdministerTickets,
+  useCanAssignTicket,
+  useCanTransitionTicketStatus,
+} from '../../hooks/usePermissions';
 import { ChatPanel } from '../Messages/ChatPanel';
+import { TicketDeleteDialog } from './TicketDeleteDialog';
+import { TicketEditModal } from './TicketEditModal';
 import { TicketRouteProgress } from './TicketRouteProgress';
 import { ROUTES } from '../../router/routes';
 import {
@@ -61,6 +67,7 @@ export function TicketDetailPage() {
   const navigate = useNavigate();
   const canAssign = useCanAssignTicket();
   const canTransition = useCanTransitionTicketStatus();
+  const canAdminister = useCanAdministerTickets();
 
   const ticketQuery = useTicket(id);
   const assignees = useAssigneeOptions();
@@ -73,6 +80,8 @@ export function TicketDetailPage() {
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [operationMessage, setOperationMessage] = useState<string | null>(null);
   const [pendingTransition, setPendingTransition] = useState<TicketStatus | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const ticket = ticketQuery.data;
 
@@ -205,28 +214,59 @@ export function TicketDetailPage() {
           </span>
         }
         actions={
-          canTransition ? (
-            <div className="flex flex-wrap items-center gap-2" data-testid="ticket-transitions">
-              {allowedTransitions.length === 0 && (
-                <span className="text-xs text-neutral-500">Переходов из этого статуса нет</span>
-              )}
-              {allowedTransitions.map((next) => (
+          <>
+            {canTransition && (
+              <div className="flex flex-wrap items-center gap-2" data-testid="ticket-transitions">
+                {allowedTransitions.length === 0 && (
+                  <span className="text-xs text-neutral-500">Переходов из этого статуса нет</span>
+                )}
+                {allowedTransitions.map((next) => (
+                  <Button
+                    key={next}
+                    size="sm"
+                    variant={TICKET_TRANSITION_CONFIRM.includes(next) ? 'secondary' : 'primary'}
+                    data-testid={`ticket-transition-${next}`}
+                    loading={status.isPending && status.variables === next}
+                    disabled={status.isPending}
+                    onClick={() => applyTransition(next)}
+                  >
+                    {TICKET_TRANSITION_LABELS[next]}
+                  </Button>
+                ))}
+              </div>
+            )}
+            {canAdminister && (
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
-                  key={next}
                   size="sm"
-                  variant={TICKET_TRANSITION_CONFIRM.includes(next) ? 'secondary' : 'primary'}
-                  data-testid={`ticket-transition-${next}`}
-                  loading={status.isPending && status.variables === next}
-                  disabled={status.isPending}
-                  onClick={() => applyTransition(next)}
+                  variant="secondary"
+                  data-testid="ticket-edit-button"
+                  onClick={() => setEditOpen(true)}
                 >
-                  {TICKET_TRANSITION_LABELS[next]}
+                  Редактировать
                 </Button>
-              ))}
-            </div>
-          ) : null
+                <Button
+                  size="sm"
+                  variant="danger"
+                  data-testid="ticket-delete-button"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  Удалить
+                </Button>
+              </div>
+            )}
+          </>
         }
       />
+
+      {editOpen && <TicketEditModal ticket={ticket} onClose={() => setEditOpen(false)} />}
+      {deleteOpen && (
+        <TicketDeleteDialog
+          ticket={ticket}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={() => navigate(ROUTES.tickets)}
+        />
+      )}
 
       {status.isError && <ErrorBanner error={status.error} />}
       {assign.isError && <ErrorBanner error={assign.error} />}

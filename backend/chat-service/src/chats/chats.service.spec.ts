@@ -84,6 +84,7 @@ function createPrismaMock() {
       findUniqueOrThrow: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(),
+      deleteMany: jest.fn(),
     },
     chatMember: {
       findMany: jest.fn(),
@@ -972,6 +973,31 @@ describe('ChatsService', () => {
   });
 
   // ------------------------------------------------------------- поиск
+
+  describe('deleteTicketChat (только ADMIN, 01.11.2026)', () => {
+    const adminUser = { id: 'u-admin', email: 'a@b.c', role: 'ADMIN' as const, fullName: '' };
+    const operatorUser = { id: 'u-op', email: 'o@b.c', role: 'OPERATOR' as const, fullName: '' };
+
+    it('удаляет только чат этой заявки', async () => {
+      prisma.chat.deleteMany.mockResolvedValue({ count: 1 });
+      await expect(service.deleteTicketChat('t-1', adminUser)).resolves.toBeUndefined();
+      expect(prisma.chat.deleteMany).toHaveBeenCalledWith({
+        where: { type: 'ticket', ticketId: 't-1' },
+      });
+    });
+
+    it('чата не было — не ошибка', async () => {
+      prisma.chat.deleteMany.mockResolvedValue({ count: 0 });
+      await expect(service.deleteTicketChat('t-1', adminUser)).resolves.toBeUndefined();
+    });
+
+    it('не ADMIN → 403, чат не трогаем', async () => {
+      await expect(service.deleteTicketChat('t-1', operatorUser)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(prisma.chat.deleteMany).not.toHaveBeenCalled();
+    });
+  });
 
   describe('deleteMessage (только ADMIN, 14.10.2026)', () => {
     const adminUser = { id: 'u-admin', email: 'a@b.c', role: 'ADMIN' as const, fullName: '' };

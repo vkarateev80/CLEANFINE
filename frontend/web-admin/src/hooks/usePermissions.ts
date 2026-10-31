@@ -27,8 +27,14 @@ export function useIsAdmin(): boolean {
  *  • POST /api/tickets            — ADMIN, SUPERVISOR, CLIENT;
  *  • PATCH /api/tickets/:id/status — ADMIN, SUPERVISOR, OPERATOR;
  *  • POST /api/tickets/:id/assign  — ADMIN, SUPERVISOR;
+ *  • PATCH и DELETE /api/tickets/:id — только ADMIN;
  *  • GET (список и деталь)         — без @Roles, то есть все авторизованные.
  */
+
+/** Правка и удаление заявки в любом статусе. */
+export function useCanAdministerTickets(): boolean {
+  return useIsAdmin();
+}
 
 /** Создание плановой/внеплановой заявки. */
 export function useCanCreateTicket(): boolean {

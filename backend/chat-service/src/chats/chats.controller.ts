@@ -93,6 +93,21 @@ export class ChatsController {
     return { chatId: event.chatId, messageId: event.messageId };
   }
 
+  @Delete('chats/by-ticket/:ticketId')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Удалить чат удалённой заявки (только ADMIN)',
+    description:
+      'Сообщения и участники удаляются вместе с чатом, файлы вложений в file-service остаются. ' +
+      'Если чата по заявке не было, ответ тот же: повторный вызов безопасен.',
+  })
+  @ApiResponse({ status: 204, description: 'Чата заявки больше нет' })
+  @ApiResponse({ status: 403, description: 'Роль не ADMIN' })
+  async deleteTicketChat(@Param('ticketId') ticketId: string, @CurrentUser() user: AuthUser) {
+    await this.chats.deleteTicketChat(ticketId, user);
+  }
+
   // ------------------------------------------------------------------- деталь
 
   @Get('chats/:id')

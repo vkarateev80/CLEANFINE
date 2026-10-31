@@ -29,11 +29,13 @@ import type {
   EmergencyTicketDto,
   ListTicketsQueryDto,
   UpdateStatusDto,
+  UpdateTicketDto,
 } from './dto/ticket.dto';
 import {
   addMinutes,
   minutesBetween,
   reactionDeadline,
+  statusOverrideUpdates,
   timingUpdatesFor,
   type EscalationDurations,
 } from './ticket-timings';
@@ -406,6 +408,94 @@ export class TicketsService {
     return ticket;
   }
 
+  // --------------------------------------------- администрирование (только ADMIN)
+
+  /**
+   * Правка заявки администратором (01.11.2026): любые поля и любой статус, включая
+   * выполненные и закрытые заявки. Обычные переходы по-прежнему идут через
+   * `changeStatus` и state machine; здесь её намеренно нет.
+   */
+  async update(id: string, dto: UpdateTicketDto, user: AuthUser): Promise<Ticket> {
+    const ticket = await this.getTicketOrFail(id);
+    const now = new Date();
+
+    const nextAssignee =
+      dto.assigneeId === undefined ? ticket.assigneeId : (dto.assigneeId ?? null) || null;
+    const assigneeChanged = nextAssignee !== ticket.assigneeId;
+    const nextStatus = dto.status ?? impliedStatus(ticket.status, nextAssignee);
+    const statusChanged = nextStatus !== ticket.status;
+    if (statusChanged || assigneeChanged) {
+      assertStatusFitsAssignee(nextStatus, nextAssignee);
+    }
+
+    const data: Prisma.TicketUncheckedUpdateInput = {};
+    if (dto.type !== undefined) data.type = dto.type;
+    if (dto.priority !== undefined) data.priority = dto.priority;
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.lat !== undefined) data.lat = dto.lat;
+    if (dto.lng !== undefined) data.lng = dto.lng;
+    if (dto.objectId !== undefined && dto.objectId !== ticket.objectId) {
+      data.objectId = dto.objectId;
+      // Помещение принадлежит объекту: прежнее у нового объекта не существует.
+      data.roomId = null;
+    }
+    if (dto.roomId !== undefined) data.roomId = dto.roomId || null;
+
+    if (statusChanged) {
+      data.status = nextStatus;
+      Object.assign(data, statusOverrideUpdates(nextStatus, now, this.durations, ticket));
+    } else if (assigneeChanged && nextStatus === 'assigned') {
+      // Новому исполнителю — новый срок прибытия.
+      Object.assign(data, timingUpdatesFor('assigned', now, this.durations, ticket));
+    }
+    if (assigneeChanged) {
+      data.assigneeId = nextAssignee;
+      if (nextAssignee) {
+        data.assignedAt ??= ticket.assignedAt ?? now;
+        data.acceptedAt ??= ticket.acceptedAt ?? now;
+      }
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.ticket.update({ where: { id }, data });
+      if (assigneeChanged && nextAssignee) {
+        await tx.ticketAssignment.create({
+          data: { ticketId: id, assigneeId: nextAssignee, assignedBy: user.id, assignedAt: now },
+        });
+      }
+      return next;
+    });
+    this.logger.warn(
+      `Заявка ${id} изменена (${user.email}): ${Object.keys(dto).join(', ') || 'без полей'}`,
+    );
+
+    if (statusChanged) {
+      await this.publishStatusChange(ticket, updated, nextStatus, now, user);
+    }
+    // Исправление исполнителя в завершённой заявке — не новая работа, будить его незачем.
+    if (assigneeChanged && nextAssignee && ACTIVE_STATUSES.includes(nextStatus)) {
+      await this.publisher.publish(ROUTING_KEYS.TICKET_ASSIGNED, {
+        ticketId: id,
+        assigneeId: nextAssignee,
+      });
+    }
+    return updated;
+  }
+
+  /**
+   * Удаление заявки администратором (01.11.2026). Назначения, комментарии и отметки о
+   * выполнении уходят каскадом. Смена графика сохраняет старый ticketId намеренно:
+   * пустой ticketId генерация смен приняла бы за сбой и создала бы заявку заново.
+   */
+  async remove(id: string, user: AuthUser): Promise<void> {
+    const ticket = await this.getTicketOrFail(id);
+    await this.prisma.ticket.delete({ where: { id } });
+    this.logger.warn(
+      `Заявка ${id} удалена (${user.email}): ${ticket.type}/${ticket.status}, ` +
+        `объект ${ticket.objectId}, автор ${ticket.createdBy}`,
+    );
+  }
+
   // ------------------------------------------------------- статусы и тайминги
 
   /** Смена статуса (М3.4): невалидный переход → 400 «Invalid status transition». */
@@ -722,23 +812,32 @@ export class TicketsService {
     this.logger.log(
       `Заявка ${ticket.id}: ${ticket.status} → ${to} (${actor?.email ?? 'система'})`,
     );
+    await this.publishStatusChange(ticket, updated, to, now, actor);
+    return updated;
+  }
 
+  private async publishStatusChange(
+    before: Ticket,
+    updated: Ticket,
+    to: TicketStatus,
+    now: Date,
+    actor: AuthUser | null,
+  ): Promise<void> {
     if (to === 'overdue') {
       const overduePayload: TicketOverduePayload = {
-        ticketId: ticket.id,
-        minutesOverdue: this.minutesOverdue(ticket, now),
+        ticketId: before.id,
+        minutesOverdue: this.minutesOverdue(before, now),
         ...notificationTargets(updated),
       };
       await this.publisher.publish(ROUTING_KEYS.TICKET_OVERDUE, overduePayload);
-      return updated;
+      return;
     }
 
     // Остальные переходы — событие для бригадира/админа/автора заявки (09.10.2026).
     await this.publisher.publish(
       ROUTING_KEYS.TICKET_STATUS_CHANGED,
-      statusChangedPayload(updated, to, ticket.status, actor, now),
+      statusChangedPayload(updated, to, before.status, actor, now),
     );
-    return updated;
   }
 
   /** Минут просрочки по дедлайну, актуальному для текущего статуса заявки. */
@@ -854,6 +953,26 @@ export class TicketsService {
       roomsTotal,
       allRoomsCompleted,
     };
+  }
+}
+
+/** Статусы, в которых по заявке ещё идёт работа. */
+const ACTIVE_STATUSES: readonly TicketStatus[] = ['assigned', 'in_progress', 'paused', 'overdue'];
+
+/** Статус, который следует из смены исполнителя, если явно другой не задан. */
+function impliedStatus(current: TicketStatus, assigneeId: string | null): TicketStatus {
+  if (current === 'new' && assigneeId) return 'assigned';
+  if (current === 'assigned' && !assigneeId) return 'new';
+  return current;
+}
+
+/** Новая заявка без исполнителя, а заявка в работе — с ним; иначе 400. */
+function assertStatusFitsAssignee(status: TicketStatus, assigneeId: string | null): void {
+  if (status === 'new' && assigneeId) {
+    throw new BadRequestException('У новой заявки не должно быть исполнителя');
+  }
+  if (!assigneeId && (status === 'assigned' || status === 'in_progress' || status === 'paused')) {
+    throw new BadRequestException('Для этого статуса укажите исполнителя');
   }
 }
 

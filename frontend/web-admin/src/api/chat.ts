@@ -63,6 +63,11 @@ export function deleteChatMessage(
   return apiClient.delete(`/chat/messages/${messageId}`).then((r) => r.data);
 }
 
+/** Удаление чата удалённой заявки (`DELETE /chat/chats/by-ticket/:id`, только ADMIN). */
+export function deleteTicketChat(ticketId: string): Promise<void> {
+  return apiClient.delete(`/chat/chats/by-ticket/${ticketId}`).then(() => undefined);
+}
+
 export function markChatRead(chatId: string, lastMessageId: string): Promise<ChatReadResult> {
   return apiClient.post(`/chat/chats/${chatId}/read`, { lastMessageId }).then((r) => r.data);
 }

@@ -12,7 +12,11 @@ import {
   SoftWarning,
   type ResponsiveColumn,
 } from '../../components/ui';
-import { useCanAssignTicket, useCanCreateTicket } from '../../hooks/usePermissions';
+import {
+  useCanAdministerTickets,
+  useCanAssignTicket,
+  useCanCreateTicket,
+} from '../../hooks/usePermissions';
 import { ROUTES } from '../../router/routes';
 import {
   TICKET_PRIORITIES,
@@ -25,8 +29,11 @@ import {
   TICKET_TYPE_LABELS,
   type TicketListItem,
 } from '../../types/tickets';
+import { ActionMenu } from '../Objects/ActionMenu';
 import { EmergencyTicketModal } from './EmergencyTicketModal';
 import { TicketCreateModal } from './TicketCreateModal';
+import { TicketDeleteDialog } from './TicketDeleteDialog';
+import { TicketEditModal } from './TicketEditModal';
 import {
   FilterSlot,
   TicketPriorityBadge,
@@ -64,6 +71,7 @@ export function TicketsPage() {
   const navigate = useNavigate();
   const canCreate = useCanCreateTicket();
   const canAssign = useCanAssignTicket();
+  const canAdminister = useCanAdministerTickets();
 
   const skip = Number(params.get('skip') ?? '0') || 0;
   const take = Number(params.get('take') ?? String(TAKE)) || TAKE;
@@ -76,6 +84,8 @@ export function TicketsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [sosOpen, setSosOpen] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<TicketListItem | null>(null);
+  const [deleting, setDeleting] = useState<TicketListItem | null>(null);
 
   const query = useTickets({
     skip,
@@ -246,6 +256,30 @@ export function TicketsPage() {
       card: 'field',
       cardLabel: 'Создана',
     },
+    ...(canAdminister
+      ? [
+          {
+            key: 'actions',
+            header: ' ',
+            thClassName: 'w-[56px]',
+            // Клик в колонке действий не должен уводить в карточку заявки.
+            cell: (ticket: TicketListItem) => (
+              <div onClick={(event) => event.stopPropagation()}>
+                <ActionMenu
+                  label={`Действия: заявка ${shortId(ticket.id)}`}
+                  items={[
+                    { label: 'Открыть', onSelect: () => navigate(ROUTES.ticket(ticket.id)) },
+                    { label: 'Редактировать', onSelect: () => setEditing(ticket) },
+                    { label: 'Удалить', tone: 'danger', onSelect: () => setDeleting(ticket) },
+                  ]}
+                />
+              </div>
+            ),
+            cellClassName: 'text-right',
+            card: 'actions' as const,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -486,6 +520,23 @@ export function TicketsPage() {
           void query.refetch();
         }}
       />
+
+      {editing && <TicketEditModal ticket={editing} onClose={() => setEditing(null)} />}
+
+      {deleting && (
+        <TicketDeleteDialog
+          ticket={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null);
+            if (deleting.id === createdId) setCreatedId(null);
+            // Удалена последняя строка страницы — иначе останемся на пустой странице.
+            if (items.length === 1 && skip > 0) {
+              updateParams({ skip: String(Math.max(0, skip - take)) });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

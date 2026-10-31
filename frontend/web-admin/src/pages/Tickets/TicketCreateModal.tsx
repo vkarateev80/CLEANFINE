@@ -12,6 +12,7 @@ import {
   type TicketEntity,
 } from '../../types/tickets';
 import { TICKET_PRIORITIES, type TicketPriority } from '@cleaning-ops/shared/types/tickets';
+import { validateCoordinate } from './ticketEdit';
 import { useAssigneeOptions, useObjectOptions, useObjectRooms } from './useTickets';
 
 /**
@@ -46,21 +47,6 @@ const INITIAL: FormState = {
 };
 
 type Errors = Partial<Record<keyof FormState, string>>;
-
-/** Число необязательно, но если введено — должно быть в диапазоне DTO. */
-function validateCoordinate(
-  raw: string,
-  min: number,
-  max: number,
-  label: string,
-): string | undefined {
-  const trimmed = raw.trim();
-  if (trimmed === '') return undefined;
-  const value = Number(trimmed);
-  if (!Number.isFinite(value)) return `${label} — число`;
-  if (value < min || value > max) return `${label} — от ${min} до ${max}`;
-  return undefined;
-}
 
 export function TicketCreateModal({
   open,

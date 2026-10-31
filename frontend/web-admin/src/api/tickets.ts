@@ -10,6 +10,7 @@ import type {
   TicketCommentEntity,
   TicketDetailEntity,
   TicketEntity,
+  UpdateTicketPayload,
 } from '../types/tickets';
 
 /**
@@ -65,6 +66,16 @@ export function changeTicketStatus(id: string, status: TicketStatus): Promise<Ti
 /** Назначение исполнителя (ADMIN/SUPERVISOR): заявка переходит в `assigned`. */
 export function assignTicket(id: string, assigneeId: string): Promise<TicketEntity> {
   return apiClient.post(`/tickets/${id}/assign`, { assigneeId }).then((r) => r.data);
+}
+
+/** Правка заявки в любом статусе (только ADMIN): передаются лишь изменённые поля. */
+export function updateTicket(id: string, payload: UpdateTicketPayload): Promise<TicketEntity> {
+  return apiClient.patch(`/tickets/${id}`, payload).then((r) => r.data);
+}
+
+/** Удаление заявки в любом статусе (только ADMIN). */
+export function deleteTicket(id: string): Promise<void> {
+  return apiClient.delete(`/tickets/${id}`).then(() => undefined);
 }
 
 export function addTicketComment(

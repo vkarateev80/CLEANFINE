@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccessToken } from '../auth/decorators/access-token.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -13,6 +13,7 @@ import {
   EmergencyTicketDto,
   ListTicketsQueryDto,
   UpdateStatusDto,
+  UpdateTicketDto,
 } from './dto/ticket.dto';
 import { TicketsService } from './tickets.service';
 
@@ -62,6 +63,43 @@ export class TicketsController {
   @ApiResponse({ status: 404, description: 'Заявка не найдена' })
   async getById(@Param('id') id: string) {
     return this.tickets.getDetail(id);
+  }
+
+  @Patch(':id')
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Изменить заявку в любом статусе (только ADMIN)',
+    description:
+      'Приходят только изменённые поля. Статус можно выставить любой, в обход state machine: ' +
+      'тайминги и дедлайны пересчитает сервис. Назначение на новую заявку переводит её в assigned, ' +
+      'снятие исполнителя с назначенной — в new. Смена исполнителя пишется в историю назначений.',
+  })
+  @ApiResponse({ status: 200, description: 'Обновлённая заявка' })
+  @ApiResponse({ status: 400, description: 'Статус не согласуется с исполнителем' })
+  @ApiResponse({ status: 403, description: 'Роль не ADMIN' })
+  @ApiResponse({ status: 404, description: 'Заявка не найдена' })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTicketDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.update(id, dto, user);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Удалить заявку в любом статусе (только ADMIN)',
+    description:
+      'Каскадом удаляются назначения, комментарии и отметки о выполнении. Смена графика ' +
+      'и движения материалов остаются: они хранят id заявки без внешнего ключа.',
+  })
+  @ApiResponse({ status: 204, description: 'Заявка удалена' })
+  @ApiResponse({ status: 403, description: 'Роль не ADMIN' })
+  @ApiResponse({ status: 404, description: 'Заявка не найдена' })
+  async remove(@Param('id') id: string, @CurrentUser() user: AuthUser): Promise<void> {
+    await this.tickets.remove(id, user);
   }
 
   @Patch(':id/status')

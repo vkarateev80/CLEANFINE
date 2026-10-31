@@ -3,8 +3,10 @@ import {
   MINUTE_MS,
   minutesBetween,
   reactionDeadline,
+  statusOverrideUpdates,
   timingUpdatesFor,
   type EscalationDurations,
+  type StatusOverrideSource,
 } from './ticket-timings';
 
 const DURATIONS: EscalationDurations = {
@@ -14,6 +16,118 @@ const DURATIONS: EscalationDurations = {
 };
 
 const NOW = new Date('2026-01-01T10:00:00.000Z');
+
+describe('statusOverrideUpdates (ручной статус админа, 01.11.2026)', () => {
+  const EARLIER = new Date('2025-12-31T10:00:00.000Z');
+  const blank: StatusOverrideSource = {
+    acceptedAt: null,
+    arrivedAt: null,
+    completedAt: null,
+    verifiedAt: null,
+    escalatedAt: null,
+    plannedEnd: null,
+  };
+  const finished: StatusOverrideSource = {
+    ...blank,
+    acceptedAt: EARLIER,
+    arrivedAt: EARLIER,
+    completedAt: EARLIER,
+    verifiedAt: EARLIER,
+  };
+
+  it('new: заявка как только что созданная, но без повторной эскалации', () => {
+    expect(statusOverrideUpdates('new', NOW, DURATIONS, finished)).toEqual({
+      assignedAt: null,
+      acceptedAt: null,
+      arrivedAt: null,
+      completedAt: null,
+      verifiedAt: null,
+      closedAt: null,
+      overdueAt: null,
+      reactionDeadline: null,
+      arrivalDeadline: null,
+      completionDeadline: null,
+      escalatedAt: NOW,
+    });
+  });
+
+  it('assigned: шаги после назначения очищены, первое принятие сохранено', () => {
+    expect(statusOverrideUpdates('assigned', NOW, DURATIONS, finished)).toEqual({
+      assignedAt: NOW,
+      acceptedAt: EARLIER,
+      arrivedAt: null,
+      completedAt: null,
+      verifiedAt: null,
+      closedAt: null,
+      overdueAt: null,
+      reactionDeadline: null,
+      arrivalDeadline: new Date('2026-01-01T10:15:00.000Z'),
+      completionDeadline: null,
+    });
+  });
+
+  it('assigned у заявки смены: срок — конец смены, таймера прибытия нет', () => {
+    const plannedEnd = new Date('2026-01-01T18:00:00.000Z');
+    expect(
+      statusOverrideUpdates('assigned', NOW, DURATIONS, { ...blank, plannedEnd }),
+    ).toMatchObject({
+      arrivalDeadline: null,
+      completionDeadline: plannedEnd,
+    });
+  });
+
+  it('in_progress: прибытие сохранено, срок выполнения взведён заново', () => {
+    expect(statusOverrideUpdates('in_progress', NOW, DURATIONS, finished)).toMatchObject({
+      arrivedAt: EARLIER,
+      completedAt: null,
+      closedAt: null,
+      arrivalDeadline: null,
+      completionDeadline: new Date('2026-01-01T11:00:00.000Z'),
+    });
+  });
+
+  it('paused: дедлайн выполнения не меняет', () => {
+    const update = statusOverrideUpdates('paused', NOW, DURATIONS, blank);
+    expect(update).toMatchObject({ arrivedAt: NOW, completedAt: null });
+    expect(update).not.toHaveProperty('completionDeadline');
+  });
+
+  it('completed и verified не переписывают уже случившееся', () => {
+    expect(statusOverrideUpdates('completed', NOW, DURATIONS, finished)).toMatchObject({
+      completedAt: EARLIER,
+      verifiedAt: null,
+      overdueAt: null,
+    });
+    expect(statusOverrideUpdates('verified', NOW, DURATIONS, finished)).toMatchObject({
+      completedAt: EARLIER,
+      verifiedAt: EARLIER,
+      closedAt: null,
+    });
+    expect(statusOverrideUpdates('completed', NOW, DURATIONS, blank)).toMatchObject({
+      completedAt: NOW,
+    });
+  });
+
+  it('closed не трогает отметки выполнения, rejected и overdue их снимают', () => {
+    expect(statusOverrideUpdates('closed', NOW, DURATIONS, finished)).toEqual({
+      closedAt: NOW,
+      reactionDeadline: null,
+      arrivalDeadline: null,
+      completionDeadline: null,
+    });
+    expect(statusOverrideUpdates('rejected', NOW, DURATIONS, finished)).toMatchObject({
+      completedAt: null,
+      verifiedAt: null,
+      closedAt: null,
+      overdueAt: null,
+    });
+    expect(statusOverrideUpdates('overdue', NOW, DURATIONS, finished)).toMatchObject({
+      overdueAt: NOW,
+      completedAt: null,
+      closedAt: null,
+    });
+  });
+});
 
 describe('ticket-timings (М3.4/М3.5)', () => {
   it('addMinutes сдвигает время на минуты (в том числе дробные — e2e таймеры)', () => {

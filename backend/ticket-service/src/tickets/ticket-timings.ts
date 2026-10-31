@@ -110,3 +110,86 @@ export function timingUpdatesFor(
       return {};
   }
 }
+
+/** Поля-тайминги ручной смены статуса: здесь отметка шага может и очищаться. */
+export type StatusOverrideUpdate = {
+  [K in keyof StatusTimingUpdate]: Date | null;
+} & { escalatedAt?: Date | null };
+
+/** Что знает заявка на момент ручной смены статуса. */
+export interface StatusOverrideSource {
+  acceptedAt: Date | null;
+  arrivedAt: Date | null;
+  completedAt: Date | null;
+  verifiedAt: Date | null;
+  escalatedAt: Date | null;
+  plannedEnd: Date | null;
+}
+
+/**
+ * Что записать в заявку, когда администратор выставляет статус вручную, в обход
+ * state machine (01.11.2026). В отличие от `timingUpdatesFor` статус идёт и назад,
+ * поэтому отметки шагов, которых теперь «не было», очищаются: отчёты считают цикл по
+ * `completedAt`, просрочку — по `overdueAt`, а сканер эскалации — по дедлайнам.
+ * Уже случившиеся факты (когда выполнена, когда проверена) при этом не переписываются.
+ */
+export function statusOverrideUpdates(
+  to: TicketStatus,
+  now: Date,
+  durations: EscalationDurations,
+  existing: StatusOverrideSource,
+): StatusOverrideUpdate {
+  const noDeadlines = { reactionDeadline: null, arrivalDeadline: null, completionDeadline: null };
+  const notFinished = { completedAt: null, verifiedAt: null, closedAt: null, overdueAt: null };
+  switch (to) {
+    case 'new':
+      return {
+        ...notFinished,
+        ...noDeadlines,
+        assignedAt: null,
+        acceptedAt: null,
+        arrivedAt: null,
+        // Сканер отбирает новые заявки по createdAt: старая заявка, возвращённая в
+        // «Новую», без этой отметки сразу разослала бы всем эскалацию.
+        escalatedAt: existing.escalatedAt ?? now,
+      };
+    case 'assigned':
+      return {
+        ...notFinished,
+        ...noDeadlines,
+        arrivedAt: null,
+        // Заявка смены: срок — конец смены, пока он впереди.
+        completionDeadline: shiftDeadline(existing.plannedEnd, now),
+        ...timingUpdatesFor('assigned', now, durations, existing),
+      };
+    case 'in_progress':
+      return {
+        ...notFinished,
+        ...noDeadlines,
+        ...timingUpdatesFor('in_progress', now, durations, existing),
+      };
+    case 'paused':
+      // Дедлайн выполнения пауза не трогает — как и обычный переход.
+      return {
+        ...notFinished,
+        reactionDeadline: null,
+        arrivalDeadline: null,
+        arrivedAt: existing.arrivedAt ?? now,
+      };
+    case 'completed':
+      return { ...notFinished, ...noDeadlines, completedAt: existing.completedAt ?? now };
+    case 'verified':
+      return {
+        ...notFinished,
+        ...noDeadlines,
+        completedAt: existing.completedAt ?? now,
+        verifiedAt: existing.verifiedAt ?? now,
+      };
+    case 'closed':
+      return timingUpdatesFor('closed', now, durations);
+    case 'rejected':
+      return { ...notFinished, ...noDeadlines };
+    case 'overdue':
+      return { ...notFinished, ...timingUpdatesFor('overdue', now, durations) };
+  }
+}

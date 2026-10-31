@@ -15,6 +15,7 @@ function build() {
     markRead: jest.fn(),
     search: jest.fn(),
     deleteMessage: jest.fn(),
+    deleteTicketChat: jest.fn(),
   };
   const gateway = {
     getOnlineUserIds: jest.fn(() => ['u-admin']),
@@ -147,6 +148,16 @@ describe('ChatsController', () => {
     expect(chats.deleteMessage).toHaveBeenCalledWith('m-1', admin);
     expect(gateway.emitMessageDeleted).toHaveBeenCalledWith(event);
     expect(Reflect.getMetadata('roles', ChatsController.prototype.deleteMessage)).toEqual(['ADMIN']);
+  });
+
+  it('DELETE /chats/by-ticket/:ticketId закрыт ролью ADMIN и передаёт заявку в сервис', async () => {
+    const { controller, chats } = build();
+    chats.deleteTicketChat.mockResolvedValue(undefined);
+    await expect(controller.deleteTicketChat('t-1', admin)).resolves.toBeUndefined();
+    expect(chats.deleteTicketChat).toHaveBeenCalledWith('t-1', admin);
+    expect(Reflect.getMetadata('roles', ChatsController.prototype.deleteTicketChat)).toEqual([
+      'ADMIN',
+    ]);
   });
 
   it('GET /messages/search ищет только по своим чатам', async () => {

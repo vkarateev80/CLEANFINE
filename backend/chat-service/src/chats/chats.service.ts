@@ -534,6 +534,20 @@ export class ChatsService {
     return { chatId: message.chatId, messageId, deletedBy: user.id, memberIds };
   }
 
+  /**
+   * Чат заявки уходит вместе с заявкой (01.11.2026): без неё он висел бы в списке
+   * «Сообщения» со ссылкой в никуда. Сообщения и участники удаляются каскадом.
+   */
+  async deleteTicketChat(ticketId: string, user: AuthUser): Promise<void> {
+    if (user.role !== 'ADMIN') {
+      throw new ForbiddenException('Удалять чаты заявок может только ADMIN');
+    }
+    const { count } = await this.prisma.chat.deleteMany({ where: { type: 'ticket', ticketId } });
+    if (count > 0) {
+      this.logger.log(`Чат заявки ${ticketId} удалён ${user.id}`);
+    }
+  }
+
   // ------------------------------------------------------------------ история
 
   /**

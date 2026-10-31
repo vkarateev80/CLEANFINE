@@ -26,6 +26,7 @@ interface PrismaMock {
     findMany: jest.Mock;
     count: jest.Mock;
     update: jest.Mock;
+    delete: jest.Mock;
   };
   ticketAssignment: { create: jest.Mock; groupBy: jest.Mock };
   ticketComment: { create: jest.Mock; groupBy: jest.Mock };
@@ -52,6 +53,7 @@ function createPrismaMock(): PrismaMock {
       findMany: jest.fn(),
       count: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     ticketAssignment: { create: jest.fn(), groupBy: jest.fn().mockResolvedValue([]) },
     ticketComment: { create: jest.fn(), groupBy: jest.fn().mockResolvedValue([]) },
@@ -141,6 +143,209 @@ describe('TicketsService (М3.4–М3.6)', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  // --------------------------------------------- администрирование (01.11.2026)
+
+  describe('update (правка админом)', () => {
+    /** update Prisma возвращает заявку с записанными полями. */
+    function arrange(ticket: Ticket): void {
+      prisma.ticket.findUnique.mockResolvedValue(ticket);
+      prisma.ticket.update.mockImplementation(({ data }: { data: Partial<Ticket> }) =>
+        Promise.resolve({ ...ticket, ...data }),
+      );
+    }
+
+    function written(): Record<string, unknown> {
+      return prisma.ticket.update.mock.calls[0][0].data as Record<string, unknown>;
+    }
+
+    it('правит описание закрытой заявки: статус и тайминги не трогает, событий нет', async () => {
+      arrange(ticketFixture({ status: 'closed', closedAt: NOW }));
+
+      const result = await service.update('t-1', { description: 'Новый текст' }, USER);
+
+      expect(result.description).toBe('Новый текст');
+      expect(written()).toEqual({ description: 'Новый текст' });
+      expect(publisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('неизвестная заявка → 404', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(null);
+
+      await expect(service.update('nope', { priority: 'high' }, USER)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('открывает закрытую заявку обратно, минуя state machine: старые отметки очищены', async () => {
+      arrange(
+        ticketFixture({
+          status: 'closed',
+          assigneeId: 'u-op',
+          arrivedAt: NOW,
+          completedAt: NOW,
+          verifiedAt: NOW,
+          closedAt: NOW,
+        }),
+      );
+
+      await service.update('t-1', { status: 'in_progress' }, USER);
+
+      expect(written()).toMatchObject({
+        status: 'in_progress',
+        completedAt: null,
+        verifiedAt: null,
+        closedAt: null,
+        arrivedAt: NOW,
+        completionDeadline: new Date('2026-01-01T11:00:00.000Z'),
+      });
+      expect(publisher.publish).toHaveBeenCalledWith(
+        ROUTING_KEYS.TICKET_STATUS_CHANGED,
+        expect.objectContaining({
+          ticketId: 't-1',
+          status: 'in_progress',
+          previousStatus: 'closed',
+          actorId: 'u-admin',
+        }),
+      );
+    });
+
+    it('просроченную отмечает выполненной: заявка больше не считается просроченной', async () => {
+      arrange(ticketFixture({ status: 'overdue', assigneeId: 'u-op', overdueAt: NOW }));
+
+      await service.update('t-1', { status: 'completed' }, USER);
+
+      expect(written()).toMatchObject({ status: 'completed', completedAt: NOW, overdueAt: null });
+    });
+
+    it('выставленная вручную просрочка уходит событием ticket.overdue', async () => {
+      arrange(ticketFixture({ status: 'completed', assigneeId: 'u-op', completedAt: NOW }));
+
+      await service.update('t-1', { status: 'overdue' }, USER);
+
+      expect(written()).toMatchObject({ status: 'overdue', overdueAt: NOW, completedAt: null });
+      expect(publisher.publish).toHaveBeenCalledWith(ROUTING_KEYS.TICKET_OVERDUE, {
+        ticketId: 't-1',
+        minutesOverdue: 0,
+        assigneeId: 'u-op',
+      });
+    });
+
+    it('исполнитель на новой заявке: статус assigned, история, ticket.assigned', async () => {
+      arrange(ticketFixture({ status: 'new' }));
+
+      await service.update('t-1', { assigneeId: 'u-op' }, USER);
+
+      expect(written()).toMatchObject({
+        status: 'assigned',
+        assigneeId: 'u-op',
+        assignedAt: NOW,
+        acceptedAt: NOW,
+        reactionDeadline: null,
+        arrivalDeadline: new Date('2026-01-01T10:15:00.000Z'),
+      });
+      expect(prisma.ticketAssignment.create).toHaveBeenCalledWith({
+        data: { ticketId: 't-1', assigneeId: 'u-op', assignedBy: 'u-admin', assignedAt: NOW },
+      });
+      expect(publisher.publish).toHaveBeenCalledWith(ROUTING_KEYS.TICKET_ASSIGNED, {
+        ticketId: 't-1',
+        assigneeId: 'u-op',
+      });
+    });
+
+    it('снятие исполнителя с назначенной заявки возвращает её в new без записи в историю', async () => {
+      arrange(
+        ticketFixture({ status: 'assigned', assigneeId: 'u-op', assignedAt: NOW, acceptedAt: NOW }),
+      );
+
+      await service.update('t-1', { assigneeId: null }, USER);
+
+      expect(written()).toMatchObject({ status: 'new', assigneeId: null, assignedAt: null });
+      expect(prisma.ticketAssignment.create).not.toHaveBeenCalled();
+    });
+
+    it('смена исполнителя назначенной заявки даёт новый срок прибытия', async () => {
+      const assignedAt = new Date('2025-12-31T10:00:00.000Z');
+      arrange(ticketFixture({ status: 'assigned', assigneeId: 'u-op', assignedAt }));
+
+      await service.update('t-1', { assigneeId: 'u-op2' }, USER);
+
+      expect(written()).toMatchObject({
+        assigneeId: 'u-op2',
+        assignedAt: NOW,
+        arrivalDeadline: new Date('2026-01-01T10:15:00.000Z'),
+      });
+      expect(written()).not.toHaveProperty('status');
+    });
+
+    it('исправление исполнителя в закрытой заявке: история есть, отметки и push — нет', async () => {
+      const assignedAt = new Date('2025-12-31T10:00:00.000Z');
+      arrange(
+        ticketFixture({ status: 'closed', assigneeId: 'u-op', assignedAt, acceptedAt: assignedAt }),
+      );
+
+      await service.update('t-1', { assigneeId: 'u-op2' }, USER);
+
+      expect(written()).toEqual({ assigneeId: 'u-op2', assignedAt, acceptedAt: assignedAt });
+      expect(prisma.ticketAssignment.create).toHaveBeenCalledTimes(1);
+      expect(publisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('смена объекта сбрасывает помещение, явно переданное помещение важнее', async () => {
+      arrange(ticketFixture({ objectId: 'obj-1', roomId: 'room-1' }));
+      await service.update('t-1', { objectId: 'obj-2' }, USER);
+      expect(written()).toEqual({ objectId: 'obj-2', roomId: null });
+
+      prisma.ticket.update.mockClear();
+      await service.update('t-1', { objectId: 'obj-2', roomId: 'room-2' }, USER);
+      expect(written()).toEqual({ objectId: 'obj-2', roomId: 'room-2' });
+    });
+
+    it.each([
+      [{ status: 'new' as const }, 'assigned', 'u-op', 'У новой заявки'],
+      [{ status: 'assigned' as const }, 'new', null, 'укажите исполнителя'],
+      [{ status: 'in_progress' as const }, 'closed', null, 'укажите исполнителя'],
+      [{ assigneeId: null }, 'in_progress', 'u-op', 'укажите исполнителя'],
+    ])(
+      'статус не согласуется с исполнителем → 400: %j',
+      async (dto, status, assigneeId, message) => {
+        arrange(ticketFixture({ status: status as Ticket['status'], assigneeId }));
+
+        await expect(service.update('t-1', dto, USER)).rejects.toThrow(message);
+        expect(prisma.ticket.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('правка других полей не спотыкается о старую заявку в работе без исполнителя', async () => {
+      arrange(ticketFixture({ status: 'in_progress', assigneeId: null }));
+
+      await expect(service.update('t-1', { priority: 'high' }, USER)).resolves.toMatchObject({
+        priority: 'high',
+      });
+    });
+  });
+
+  describe('remove (удаление админом)', () => {
+    it.each(['new', 'in_progress', 'completed', 'closed', 'overdue'] as const)(
+      'удаляет заявку в статусе %s и не публикует событий',
+      async (status) => {
+        prisma.ticket.findUnique.mockResolvedValue(ticketFixture({ status }));
+        prisma.ticket.delete.mockResolvedValue(ticketFixture({ status }));
+
+        await expect(service.remove('t-1', USER)).resolves.toBeUndefined();
+
+        expect(prisma.ticket.delete).toHaveBeenCalledWith({ where: { id: 't-1' } });
+        expect(publisher.publish).not.toHaveBeenCalled();
+      },
+    );
+
+    it('неизвестная заявка → 404, удаления нет', async () => {
+      prisma.ticket.findUnique.mockResolvedValue(null);
+
+      await expect(service.remove('nope', USER)).rejects.toThrow(NotFoundException);
+      expect(prisma.ticket.delete).not.toHaveBeenCalled();
+    });
   });
 
   // ------------------------------------------------------------------ создание

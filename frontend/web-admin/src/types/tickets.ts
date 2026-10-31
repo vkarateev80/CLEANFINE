@@ -30,6 +30,9 @@ export interface TicketEntity {
   /** Координаты аварийной/внеплановой заявки. */
   lat: number | null;
   lng: number | null;
+  /** Начало смены: заявку создал schedule-service по смене графика. */
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
 
   // ── тайминги жизненного цикла ───────────────────────────────────────────
   assignedAt: string | null;
@@ -157,6 +160,19 @@ export interface CreateTicketPayload {
   description: string;
   lat?: number;
   lng?: number;
+}
+
+/** `PATCH /api/tickets/:id` (только ADMIN): только изменённые поля; null — очистить. */
+export interface UpdateTicketPayload {
+  type?: TicketType;
+  priority?: TicketPriority;
+  status?: TicketStatus;
+  objectId?: string;
+  roomId?: string | null;
+  assigneeId?: string | null;
+  description?: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface EmergencyTicketPayload {

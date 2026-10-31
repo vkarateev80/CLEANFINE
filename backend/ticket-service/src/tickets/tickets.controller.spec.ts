@@ -20,6 +20,8 @@ const ticketsMock = {
   addComment: jest.fn(),
   completeOperation: jest.fn(),
   completeRoom: jest.fn(),
+  update: jest.fn(),
+  remove: jest.fn(),
 };
 
 const USER: AuthUser = {
@@ -115,6 +117,24 @@ describe('TicketsController', () => {
       roomId: 'room-1',
     });
     expect(ticketsMock.completeRoom).toHaveBeenCalledWith('t-1', 'room-1', dto, USER);
+  });
+
+  it('update и remove доступны только ADMIN и передают id, DTO и пользователя', async () => {
+    const dto = { priority: 'high' } as never;
+    ticketsMock.update.mockResolvedValue('updated');
+    ticketsMock.remove.mockResolvedValue(undefined);
+
+    await expect(controller.update('t-1', dto, USER)).resolves.toBe('updated');
+    expect(ticketsMock.update).toHaveBeenCalledWith('t-1', dto, USER);
+    await expect(controller.remove('t-1', USER)).resolves.toBeUndefined();
+    expect(ticketsMock.remove).toHaveBeenCalledWith('t-1', USER);
+
+    expect(Reflect.getMetadata(METHOD_METADATA, controller.update)).toBe(RequestMethod.PATCH);
+    expect(Reflect.getMetadata(PATH_METADATA, controller.update)).toBe(':id');
+    expect(Reflect.getMetadata(METHOD_METADATA, controller.remove)).toBe(RequestMethod.DELETE);
+    expect(Reflect.getMetadata(PATH_METADATA, controller.remove)).toBe(':id');
+    expect(Reflect.getMetadata(ROLES_KEY, controller.update)).toEqual(['ADMIN']);
+    expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual(['ADMIN']);
   });
 
   it('роуты и RBAC объявлены там, где ожидает API-контракт', () => {

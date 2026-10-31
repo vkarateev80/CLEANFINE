@@ -11,6 +11,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import {
   TICKET_PRIORITIES,
@@ -18,6 +19,7 @@ import {
   TICKET_TYPES,
   type TicketPriority,
   type TicketStatus,
+  type TicketType,
 } from '@cleaning-ops/shared/types/tickets';
 
 /** Типы, которые создаются обычным POST /api/tickets (аварийная — через /emergency). */
@@ -147,6 +149,68 @@ export class UpdateStatusDto {
   @ApiProperty({ description: 'Новый статус', enum: TICKET_STATUSES })
   @IsIn(TICKET_STATUSES, { message: 'Недопустимый статус заявки' })
   status!: TicketStatus;
+}
+
+/**
+ * Правка заявки администратором (01.11.2026): приходят только изменённые поля.
+ * `@IsOptional` пропустил бы и null, поэтому у полей, которые нельзя очистить, —
+ * `@ValidateIf`: null для них это 400, а не падение на записи в БД.
+ */
+export class UpdateTicketDto {
+  @ApiPropertyOptional({ description: 'Тип заявки', enum: TICKET_TYPES })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsIn(TICKET_TYPES, { message: 'Недопустимый тип заявки' })
+  type?: TicketType;
+
+  @ApiPropertyOptional({ description: 'Приоритет', enum: TICKET_PRIORITIES })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsIn(TICKET_PRIORITIES, { message: 'Недопустимый приоритет заявки' })
+  priority?: TicketPriority;
+
+  @ApiPropertyOptional({
+    description: 'Статус: любой, в обход state machine; отметки времени пересчитает сервис',
+    enum: TICKET_STATUSES,
+  })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsIn(TICKET_STATUSES, { message: 'Недопустимый статус заявки' })
+  status?: TicketStatus;
+
+  @ApiPropertyOptional({ description: 'Объект; при смене объекта помещение сбрасывается' })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @IsNotEmpty({ message: 'Укажите объект' })
+  objectId?: string;
+
+  @ApiPropertyOptional({ description: 'Помещение; null — объект целиком', nullable: true })
+  @IsOptional()
+  @IsString()
+  roomId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Исполнитель; null — снять', nullable: true })
+  @IsOptional()
+  @IsString()
+  assigneeId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Описание работ' })
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @IsNotEmpty({ message: 'Укажите описание заявки' })
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'Широта; null — убрать', nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  lat?: number | null;
+
+  @ApiPropertyOptional({ description: 'Долгота; null — убрать', nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  lng?: number | null;
 }
 
 /** Назначение исполнителя (М3.4). */
