@@ -17,6 +17,8 @@ import {
   clamp,
   clampZoom,
   defaultRectAt,
+  isLiftZoneRoom,
+  liftHatchImage,
   moveRect,
   normalizeRect,
   resizeRect,
@@ -541,11 +543,14 @@ export function FloorPlanCanvas({
             const colorZone = roomColorZone(room);
             const zoneMeta = COLOR_ZONE_META[colorZone];
             const fillAlpha = selected ? '66' : hovered ? '4D' : '33';
+            // Лифтовый холл остаётся синим по инвентарю, но на плане штрихуется.
+            const lift = isLiftZoneRoom(room);
             return (
               <div
                 key={room.id}
-                title={`${room.name} · ${zoneMeta.name.toLowerCase()} инвентарь`}
+                title={`${room.name} · ${zoneMeta.name.toLowerCase()} инвентарь${lift ? ' · лифтовая зона' : ''}`}
                 data-color-zone={colorZone}
+                data-lift-zone={lift ? 'true' : undefined}
                 onPointerDown={(event) => handleRoomPointerDown(event, room.id, rect)}
                 onMouseEnter={() => onHover(room.id)}
                 onMouseLeave={() => onHover(null)}
@@ -556,6 +561,7 @@ export function FloorPlanCanvas({
                   height: rect.height * zoom,
                   borderColor: zoneMeta.hex,
                   backgroundColor: `${zoneMeta.hex}${fillAlpha}`,
+                  ...(lift ? { backgroundImage: liftHatchImage(zoneMeta.hex) } : {}),
                 }}
                 className={[
                   'absolute border transition-colors',
@@ -632,6 +638,20 @@ export function FloorPlanCanvas({
       {rooms.length > 0 && (
         <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-white/90 px-2.5 py-1.5 shadow-sm">
           <ColorZoneLegend />
+          {rooms.some(isLiftZoneRoom) && (
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-neutral-600">
+              <span
+                aria-hidden="true"
+                className="inline-block h-3 w-5 rounded-sm border"
+                style={{
+                  borderColor: COLOR_ZONE_META.BLUE.hex,
+                  backgroundColor: `${COLOR_ZONE_META.BLUE.hex}33`,
+                  backgroundImage: liftHatchImage(COLOR_ZONE_META.BLUE.hex),
+                }}
+              />
+              Лифтовая зона
+            </div>
+          )}
         </div>
       )}
 

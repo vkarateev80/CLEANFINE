@@ -98,6 +98,21 @@ export function isPdfPlanUrl(url: string | null): boolean {
   return /\.pdf($|[?#])/i.test(url);
 }
 
+/**
+ * Лифтовая зона (31.10.2026, план 4 этажа ЗИЛ): помещение с зоной «Лифтовая
+ * зона» или типом «Лифтовый холл». Цвет инвентаря у неё прежний, синий, —
+ * на плане этажа её отличает только штриховка.
+ */
+export function isLiftZoneRoom(room: { floorType?: string | null; zone?: string | null }): boolean {
+  const text = `${room.zone ?? ''} ${room.floorType ?? ''}`.toLowerCase().replace(/ё/g, 'е');
+  return text.includes('лифтов');
+}
+
+/** Штриховка поверх заливки цвета зоны: диагональ того же цвета, видна и в выбранном состоянии. */
+export function liftHatchImage(hex: string): string {
+  return `repeating-linear-gradient(45deg, ${hex}B3 0, ${hex}B3 3px, transparent 3px, transparent 9px)`;
+}
+
 export function formatArea(value: number): string {
   return value.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
