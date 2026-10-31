@@ -1,6 +1,53 @@
 import { describe, expect, it } from 'vitest';
 import { COLOR_ZONE_META, roomColorZone } from '@cleaning-ops/shared/types/color-coding';
-import { isLiftZoneRoom, isSh3dFile, liftHatchImage, planFileError } from './floorPlanUtils';
+import type { RoomWithTechCard } from '../../types/core';
+import {
+  DEFAULT_ROOM_FILTER,
+  highlightedRoomIds,
+  isLiftZoneRoom,
+  isRoomFilterActive,
+  isSh3dFile,
+  liftHatchImage,
+  planFileError,
+} from './floorPlanUtils';
+
+describe('подсветка на плане по фильтру экспликации', () => {
+  const room = (id: string, name: string, zone: string | null, floorType: string) =>
+    ({ id, name, zone, floorType, createdAt: `2026-11-01T00:00:0${id}` }) as RoomWithTechCard;
+  const rooms = [
+    room('1', '426 Усов', 'Сектор 1', 'Офис'),
+    room('2', 'ПУИ 4.21', 'Сектор 1', 'Комната уборочного инвентаря'),
+    room('3', 'Санузел 4.22', 'Красная зона', 'Санузел'),
+    room('4', 'Помещение 127', null, 'Офис'),
+  ];
+
+  it('без фильтра план обычный, сортировка фильтром не считается', () => {
+    expect(highlightedRoomIds(rooms, DEFAULT_ROOM_FILTER)).toBeNull();
+    const sorted = { ...DEFAULT_ROOM_FILTER, sort: 'area' as const };
+    expect(isRoomFilterActive(sorted)).toBe(false);
+    expect(highlightedRoomIds(rooms, sorted)).toBeNull();
+    expect(highlightedRoomIds(rooms, { ...DEFAULT_ROOM_FILTER, search: '   ' })).toBeNull();
+  });
+
+  it('зона «Сектор 1» подсвечивает только свои помещения, санузел в красной зоне — нет', () => {
+    const ids = highlightedRoomIds(rooms, { ...DEFAULT_ROOM_FILTER, zone: 'Сектор 1' });
+    expect([...(ids ?? [])].sort()).toEqual(['1', '2']);
+  });
+
+  it('фильтры складываются, как в списке', () => {
+    const ids = highlightedRoomIds(rooms, {
+      ...DEFAULT_ROOM_FILTER,
+      zone: 'Сектор 1',
+      floorType: 'Офис',
+    });
+    expect([...(ids ?? [])]).toEqual(['1']);
+  });
+
+  it('ничего не нашлось — пустое множество, а не null: всё бледнеет', () => {
+    const ids = highlightedRoomIds(rooms, { ...DEFAULT_ROOM_FILTER, search: 'нет такого' });
+    expect(ids?.size).toBe(0);
+  });
+});
 
 describe('planFileError: .sh3d', () => {
   it('принимает Sweet Home 3D (расширение важнее MIME — его у .sh3d нет)', () => {

@@ -1,5 +1,5 @@
 import { roomColorZone } from '@cleaning-ops/shared/types/color-coding';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Button, ColorZoneDot, Input, Select } from '../../components/ui';
 import type { RoomWithTechCard } from '../../types/core';
 import {
@@ -8,13 +8,17 @@ import {
   filterAndSortRooms,
   formatArea,
   formatRoomCoords,
+  isRoomFilterActive,
   roomNumbers,
   type Rect,
-  type RoomSort,
+  type RoomFilter,
 } from './floorPlanUtils';
 
 interface RoomListPanelProps {
   rooms: RoomWithTechCard[];
+  /** Фильтр живёт на странице: по нему же подсвечиваются помещения на плане. */
+  filter: RoomFilter;
+  onFilterChange: (filter: RoomFilter) => void;
   selectedRoomId: string | null;
   hoveredRoomId: string | null;
   canEdit: boolean;
@@ -43,6 +47,8 @@ function TechCardPill({ room }: { room: RoomWithTechCard }) {
 /** Левая панель «Экспликация»: поиск, фильтры, сортировка и итог по площади. */
 export function RoomListPanel({
   rooms,
+  filter,
+  onFilterChange,
   selectedRoomId,
   hoveredRoomId,
   canEdit,
@@ -51,26 +57,18 @@ export function RoomListPanel({
   onHover,
   onCreate,
 }: RoomListPanelProps) {
-  const [search, setSearch] = useState('');
-  const [zone, setZone] = useState('');
-  const [floorType, setFloorType] = useState('');
-  const [sort, setSort] = useState<RoomSort>('order');
+  const { search, zone, floorType, sort } = filter;
 
   const zones = useMemo(() => distinctRoomValues(rooms, 'zone'), [rooms]);
   const floorTypes = useMemo(() => distinctRoomValues(rooms, 'floorType'), [rooms]);
   const numbers = useMemo(() => roomNumbers(rooms), [rooms]);
-  const visible = useMemo(
-    () => filterAndSortRooms(rooms, { search, zone, floorType, sort }),
-    [rooms, search, zone, floorType, sort],
-  );
+  const visible = useMemo(() => filterAndSortRooms(rooms, filter), [rooms, filter]);
 
   const totalArea = rooms.reduce((sum, room) => sum + room.areaM2, 0);
-  const filtersActive = search.trim() !== '' || zone !== '' || floorType !== '';
+  const filtersActive = isRoomFilterActive(filter);
 
   function resetFilters() {
-    setSearch('');
-    setZone('');
-    setFloorType('');
+    onFilterChange({ ...filter, search: '', zone: '', floorType: '' });
   }
 
   return (
@@ -95,13 +93,13 @@ export function RoomListPanel({
           placeholder="Поиск по названию"
           aria-label="Поиск помещений"
           data-testid="room-search"
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => onFilterChange({ ...filter, search: event.target.value })}
         />
         <div className="grid grid-cols-2 gap-2">
           <Select
             value={zone}
             aria-label="Фильтр по зоне"
-            onChange={(event) => setZone(event.target.value)}
+            onChange={(event) => onFilterChange({ ...filter, zone: event.target.value })}
           >
             <option value="">Все зоны</option>
             {zones.map((value) => (
@@ -113,7 +111,7 @@ export function RoomListPanel({
           <Select
             value={floorType}
             aria-label="Фильтр по типу помещения"
-            onChange={(event) => setFloorType(event.target.value)}
+            onChange={(event) => onFilterChange({ ...filter, floorType: event.target.value })}
           >
             <option value="">Все типы</option>
             {floorTypes.map((value) => (
@@ -128,7 +126,7 @@ export function RoomListPanel({
           aria-label="Сортировка помещений"
           onChange={(event) => {
             const next = ROOM_SORT_OPTIONS.find((option) => option.value === event.target.value);
-            if (next) setSort(next.value);
+            if (next) onFilterChange({ ...filter, sort: next.value });
           }}
         >
           {ROOM_SORT_OPTIONS.map((option) => (

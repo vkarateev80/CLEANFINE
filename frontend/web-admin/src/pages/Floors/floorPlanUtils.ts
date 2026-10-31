@@ -247,6 +247,18 @@ export interface RoomFilter {
   sort: RoomSort;
 }
 
+export const DEFAULT_ROOM_FILTER: RoomFilter = {
+  search: '',
+  zone: '',
+  floorType: '',
+  sort: 'order',
+};
+
+/** Сортировка не считается: она не меняет состав списка. */
+export function isRoomFilterActive(filter: RoomFilter): boolean {
+  return filter.search.trim() !== '' || filter.zone !== '' || filter.floorType !== '';
+}
+
 export function filterAndSortRooms(
   rooms: RoomWithTechCard[],
   filter: RoomFilter,
@@ -267,6 +279,18 @@ export function filterAndSortRooms(
     result.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
   return result;
+}
+
+/**
+ * Что подсветить на плане: те же помещения, что в отфильтрованной экспликации.
+ * `null` — фильтра нет, план обычный. Пустое множество — ничего не нашлось.
+ */
+export function highlightedRoomIds(
+  rooms: RoomWithTechCard[],
+  filter: RoomFilter,
+): ReadonlySet<string> | null {
+  if (!isRoomFilterActive(filter)) return null;
+  return new Set(filterAndSortRooms(rooms, filter).map((room) => room.id));
 }
 
 export function distinctRoomValues(rooms: RoomWithTechCard[], key: 'zone' | 'floorType'): string[] {

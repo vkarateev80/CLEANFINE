@@ -31,11 +31,13 @@ import { RoomCreateModal } from './RoomCreateModal';
 import { RoomEditorDrawer } from './RoomEditorDrawer';
 import { RoomListPanel } from './RoomListPanel';
 import {
+  DEFAULT_ROOM_FILTER,
   ZOOM_STEP,
   clampZoom,
   distinctRoomValues,
   downloadRoomsCsv,
   formatArea,
+  highlightedRoomIds,
   isPdfPlanUrl,
   isSh3dFile,
   isXmlPlanFile,
@@ -43,6 +45,7 @@ import {
   zoomPercent,
   type PlanSize,
   type Rect,
+  type RoomFilter,
 } from './floorPlanUtils';
 import { roomCreatePayload, roomUpdatePayload, type RoomFormValues } from './roomForm';
 import type { ImportRoom } from './sh3d';
@@ -84,6 +87,7 @@ export function FloorPlanPage() {
 
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
+  const [roomFilter, setRoomFilter] = useState<RoomFilter>(DEFAULT_ROOM_FILTER);
   const [addMode, setAddMode] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [fitNonce, setFitNonce] = useState(0);
@@ -250,6 +254,7 @@ export function FloorPlanPage() {
   }, [isTabletUp]);
 
   const rooms = useMemo(() => floor?.rooms ?? [], [floor]);
+  const highlightedIds = useMemo(() => highlightedRoomIds(rooms, roomFilter), [rooms, roomFilter]);
   const planImageUrl = floor?.planImageUrl ?? null;
   const isPdf = isPdfPlanUrl(planImageUrl);
   const drawingAvailable = Boolean(planImageUrl) && !isPdf && canEdit;
@@ -620,6 +625,8 @@ export function FloorPlanPage() {
           >
             <RoomListPanel
               rooms={rooms}
+              filter={roomFilter}
+              onFilterChange={setRoomFilter}
               selectedRoomId={selectedRoomId}
               hoveredRoomId={hoveredRoomId}
               canEdit={canEdit}
@@ -643,6 +650,7 @@ export function FloorPlanPage() {
             planImageUrl={planImageUrl}
             isPdf={isPdf}
             rooms={rooms}
+            highlightedRoomIds={highlightedIds}
             selectedRoomId={selectedRoomId}
             hoveredRoomId={hoveredRoomId}
             canEdit={canEdit}

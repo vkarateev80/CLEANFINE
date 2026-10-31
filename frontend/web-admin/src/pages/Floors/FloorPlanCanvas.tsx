@@ -35,6 +35,8 @@ interface FloorPlanCanvasProps {
   planImageUrl: string | null;
   isPdf: boolean;
   rooms: RoomWithTechCard[];
+  /** Найденные фильтром экспликации: они подсвечены, остальные бледнеют. `null` — фильтра нет. */
+  highlightedRoomIds: ReadonlySet<string> | null;
   selectedRoomId: string | null;
   hoveredRoomId: string | null;
   canEdit: boolean;
@@ -101,6 +103,7 @@ export function FloorPlanCanvas({
   planImageUrl,
   isPdf,
   rooms,
+  highlightedRoomIds,
   selectedRoomId,
   hoveredRoomId,
   canEdit,
@@ -142,6 +145,12 @@ export function FloorPlanCanvas({
 
   const numbers = useMemo(() => roomNumbers(rooms), [rooms]);
   const withoutCoords = rooms.filter((room) => roomRect(room) === null).length;
+  const highlightedOnPlan = highlightedRoomIds
+    ? rooms.filter(
+        (room) =>
+          highlightedRoomIds.has(room.id) && (draftRects[room.id] ?? roomRect(room)) !== null,
+      ).length
+    : 0;
 
   // Новый план — новые границы координат: измерение и «Вписать» начинаются заново.
   useEffect(() => {
@@ -542,7 +551,10 @@ export function FloorPlanCanvas({
             // пунктиром и плотностью заливки, чтобы цвет зоны не терялся.
             const colorZone = roomColorZone(room);
             const zoneMeta = COLOR_ZONE_META[colorZone];
-            const fillAlpha = selected ? '66' : hovered ? '4D' : '33';
+            const highlighted = highlightedRoomIds?.has(room.id) ?? false;
+            // Выбранное и наведённое не бледнеют: иначе карточка открыта, а рамки не видно.
+            const dimmed = highlightedRoomIds !== null && !highlighted && !selected && !hovered;
+            const fillAlpha = selected || highlighted ? '66' : hovered ? '4D' : '33';
             // Лифтовый холл остаётся синим по инвентарю, но на плане штрихуется.
             const lift = isLiftZoneRoom(room);
             return (
@@ -551,6 +563,8 @@ export function FloorPlanCanvas({
                 title={`${room.name} · ${zoneMeta.name.toLowerCase()} инвентарь${lift ? ' · лифтовая зона' : ''}`}
                 data-color-zone={colorZone}
                 data-lift-zone={lift ? 'true' : undefined}
+                data-highlighted={highlighted ? 'true' : undefined}
+                data-dimmed={dimmed ? 'true' : undefined}
                 onPointerDown={(event) => handleRoomPointerDown(event, room.id, rect)}
                 onMouseEnter={() => onHover(room.id)}
                 onMouseLeave={() => onHover(null)}
@@ -564,15 +578,18 @@ export function FloorPlanCanvas({
                   ...(lift ? { backgroundImage: liftHatchImage(zoneMeta.hex) } : {}),
                 }}
                 className={[
-                  'absolute border transition-colors',
+                  'absolute border transition',
                   // В режиме рисования рамки не перехватывают указатель: иначе drag
                   // начинался бы над помещением, а не на свободном месте плана.
                   addMode ? 'pointer-events-none' : '',
+                  dimmed ? 'opacity-20' : '',
                   selected
                     ? 'border-2 ring-2 ring-primary-600 ring-offset-1'
-                    : missingTechCard
-                      ? 'border-dashed'
-                      : '',
+                    : highlighted
+                      ? 'border-2'
+                      : missingTechCard
+                        ? 'border-dashed'
+                        : '',
                   canEdit && drawEnabled && !addMode ? 'cursor-move' : 'cursor-pointer',
                 ].join(' ')}
               >
@@ -659,6 +676,15 @@ export function FloorPlanCanvas({
         {addMode && canEdit && (
           <span className="rounded-md bg-neutral-900 px-3 py-1 text-xs text-neutral-100">
             Протяните рамку, чтобы создать помещение
+          </span>
+        )}
+        {highlightedRoomIds !== null && (
+          <span
+            data-testid="plan-highlight-count"
+            className="rounded-md bg-white px-3 py-1 text-xs text-neutral-700 shadow-sm"
+          >
+            Подсвечено на плане: {highlightedOnPlan} из {highlightedRoomIds.size}
+            {highlightedOnPlan < highlightedRoomIds.size && ', у остальных нет координат'}
           </span>
         )}
         {withoutCoords > 0 && (
