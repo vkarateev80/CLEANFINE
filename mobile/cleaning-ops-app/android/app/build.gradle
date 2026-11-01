@@ -88,6 +88,7 @@ android {
     //   flutter build apk --flavor operator -t lib/main_operator.dart
     //   flutter build apk --flavor team     -t lib/main_team.dart
     //   flutter build apk --flavor client   -t lib/main_client.dart
+    //   flutter build apk --flavor admin    -t lib/main_admin.dart
     // `operator` сохраняет исторический applicationId — установленное приложение
     // обновляется, а не ставится рядом.
     flavorDimensions "product"
@@ -106,6 +107,11 @@ android {
             dimension "product"
             applicationId "com.cleaningops.client"
             resValue "string", "app_name", "CLEANFINE Клиент"
+        }
+        admin {
+            dimension "product"
+            applicationId "com.cleaningops.admin"
+            resValue "string", "app_name", "CLEANFINE Админ"
         }
     }
 }

@@ -34,6 +34,20 @@
 Продукт выбирается точкой входа (переопределение `appProductProvider`) или
 `--dart-define=APP_PRODUCT=operator|team|client` (десктоп, лончеры, тесты).
 
+**«CLEANFINE Админ»** (01.11.2026) — не продукт `AppProduct`, а тонкая обёртка над
+веб-админкой cleanfine.ru, тот же подход, что у `desktop/manager`: переписывать
+админку на Flutter незачем. Своя точка входа `lib/main_admin.dart`, код в
+`lib/features/admin_web`, flavor `admin`, bundle/applicationId
+`com.cleaningops.admin`, оранжевая иконка `design/brand/app-icon-admin-1024.png`.
+Вход, права и экраны — на сайте, вход хранится в браузере приложения между
+запусками; любая новая версия веб-админки видна сразу, без новой сборки. Обёртка
+добавляет выбор файла на Android, сохранение выгрузок через системный диалог,
+открытие внешних ссылок (`/minio`, `/api`, карты) в браузере, «назад» и экран
+ошибки связи. **Нативных пушей нет:** во встроенном браузере нет PushManager,
+остаются уведомления внутри открытой страницы. Разрешения геолокации, камеры,
+микрофона, биометрии и фоновая служба `CfPushService` убраны в
+`android/app/src/admin/AndroidManifest.xml`.
+
 ## Что решает продукт (`ProductConfig`)
 
 - `allowedRoles` — проверка при входе в `AuthRepository`: чужая роль гасит
@@ -58,6 +72,10 @@ flutter build ipa --release --flavor team -t lib/main_team.dart $DEFINES
 # «Клиент»: Android только arm64 (решение владельца 01.11.2026); iOS — схема `client`
 flutter build apk --release --flavor client -t lib/main_client.dart --split-per-abi --target-platform android-arm64 $DEFINES
 flutter build ipa --release --flavor client -t lib/main_client.dart $DEFINES
+# «Админ»: Android только arm64; $DEFINES не нужны, адрес — ADMIN_WEB_URL (по умолчанию https://cleanfine.ru);
+# локальный стенд по http работает только в debug (android/app/src/adminDebug)
+flutter build apk --release --flavor admin -t lib/main_admin.dart --split-per-abi --target-platform android-arm64
+flutter build ipa --release --flavor admin -t lib/main_admin.dart
 # macOS / Windows — продукт через define (flavor'ы на десктопе не нужны)
 flutter build macos --release --dart-define=APP_PRODUCT=team $DEFINES
 ```
