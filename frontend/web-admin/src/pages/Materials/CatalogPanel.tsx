@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { deleteMaterial } from '../../api/materials';
@@ -15,7 +15,7 @@ import {
   TableOnlyTestId,
   type ResponsiveColumn,
 } from '../../components/ui';
-import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useUrlSearchInput } from '../../hooks/useUrlSearchInput';
 import { useCanManageMaterials, useCanMoveMaterials } from '../../hooks/usePermissions';
 import type { MaterialEntity, MaterialListItem } from '../../types/materials';
 import { MaterialFormModal } from './MaterialFormModal';
@@ -52,8 +52,11 @@ export function CatalogPanel({ onMove }: { onMove: (preset: MovementPreset) => v
   const take = Number(params.get('catTake') ?? String(TAKE)) || TAKE;
   const search = params.get('catSearch') ?? '';
 
-  const [searchInput, setSearchInput] = useState(search);
-  const debouncedSearch = useDebouncedValue(searchInput, 300);
+  // Поле поиска ↔ `?catSearch=` (см. useUrlSearchInput: прежние два эффекта
+  // зацикливались и стирали набранный текст).
+  const [searchInput, setSearchInput] = useUrlSearchInput(search, (value) =>
+    write({ catSearch: value === '' ? null : value, catSkip: null }),
+  );
   const [sort, setSort] = useState<{ key: SortKey; order: SortOrder }>({
     key: 'name',
     order: 'asc',
@@ -70,19 +73,6 @@ export function CatalogPanel({ onMove }: { onMove: (preset: MovementPreset) => v
     take,
     ...(search === '' ? {} : { search }),
   });
-
-  // Обратная навигация браузера меняет query-строку, а поле поиска — локальное
-  // состояние: без синхронизации в контроле остался бы прежний запрос.
-  useEffect(() => {
-    if (search !== debouncedSearch) setSearchInput(search);
-  }, [search, debouncedSearch]);
-
-  useEffect(() => {
-    if (debouncedSearch === search) return;
-    write({ catSearch: debouncedSearch === '' ? null : debouncedSearch, catSkip: null });
-    // write читает актуальные параметры через функциональную форму setParams,
-    // поэтому в зависимостях достаточно отложенного значения поиска.
-  }, [debouncedSearch]);
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteMaterial(id),

@@ -114,3 +114,22 @@ export function plural(count: number, one: string, few: string, many: string): s
 export function shortId(id: string): string {
   return id.slice(0, 8);
 }
+
+/**
+ * Расход по единицам (07.11.2026): литры и штуки не складываются — «Итого» по
+ * материалам показывает сумму для каждой единицы: `1,30 л · 30,00 шт`.
+ */
+export function formatConsumedByUnit(
+  rows: ReadonlyArray<{ unit: string; consumedQuantity: number }>,
+): string {
+  const sums = new Map<string, number>();
+  for (const row of rows) {
+    const unit = row.unit.trim() || 'ед.';
+    sums.set(unit, (sums.get(unit) ?? 0) + row.consumedQuantity);
+  }
+  if (sums.size === 0) return formatNumber(0, 2);
+  return [...sums.entries()]
+    .sort(([left], [right]) => left.localeCompare(right, 'ru'))
+    .map(([unit, quantity]) => `${formatNumber(quantity, 2)} ${unit}`)
+    .join(' · ');
+}

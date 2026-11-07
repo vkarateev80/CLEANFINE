@@ -14,6 +14,7 @@ import {
   buildCsv,
   csvFileName,
   downloadCsv,
+  formatConsumedByUnit,
   formatMoney,
   formatNumber,
   objectLabel,
@@ -106,8 +107,9 @@ export function MaterialsReport({
       align: 'right',
       card: 'field',
       cardLabel: 'Расход',
+      // Итог — по единицам: литры со штуками не складываются.
       cell: (item) =>
-        formatNumber(isTotal(item) ? (totals?.consumedQuantity ?? 0) : item.consumedQuantity),
+        isTotal(item) ? formatConsumedByUnit(rows) : formatNumber(item.consumedQuantity),
     },
     {
       key: 'operations',
@@ -187,7 +189,7 @@ export function MaterialsReport({
       {!report.isError && !report.isLoading && (
         <>
           <Card className="flex flex-wrap items-end gap-6" testId="report-totals-materials">
-            <Metric label="Израсходовано" value={formatNumber(totals?.consumedQuantity ?? 0)} />
+            <Metric label="Израсходовано" value={formatConsumedByUnit(rows)} />
             <Metric label="Операций" value={String(totals?.operationsCount ?? 0)} />
             <Metric
               label="Стоимость"
@@ -221,7 +223,7 @@ export function MaterialsReport({
                   <h2 className="text-sm font-medium text-neutral-700">
                     Разрез по объектам и материалам
                   </h2>
-                  <span className="text-xs text-neutral-400">источник: material-service</span>
+                  <span className="text-xs text-neutral-400">по списаниям материалов</span>
                 </div>
                 <ResponsiveTable<ConsumptionItem>
                   items={[...rows, { total: true }]}
@@ -239,7 +241,7 @@ export function MaterialsReport({
                     Итоги по объектам за всё время
                   </h2>
                   <span className="text-xs text-neutral-400">
-                    read-модель report_material_consumption без периода
+                    без учёта выбранного периода
                   </span>
                 </div>
                 <ResponsiveTable<ConsumptionReportRow>

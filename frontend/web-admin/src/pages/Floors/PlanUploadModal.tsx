@@ -246,7 +246,7 @@ export function PlanUploadModal({
             )}
           </>
         ) : (
-          <Field label="URL файла плана" htmlFor="plan-upload-url" hint="Ссылка из file-service">
+          <Field label="URL файла плана" htmlFor="plan-upload-url" hint="Ссылка на уже загруженный файл">
             <Input
               id="plan-upload-url"
               value={url}

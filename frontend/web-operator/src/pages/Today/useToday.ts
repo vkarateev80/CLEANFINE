@@ -123,7 +123,9 @@ export function useShiftActions() {
   const checkInMutation = useMutation({
     mutationFn: async (event: ScheduleEvent) => {
       if (!online) throw new LocationUnavailable(t('Нет соединения. Проверьте интернет'));
-      const point = await getCurrentPosition();
+      // Только свежий замер: геозону проверяет сервер, и координаты из кэша
+      // повторили бы прежний отказ «вне зоны» (07.11.2026).
+      const point = await getCurrentPosition(15_000, { fresh: true });
       return checkIn({ scheduleId: event.scheduleId, lat: point.lat, lng: point.lng });
     },
     onSuccess: () => {

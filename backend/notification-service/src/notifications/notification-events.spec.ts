@@ -1,5 +1,6 @@
 import { EVENT_QUEUES, ROUTING_KEYS } from '@cleaning-ops/shared/constants/events';
 import { NOTIFICATION_ROUTING_KEYS, resolveEvent, isAssignedOnCreate } from './notification-events';
+import { renderTemplate } from './notification-templates';
 
 describe('NOTIFICATION_ROUTING_KEYS', () => {
   it('слушает все очереди EVENT_QUEUES, кроме material.ticket.operation.completed', () => {
@@ -131,6 +132,7 @@ describe('resolveEvent', () => {
         type: 'Затопление',
         objectName: 'БЦ «Северный»',
         floor: '3 этаж',
+        place: 'БЦ «Северный», 3 этаж',
       });
       expect(resolved?.data).toEqual({
         ticketId: 't-3',
@@ -162,7 +164,35 @@ describe('resolveEvent', () => {
         objectName: 'Офис',
       });
 
-      expect(resolved?.params).toEqual({ type: 'Затопление', objectName: 'Офис', floor: '' });
+      expect(resolved?.params).toEqual({
+        type: 'Затопление',
+        objectName: 'Офис',
+        floor: '',
+        place: 'Офис',
+      });
+    });
+
+    it('код типа заявки от ticket-service → русский текст без висящей запятой (07.11.2026)', () => {
+      const withoutFloor = resolveEvent(ROUTING_KEYS.TICKET_EMERGENCY, {
+        ticketId: 't-5',
+        type: 'emergency',
+        objectName: 'ЗИЛ',
+        floor: '',
+      });
+      expect(withoutFloor).not.toBeNull();
+      expect(renderTemplate('EMERGENCY', withoutFloor?.params).body).toBe(
+        'Аварийная заявка на объекте ЗИЛ',
+      );
+
+      const withRoom = resolveEvent(ROUTING_KEYS.TICKET_EMERGENCY, {
+        ticketId: 't-5',
+        type: 'emergency',
+        objectName: 'ЗИЛ',
+        floor: 'Этаж 4 · Холл',
+      });
+      expect(renderTemplate('EMERGENCY', withRoom?.params).body).toBe(
+        'Аварийная заявка на объекте ЗИЛ, Этаж 4 · Холл',
+      );
     });
 
     it.each([
@@ -425,6 +455,36 @@ describe('resolveEvent: ticket.status_changed (09.10.2026)', () => {
       description: 'Влажная уборка холла (аварийная)',
     });
     expect(resolved?.excludeUserIds).toEqual([]);
+  });
+
+  it('заявка заказчика без исполнителя (→ new, previousStatus пуст): «Новая заявка» для бригадиров и админов (07.11.2026)', () => {
+    const resolved = resolveEvent(ROUTING_KEYS.TICKET_STATUS_CHANGED, {
+      ...base,
+      status: 'new',
+      previousStatus: '',
+      type: 'unscheduled',
+      description: 'Протечка в санузле',
+      assigneeId: null,
+      createdBy: 'u-client',
+      actorId: 'u-client',
+      actorName: 'client',
+    });
+    expect(resolved).toMatchObject({
+      template: 'TICKET_STATUS',
+      includeStaff: true,
+      // Автор — он же инициатор: ему уведомление о собственной заявке не нужно.
+      excludeUserIds: ['u-client'],
+      params: { title: '🆕 Новая заявка', body: 'Протечка в санузле (внеплановая) · client' },
+    });
+  });
+
+  it('снятие исполнителя (assigned → new) — не «новая заявка»', () => {
+    const resolved = resolveEvent(ROUTING_KEYS.TICKET_STATUS_CHANGED, {
+      ...base,
+      status: 'new',
+      previousStatus: 'assigned',
+    });
+    expect(resolved?.params.title).toBe('↩️ Заявка снова без исполнителя');
   });
 
   it('без ticketId или status → null', () => {

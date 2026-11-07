@@ -164,7 +164,7 @@ export function ChatThread({
       ? 'На связи'
       : status === 'connecting'
         ? 'Подключение…'
-        : 'Нет соединения — отправка через REST';
+        : 'Нет постоянного соединения';
 
   const statusClass =
     status === 'online'
@@ -343,8 +343,8 @@ export function ChatThread({
         </div>
         <span className="text-xs text-neutral-400">
           {status === 'online'
-            ? 'Сообщение уходит мгновенно по WebSocket.'
-            : 'WebSocket недоступен: сообщение уйдёт обычным запросом (REST-фолбэк).'}
+            ? 'Сообщения доставляются мгновенно.'
+            : 'Нет постоянного соединения: сообщение всё равно отправится, новые могут приходить с задержкой.'}
         </span>
       </div>
       <ConfirmDialog

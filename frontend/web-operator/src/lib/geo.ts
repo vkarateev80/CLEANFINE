@@ -23,7 +23,19 @@ export class LocationUnavailable extends Error {
 export const LOCATION_DENIED_TEXT = 'Нет доступа к геолокации. Включите GPS и повторите';
 export const LOCATION_FAILED_TEXT = 'Не удалось определить местоположение';
 
-export function getCurrentPosition(timeoutMs = 15_000): Promise<GeoPoint> {
+/** Сколько браузер может отдавать закэшированную позицию, если свежая не нужна. */
+export const CACHED_POSITION_MAX_AGE_MS = 30_000;
+
+/**
+ * Позиция устройства. `fresh` — только новый замер (`maximumAge: 0`): нужен
+ * отметке прихода, где сервер решает «в зоне / вне зоны». 07.11.2026: повторная
+ * отметка после «Вы находитесь вне зоны объекта» до 30 с получала из кэша те же
+ * координаты и снова получала отказ, хотя оператор уже вошёл в зону.
+ */
+export function getCurrentPosition(
+  timeoutMs = 15_000,
+  options: { fresh?: boolean } = {},
+): Promise<GeoPoint> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       reject(new LocationUnavailable(t(LOCATION_FAILED_TEXT)));
@@ -44,7 +56,11 @@ export function getCurrentPosition(timeoutMs = 15_000): Promise<GeoPoint> {
           ),
         );
       },
-      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 30_000 },
+      {
+        enableHighAccuracy: true,
+        timeout: timeoutMs,
+        maximumAge: options.fresh ? 0 : CACHED_POSITION_MAX_AGE_MS,
+      },
     );
   });
 }

@@ -72,7 +72,9 @@ export function ticketStatusBody(description: string, actorName: string | undefi
 
 /** Подписи статусов заявки для заголовка TICKET_STATUS. */
 export const TICKET_STATUS_TITLES: Record<string, string> = {
-  new: 'Заявка создана',
+  // Переход в new из другого статуса — исполнитель снят. Создание заявки
+  // (previousStatus пустой) озаглавлено TICKET_CREATED_TITLE.
+  new: '↩️ Заявка снова без исполнителя',
   assigned: '👤 Заявка назначена',
   in_progress: '▶️ Заявка в работе',
   paused: '⏸ Заявка приостановлена',
@@ -83,11 +85,33 @@ export const TICKET_STATUS_TITLES: Record<string, string> = {
   overdue: '⚠️ Заявка просрочена',
 };
 
+/**
+ * Заголовок для заявки заказчика без исполнителя: ticket-service публикует
+ * ticket.status_changed → new с пустым previousStatus (07.11.2026).
+ */
+export const TICKET_CREATED_TITLE = '🆕 Новая заявка';
+
 export const TICKET_TYPE_LABELS: Record<string, string> = {
   planned: 'плановая',
   unscheduled: 'внеплановая',
   emergency: 'аварийная',
 };
+
+/**
+ * Вид тревоги для текста EMERGENCY. ticket-service кладёт в `type` код типа
+ * заявки (`emergency`); произвольный текст издателя («Затопление») остаётся как есть.
+ */
+export const EMERGENCY_KIND_LABELS: Record<string, string> = {
+  emergency: 'Аварийная заявка',
+  unscheduled: 'Внеплановая заявка',
+  planned: 'Плановая заявка',
+};
+
+/** «объект, этаж» — без хвостовой запятой, когда этаж/помещение не указаны. */
+export function emergencyPlace(objectName: string, floor: string): string {
+  const where = floor.trim();
+  return where.length > 0 ? `${objectName}, ${where}` : objectName;
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -213,7 +237,12 @@ export function resolveEvent(routingKey: string, payload: unknown): ResolvedNoti
         routingKey,
         template: 'EMERGENCY',
         userIds: collectRecipients(event),
-        params: { type, objectName, floor },
+        params: {
+          type: EMERGENCY_KIND_LABELS[type] ?? type,
+          objectName,
+          floor,
+          place: emergencyPlace(objectName, floor),
+        },
         data: {
           ticketId: asText(event.ticketId) ?? '',
           objectName,
@@ -315,7 +344,11 @@ export function resolveEvent(routingKey: string, payload: unknown): ResolvedNoti
       const actorId = asText(event.actorId);
       const actorName = asText(event.actorName);
       const typeLabel = TICKET_TYPE_LABELS[asText(event.type) ?? ''] ?? '';
-      const title = TICKET_STATUS_TITLES[status] ?? `Заявка: ${status}`;
+      const previousStatus = asText(event.previousStatus) ?? '';
+      const title =
+        status === 'new' && previousStatus === ''
+          ? TICKET_CREATED_TITLE
+          : (TICKET_STATUS_TITLES[status] ?? `Заявка: ${status}`);
       // Текст: «Влажная уборка холла (плановая) · Оператор Иванов». JWT не несёт
       // имени, поэтому издатель кладёт логин; консьюмер заменит его именем из
       // справочника (ticketStatusBody), если найдёт инициатора.
@@ -340,7 +373,7 @@ export function resolveEvent(routingKey: string, payload: unknown): ResolvedNoti
         data: {
           ticketId,
           status,
-          previousStatus: asText(event.previousStatus) ?? '',
+          previousStatus,
           objectId: asText(event.objectId) ?? '',
           assigneeId: asText(event.assigneeId) ?? '',
           actorId: actorId ?? '',

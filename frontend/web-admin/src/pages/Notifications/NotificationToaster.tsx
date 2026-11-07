@@ -2,12 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { alertUser } from '../../lib/alerts';
 import { resubscribeIfGranted } from '../../lib/webPush';
-import {
-  notificationTypeIcon,
-  type NotificationEntity,
-  type NotificationsPage,
-} from '../../types/notifications';
+import { notificationTypeIcon, type NotificationEntity } from '../../types/notifications';
 import { notificationTarget } from './NotificationBell';
+import { collectFresh, startSeen, type SeenNotifications } from './notificationHelpers';
 import { useMarkNotificationRead, useUnreadNotifications } from './useNotifications';
 
 /**
@@ -39,16 +36,6 @@ export async function enableBrowserNotifications(): Promise<BrowserNotifications
   }
 }
 
-/** Непрочитанные новее последнего виденного (страница отсортирована от новых). */
-export function collectFresh(page: NotificationsPage, seenId: string | null): NotificationEntity[] {
-  const fresh: NotificationEntity[] = [];
-  for (const item of page.items) {
-    if (item.id === seenId) break;
-    fresh.push(item);
-  }
-  return fresh;
-}
-
 function systemNotification(item: NotificationEntity): void {
   if (browserNotificationsState() !== 'granted') return;
   try {
@@ -69,21 +56,18 @@ export function NotificationToaster() {
   const markRead = useMarkNotificationRead();
   const navigate = useNavigate();
   const [toasts, setToasts] = useState<NotificationEntity[]>([]);
-  const seen = useRef<string | null>(null);
-  const initialised = useRef(false);
+  // null — первого ответа опроса ещё не было: то, что уже лежит в непрочитанных
+  // при открытии админки, не всплывает.
+  const seen = useRef<SeenNotifications | null>(null);
 
   useEffect(() => {
     const page = unread.data;
     if (!page) return;
-    const newest = page.items[0] ?? null;
-    if (!initialised.current) {
-      initialised.current = true;
-      seen.current = newest?.id ?? null;
+    if (seen.current === null) {
+      seen.current = startSeen(page);
       return;
     }
-    if (!newest || newest.id === seen.current) return;
     const fresh = collectFresh(page, seen.current);
-    seen.current = newest.id;
     if (fresh.length === 0) return;
     setToasts((current) => [...fresh, ...current].slice(0, MAX_TOASTS));
     // Звук (и вибрация на телефоне) при открытой вкладке; SOS — настойчивее.

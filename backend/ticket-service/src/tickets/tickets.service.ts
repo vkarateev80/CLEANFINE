@@ -179,6 +179,17 @@ export class TicketsService {
         : {}),
     };
     await this.publisher.publish(ROUTING_KEYS.TICKET_CREATED, createdPayload);
+    if (!ticket.assigneeId && user.role === 'CLIENT' && ticket.type !== 'emergency') {
+      // Заявка заказчика без исполнителя (портал, 07.11.2026). ticket.created адресован
+      // исполнителю — без него notification-service уведомление не шлёт, а портал
+      // обещает, что менеджер увидит заявку сразу. Публикуем переход «→ new» с пустым
+      // previousStatus: его получают бригадиры, менеджеры и админы (автор — инициатор,
+      // ему не приходит). SOS исключён — у него своё ticket.emergency.
+      await this.publisher.publish(
+        ROUTING_KEYS.TICKET_STATUS_CHANGED,
+        statusChangedPayload(ticket, 'new', '', user, now),
+      );
+    }
     if (ticket.assigneeId) {
       const assignedPayload: TicketAssignedPayload = {
         ticketId: ticket.id,

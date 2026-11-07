@@ -173,7 +173,7 @@ export function TicketsReport({
                   <h2 className="text-sm font-medium text-neutral-700">
                     Разрез по объектам и типам
                   </h2>
-                  <span className="text-xs text-neutral-400">источник: ticket-service</span>
+                  <span className="text-xs text-neutral-400">по данным заявок</span>
                 </div>
                 <ResponsiveTable<TicketExecutionRow>
                   items={rows}

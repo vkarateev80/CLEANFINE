@@ -227,7 +227,7 @@ export function GeofenceReport({
                     Посещения объектов (порог 5 минут)
                   </h2>
                   <span className="text-xs text-neutral-400">
-                    источник: gps-service, PostGIS-геозоны
+                    по GPS-отметкам в геозонах объектов
                   </span>
                 </div>
                 <ResponsiveTable<GeofenceControlReportRow>

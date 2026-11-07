@@ -120,7 +120,7 @@ export function DashboardPage() {
         <KpiCard
           label="Заявки за 30 дней"
           value={String(tickets.data?.ticketsTotal ?? 0)}
-          hint="ticket-service · ticket_execution_totals"
+          hint="по данным заявок"
           testId="kpi-tickets-total"
           footer={
             tickets.data ? (
@@ -155,7 +155,7 @@ export function DashboardPage() {
           label="Расход материалов"
           value={formatMoney(consumption.data?.cost30d ?? 0)}
           unit="₽"
-          hint="material-service · report_material_consumption_daily"
+          hint="по списаниям материалов"
           testId="kpi-materials-cost"
           footer={
             consumption.data ? (
@@ -183,7 +183,7 @@ export function DashboardPage() {
                 ? 'warning'
                 : 'danger'
           }
-          hint="schedule-service · staff_control_totals"
+          hint="по отметкам прихода и ухода"
           testId="kpi-staff-attendance"
           footer={
             staff.data ? (
@@ -204,7 +204,7 @@ export function DashboardPage() {
         <KpiCard
           label="Посещений объектов"
           value={String(geofences.data?.visitsCount ?? 0)}
-          hint="gps-service · staff_geofence_control"
+          hint="по GPS-отметкам в геозонах"
           testId="kpi-geofence-visits"
           footer={
             geofences.data ? (

@@ -17,8 +17,10 @@ import {
 import type { ConsumptionReport, MaterialConsumptionRow, StockView } from '../../types/materials';
 import type { TicketListItem } from '../../types/tickets';
 import type { ScheduleEventEntity } from '../../types/schedule';
+import { buildCsv } from '../../lib/csv';
 import {
   firstDayOfMonth,
+  formatConsumedByUnit,
   formatDate,
   formatDateShort,
   formatMoney,
@@ -615,7 +617,8 @@ function MaterialsTab({
                   className="whitespace-nowrap font-mono text-sm text-neutral-900"
                   data-testid="portal-report-total"
                 >
-                  {formatNumber(report?.totals.consumedQuantity ?? 0, 2)}
+                  {/* По единицам: литры со штуками не складываются. */}
+                  {formatConsumedByUnit(rows)}
                 </div>
                 <div className="whitespace-nowrap font-mono text-xs text-neutral-600">
                   {formatMoney(report?.totals.cost ?? 0)}
@@ -679,24 +682,12 @@ function MaterialsTab({
   );
 }
 
-/**
- * CSV формируется на клиенте (`reports.md` п. 7.4): разделитель `;` — Excel в
- * русской локали, UTF-8 с BOM — иначе Excel покажет кириллицу кракозябрами.
- */
+/** CSV формируется на клиенте (`reports.md` п. 7.4); формат — `lib/csv.ts`. */
 function downloadCsv(rows: MaterialConsumptionRow[], period: Period, objectName: string): void {
-  const header = ['Материал', 'Единица', 'Израсходовано', 'Операций', 'Стоимость'];
-  const lines = rows.map((row) =>
-    [
-      row.name,
-      row.unit,
-      String(row.consumedQuantity),
-      String(row.operationsCount),
-      String(row.cost),
-    ]
-      .map((value) => `"${value.replace(/"/g, '""')}"`)
-      .join(';'),
+  const body = buildCsv(
+    ['Материал', 'Единица', 'Израсходовано', 'Операций', 'Стоимость'],
+    rows.map((row) => [row.name, row.unit, row.consumedQuantity, row.operationsCount, row.cost]),
   );
-  const body = `\uFEFF${[header.join(';'), ...lines].join('\r\n')}`;
   const blob = new Blob([body], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
