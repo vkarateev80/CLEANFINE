@@ -22,6 +22,7 @@ import {
 import { pageSizeFromParam, toggleDisabledType } from './notificationHelpers';
 import { formatDateTime } from '../Tickets/ticketHelpers';
 import {
+  UNREAD_POLL_MS,
   useMarkNotificationRead,
   useNotificationSettings,
   useNotifications,
@@ -93,7 +94,7 @@ export function NotificationsPage() {
         title={total > 0 ? `Уведомления · ${total}` : 'Уведомления'}
         subtitle={
           unreadCount > 0
-            ? `Непрочитанных: ${unreadCount}. Счётчик обновляется каждые 30 секунд.`
+            ? `Непрочитанных: ${unreadCount}. Счётчик обновляется каждые ${UNREAD_POLL_MS / 1000} секунд.`
             : 'Все уведомления прочитаны'
         }
         actions={
