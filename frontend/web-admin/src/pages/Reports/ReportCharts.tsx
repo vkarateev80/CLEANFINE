@@ -220,7 +220,7 @@ export function DashboardTicketsChart({ series }: { series: TicketDailyPoint[] }
   return (
     <ChartCard
       title="Заявки за 30 дней"
-      hint="источник: read-модель ticket-service"
+      hint="по данным заявок"
       testId="dashboard-chart-tickets"
     >
       <LineChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
@@ -262,7 +262,7 @@ export function DashboardConsumptionChart({ series }: { series: ConsumptionSerie
   return (
     <ChartCard
       title="Расход материалов за 30 дней"
-      hint="источник: read-модель material-service"
+      hint="по списаниям материалов"
       testId="dashboard-chart-consumption"
     >
       <BarChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>

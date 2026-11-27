@@ -95,7 +95,7 @@ export function ReportsPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Отчёты"
-        subtitle="Аналитика по объектам, заявкам и персоналу: read-модели сервисов за выбранный период."
+        subtitle="Аналитика по объектам, заявкам и персоналу за выбранный период."
         actions={
           <div className="flex flex-wrap items-end gap-3">
             {periods.map((period) => (

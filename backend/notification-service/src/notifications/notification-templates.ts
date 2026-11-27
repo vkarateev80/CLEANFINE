@@ -25,10 +25,13 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationType, NotificationTempla
     body: 'Вам назначена задача: {ticketDescription}',
     priority: 'normal',
   },
+  // {type} — вид тревоги по-русски, {place} — «объект, этаж/помещение» без висящей
+  // запятой; оба собирает resolveEvent (07.11.2026: ticket-service присылает код
+  // типа заявки `emergency`, и пользователь видел «emergency на объекте …, »).
   EMERGENCY: {
     type: 'EMERGENCY',
     title: '🚨 АВАРИЙНАЯ СИТУАЦИЯ',
-    body: '{type} на объекте {objectName}, {floor}',
+    body: '{type} на объекте {place}',
     priority: 'high',
   },
   TICKET_OVERDUE: {

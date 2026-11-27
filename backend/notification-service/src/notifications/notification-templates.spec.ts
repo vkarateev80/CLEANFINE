@@ -65,8 +65,7 @@ describe('renderTemplate', () => {
   it('рендерит EMERGENCY', () => {
     const rendered = renderTemplate('EMERGENCY', {
       type: 'Затопление',
-      objectName: 'БЦ «Северный»',
-      floor: '3 этаж',
+      place: 'БЦ «Северный», 3 этаж',
     });
 
     expect(rendered.title).toBe('🚨 АВАРИЙНАЯ СИТУАЦИЯ');

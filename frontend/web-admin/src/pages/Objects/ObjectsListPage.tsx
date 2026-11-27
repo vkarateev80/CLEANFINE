@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { createObject, deleteObject, listObjects, updateObject } from '../../api/core';
@@ -20,7 +20,7 @@ import {
   type ResponsiveColumn,
 } from '../../components/ui';
 import { listUsers } from '../../api/users';
-import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useUrlSearchInput } from '../../hooks/useUrlSearchInput';
 import { useCanEdit, useIsAdmin } from '../../hooks/usePermissions';
 import { ROUTES } from '../../router/routes';
 import type { SessionUser } from '../../types';
@@ -101,8 +101,6 @@ export function ObjectsListPage() {
   const status = params.get('status') ?? '';
   const type = params.get('type') ?? '';
 
-  const [searchInput, setSearchInput] = useState(search);
-  const debouncedSearch = useDebouncedValue(searchInput, 300);
   const [sort, setSort] = useState<{ key: SortKey; order: SortOrder }>({
     key: 'name',
     order: 'asc',
@@ -135,20 +133,12 @@ export function ObjectsListPage() {
     );
   }
 
-  // Обратная навигация браузера меняет query-строку, а контрол поиска — локальное
-  // состояние: без синхронизации в поле остался бы прежний запрос. Проверка
-  // `search !== debouncedSearch` не даёт эффекту затирать ввод: пока debounce не
-  // догнал URL, значения расходятся штатно.
-  useEffect(() => {
-    if (search !== debouncedSearch) setSearchInput(search);
-  }, [search, debouncedSearch]);
-
-  useEffect(() => {
-    if (debouncedSearch === search) return;
-    updateParams({ search: debouncedSearch === '' ? null : debouncedSearch, skip: null });
-    // updateParams читает параметры через функциональную форму setParams, поэтому
-    // в зависимостях достаточно отложенного значения поиска.
-  }, [debouncedSearch]);
+  // Поле поиска ↔ `?search=`: обратная навигация и «Сбросить фильтры» переносятся
+  // в поле, ввод уходит в URL с задержкой (см. useUrlSearchInput — там же про
+  // прежнюю гонку двух эффектов, стиравшую набранный текст).
+  const [searchInput, setSearchInput] = useUrlSearchInput(search, (value) =>
+    updateParams({ search: value === '' ? null : value, skip: null }),
+  );
 
   const query = useQuery({
     queryKey: ['objects', { skip, take, status, type, search }],

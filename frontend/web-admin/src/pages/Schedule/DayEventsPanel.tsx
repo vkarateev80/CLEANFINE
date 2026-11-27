@@ -61,7 +61,7 @@ export function generationSummary(result: GenerationResult): string {
     `заявок до-создано: ${result.ticketsBackfilled}`,
   ];
   if (result.ticketsFailed > 0) parts.push(`заявок не создано: ${result.ticketsFailed}`);
-  if (result.ticketServiceUnavailable) parts.push('ticket-service был недоступен');
+  if (result.ticketServiceUnavailable) parts.push('сервис заявок был недоступен');
   if (result.errors.length > 0) parts.push(`ошибки: ${result.errors.join('; ')}`);
   return parts.join(' · ');
 }

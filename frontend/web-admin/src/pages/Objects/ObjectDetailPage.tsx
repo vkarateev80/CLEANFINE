@@ -6,6 +6,7 @@ import {
   deleteFloor,
   getObjectDetail,
   listFloors,
+  listTechCards,
   updateFloor,
   updateObject,
   uploadFloorPlan,
@@ -164,6 +165,19 @@ export function ObjectDetailPage() {
     [floorsQuery.data],
   );
   const archived = detail?.status === 'ARCHIVED';
+
+  // Техкарты для колонки «Техкарта» сводки помещений: показываем название, а не
+  // UUID (07.11.2026). Тот же ключ и размер выборки, что у плана этажа, — кэш общий.
+  const techCardsQuery = useQuery({
+    queryKey: ['tech-cards', { skip: 0, take: 100 }],
+    queryFn: () => listTechCards({ skip: 0, take: 100 }),
+    enabled: tab === 'rooms',
+    staleTime: 60_000,
+  });
+  const techCardNames = useMemo(
+    () => new Map((techCardsQuery.data?.items ?? []).map((card) => [card.id, card.name])),
+    [techCardsQuery.data],
+  );
 
   const allRooms = useMemo(
     () => (detail?.floors ?? []).flatMap((floor) => floor.rooms.map((room) => ({ floor, room }))),
@@ -587,8 +601,10 @@ export function ObjectDetailPage() {
       key: 'techCard',
       header: 'Техкарта',
       thClassName: 'w-[160px]',
+      // Название из справочника; пока он грузится или карта удалена — нейтральная
+      // подпись вместо UUID.
       cell: ({ room }) =>
-        room.techCardId ? <span className="font-mono text-xs">{room.techCardId}</span> : '—',
+        room.techCardId ? (techCardNames.get(room.techCardId) ?? 'Техкарта назначена') : '—',
       card: 'field',
       cardLabel: 'Техкарта',
     },

@@ -250,7 +250,7 @@ export function StaffReport({
                 <div className="flex items-baseline justify-between gap-3 p-4">
                   <h2 className="text-sm font-medium text-neutral-700">Смены по сотрудникам</h2>
                   <span className="text-xs text-neutral-400">
-                    источник: schedule-service (check-in/check-out)
+                    по отметкам прихода и ухода
                   </span>
                 </div>
                 <ResponsiveTable<StaffControlReportRow>

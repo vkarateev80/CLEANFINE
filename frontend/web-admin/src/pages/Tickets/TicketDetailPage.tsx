@@ -597,7 +597,7 @@ export function TicketDetailPage() {
                           {operation.requiresPhoto && (
                             <Input
                               aria-label={`URL фото для операции «${operation.name}»`}
-                              placeholder="URL фото (file-service)"
+                              placeholder="Ссылка на фото"
                               className="max-w-[240px] text-xs"
                               value={photoUrls[operation.id] ?? ''}
                               onChange={(event) =>

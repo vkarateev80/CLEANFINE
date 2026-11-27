@@ -19,8 +19,10 @@ import {
   ticketIdFromPayload,
   type NotificationType,
 } from '../../types/notifications';
+import { pageSizeFromParam, toggleDisabledType } from './notificationHelpers';
 import { formatDateTime } from '../Tickets/ticketHelpers';
 import {
+  UNREAD_POLL_MS,
   useMarkNotificationRead,
   useNotificationSettings,
   useNotifications,
@@ -33,20 +35,20 @@ import {
  *
  * Пагинация уведомлений — страницами (`page`/`limit`), а не skip/take: так устроен
  * `ListNotificationsQueryDto`. Общий компонент `Pagination` работает с skip/take,
- * поэтому страница переводит одно в другое (limit фиксирован — 25).
+ * поэтому страница переводит одно в другое. Размер страницы — `?limit=` (25/50/100;
+ * до 07.11.2026 был зашит 25, и селектор «На странице» ничего не менял).
  */
-
-const LIMIT = 25;
 
 export function NotificationsPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
 
   const page = Math.max(1, Number(params.get('page') ?? '1') || 1);
+  const limit = pageSizeFromParam(params.get('limit'));
   const unreadOnly = params.get('unreadOnly') === 'true';
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const query = useNotifications({ page, limit: LIMIT, unreadOnly });
+  const query = useNotifications({ page, limit, unreadOnly });
   const settings = useNotificationSettings();
   const updateSettings = useUpdateNotificationSettings();
   const markRead = useMarkNotificationRead();
@@ -55,12 +57,14 @@ export function NotificationsPage() {
   const total = query.data?.total ?? 0;
   const unreadCount = query.data?.unreadCount ?? 0;
 
-  function setPage(nextPage: number) {
+  function setPage(nextPage: number, nextLimit: number) {
     setParams(
       (current) => {
         const next = new URLSearchParams(current);
         if (nextPage <= 1) next.delete('page');
         else next.set('page', String(nextPage));
+        if (nextLimit === pageSizeFromParam(null)) next.delete('limit');
+        else next.set('limit', String(nextLimit));
         return next;
       },
       { replace: true },
@@ -81,18 +85,7 @@ export function NotificationsPage() {
   }
 
   function toggleType(type: NotificationType) {
-    // PATCH принимает только известные типы (`@IsIn(NOTIFICATION_TYPES)`), поэтому
-    // собираем новый список явно, а не фильтруем ответ бэкенда (он приходит как string[]).
-    const disabled = settings.data?.disabledTypes ?? [];
-    const next: NotificationType[] = [];
-    for (const item of NOTIFICATION_TYPES) {
-      if (item === type) {
-        if (disabled.includes(item)) next.push(item);
-      } else if (disabled.includes(item)) {
-        next.push(item);
-      }
-    }
-    updateSettings.mutate(next);
+    updateSettings.mutate(toggleDisabledType(settings.data?.disabledTypes ?? [], type));
   }
 
   return (
@@ -101,7 +94,7 @@ export function NotificationsPage() {
         title={total > 0 ? `Уведомления · ${total}` : 'Уведомления'}
         subtitle={
           unreadCount > 0
-            ? `Непрочитанных: ${unreadCount}. Счётчик обновляется каждые 30 секунд.`
+            ? `Непрочитанных: ${unreadCount}. Счётчик обновляется каждые ${UNREAD_POLL_MS / 1000} секунд.`
             : 'Все уведомления прочитаны'
         }
         actions={
@@ -255,10 +248,11 @@ export function NotificationsPage() {
 
           <Pagination
             total={total}
-            skip={(page - 1) * LIMIT}
-            take={LIMIT}
+            skip={(page - 1) * limit}
+            take={limit}
             disabled={query.isFetching}
-            onChange={({ skip }) => setPage(Math.floor(skip / LIMIT) + 1)}
+            // Смена размера приходит со `skip: 0` — это первая страница.
+            onChange={({ skip, take }) => setPage(Math.floor(skip / take) + 1, take)}
           />
         </Card>
       )}

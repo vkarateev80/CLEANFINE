@@ -381,6 +381,45 @@ describe('TicketsService (М3.4–М3.6)', () => {
       expect(publisher.publish).toHaveBeenCalledTimes(1);
     });
 
+    it('заявка заказчика без исполнителя: ticket.status_changed → new для бригадиров и админов', async () => {
+      const client: AuthUser = { ...USER, id: 'u-client', role: 'CLIENT', fullName: 'ООО «Ромашка»' };
+      prisma.ticket.create.mockResolvedValue(
+        ticketFixture({ type: 'unscheduled', createdBy: 'u-client' }),
+      );
+
+      await service.create(
+        { type: 'unscheduled', objectId: 'obj-1', description: 'Протечка в санузле' },
+        client,
+      );
+
+      expect(publisher.publish).toHaveBeenCalledWith(
+        ROUTING_KEYS.TICKET_STATUS_CHANGED,
+        expect.objectContaining({
+          ticketId: 't-1',
+          status: 'new',
+          previousStatus: '',
+          type: 'unscheduled',
+          createdBy: 'u-client',
+          actorId: 'u-client',
+          actorName: 'ООО «Ромашка»',
+        }),
+      );
+      expect(publisher.publish).toHaveBeenCalledTimes(2);
+    });
+
+    it('SOS заказчика — без лишнего status_changed (у него своё ticket.emergency)', async () => {
+      const client: AuthUser = { ...USER, id: 'u-client', role: 'CLIENT' };
+      prisma.ticket.create.mockResolvedValue(ticketFixture({ type: 'emergency', createdBy: 'u-client' }));
+      await service.create(
+        { type: 'emergency', objectId: 'obj-1', description: 'Прорыв трубы' },
+        client,
+      );
+      expect(publisher.publish).not.toHaveBeenCalledWith(
+        ROUTING_KEYS.TICKET_STATUS_CHANGED,
+        expect.anything(),
+      );
+    });
+
     it('внеплановая заявка с приоритетом high и координатами', async () => {
       prisma.ticket.create.mockResolvedValue(
         ticketFixture({ type: 'unscheduled', priority: 'high' }),

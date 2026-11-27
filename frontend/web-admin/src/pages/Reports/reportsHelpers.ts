@@ -114,16 +114,50 @@ export function objectLabel(objectId: string | null, names: Map<string, string>)
   return names.get(objectId) ?? `Объект ${objectId.slice(0, 8)}`;
 }
 
+/**
+ * Расход по единицам измерения: литры и штуки не складываются (07.11.2026 —
+ * «Израсходовано» показывало одну сумму по всем материалам). Порядок — по
+ * алфавиту единиц, суммы округлены до тысячных (защита от шума float).
+ */
+export function consumedByUnit(
+  rows: ReadonlyArray<{ unit: string; consumedQuantity: number }>,
+): Array<{ unit: string; quantity: number }> {
+  const sums = new Map<string, number>();
+  for (const row of rows) {
+    const unit = row.unit.trim() || 'ед.';
+    sums.set(unit, (sums.get(unit) ?? 0) + row.consumedQuantity);
+  }
+  return [...sums.entries()]
+    .sort(([left], [right]) => left.localeCompare(right, 'ru'))
+    .map(([unit, quantity]) => ({ unit, quantity: Math.round(quantity * 1000) / 1000 }));
+}
+
+/** «12,5 л · 30 шт»; пустой отчёт — «0». */
+export function formatConsumedByUnit(
+  rows: ReadonlyArray<{ unit: string; consumedQuantity: number }>,
+): string {
+  const parts = consumedByUnit(rows).map(
+    ({ unit, quantity }) => `${formatNumber(quantity)} ${unit}`,
+  );
+  return parts.length === 0 ? '0' : parts.join(' · ');
+}
+
 // ---------------------------------------------------------------------- CSV
 
-/** Значение ячейки CSV: числа — как есть, строки — в кавычках, если содержат разделитель. */
+/**
+ * Число для CSV: десятичная ЗАПЯТАЯ (07.11.2026). Файл открывают в русском Excel —
+ * «12.5» он читает как текст (не суммируется, прижат влево), «12,5» — как число.
+ * Колонки это не ломает: разделитель полей — точка с запятой (см. `buildCsv`).
+ */
+export function csvNumber(value: number): string {
+  if (!Number.isFinite(value)) return '';
+  return (Number.isInteger(value) ? String(value) : value.toFixed(2)).replace('.', ',');
+}
+
+/** Значение ячейки CSV: числа — с десятичной запятой, строки — в кавычках, если содержат разделитель. */
 function csvCell(value: string | number | null): string {
   if (value === null || value === undefined) return '';
-  if (typeof value === 'number') {
-    // Точка как десятичный разделитель: CSV читают Excel и Google Sheets,
-    // а русская локаль в файле превратила бы «12,5» в две колонки.
-    return Number.isInteger(value) ? String(value) : value.toFixed(2);
-  }
+  if (typeof value === 'number') return csvNumber(value);
   const text = value.replace(/\r?\n/g, ' ').trim();
   return /[";,\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
